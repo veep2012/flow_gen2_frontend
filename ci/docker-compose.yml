@@ -10,11 +10,26 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - flow_pg_data:/var/lib/postgresql/data
+      - ./init/flow_init.sql:/docker-entrypoint-initdb.d/00_flow_init.sql:ro
+      - ./init/flow_seed.sql:/docker-entrypoint-initdb.d/01_flow_seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flow_user} -d ${POSTGRES_DB:-flow_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  api:
+    container_name: flow_gen2_api
+    build:
+      context: ..
+      dockerfile: ci/Dockerfile
+    environment:
+      PORT: 5556
+    ports:
+      - "5556:5556"
+    depends_on:
+      - postgres
     restart: unless-stopped
 
 volumes:
