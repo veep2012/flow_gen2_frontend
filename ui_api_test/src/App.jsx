@@ -8,34 +8,35 @@ function useAreas() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let active = true;
-    async function load() {
-      try {
-        setLoading(true);
-        const res = await fetch(`${API_BASE}/api/v1/lookups/areas`);
-        if (!res.ok) {
-          throw new Error(`API error ${res.status}`);
-        }
-        const data = await res.json();
-        if (active) setAreas(data);
-      } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : "Unknown error");
-      } finally {
-        if (active) setLoading(false);
+  const fetchAreas = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/lookups/areas`);
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
       }
+      const data = await res.json();
+      setAreas(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
     }
-    load();
-    return () => {
-      active = false;
-    };
+  };
+
+  useEffect(() => {
+    fetchAreas();
   }, []);
 
-  return { areas, loading, error };
+  return { areas, loading, error, fetchAreas, setAreas };
 }
 
 export default function App() {
-  const { areas, loading, error } = useAreas();
+  const { areas, loading, error, fetchAreas, setAreas } = useAreas();
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ area_name: "", area_acronym: "" });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const header = useMemo(() => {
     if (loading) return "Loading areas…";
     if (error) return "Could not load areas";
@@ -65,6 +66,7 @@ export default function App() {
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
+        {saveError && <div className="alert alert-error">{saveError}</div>}
         {!error && areas.length === 0 && !loading && (
           <div className="alert">No areas available</div>
         )}
@@ -74,18 +76,101 @@ export default function App() {
             <span>ID</span>
             <span>Name</span>
             <span>Acronym</span>
+            <span>Actions</span>
           </div>
           <div className="table-body">
             {areas.map((area) => (
               <div className="table-row" key={area.area_id}>
                 <span>{area.area_id}</span>
-                <span>{area.area_name}</span>
-                <span className="tag">{area.area_acronym}</span>
+                {editingId === area.area_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={form.area_name}
+                      onChange={(e) => setForm((f) => ({ ...f, area_name: e.target.value }))}
+                    />
+                    <input
+                      className="input"
+                      value={form.area_acronym}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, area_acronym: e.target.value }))
+                      }
+                    />
+                  </>
+                ) : (
+                  <>
+                    <span>{area.area_name}</span>
+                    <span className="tag">{area.area_acronym}</span>
+                  </>
+                )}
+                <span className="actions">
+                  {editingId === area.area_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={saving}
+                        onClick={async () => {
+                          setSaveError("");
+                          setSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/lookups/areas/update`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                area_id: area.area_id,
+                                area_name: form.area_name,
+                                area_acronym: form.area_acronym,
+                              }),
+                            });
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setAreas((prev) =>
+                              prev.map((it) => (it.area_id === area.area_id ? updated : it)),
+                            );
+                            setEditingId(null);
+                          } catch (err) {
+                            setSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setSaving(false);
+                          }
+                        }}
+                      >
+                        {saving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={saving}
+                        onClick={() => {
+                          setEditingId(null);
+                          setSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        setEditingId(area.area_id);
+                        setForm({
+                          area_name: area.area_name,
+                          area_acronym: area.area_acronym,
+                        });
+                      }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </span>
               </div>
             ))}
             {loading && (
               <div className="table-row muted">
-                <span colSpan={3}>Fetching…</span>
+                <span colSpan={4}>Fetching…</span>
               </div>
             )}
           </div>

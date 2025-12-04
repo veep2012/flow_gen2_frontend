@@ -45,7 +45,7 @@ ui-test-down:
 	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) stop ui_api_test
 
 app-up:
-	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d --build api
+	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d --build api ui_api_test
 
 app-down:
 	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) down

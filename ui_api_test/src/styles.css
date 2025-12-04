@@ -108,7 +108,7 @@ h1 {
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: 80px 1fr 120px;
+  grid-template-columns: 80px 1fr 120px 140px;
   gap: 12px;
   padding: 10px 12px;
   border-radius: 10px;
@@ -129,6 +129,45 @@ h1 {
 
 .table-row:hover {
   border-color: rgba(22, 163, 74, 0.4);
+}
+
+.input {
+  width: 100%;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(22, 163, 74, 0.6);
+  background: rgba(22, 163, 74, 0.15);
+  color: #bbf7d0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: rgba(22, 163, 74, 0.9);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
 }
 
 .tag {
@@ -153,6 +192,7 @@ h1 {
 
   .table-head,
   .table-row {
+    grid-template-columns: 60px 1fr 90px;
     grid-template-columns: 60px 1fr 90px;
   }
 }
