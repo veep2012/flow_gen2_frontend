@@ -33,6 +33,7 @@ function useAreas() {
 
 export default function App() {
   const { areas, loading, error, fetchAreas, setAreas } = useAreas();
+  const [createForm, setCreateForm] = useState({ area_name: "", area_acronym: "" });
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ area_name: "", area_acronym: "" });
   const [saving, setSaving] = useState(false);
@@ -70,6 +71,52 @@ export default function App() {
         {!error && areas.length === 0 && !loading && (
           <div className="alert">No areas available</div>
         )}
+
+        <div className="panel subpanel">
+          <h3>Add area</h3>
+          <div className="create-row">
+            <input
+              className="input"
+              placeholder="Area name"
+              value={createForm.area_name}
+              onChange={(e) => setCreateForm((f) => ({ ...f, area_name: e.target.value }))}
+            />
+            <input
+              className="input"
+              placeholder="Acronym"
+              value={createForm.area_acronym}
+              onChange={(e) => setCreateForm((f) => ({ ...f, area_acronym: e.target.value }))}
+            />
+            <button
+              className="btn"
+              disabled={saving || !createForm.area_name || !createForm.area_acronym}
+              onClick={async () => {
+                setSaveError("");
+                setSaving(true);
+                try {
+                  const res = await fetch(`${API_BASE}/api/v1/lookups/areas/insert`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(createForm),
+                  });
+                  if (!res.ok) {
+                    const detail = await res.json().catch(() => ({}));
+                    throw new Error(detail.detail || `Create failed (${res.status})`);
+                  }
+                  const created = await res.json();
+                  setAreas((prev) => [...prev, created]);
+                  setCreateForm({ area_name: "", area_acronym: "" });
+                } catch (err) {
+                  setSaveError(err instanceof Error ? err.message : "Create failed");
+                } finally {
+                  setSaving(false);
+                }
+              }}
+            >
+              {saving ? "Saving…" : "Add"}
+            </button>
+          </div>
+        </div>
 
         <div className="table">
           <div className="table-head">

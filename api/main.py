@@ -45,6 +45,11 @@ class AreaUpdate(BaseModel):
     area_acronym: str | None = None
 
 
+class AreaCreate(BaseModel):
+    area_name: str
+    area_acronym: str
+
+
 def get_db() -> Iterable[Session]:
     db = SessionLocal()
     try:
@@ -91,5 +96,18 @@ def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
         db.rollback()
         raise HTTPException(status_code=400, detail="Area name or acronym already exists")
 
+    db.refresh(area)
+    return area
+
+
+@app.post("/api/v1/lookups/areas/insert", response_model=AreaOut, status_code=201)
+def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
+    area = Area(area_name=payload.area_name, area_acronym=payload.area_acronym)
+    db.add(area)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Area name or acronym already exists")
     db.refresh(area)
     return area

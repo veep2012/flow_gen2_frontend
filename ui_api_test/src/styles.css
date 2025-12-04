@@ -75,6 +75,12 @@ h1 {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
 }
 
+.subpanel {
+  margin-bottom: 14px;
+  padding: 14px 12px;
+  border-style: dashed;
+}
+
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -170,6 +176,13 @@ h1 {
   color: var(--text);
 }
 
+.create-row {
+  display: grid;
+  grid-template-columns: 1fr 200px 120px;
+  gap: 12px;
+  align-items: center;
+}
+
 .tag {
   display: inline-flex;
   align-items: center;
@@ -192,7 +205,14 @@ h1 {
 
   .table-head,
   .table-row {
-    grid-template-columns: 60px 1fr 90px;
-    grid-template-columns: 60px 1fr 90px;
+    grid-template-columns: 60px 1fr 90px 100px;
+  }
+
+  .create-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .create-row .btn {
+    grid-column: span 2;
   }
 }
