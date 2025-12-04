@@ -1,13 +1,40 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+import os
+from typing import Iterable
+
+from fastapi import Depends, FastAPI, HTTPException
+from pydantic import BaseModel, ConfigDict
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from db.models import Area
+
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+psycopg://flow_user:flow_pass@postgres:5432/flow_db",
+)
+
+engine = create_engine(DATABASE_URL, future=True)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
 app = FastAPI(title="Flow Backend", version="0.1.0")
 
 
-class Item(BaseModel):
-    name: str
-    description: str | None = None
+class AreaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    area_id: int
+    area_name: str
+    area_acronym: str
+
+
+def get_db() -> Iterable[Session]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @app.get("/")
@@ -20,12 +47,9 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/api/v1/items/{item_id}")
-def read_item(item_id: int, q: str | None = None) -> dict[str, object]:
-    return {"item_id": item_id, "query": q}
-
-
-@app.post("/api/v1/items")
-def create_item(item: Item) -> dict[str, object]:
-    return {"id": 1, "item": item}
-
+@app.get("/api/v1/lookups/areas", response_model=list[AreaOut])
+def list_areas(db: Session = Depends(get_db)) -> list[Area]:
+    areas = db.query(Area).order_by(Area.area_name).all()
+    if not areas:
+        raise HTTPException(status_code=404, detail="No areas found")
+    return areas
