@@ -3,11 +3,11 @@ services:
     image: postgres:16-alpine
     container_name: flow_gen2_postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-flow_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flow_pass}
-      POSTGRES_DB: ${POSTGRES_DB:-flow_db}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT}:5432"
     volumes:
       - flow_pg_data:/var/lib/postgresql/data
       - ./init/flow_init.sql:/docker-entrypoint-initdb.d/00_flow_init.sql:ro
@@ -30,6 +30,19 @@ services:
       - "5556:5556"
     depends_on:
       - postgres
+    restart: unless-stopped
+
+  ui_api_test:
+    container_name: flow_gen2_ui_api_test
+    build:
+      context: ..
+      dockerfile: ci/Dockerfile.ui_api_test
+    environment:
+      - VITE_API_BASE_URL=http://localhost:5556
+    ports:
+      - "5557:5557"
+    depends_on:
+      - api
     restart: unless-stopped
 
 volumes:

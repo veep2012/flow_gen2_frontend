@@ -9,6 +9,8 @@ help:
 	@echo "Available targets:"
 	@echo "  app-up    Build and start API (and Postgres via depends_on)"
 	@echo "  app-down  Stop containers"
+	@echo "  ui-test-up     Build and start UI test container on port 5557"
+	@echo "  ui-test-down   Stop UI test container"
 	@echo "  db-logs   Tail Postgres logs"
 	@echo "  db-ps     Show compose process status"
 	@echo "  db-reset  Stop and remove containers and volumes"
@@ -36,8 +38,14 @@ api-up:
 api-logs:
 	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) logs -f api
 
+ui-test-up:
+	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d --build ui_api_test
+
+ui-test-down:
+	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) stop ui_api_test
+
 app-up:
-	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d --build api
+	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d --build api ui_api_test
 
 app-down:
 	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) down
