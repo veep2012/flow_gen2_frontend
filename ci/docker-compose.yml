@@ -32,5 +32,18 @@ services:
       - postgres
     restart: unless-stopped
 
+  ui_api_test:
+    container_name: flow_gen2_ui_api_test
+    build:
+      context: ..
+      dockerfile: ci/Dockerfile.ui_api_test
+    environment:
+      - VITE_API_BASE_URL=http://localhost:5556
+    ports:
+      - "5557:5557"
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   flow_pg_data:
