@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from db.models import Area
@@ -38,6 +39,12 @@ class AreaOut(BaseModel):
     area_acronym: str
 
 
+class AreaUpdate(BaseModel):
+    area_id: int
+    area_name: str | None = None
+    area_acronym: str | None = None
+
+
 def get_db() -> Iterable[Session]:
     db = SessionLocal()
     try:
@@ -62,3 +69,27 @@ def list_areas(db: Session = Depends(get_db)) -> list[Area]:
     if not areas:
         raise HTTPException(status_code=404, detail="No areas found")
     return areas
+
+
+@app.post("/api/v1/lookups/areas/update", response_model=AreaOut)
+def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
+    if payload.area_name is None and payload.area_acronym is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    area = db.get(Area, payload.area_id)
+    if not area:
+        raise HTTPException(status_code=404, detail="Area not found")
+
+    if payload.area_name is not None:
+        area.area_name = payload.area_name
+    if payload.area_acronym is not None:
+        area.area_acronym = payload.area_acronym
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Area name or acronym already exists")
+
+    db.refresh(area)
+    return area
