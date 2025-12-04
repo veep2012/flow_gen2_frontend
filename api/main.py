@@ -50,6 +50,10 @@ class AreaCreate(BaseModel):
     area_acronym: str
 
 
+class AreaDelete(BaseModel):
+    area_id: int
+
+
 def get_db() -> Iterable[Session]:
     db = SessionLocal()
     try:
@@ -111,3 +115,12 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
         raise HTTPException(status_code=400, detail="Area name or acronym already exists")
     db.refresh(area)
     return area
+
+
+@app.post("/api/v1/lookups/areas/delete", status_code=204)
+def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
+    area = db.get(Area, payload.area_id)
+    if not area:
+        raise HTTPException(status_code=404, detail="Area not found")
+    db.delete(area)
+    db.commit()

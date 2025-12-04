@@ -149,6 +149,7 @@ h1 {
 .actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .btn {

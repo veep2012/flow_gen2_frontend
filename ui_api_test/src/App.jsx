@@ -199,18 +199,46 @@ export default function App() {
                       </button>
                     </>
                   ) : (
-                    <button
-                      className="btn"
-                      onClick={() => {
-                        setEditingId(area.area_id);
-                        setForm({
-                          area_name: area.area_name,
-                          area_acronym: area.area_acronym,
-                        });
-                      }}
-                    >
-                      Edit
-                    </button>
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setEditingId(area.area_id);
+                          setForm({
+                            area_name: area.area_name,
+                            area_acronym: area.area_acronym,
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={saving}
+                        onClick={async () => {
+                          setSaveError("");
+                          setSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/lookups/areas/delete`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ area_id: area.area_id }),
+                            });
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setAreas((prev) => prev.filter((it) => it.area_id !== area.area_id));
+                          } catch (err) {
+                            setSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
                   )}
                 </span>
               </div>
