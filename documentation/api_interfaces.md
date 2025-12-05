@@ -269,6 +269,87 @@ Milestones include `milestone_id`, `milestone_name`, and optional integer `progr
 - Success: `204` with empty body.
 - Errors: `404` if `milestone_id` not found.
 
+## Revision overview lookups
+Revision overview entries include `rev_code_id`, `rev_code_name`, `rev_code_acronym`, `rev_description`, and optional `percentage`.
+
+### List revision overview
+- `GET /api/v1/lookups/revision_overview`
+- Success: `200` sorted by `rev_code_name`.
+- Errors: `404` if none exist.
+
+### Insert revision overview entry
+- `POST /api/v1/lookups/revision_overview/insert`
+- Body:
+```json
+{
+  "rev_code_name": "IFC",
+  "rev_code_acronym": "E",
+  "rev_description": "Issued for Construction",
+  "percentage": 90
+}
+```
+- Success: `201` with created entry.
+- Errors: `400` on uniqueness conflicts.
+
+### Update revision overview entry
+- `POST /api/v1/lookups/revision_overview/update`
+- Body (any field optional but at least one required):
+```json
+{
+  "rev_code_id": 5,
+  "rev_code_name": "AFC",
+  "rev_code_acronym": "C",
+  "rev_description": "Approved for Construction",
+  "percentage": 100
+}
+```
+- Success: `200` with updated entry.
+- Errors: `400` if no fields or uniqueness conflict; `404` if `rev_code_id` not found.
+
+### Delete revision overview entry
+- `POST /api/v1/lookups/revision_overview/delete`
+- Body:
+```json
+{ "rev_code_id": 5 }
+```
+- Success: `204` with empty body.
+- Errors: `404` if `rev_code_id` not found.
+
+## Doc revision status lookups
+Statuses include `rev_status_id` and `rev_status_name`.
+
+### List doc revision statuses
+- `GET /api/v1/lookups/doc_rev_statuses`
+- Success: `200` sorted by `rev_status_name`.
+- Errors: `404` if none exist.
+
+### Insert doc revision status
+- `POST /api/v1/lookups/doc_rev_statuses/insert`
+- Body:
+```json
+{ "rev_status_name": "In review" }
+```
+- Success: `201` with created status.
+- Errors: `400` on uniqueness conflicts.
+
+### Update doc revision status
+- `POST /api/v1/lookups/doc_rev_statuses/update`
+- Body:
+```json
+{ "rev_status_id": 2, "rev_status_name": "In progress" }
+```
+- Success: `200` with updated status.
+- Errors: `400` if missing fields or uniqueness conflict; `404` if `rev_status_id` not found.
+
+### Delete doc revision status
+- `POST /api/v1/lookups/doc_rev_statuses/delete`
+- Body:
+```json
+{ "rev_status_id": 2 }
+```
+- Success: `204` with empty body.
+- Errors: `404` if `rev_status_id` not found.
+
 ## Error responses
 - `400` — Validation failed (e.g., missing update fields, unique constraint violations).
 - `404` — Resource not found or empty table.

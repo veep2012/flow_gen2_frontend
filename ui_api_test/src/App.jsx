@@ -199,6 +199,62 @@ function useMilestones() {
   return { milestones, loading, error, fetchMilestones, setMilestones };
 }
 
+function useRevisionOverview() {
+  const [revisionOverview, setRevisionOverview] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchRevisionOverview = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/lookups/revision_overview`);
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setRevisionOverview(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRevisionOverview();
+  }, []);
+
+  return { revisionOverview, loading, error, fetchRevisionOverview, setRevisionOverview };
+}
+
+function useDocRevStatuses() {
+  const [statuses, setStatuses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchStatuses = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/lookups/doc_rev_statuses`);
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setStatuses(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStatuses();
+  }, []);
+
+  return { statuses, loading, error, fetchStatuses, setStatuses };
+}
+
 export default function App() {
   const { areas, loading, error, fetchAreas, setAreas } = useAreas();
   const {
@@ -231,6 +287,20 @@ export default function App() {
     fetchMilestones,
     setMilestones,
   } = useMilestones();
+  const {
+    revisionOverview,
+    loading: revisionOverviewLoading,
+    error: revisionOverviewError,
+    fetchRevisionOverview,
+    setRevisionOverview,
+  } = useRevisionOverview();
+  const {
+    statuses,
+    loading: statusesLoading,
+    error: statusesError,
+    fetchStatuses,
+    setStatuses,
+  } = useDocRevStatuses();
   const [createForm, setCreateForm] = useState({ area_name: "", area_acronym: "" });
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ area_name: "", area_acronym: "" });
@@ -275,6 +345,26 @@ export default function App() {
   const [milestoneForm, setMilestoneForm] = useState({ milestone_name: "", progress: "" });
   const [milestoneSaving, setMilestoneSaving] = useState(false);
   const [milestoneSaveError, setMilestoneSaveError] = useState("");
+  const [revCreateForm, setRevCreateForm] = useState({
+    rev_code_name: "",
+    rev_code_acronym: "",
+    rev_description: "",
+    percentage: "",
+  });
+  const [revEditingId, setRevEditingId] = useState(null);
+  const [revForm, setRevForm] = useState({
+    rev_code_name: "",
+    rev_code_acronym: "",
+    rev_description: "",
+    percentage: "",
+  });
+  const [revSaving, setRevSaving] = useState(false);
+  const [revSaveError, setRevSaveError] = useState("");
+  const [statusCreateForm, setStatusCreateForm] = useState({ rev_status_name: "" });
+  const [statusEditingId, setStatusEditingId] = useState(null);
+  const [statusForm, setStatusForm] = useState({ rev_status_name: "" });
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusSaveError, setStatusSaveError] = useState("");
   const header = useMemo(() => {
     const areaLabel = loading ? "Loading areas…" : error ? "Areas unavailable" : `${areas.length} Areas`;
     const discLabel = disciplinesLoading
@@ -307,7 +397,17 @@ export default function App() {
       : milestonesError
         ? "Milestones unavailable"
         : `${milestones.length} Milestones`;
-    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel} • ${jobpackLabel} • ${roleLabel} • ${milestoneLabel}`;
+    const revisionLabel = revisionOverviewLoading
+      ? "Loading revisions…"
+      : revisionOverviewError
+        ? "Revisions unavailable"
+        : `${revisionOverview.length} Revision codes`;
+    const statusLabel = statusesLoading
+      ? "Loading statuses…"
+      : statusesError
+        ? "Statuses unavailable"
+        : `${statuses.length} Rev statuses`;
+    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel} • ${jobpackLabel} • ${roleLabel} • ${milestoneLabel} • ${revisionLabel} • ${statusLabel}`;
   }, [
     areas.length,
     disciplines.length,
@@ -316,6 +416,8 @@ export default function App() {
     jobpacks.length,
     roles.length,
     milestones.length,
+    revisionOverview.length,
+    statuses.length,
     loading,
     error,
     disciplinesLoading,
@@ -330,6 +432,10 @@ export default function App() {
     rolesError,
     milestonesLoading,
     milestonesError,
+    revisionOverviewLoading,
+    revisionOverviewError,
+    statusesLoading,
+    statusesError,
   ]);
 
   return (
@@ -532,6 +638,477 @@ export default function App() {
               </div>
             ))}
             {loading && (
+              <div className="table-row muted">
+                <span colSpan={4}>Fetching…</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Revision overview</h2>
+          <span className="status">
+            {revisionOverviewLoading ? "Loading…" : revisionOverviewError ? "Error" : "Ready"}
+          </span>
+        </div>
+
+        {revisionOverviewError && <div className="alert alert-error">{revisionOverviewError}</div>}
+        {revSaveError && <div className="alert alert-error">{revSaveError}</div>}
+        {!revisionOverviewError && revisionOverview.length === 0 && !revisionOverviewLoading && (
+          <div className="alert">No revision codes available</div>
+        )}
+
+        <div className="panel subpanel">
+          <h3>Add revision code</h3>
+          <div className="create-row rev-create">
+            <input
+              className="input"
+              placeholder="Code name"
+              value={revCreateForm.rev_code_name}
+              onChange={(e) => setRevCreateForm((f) => ({ ...f, rev_code_name: e.target.value }))}
+            />
+            <input
+              className="input"
+              placeholder="Acronym"
+              value={revCreateForm.rev_code_acronym}
+              onChange={(e) =>
+                setRevCreateForm((f) => ({ ...f, rev_code_acronym: e.target.value }))
+              }
+            />
+            <input
+              className="input"
+              placeholder="Description"
+              value={revCreateForm.rev_description}
+              onChange={(e) =>
+                setRevCreateForm((f) => ({ ...f, rev_description: e.target.value }))
+              }
+            />
+            <input
+              className="input"
+              type="number"
+              placeholder="Percent"
+              value={revCreateForm.percentage}
+              onChange={(e) =>
+                setRevCreateForm((f) => ({
+                  ...f,
+                  percentage: e.target.value === "" ? "" : Number(e.target.value),
+                }))
+              }
+            />
+            <button
+              className="btn"
+              disabled={
+                revSaving ||
+                !revCreateForm.rev_code_name ||
+                !revCreateForm.rev_code_acronym ||
+                !revCreateForm.rev_description
+              }
+              onClick={async () => {
+                setRevSaveError("");
+                setRevSaving(true);
+                try {
+                  const res = await fetch(`${API_BASE}/api/v1/lookups/revision_overview/insert`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      rev_code_name: revCreateForm.rev_code_name,
+                      rev_code_acronym: revCreateForm.rev_code_acronym,
+                      rev_description: revCreateForm.rev_description,
+                      percentage:
+                        revCreateForm.percentage === "" ? null : Number(revCreateForm.percentage),
+                    }),
+                  });
+                  if (!res.ok) {
+                    const detail = await res.json().catch(() => ({}));
+                    throw new Error(detail.detail || `Create failed (${res.status})`);
+                  }
+                  const created = await res.json();
+                  setRevisionOverview((prev) => [...prev, created]);
+                  setRevCreateForm({
+                    rev_code_name: "",
+                    rev_code_acronym: "",
+                    rev_description: "",
+                    percentage: "",
+                  });
+                } catch (err) {
+                  setRevSaveError(err instanceof Error ? err.message : "Create failed");
+                } finally {
+                  setRevSaving(false);
+                }
+              }}
+            >
+              {revSaving ? "Saving…" : "Add"}
+            </button>
+          </div>
+        </div>
+
+        <div className="table rev-table">
+          <div className="table-head rev-head">
+            <span>ID</span>
+            <span>Name</span>
+            <span>Acronym</span>
+            <span>Description</span>
+            <span>Percent</span>
+            <span>Actions</span>
+          </div>
+          <div className="table-body">
+            {revisionOverview.map((rev) => (
+              <div className="table-row rev-row" key={rev.rev_code_id}>
+                <span>{rev.rev_code_id}</span>
+                {revEditingId === rev.rev_code_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={revForm.rev_code_name}
+                      onChange={(e) =>
+                        setRevForm((f) => ({ ...f, rev_code_name: e.target.value }))
+                      }
+                    />
+                    <input
+                      className="input"
+                      value={revForm.rev_code_acronym}
+                      onChange={(e) =>
+                        setRevForm((f) => ({ ...f, rev_code_acronym: e.target.value }))
+                      }
+                    />
+                    <input
+                      className="input"
+                      value={revForm.rev_description}
+                      onChange={(e) =>
+                        setRevForm((f) => ({ ...f, rev_description: e.target.value }))
+                      }
+                    />
+                    <input
+                      className="input"
+                      type="number"
+                      value={revForm.percentage}
+                      onChange={(e) =>
+                        setRevForm((f) => ({
+                          ...f,
+                          percentage: e.target.value === "" ? "" : Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </>
+                ) : (
+                  <>
+                    <span>{rev.rev_code_name}</span>
+                    <span className="tag">{rev.rev_code_acronym}</span>
+                    <span>{rev.rev_description}</span>
+                    <span className="tag">
+                      {rev.percentage === null || rev.percentage === undefined
+                        ? "—"
+                        : `${rev.percentage}%`}
+                    </span>
+                  </>
+                )}
+                <span className="actions">
+                  {revEditingId === rev.rev_code_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={revSaving}
+                        onClick={async () => {
+                          setRevSaveError("");
+                          setRevSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/lookups/revision_overview/update`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  rev_code_id: rev.rev_code_id,
+                                  rev_code_name: revForm.rev_code_name,
+                                  rev_code_acronym: revForm.rev_code_acronym,
+                                  rev_description: revForm.rev_description,
+                                  percentage:
+                                    revForm.percentage === "" ? null : Number(revForm.percentage),
+                                }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setRevisionOverview((prev) =>
+                              prev.map((it) => (it.rev_code_id === rev.rev_code_id ? updated : it)),
+                            );
+                            setRevEditingId(null);
+                          } catch (err) {
+                            setRevSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setRevSaving(false);
+                          }
+                        }}
+                      >
+                        {revSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={revSaving}
+                        onClick={() => {
+                          setRevEditingId(null);
+                          setRevSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setRevEditingId(rev.rev_code_id);
+                          setRevForm({
+                            rev_code_name: rev.rev_code_name,
+                            rev_code_acronym: rev.rev_code_acronym,
+                            rev_description: rev.rev_description,
+                            percentage:
+                              rev.percentage === null || rev.percentage === undefined
+                                ? ""
+                                : rev.percentage,
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={revSaving}
+                        onClick={async () => {
+                          setRevSaveError("");
+                          setRevSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/lookups/revision_overview/delete`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ rev_code_id: rev.rev_code_id }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setRevisionOverview((prev) =>
+                              prev.filter((it) => it.rev_code_id !== rev.rev_code_id),
+                            );
+                          } catch (err) {
+                            setRevSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setRevSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+            {revisionOverviewLoading && (
+              <div className="table-row muted">
+                <span colSpan={6}>Fetching…</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Doc revision statuses</h2>
+          <span className="status">
+            {statusesLoading ? "Loading…" : statusesError ? "Error" : "Ready"}
+          </span>
+        </div>
+
+        {statusesError && <div className="alert alert-error">{statusesError}</div>}
+        {statusSaveError && <div className="alert alert-error">{statusSaveError}</div>}
+        {!statusesError && statuses.length === 0 && !statusesLoading && (
+          <div className="alert">No statuses available</div>
+        )}
+
+        <div className="panel subpanel">
+          <h3>Add status</h3>
+          <div className="create-row">
+            <input
+              className="input"
+              placeholder="Status name"
+              value={statusCreateForm.rev_status_name}
+              onChange={(e) =>
+                setStatusCreateForm((f) => ({ ...f, rev_status_name: e.target.value }))
+              }
+            />
+            <div />
+            <button
+              className="btn"
+              disabled={statusSaving || !statusCreateForm.rev_status_name}
+              onClick={async () => {
+                setStatusSaveError("");
+                setStatusSaving(true);
+                try {
+                  const res = await fetch(`${API_BASE}/api/v1/lookups/doc_rev_statuses/insert`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      rev_status_name: statusCreateForm.rev_status_name,
+                    }),
+                  });
+                  if (!res.ok) {
+                    const detail = await res.json().catch(() => ({}));
+                    throw new Error(detail.detail || `Create failed (${res.status})`);
+                  }
+                  const created = await res.json();
+                  setStatuses((prev) => [...prev, created]);
+                  setStatusCreateForm({ rev_status_name: "" });
+                } catch (err) {
+                  setStatusSaveError(err instanceof Error ? err.message : "Create failed");
+                } finally {
+                  setStatusSaving(false);
+                }
+              }}
+            >
+              {statusSaving ? "Saving…" : "Add"}
+            </button>
+          </div>
+        </div>
+
+        <div className="table">
+          <div className="table-head">
+            <span>ID</span>
+            <span>Name</span>
+            <span className="hide-on-small" />
+            <span>Actions</span>
+          </div>
+          <div className="table-body">
+            {statuses.map((status) => (
+              <div className="table-row" key={status.rev_status_id}>
+                <span>{status.rev_status_id}</span>
+                {statusEditingId === status.rev_status_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={statusForm.rev_status_name}
+                      onChange={(e) =>
+                        setStatusForm((f) => ({ ...f, rev_status_name: e.target.value }))
+                      }
+                    />
+                    <div />
+                  </>
+                ) : (
+                  <>
+                    <span>{status.rev_status_name}</span>
+                    <span className="hide-on-small" />
+                  </>
+                )}
+                <span className="actions">
+                  {statusEditingId === status.rev_status_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={statusSaving}
+                        onClick={async () => {
+                          setStatusSaveError("");
+                          setStatusSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/lookups/doc_rev_statuses/update`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  rev_status_id: status.rev_status_id,
+                                  rev_status_name: statusForm.rev_status_name,
+                                }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setStatuses((prev) =>
+                              prev.map((it) =>
+                                it.rev_status_id === status.rev_status_id ? updated : it,
+                              ),
+                            );
+                            setStatusEditingId(null);
+                          } catch (err) {
+                            setStatusSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setStatusSaving(false);
+                          }
+                        }}
+                      >
+                        {statusSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={statusSaving}
+                        onClick={() => {
+                          setStatusEditingId(null);
+                          setStatusSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setStatusEditingId(status.rev_status_id);
+                          setStatusForm({ rev_status_name: status.rev_status_name });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={statusSaving}
+                        onClick={async () => {
+                          setStatusSaveError("");
+                          setStatusSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/lookups/doc_rev_statuses/delete`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ rev_status_id: status.rev_status_id }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setStatuses((prev) =>
+                              prev.filter((it) => it.rev_status_id !== status.rev_status_id),
+                            );
+                          } catch (err) {
+                            setStatusSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setStatusSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+            {statusesLoading && (
               <div className="table-row muted">
                 <span colSpan={4}>Fetching…</span>
               </div>

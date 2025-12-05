@@ -89,6 +89,8 @@ SELECT setval(pg_get_serial_sequence('projects', 'project_id'), max(project_id))
 SELECT setval(pg_get_serial_sequence('units', 'unit_id'), max(unit_id)) FROM units;
 SELECT setval(pg_get_serial_sequence('jobpacks', 'jobpack_id'), max(jobpack_id)) FROM jobpacks;
 SELECT setval(pg_get_serial_sequence('roles', 'role_id'), max(role_id)) FROM roles;
+SELECT setval(pg_get_serial_sequence('revision_overview', 'rev_code_id'), max(rev_code_id)) FROM revision_overview;
+SELECT setval(pg_get_serial_sequence('doc_rev_statuses', 'rev_status_id'), max(rev_status_id)) FROM doc_rev_statuses;
 SELECT setval(pg_get_serial_sequence('person', 'person_id'), max(person_id)) FROM person;
 SELECT setval(pg_get_serial_sequence('doc_types', 'type_id'), max(type_id)) FROM doc_types;
 SELECT setval(pg_get_serial_sequence('users', 'user_id'), max(user_id)) FROM users;

@@ -209,6 +209,15 @@ h1 {
   }
 }
 
+.rev-create {
+  grid-template-columns: 1fr 140px 1.5fr 140px 120px;
+}
+
+.rev-table .table-head,
+.rev-table .table-row {
+  grid-template-columns: 70px 1fr 120px 1.6fr 120px 150px;
+}
+
 @media (max-width: 720px) {
   .hero {
     flex-direction: column;

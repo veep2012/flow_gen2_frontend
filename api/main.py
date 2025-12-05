@@ -8,7 +8,17 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from db.models import Area, Discipline, DocRevMilestone, Jobpack, Project, Role, Unit
+from db.models import (
+    Area,
+    Discipline,
+    DocRevMilestone,
+    DocRevStatus,
+    Jobpack,
+    Project,
+    RevisionOverview,
+    Role,
+    Unit,
+)
 
 
 DATABASE_URL = os.getenv(
@@ -178,6 +188,55 @@ class DocRevMilestoneCreate(BaseModel):
 
 class DocRevMilestoneDelete(BaseModel):
     milestone_id: int
+
+
+class RevisionOverviewOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    rev_code_id: int
+    rev_code_name: str
+    rev_code_acronym: str
+    rev_description: str
+    percentage: int | None = None
+
+
+class RevisionOverviewUpdate(BaseModel):
+    rev_code_id: int
+    rev_code_name: str | None = None
+    rev_code_acronym: str | None = None
+    rev_description: str | None = None
+    percentage: int | None = None
+
+
+class RevisionOverviewCreate(BaseModel):
+    rev_code_name: str
+    rev_code_acronym: str
+    rev_description: str
+    percentage: int | None = None
+
+
+class RevisionOverviewDelete(BaseModel):
+    rev_code_id: int
+
+
+class DocRevStatusOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    rev_status_id: int
+    rev_status_name: str
+
+
+class DocRevStatusUpdate(BaseModel):
+    rev_status_id: int
+    rev_status_name: str | None = None
+
+
+class DocRevStatusCreate(BaseModel):
+    rev_status_name: str
+
+
+class DocRevStatusDelete(BaseModel):
+    rev_status_id: int
 
 
 def get_db() -> Iterable[Session]:
@@ -583,4 +642,142 @@ def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depen
     if not milestone:
         raise HTTPException(status_code=404, detail="Milestone not found")
     db.delete(milestone)
+    db.commit()
+
+
+@app.get("/api/v1/lookups/revision_overview", response_model=list[RevisionOverviewOut])
+def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOverview]:
+    revisions = db.query(RevisionOverview).order_by(RevisionOverview.rev_code_name).all()
+    if not revisions:
+        raise HTTPException(status_code=404, detail="No revision overview entries found")
+    return revisions
+
+
+@app.post("/api/v1/lookups/revision_overview/update", response_model=RevisionOverviewOut)
+def update_revision_overview(
+    payload: RevisionOverviewUpdate, db: Session = Depends(get_db)
+) -> RevisionOverview:
+    if (
+        payload.rev_code_name is None
+        and payload.rev_code_acronym is None
+        and payload.rev_description is None
+        and payload.percentage is None
+    ):
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    revision = db.get(RevisionOverview, payload.rev_code_id)
+    if not revision:
+        raise HTTPException(status_code=404, detail="Revision overview entry not found")
+
+    if payload.rev_code_name is not None:
+        revision.rev_code_name = payload.rev_code_name
+    if payload.rev_code_acronym is not None:
+        revision.rev_code_acronym = payload.rev_code_acronym
+    if payload.rev_description is not None:
+        revision.rev_description = payload.rev_description
+    if payload.percentage is not None:
+        revision.percentage = payload.percentage
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Revision overview entry already exists")
+
+    db.refresh(revision)
+    return revision
+
+
+@app.post(
+    "/api/v1/lookups/revision_overview/insert",
+    response_model=RevisionOverviewOut,
+    status_code=201,
+)
+def insert_revision_overview(
+    payload: RevisionOverviewCreate, db: Session = Depends(get_db)
+) -> RevisionOverview:
+    revision = RevisionOverview(
+        rev_code_name=payload.rev_code_name,
+        rev_code_acronym=payload.rev_code_acronym,
+        rev_description=payload.rev_description,
+        percentage=payload.percentage,
+    )
+    db.add(revision)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Revision overview entry already exists")
+    db.refresh(revision)
+    return revision
+
+
+@app.post("/api/v1/lookups/revision_overview/delete", status_code=204)
+def delete_revision_overview(
+    payload: RevisionOverviewDelete, db: Session = Depends(get_db)
+) -> None:
+    revision = db.get(RevisionOverview, payload.rev_code_id)
+    if not revision:
+        raise HTTPException(status_code=404, detail="Revision overview entry not found")
+    db.delete(revision)
+    db.commit()
+
+
+@app.get("/api/v1/lookups/doc_rev_statuses", response_model=list[DocRevStatusOut])
+def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
+    statuses = db.query(DocRevStatus).order_by(DocRevStatus.rev_status_name).all()
+    if not statuses:
+        raise HTTPException(status_code=404, detail="No doc revision statuses found")
+    return statuses
+
+
+@app.post("/api/v1/lookups/doc_rev_statuses/update", response_model=DocRevStatusOut)
+def update_doc_rev_status(
+    payload: DocRevStatusUpdate, db: Session = Depends(get_db)
+) -> DocRevStatus:
+    if payload.rev_status_name is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    status = db.get(DocRevStatus, payload.rev_status_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Doc revision status not found")
+
+    if payload.rev_status_name is not None:
+        status.rev_status_name = payload.rev_status_name
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Doc revision status already exists")
+
+    db.refresh(status)
+    return status
+
+
+@app.post(
+    "/api/v1/lookups/doc_rev_statuses/insert",
+    response_model=DocRevStatusOut,
+    status_code=201,
+)
+def insert_doc_rev_status(
+    payload: DocRevStatusCreate, db: Session = Depends(get_db)
+) -> DocRevStatus:
+    status = DocRevStatus(rev_status_name=payload.rev_status_name)
+    db.add(status)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Doc revision status already exists")
+    db.refresh(status)
+    return status
+
+
+@app.post("/api/v1/lookups/doc_rev_statuses/delete", status_code=204)
+def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get_db)) -> None:
+    status = db.get(DocRevStatus, payload.rev_status_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Doc revision status not found")
+    db.delete(status)
     db.commit()
