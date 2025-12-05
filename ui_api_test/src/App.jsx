@@ -31,18 +31,68 @@ function useAreas() {
   return { areas, loading, error, fetchAreas, setAreas };
 }
 
+function useDisciplines() {
+  const [disciplines, setDisciplines] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchDisciplines = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/lookups/disciplines`);
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setDisciplines(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDisciplines();
+  }, []);
+
+  return { disciplines, loading, error, fetchDisciplines, setDisciplines };
+}
+
 export default function App() {
   const { areas, loading, error, fetchAreas, setAreas } = useAreas();
+  const {
+    disciplines,
+    loading: disciplinesLoading,
+    error: disciplinesError,
+    fetchDisciplines,
+    setDisciplines,
+  } = useDisciplines();
   const [createForm, setCreateForm] = useState({ area_name: "", area_acronym: "" });
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ area_name: "", area_acronym: "" });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [discCreateForm, setDiscCreateForm] = useState({
+    discipline_name: "",
+    discipline_acronym: "",
+  });
+  const [discEditingId, setDiscEditingId] = useState(null);
+  const [discForm, setDiscForm] = useState({
+    discipline_name: "",
+    discipline_acronym: "",
+  });
+  const [discSaving, setDiscSaving] = useState(false);
+  const [discSaveError, setDiscSaveError] = useState("");
   const header = useMemo(() => {
-    if (loading) return "Loading areas…";
-    if (error) return "Could not load areas";
-    return `${areas.length} Areas`;
-  }, [areas.length, loading, error]);
+    const areaLabel = loading ? "Loading areas…" : error ? "Areas unavailable" : `${areas.length} Areas`;
+    const discLabel = disciplinesLoading
+      ? "Loading disciplines…"
+      : disciplinesError
+        ? "Disciplines unavailable"
+        : `${disciplines.length} Disciplines`;
+    return `${areaLabel} • ${discLabel}`;
+  }, [areas.length, disciplines.length, loading, error, disciplinesLoading, disciplinesError]);
 
   return (
     <div className="page">
@@ -244,6 +294,218 @@ export default function App() {
               </div>
             ))}
             {loading && (
+              <div className="table-row muted">
+                <span colSpan={4}>Fetching…</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Disciplines</h2>
+          <span className="status">
+            {disciplinesLoading ? "Loading…" : disciplinesError ? "Error" : "Ready"}
+          </span>
+        </div>
+
+        {disciplinesError && <div className="alert alert-error">{disciplinesError}</div>}
+        {discSaveError && <div className="alert alert-error">{discSaveError}</div>}
+        {!disciplinesError && disciplines.length === 0 && !disciplinesLoading && (
+          <div className="alert">No disciplines available</div>
+        )}
+
+        <div className="panel subpanel">
+          <h3>Add discipline</h3>
+          <div className="create-row">
+            <input
+              className="input"
+              placeholder="Discipline name"
+              value={discCreateForm.discipline_name}
+              onChange={(e) =>
+                setDiscCreateForm((f) => ({ ...f, discipline_name: e.target.value }))
+              }
+            />
+            <input
+              className="input"
+              placeholder="Acronym"
+              value={discCreateForm.discipline_acronym}
+              onChange={(e) =>
+                setDiscCreateForm((f) => ({ ...f, discipline_acronym: e.target.value }))
+              }
+            />
+            <button
+              className="btn"
+              disabled={
+                discSaving || !discCreateForm.discipline_name || !discCreateForm.discipline_acronym
+              }
+              onClick={async () => {
+                setDiscSaveError("");
+                setDiscSaving(true);
+                try {
+                  const res = await fetch(`${API_BASE}/api/v1/lookups/disciplines/insert`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(discCreateForm),
+                  });
+                  if (!res.ok) {
+                    const detail = await res.json().catch(() => ({}));
+                    throw new Error(detail.detail || `Create failed (${res.status})`);
+                  }
+                  const created = await res.json();
+                  setDisciplines((prev) => [...prev, created]);
+                  setDiscCreateForm({ discipline_name: "", discipline_acronym: "" });
+                } catch (err) {
+                  setDiscSaveError(err instanceof Error ? err.message : "Create failed");
+                } finally {
+                  setDiscSaving(false);
+                }
+              }}
+            >
+              {discSaving ? "Saving…" : "Add"}
+            </button>
+          </div>
+        </div>
+
+        <div className="table">
+          <div className="table-head">
+            <span>ID</span>
+            <span>Name</span>
+            <span>Acronym</span>
+            <span>Actions</span>
+          </div>
+          <div className="table-body">
+            {disciplines.map((discipline) => (
+              <div className="table-row" key={discipline.discipline_id}>
+                <span>{discipline.discipline_id}</span>
+                {discEditingId === discipline.discipline_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={discForm.discipline_name}
+                      onChange={(e) =>
+                        setDiscForm((f) => ({ ...f, discipline_name: e.target.value }))
+                      }
+                    />
+                    <input
+                      className="input"
+                      value={discForm.discipline_acronym}
+                      onChange={(e) =>
+                        setDiscForm((f) => ({ ...f, discipline_acronym: e.target.value }))
+                      }
+                    />
+                  </>
+                ) : (
+                  <>
+                    <span>{discipline.discipline_name}</span>
+                    <span className="tag">{discipline.discipline_acronym}</span>
+                  </>
+                )}
+                <span className="actions">
+                  {discEditingId === discipline.discipline_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={discSaving}
+                        onClick={async () => {
+                          setDiscSaveError("");
+                          setDiscSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/lookups/disciplines/update`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  discipline_id: discipline.discipline_id,
+                                  discipline_name: discForm.discipline_name,
+                                  discipline_acronym: discForm.discipline_acronym,
+                                }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setDisciplines((prev) =>
+                              prev.map((it) =>
+                                it.discipline_id === discipline.discipline_id ? updated : it,
+                              ),
+                            );
+                            setDiscEditingId(null);
+                          } catch (err) {
+                            setDiscSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setDiscSaving(false);
+                          }
+                        }}
+                      >
+                        {discSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={discSaving}
+                        onClick={() => {
+                          setDiscEditingId(null);
+                          setDiscSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setDiscEditingId(discipline.discipline_id);
+                          setDiscForm({
+                            discipline_name: discipline.discipline_name,
+                            discipline_acronym: discipline.discipline_acronym,
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={discSaving}
+                        onClick={async () => {
+                          setDiscSaveError("");
+                          setDiscSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/lookups/disciplines/delete`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ discipline_id: discipline.discipline_id }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setDisciplines((prev) =>
+                              prev.filter((it) => it.discipline_id !== discipline.discipline_id),
+                            );
+                          } catch (err) {
+                            setDiscSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setDiscSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+            {disciplinesLoading && (
               <div className="table-row muted">
                 <span colSpan={4}>Fetching…</span>
               </div>

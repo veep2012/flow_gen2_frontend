@@ -58,6 +58,41 @@ curl -X POST http://localhost:8000/api/v1/lookups/areas/insert \
 - Success: `204` with empty body.
 - Errors: `404` if `area_id` is not found.
 
+## Discipline lookups
+Discipline objects mirror areas, with `discipline_id`, `discipline_name`, and `discipline_acronym`.
+
+### List disciplines
+- `GET /api/v1/lookups/disciplines`
+- Success: `200` with array sorted by `discipline_name`.
+- Errors: `404` if none exist.
+
+### Insert discipline
+- `POST /api/v1/lookups/disciplines/insert`
+- Body:
+```json
+{ "discipline_name": "Structural", "discipline_acronym": "STR" }
+```
+- Success: `201` with created discipline.
+- Errors: `400` on uniqueness conflicts.
+
+### Update discipline
+- `POST /api/v1/lookups/disciplines/update`
+- Body (at least one optional field required):
+```json
+{ "discipline_id": 2, "discipline_name": "Piping", "discipline_acronym": "PIP" }
+```
+- Success: `200` with updated discipline.
+- Errors: `400` if no fields or uniqueness conflict; `404` if `discipline_id` not found.
+
+### Delete discipline
+- `POST /api/v1/lookups/disciplines/delete`
+- Body:
+```json
+{ "discipline_id": 2 }
+```
+- Success: `204` with empty body.
+- Errors: `404` if `discipline_id` not found.
+
 ## Error responses
 - `400` — Validation failed (e.g., missing update fields, unique constraint violations).
 - `404` — Resource not found or empty table.

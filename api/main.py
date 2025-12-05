@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from db.models import Area
+from db.models import Area, Discipline
 
 
 DATABASE_URL = os.getenv(
@@ -52,6 +52,29 @@ class AreaCreate(BaseModel):
 
 class AreaDelete(BaseModel):
     area_id: int
+
+
+class DisciplineOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    discipline_id: int
+    discipline_name: str
+    discipline_acronym: str
+
+
+class DisciplineUpdate(BaseModel):
+    discipline_id: int
+    discipline_name: str | None = None
+    discipline_acronym: str | None = None
+
+
+class DisciplineCreate(BaseModel):
+    discipline_name: str
+    discipline_acronym: str
+
+
+class DisciplineDelete(BaseModel):
+    discipline_id: int
 
 
 def get_db() -> Iterable[Session]:
@@ -123,4 +146,67 @@ def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
     if not area:
         raise HTTPException(status_code=404, detail="Area not found")
     db.delete(area)
+    db.commit()
+
+
+@app.get("/api/v1/lookups/disciplines", response_model=list[DisciplineOut])
+def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
+    disciplines = db.query(Discipline).order_by(Discipline.discipline_name).all()
+    if not disciplines:
+        raise HTTPException(status_code=404, detail="No disciplines found")
+    return disciplines
+
+
+@app.post("/api/v1/lookups/disciplines/update", response_model=DisciplineOut)
+def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) -> Discipline:
+    if payload.discipline_name is None and payload.discipline_acronym is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    discipline = db.get(Discipline, payload.discipline_id)
+    if not discipline:
+        raise HTTPException(status_code=404, detail="Discipline not found")
+
+    if payload.discipline_name is not None:
+        discipline.discipline_name = payload.discipline_name
+    if payload.discipline_acronym is not None:
+        discipline.discipline_acronym = payload.discipline_acronym
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Discipline name or acronym already exists",
+        )
+
+    db.refresh(discipline)
+    return discipline
+
+
+@app.post("/api/v1/lookups/disciplines/insert", response_model=DisciplineOut, status_code=201)
+def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) -> Discipline:
+    discipline = Discipline(
+        discipline_name=payload.discipline_name,
+        discipline_acronym=payload.discipline_acronym,
+    )
+    db.add(discipline)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Discipline name or acronym already exists",
+        )
+    db.refresh(discipline)
+    return discipline
+
+
+@app.post("/api/v1/lookups/disciplines/delete", status_code=204)
+def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) -> None:
+    discipline = db.get(Discipline, payload.discipline_id)
+    if not discipline:
+        raise HTTPException(status_code=404, detail="Discipline not found")
+    db.delete(discipline)
     db.commit()
