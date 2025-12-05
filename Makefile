@@ -7,14 +7,17 @@ DEFAULT_GOAL := help
 
 help:
 	@echo "Available targets:"
-	@echo "  app-up    Build and start API (and Postgres via depends_on)"
-	@echo "  app-down  Stop containers"
-	@echo "  ui-test-up     Build and start UI test container on port 5557"
+	@echo "  app-up         Start API and UI test containers (no rebuild)"
+	@echo "  app-up-build   Build and start API and UI test containers"
+	@echo "  app-down       Stop containers"
+	@echo "  ui-test-up     Start UI test container on port 5557 (no rebuild)"
+	@echo "  ui-test-up-build Build and start UI test container"
 	@echo "  ui-test-down   Stop UI test container"
 	@echo "  db-logs   Tail Postgres logs"
 	@echo "  db-ps     Show compose process status"
 	@echo "  db-reset  Stop and remove containers and volumes"
-	@echo "  api-up    Build and start API container on port 5556"
+	@echo "  api-up    Start API container on port 5556 (no rebuild)"
+	@echo "  api-up-build Build and start API container on port 5556"
 	@echo "  api-logs  Tail API container logs"
 	@echo "  rebuild   Rebuild all services without dropping volumes"
 	@echo "  completely-rebuild Rebuild all services and drop volumes"
@@ -33,18 +36,27 @@ api-run:
 	uvicorn api.main:app --host 0.0.0.0 --port 5556 --reload
 
 api-up:
+	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d api
+
+api-up-build:
 	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d --build api
 
 api-logs:
 	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) logs -f api
 
 ui-test-up:
+	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d ui_api_test
+
+ui-test-up-build:
 	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d --build ui_api_test
 
 ui-test-down:
 	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) stop ui_api_test
 
 app-up:
+	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d api ui_api_test
+
+app-up-build:
 	$(ENGINE) compose -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d --build api ui_api_test
 
 app-down:
