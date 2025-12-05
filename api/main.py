@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from db.models import Area, Discipline, Project, Unit
+from db.models import Area, Discipline, DocRevMilestone, Jobpack, Project, Role, Unit
 
 
 DATABASE_URL = os.getenv(
@@ -115,6 +115,70 @@ class UnitCreate(BaseModel):
 
 class UnitDelete(BaseModel):
     unit_id: int
+
+
+class JobpackOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    jobpack_id: int
+    jobpack_name: str
+
+
+class JobpackUpdate(BaseModel):
+    jobpack_id: int
+    jobpack_name: str | None = None
+
+
+class JobpackCreate(BaseModel):
+    jobpack_name: str
+
+
+class JobpackDelete(BaseModel):
+    jobpack_id: int
+
+
+class RoleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    role_id: int
+    role_name: str
+
+
+class RoleUpdate(BaseModel):
+    role_id: int
+    role_name: str | None = None
+
+
+class RoleCreate(BaseModel):
+    role_id: int
+    role_name: str
+
+
+class RoleDelete(BaseModel):
+    role_id: int
+
+
+class DocRevMilestoneOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    milestone_id: int
+    milestone_name: str
+    progress: int | None = None
+
+
+class DocRevMilestoneUpdate(BaseModel):
+    milestone_id: int
+    milestone_name: str | None = None
+    progress: int | None = None
+
+
+class DocRevMilestoneCreate(BaseModel):
+    milestone_name: str
+    progress: int | None = None
+
+
+class DocRevMilestoneDelete(BaseModel):
+    milestone_id: int
 
 
 def get_db() -> Iterable[Session]:
@@ -353,4 +417,171 @@ def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
     if not unit:
         raise HTTPException(status_code=404, detail="Unit not found")
     db.delete(unit)
+    db.commit()
+
+
+@app.get("/api/v1/lookups/jobpacks", response_model=list[JobpackOut])
+def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
+    jobpacks = db.query(Jobpack).order_by(Jobpack.jobpack_name).all()
+    if not jobpacks:
+        raise HTTPException(status_code=404, detail="No jobpacks found")
+    return jobpacks
+
+
+@app.post("/api/v1/lookups/jobpacks/update", response_model=JobpackOut)
+def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Jobpack:
+    if payload.jobpack_name is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    jobpack = db.get(Jobpack, payload.jobpack_id)
+    if not jobpack:
+        raise HTTPException(status_code=404, detail="Jobpack not found")
+
+    jobpack.jobpack_name = payload.jobpack_name or jobpack.jobpack_name
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Jobpack name already exists")
+
+    db.refresh(jobpack)
+    return jobpack
+
+
+@app.post("/api/v1/lookups/jobpacks/insert", response_model=JobpackOut, status_code=201)
+def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Jobpack:
+    jobpack = Jobpack(jobpack_name=payload.jobpack_name)
+    db.add(jobpack)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Jobpack name already exists")
+    db.refresh(jobpack)
+    return jobpack
+
+
+@app.post("/api/v1/lookups/jobpacks/delete", status_code=204)
+def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> None:
+    jobpack = db.get(Jobpack, payload.jobpack_id)
+    if not jobpack:
+        raise HTTPException(status_code=404, detail="Jobpack not found")
+    db.delete(jobpack)
+    db.commit()
+
+
+@app.get("/api/v1/lookups/roles", response_model=list[RoleOut])
+def list_roles(db: Session = Depends(get_db)) -> list[Role]:
+    roles = db.query(Role).order_by(Role.role_name).all()
+    if not roles:
+        raise HTTPException(status_code=404, detail="No roles found")
+    return roles
+
+
+@app.post("/api/v1/lookups/roles/update", response_model=RoleOut)
+def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
+    if payload.role_name is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    role = db.get(Role, payload.role_id)
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    role.role_name = payload.role_name or role.role_name
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Role name already exists")
+
+    db.refresh(role)
+    return role
+
+
+@app.post("/api/v1/lookups/roles/insert", response_model=RoleOut, status_code=201)
+def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
+    role = Role(role_id=payload.role_id, role_name=payload.role_name)
+    db.add(role)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Role id or name already exists")
+    db.refresh(role)
+    return role
+
+
+@app.post("/api/v1/lookups/roles/delete", status_code=204)
+def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
+    role = db.get(Role, payload.role_id)
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    db.delete(role)
+    db.commit()
+
+
+@app.get("/api/v1/lookups/doc_rev_milestones", response_model=list[DocRevMilestoneOut])
+def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilestone]:
+    milestones = db.query(DocRevMilestone).order_by(DocRevMilestone.milestone_name).all()
+    if not milestones:
+        raise HTTPException(status_code=404, detail="No milestones found")
+    return milestones
+
+
+@app.post(
+    "/api/v1/lookups/doc_rev_milestones/update",
+    response_model=DocRevMilestoneOut,
+)
+def update_doc_rev_milestone(
+    payload: DocRevMilestoneUpdate, db: Session = Depends(get_db)
+) -> DocRevMilestone:
+    if payload.milestone_name is None and payload.progress is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    milestone = db.get(DocRevMilestone, payload.milestone_id)
+    if not milestone:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+
+    if payload.milestone_name is not None:
+        milestone.milestone_name = payload.milestone_name
+    if payload.progress is not None:
+        milestone.progress = payload.progress
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Milestone name already exists")
+
+    db.refresh(milestone)
+    return milestone
+
+
+@app.post(
+    "/api/v1/lookups/doc_rev_milestones/insert",
+    response_model=DocRevMilestoneOut,
+    status_code=201,
+)
+def insert_doc_rev_milestone(
+    payload: DocRevMilestoneCreate, db: Session = Depends(get_db)
+) -> DocRevMilestone:
+    milestone = DocRevMilestone(milestone_name=payload.milestone_name, progress=payload.progress)
+    db.add(milestone)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Milestone name already exists")
+    db.refresh(milestone)
+    return milestone
+
+
+@app.post("/api/v1/lookups/doc_rev_milestones/delete", status_code=204)
+def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depends(get_db)) -> None:
+    milestone = db.get(DocRevMilestone, payload.milestone_id)
+    if not milestone:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    db.delete(milestone)
     db.commit()

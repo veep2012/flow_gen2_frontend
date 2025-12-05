@@ -115,6 +115,90 @@ function useUnits() {
   return { units, loading, error, fetchUnits, setUnits };
 }
 
+function useJobpacks() {
+  const [jobpacks, setJobpacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchJobpacks = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/lookups/jobpacks`);
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setJobpacks(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchJobpacks();
+  }, []);
+
+  return { jobpacks, loading, error, fetchJobpacks, setJobpacks };
+}
+
+function useRoles() {
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchRoles = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/lookups/roles`);
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setRoles(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
+  return { roles, loading, error, fetchRoles, setRoles };
+}
+
+function useMilestones() {
+  const [milestones, setMilestones] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchMilestones = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/lookups/doc_rev_milestones`);
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setMilestones(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMilestones();
+  }, []);
+
+  return { milestones, loading, error, fetchMilestones, setMilestones };
+}
+
 export default function App() {
   const { areas, loading, error, fetchAreas, setAreas } = useAreas();
   const {
@@ -132,6 +216,21 @@ export default function App() {
     setProjects,
   } = useProjects();
   const { units, loading: unitsLoading, error: unitsError, fetchUnits, setUnits } = useUnits();
+  const {
+    jobpacks,
+    loading: jobpacksLoading,
+    error: jobpacksError,
+    fetchJobpacks,
+    setJobpacks,
+  } = useJobpacks();
+  const { roles, loading: rolesLoading, error: rolesError, fetchRoles, setRoles } = useRoles();
+  const {
+    milestones,
+    loading: milestonesLoading,
+    error: milestonesError,
+    fetchMilestones,
+    setMilestones,
+  } = useMilestones();
   const [createForm, setCreateForm] = useState({ area_name: "", area_acronym: "" });
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ area_name: "", area_acronym: "" });
@@ -158,6 +257,24 @@ export default function App() {
   const [unitForm, setUnitForm] = useState({ unit_name: "" });
   const [unitSaving, setUnitSaving] = useState(false);
   const [unitSaveError, setUnitSaveError] = useState("");
+  const [jobpackCreateForm, setJobpackCreateForm] = useState({ jobpack_name: "" });
+  const [jobpackEditingId, setJobpackEditingId] = useState(null);
+  const [jobpackForm, setJobpackForm] = useState({ jobpack_name: "" });
+  const [jobpackSaving, setJobpackSaving] = useState(false);
+  const [jobpackSaveError, setJobpackSaveError] = useState("");
+  const [roleCreateForm, setRoleCreateForm] = useState({ role_id: "", role_name: "" });
+  const [roleEditingId, setRoleEditingId] = useState(null);
+  const [roleForm, setRoleForm] = useState({ role_id: "", role_name: "" });
+  const [roleSaving, setRoleSaving] = useState(false);
+  const [roleSaveError, setRoleSaveError] = useState("");
+  const [milestoneCreateForm, setMilestoneCreateForm] = useState({
+    milestone_name: "",
+    progress: "",
+  });
+  const [milestoneEditingId, setMilestoneEditingId] = useState(null);
+  const [milestoneForm, setMilestoneForm] = useState({ milestone_name: "", progress: "" });
+  const [milestoneSaving, setMilestoneSaving] = useState(false);
+  const [milestoneSaveError, setMilestoneSaveError] = useState("");
   const header = useMemo(() => {
     const areaLabel = loading ? "Loading areas…" : error ? "Areas unavailable" : `${areas.length} Areas`;
     const discLabel = disciplinesLoading
@@ -175,12 +292,30 @@ export default function App() {
       : unitsError
         ? "Units unavailable"
         : `${units.length} Units`;
-    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel}`;
+    const jobpackLabel = jobpacksLoading
+      ? "Loading jobpacks…"
+      : jobpacksError
+        ? "Jobpacks unavailable"
+        : `${jobpacks.length} Jobpacks`;
+    const roleLabel = rolesLoading
+      ? "Loading roles…"
+      : rolesError
+        ? "Roles unavailable"
+        : `${roles.length} Roles`;
+    const milestoneLabel = milestonesLoading
+      ? "Loading milestones…"
+      : milestonesError
+        ? "Milestones unavailable"
+        : `${milestones.length} Milestones`;
+    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel} • ${jobpackLabel} • ${roleLabel} • ${milestoneLabel}`;
   }, [
     areas.length,
     disciplines.length,
     projects.length,
     units.length,
+    jobpacks.length,
+    roles.length,
+    milestones.length,
     loading,
     error,
     disciplinesLoading,
@@ -189,6 +324,12 @@ export default function App() {
     projectsError,
     unitsLoading,
     unitsError,
+    jobpacksLoading,
+    jobpacksError,
+    rolesLoading,
+    rolesError,
+    milestonesLoading,
+    milestonesError,
   ]);
 
   return (
@@ -391,6 +532,611 @@ export default function App() {
               </div>
             ))}
             {loading && (
+              <div className="table-row muted">
+                <span colSpan={4}>Fetching…</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Jobpacks</h2>
+          <span className="status">
+            {jobpacksLoading ? "Loading…" : jobpacksError ? "Error" : "Ready"}
+          </span>
+        </div>
+
+        {jobpacksError && <div className="alert alert-error">{jobpacksError}</div>}
+        {jobpackSaveError && <div className="alert alert-error">{jobpackSaveError}</div>}
+        {!jobpacksError && jobpacks.length === 0 && !jobpacksLoading && (
+          <div className="alert">No jobpacks available</div>
+        )}
+
+        <div className="panel subpanel">
+          <h3>Add jobpack</h3>
+          <div className="create-row">
+            <input
+              className="input"
+              placeholder="Jobpack name"
+              value={jobpackCreateForm.jobpack_name}
+              onChange={(e) =>
+                setJobpackCreateForm((f) => ({ ...f, jobpack_name: e.target.value }))
+              }
+            />
+            <div />
+            <button
+              className="btn"
+              disabled={jobpackSaving || !jobpackCreateForm.jobpack_name}
+              onClick={async () => {
+                setJobpackSaveError("");
+                setJobpackSaving(true);
+                try {
+                  const res = await fetch(`${API_BASE}/api/v1/lookups/jobpacks/insert`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(jobpackCreateForm),
+                  });
+                  if (!res.ok) {
+                    const detail = await res.json().catch(() => ({}));
+                    throw new Error(detail.detail || `Create failed (${res.status})`);
+                  }
+                  const created = await res.json();
+                  setJobpacks((prev) => [...prev, created]);
+                  setJobpackCreateForm({ jobpack_name: "" });
+                } catch (err) {
+                  setJobpackSaveError(err instanceof Error ? err.message : "Create failed");
+                } finally {
+                  setJobpackSaving(false);
+                }
+              }}
+            >
+              {jobpackSaving ? "Saving…" : "Add"}
+            </button>
+          </div>
+        </div>
+
+        <div className="table">
+          <div className="table-head">
+            <span>ID</span>
+            <span>Name</span>
+            <span className="hide-on-small" />
+            <span>Actions</span>
+          </div>
+          <div className="table-body">
+            {jobpacks.map((jobpack) => (
+              <div className="table-row" key={jobpack.jobpack_id}>
+                <span>{jobpack.jobpack_id}</span>
+                {jobpackEditingId === jobpack.jobpack_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={jobpackForm.jobpack_name}
+                      onChange={(e) =>
+                        setJobpackForm((f) => ({ ...f, jobpack_name: e.target.value }))
+                      }
+                    />
+                    <div />
+                  </>
+                ) : (
+                  <>
+                    <span>{jobpack.jobpack_name}</span>
+                    <span className="hide-on-small" />
+                  </>
+                )}
+                <span className="actions">
+                  {jobpackEditingId === jobpack.jobpack_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={jobpackSaving}
+                        onClick={async () => {
+                          setJobpackSaveError("");
+                          setJobpackSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/lookups/jobpacks/update`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                jobpack_id: jobpack.jobpack_id,
+                                jobpack_name: jobpackForm.jobpack_name,
+                              }),
+                            });
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setJobpacks((prev) =>
+                              prev.map((it) =>
+                                it.jobpack_id === jobpack.jobpack_id ? updated : it,
+                              ),
+                            );
+                            setJobpackEditingId(null);
+                          } catch (err) {
+                            setJobpackSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setJobpackSaving(false);
+                          }
+                        }}
+                      >
+                        {jobpackSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={jobpackSaving}
+                        onClick={() => {
+                          setJobpackEditingId(null);
+                          setJobpackSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setJobpackEditingId(jobpack.jobpack_id);
+                          setJobpackForm({ jobpack_name: jobpack.jobpack_name });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={jobpackSaving}
+                        onClick={async () => {
+                          setJobpackSaveError("");
+                          setJobpackSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/lookups/jobpacks/delete`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ jobpack_id: jobpack.jobpack_id }),
+                            });
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setJobpacks((prev) =>
+                              prev.filter((it) => it.jobpack_id !== jobpack.jobpack_id),
+                            );
+                          } catch (err) {
+                            setJobpackSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setJobpackSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+            {jobpacksLoading && (
+              <div className="table-row muted">
+                <span colSpan={4}>Fetching…</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Roles</h2>
+          <span className="status">{rolesLoading ? "Loading…" : rolesError ? "Error" : "Ready"}</span>
+        </div>
+
+        {rolesError && <div className="alert alert-error">{rolesError}</div>}
+        {roleSaveError && <div className="alert alert-error">{roleSaveError}</div>}
+        {!rolesError && roles.length === 0 && !rolesLoading && (
+          <div className="alert">No roles available</div>
+        )}
+
+        <div className="panel subpanel">
+          <h3>Add role</h3>
+          <div className="create-row">
+            <input
+              className="input"
+              placeholder="Role ID"
+              type="number"
+              value={roleCreateForm.role_id}
+              onChange={(e) =>
+                setRoleCreateForm((f) => ({ ...f, role_id: e.target.value ? Number(e.target.value) : "" }))
+              }
+            />
+            <input
+              className="input"
+              placeholder="Role name"
+              value={roleCreateForm.role_name}
+              onChange={(e) => setRoleCreateForm((f) => ({ ...f, role_name: e.target.value }))}
+            />
+            <button
+              className="btn"
+              disabled={roleSaving || roleCreateForm.role_id === "" || !roleCreateForm.role_name}
+              onClick={async () => {
+                setRoleSaveError("");
+                setRoleSaving(true);
+                try {
+                  const res = await fetch(`${API_BASE}/api/v1/lookups/roles/insert`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      role_id: Number(roleCreateForm.role_id),
+                      role_name: roleCreateForm.role_name,
+                    }),
+                  });
+                  if (!res.ok) {
+                    const detail = await res.json().catch(() => ({}));
+                    throw new Error(detail.detail || `Create failed (${res.status})`);
+                  }
+                  const created = await res.json();
+                  setRoles((prev) => [...prev, created]);
+                  setRoleCreateForm({ role_id: "", role_name: "" });
+                } catch (err) {
+                  setRoleSaveError(err instanceof Error ? err.message : "Create failed");
+                } finally {
+                  setRoleSaving(false);
+                }
+              }}
+            >
+              {roleSaving ? "Saving…" : "Add"}
+            </button>
+          </div>
+        </div>
+
+        <div className="table">
+          <div className="table-head">
+            <span>ID</span>
+            <span>Name</span>
+            <span className="hide-on-small" />
+            <span>Actions</span>
+          </div>
+          <div className="table-body">
+            {roles.map((role) => (
+              <div className="table-row" key={role.role_id}>
+                <span>{role.role_id}</span>
+                {roleEditingId === role.role_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={roleForm.role_name}
+                      onChange={(e) => setRoleForm((f) => ({ ...f, role_name: e.target.value }))}
+                    />
+                    <div />
+                  </>
+                ) : (
+                  <>
+                    <span>{role.role_name}</span>
+                    <span className="hide-on-small" />
+                  </>
+                )}
+                <span className="actions">
+                  {roleEditingId === role.role_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={roleSaving}
+                        onClick={async () => {
+                          setRoleSaveError("");
+                          setRoleSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/lookups/roles/update`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                role_id: role.role_id,
+                                role_name: roleForm.role_name,
+                              }),
+                            });
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setRoles((prev) =>
+                              prev.map((it) => (it.role_id === role.role_id ? updated : it)),
+                            );
+                            setRoleEditingId(null);
+                          } catch (err) {
+                            setRoleSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setRoleSaving(false);
+                          }
+                        }}
+                      >
+                        {roleSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={roleSaving}
+                        onClick={() => {
+                          setRoleEditingId(null);
+                          setRoleSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setRoleEditingId(role.role_id);
+                          setRoleForm({ role_name: role.role_name, role_id: role.role_id });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={roleSaving}
+                        onClick={async () => {
+                          setRoleSaveError("");
+                          setRoleSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/lookups/roles/delete`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ role_id: role.role_id }),
+                            });
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setRoles((prev) => prev.filter((it) => it.role_id !== role.role_id));
+                          } catch (err) {
+                            setRoleSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setRoleSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+            {rolesLoading && (
+              <div className="table-row muted">
+                <span colSpan={4}>Fetching…</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Doc revision milestones</h2>
+          <span className="status">
+            {milestonesLoading ? "Loading…" : milestonesError ? "Error" : "Ready"}
+          </span>
+        </div>
+
+        {milestonesError && <div className="alert alert-error">{milestonesError}</div>}
+        {milestoneSaveError && <div className="alert alert-error">{milestoneSaveError}</div>}
+        {!milestonesError && milestones.length === 0 && !milestonesLoading && (
+          <div className="alert">No milestones available</div>
+        )}
+
+        <div className="panel subpanel">
+          <h3>Add milestone</h3>
+          <div className="create-row">
+            <input
+              className="input"
+              placeholder="Milestone name"
+              value={milestoneCreateForm.milestone_name}
+              onChange={(e) =>
+                setMilestoneCreateForm((f) => ({ ...f, milestone_name: e.target.value }))
+              }
+            />
+            <input
+              className="input"
+              type="number"
+              placeholder="Progress (%)"
+              value={milestoneCreateForm.progress}
+              onChange={(e) =>
+                setMilestoneCreateForm((f) => ({
+                  ...f,
+                  progress: e.target.value === "" ? "" : Number(e.target.value),
+                }))
+              }
+            />
+            <button
+              className="btn"
+              disabled={milestoneSaving || !milestoneCreateForm.milestone_name}
+              onClick={async () => {
+                setMilestoneSaveError("");
+                setMilestoneSaving(true);
+                try {
+                  const res = await fetch(`${API_BASE}/api/v1/lookups/doc_rev_milestones/insert`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      milestone_name: milestoneCreateForm.milestone_name,
+                      progress:
+                        milestoneCreateForm.progress === "" ? null : Number(milestoneCreateForm.progress),
+                    }),
+                  });
+                  if (!res.ok) {
+                    const detail = await res.json().catch(() => ({}));
+                    throw new Error(detail.detail || `Create failed (${res.status})`);
+                  }
+                  const created = await res.json();
+                  setMilestones((prev) => [...prev, created]);
+                  setMilestoneCreateForm({ milestone_name: "", progress: "" });
+                } catch (err) {
+                  setMilestoneSaveError(err instanceof Error ? err.message : "Create failed");
+                } finally {
+                  setMilestoneSaving(false);
+                }
+              }}
+            >
+              {milestoneSaving ? "Saving…" : "Add"}
+            </button>
+          </div>
+        </div>
+
+        <div className="table">
+          <div className="table-head">
+            <span>ID</span>
+            <span>Name</span>
+            <span>Progress</span>
+            <span>Actions</span>
+          </div>
+          <div className="table-body">
+            {milestones.map((milestone) => (
+              <div className="table-row" key={milestone.milestone_id}>
+                <span>{milestone.milestone_id}</span>
+                {milestoneEditingId === milestone.milestone_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={milestoneForm.milestone_name}
+                      onChange={(e) =>
+                        setMilestoneForm((f) => ({ ...f, milestone_name: e.target.value }))
+                      }
+                    />
+                    <input
+                      className="input"
+                      type="number"
+                      value={milestoneForm.progress}
+                      onChange={(e) =>
+                        setMilestoneForm((f) => ({
+                          ...f,
+                          progress: e.target.value === "" ? "" : Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </>
+                ) : (
+                  <>
+                    <span>{milestone.milestone_name}</span>
+                    <span className="tag">
+                      {milestone.progress === null || milestone.progress === undefined
+                        ? "—"
+                        : `${milestone.progress}%`}
+                    </span>
+                  </>
+                )}
+                <span className="actions">
+                  {milestoneEditingId === milestone.milestone_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={milestoneSaving}
+                        onClick={async () => {
+                          setMilestoneSaveError("");
+                          setMilestoneSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/lookups/doc_rev_milestones/update`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  milestone_id: milestone.milestone_id,
+                                  milestone_name: milestoneForm.milestone_name,
+                                  progress:
+                                    milestoneForm.progress === "" ? null : Number(milestoneForm.progress),
+                                }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setMilestones((prev) =>
+                              prev.map((it) =>
+                                it.milestone_id === milestone.milestone_id ? updated : it,
+                              ),
+                            );
+                            setMilestoneEditingId(null);
+                          } catch (err) {
+                            setMilestoneSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setMilestoneSaving(false);
+                          }
+                        }}
+                      >
+                        {milestoneSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={milestoneSaving}
+                        onClick={() => {
+                          setMilestoneEditingId(null);
+                          setMilestoneSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setMilestoneEditingId(milestone.milestone_id);
+                          setMilestoneForm({
+                            milestone_name: milestone.milestone_name,
+                            progress:
+                              milestone.progress === null || milestone.progress === undefined
+                                ? ""
+                                : milestone.progress,
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={milestoneSaving}
+                        onClick={async () => {
+                          setMilestoneSaveError("");
+                          setMilestoneSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/lookups/doc_rev_milestones/delete`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ milestone_id: milestone.milestone_id }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setMilestones((prev) =>
+                              prev.filter((it) => it.milestone_id !== milestone.milestone_id),
+                            );
+                          } catch (err) {
+                            setMilestoneSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setMilestoneSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+            {milestonesLoading && (
               <div className="table-row muted">
                 <span colSpan={4}>Fetching…</span>
               </div>

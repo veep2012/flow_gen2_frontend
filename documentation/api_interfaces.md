@@ -163,6 +163,112 @@ Unit objects include `unit_id` and `unit_name`.
 - Success: `204` with empty body.
 - Errors: `404` if `unit_id` not found.
 
+## Jobpack lookups
+Jobpacks include `jobpack_id` and `jobpack_name`.
+
+### List jobpacks
+- `GET /api/v1/lookups/jobpacks`
+- Success: `200` sorted by `jobpack_name`.
+- Errors: `404` if none exist.
+
+### Insert jobpack
+- `POST /api/v1/lookups/jobpacks/insert`
+- Body:
+```json
+{ "jobpack_name": "JP-01" }
+```
+- Success: `201` with created jobpack.
+- Errors: `400` on uniqueness conflicts.
+
+### Update jobpack
+- `POST /api/v1/lookups/jobpacks/update`
+- Body:
+```json
+{ "jobpack_id": 5, "jobpack_name": "JP-01B" }
+```
+- Success: `200` with updated jobpack.
+- Errors: `400` if missing fields or uniqueness conflict; `404` if `jobpack_id` not found.
+
+### Delete jobpack
+- `POST /api/v1/lookups/jobpacks/delete`
+- Body:
+```json
+{ "jobpack_id": 5 }
+```
+- Success: `204` with empty body.
+- Errors: `404` if `jobpack_id` not found.
+
+## Role lookups
+Roles include `role_id` (explicitly provided) and `role_name`.
+
+### List roles
+- `GET /api/v1/lookups/roles`
+- Success: `200` sorted by `role_name`.
+- Errors: `404` if none exist.
+
+### Insert role
+- `POST /api/v1/lookups/roles/insert`
+- Body:
+```json
+{ "role_id": 10, "role_name": "Coordinator" }
+```
+- Success: `201` with created role.
+- Errors: `400` on id/name conflicts.
+
+### Update role
+- `POST /api/v1/lookups/roles/update`
+- Body:
+```json
+{ "role_id": 10, "role_name": "Lead Coordinator" }
+```
+- Success: `200` with updated role.
+- Errors: `400` if missing fields or uniqueness conflict; `404` if `role_id` not found.
+
+### Delete role
+- `POST /api/v1/lookups/roles/delete`
+- Body:
+```json
+{ "role_id": 10 }
+```
+- Success: `204` with empty body.
+- Errors: `404` if `role_id` not found.
+
+## Doc revision milestone lookups
+Milestones include `milestone_id`, `milestone_name`, and optional integer `progress`.
+
+### List milestones
+- `GET /api/v1/lookups/doc_rev_milestones`
+- Success: `200` sorted by `milestone_name`.
+- Errors: `404` if none exist.
+
+### Insert milestone
+- `POST /api/v1/lookups/doc_rev_milestones/insert`
+- Body:
+```json
+{ "milestone_name": "Issued for Construction", "progress": 80 }
+```
+- `progress` is optional (null if omitted).
+- Success: `201` with created milestone.
+- Errors: `400` on uniqueness conflicts.
+
+### Update milestone
+- `POST /api/v1/lookups/doc_rev_milestones/update`
+- Body (at least one optional field required):
+```json
+{ "milestone_id": 4, "milestone_name": "IFC", "progress": 90 }
+```
+- Success: `200` with updated milestone.
+- Errors: `400` if no fields or uniqueness conflict; `404` if `milestone_id` not found.
+
+### Delete milestone
+- `POST /api/v1/lookups/doc_rev_milestones/delete`
+- Body:
+```json
+{ "milestone_id": 4 }
+```
+- Success: `204` with empty body.
+- Errors: `404` if `milestone_id` not found.
+
 ## Error responses
 - `400` — Validation failed (e.g., missing update fields, unique constraint violations).
 - `404` — Resource not found or empty table.
