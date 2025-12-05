@@ -93,6 +93,76 @@ Discipline objects mirror areas, with `discipline_id`, `discipline_name`, and `d
 - Success: `204` with empty body.
 - Errors: `404` if `discipline_id` not found.
 
+## Project lookups
+Project objects include `project_id` and `project_name`.
+
+### List projects
+- `GET /api/v1/lookups/projects`
+- Success: `200` sorted by `project_name`.
+- Errors: `404` if none exist.
+
+### Insert project
+- `POST /api/v1/lookups/projects/insert`
+- Body:
+```json
+{ "project_name": "Delta Expansion" }
+```
+- Success: `201` with created project.
+- Errors: `400` on uniqueness conflicts.
+
+### Update project
+- `POST /api/v1/lookups/projects/update`
+- Body:
+```json
+{ "project_id": 3, "project_name": "Updated Project" }
+```
+- Success: `200` with updated project.
+- Errors: `400` if missing fields or uniqueness conflict; `404` if `project_id` not found.
+
+### Delete project
+- `POST /api/v1/lookups/projects/delete`
+- Body:
+```json
+{ "project_id": 3 }
+```
+- Success: `204` with empty body.
+- Errors: `404` if `project_id` not found.
+
+## Unit lookups
+Unit objects include `unit_id` and `unit_name`.
+
+### List units
+- `GET /api/v1/lookups/units`
+- Success: `200` sorted by `unit_name`.
+- Errors: `404` if none exist.
+
+### Insert unit
+- `POST /api/v1/lookups/units/insert`
+- Body:
+```json
+{ "unit_name": "North Wing" }
+```
+- Success: `201` with created unit.
+- Errors: `400` on uniqueness conflicts.
+
+### Update unit
+- `POST /api/v1/lookups/units/update`
+- Body:
+```json
+{ "unit_id": 2, "unit_name": "Main Floor" }
+```
+- Success: `200` with updated unit.
+- Errors: `400` if missing fields or uniqueness conflict; `404` if `unit_id` not found.
+
+### Delete unit
+- `POST /api/v1/lookups/units/delete`
+- Body:
+```json
+{ "unit_id": 2 }
+```
+- Success: `204` with empty body.
+- Errors: `404` if `unit_id` not found.
+
 ## Error responses
 - `400` — Validation failed (e.g., missing update fields, unique constraint violations).
 - `404` — Resource not found or empty table.

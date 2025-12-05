@@ -59,6 +59,62 @@ function useDisciplines() {
   return { disciplines, loading, error, fetchDisciplines, setDisciplines };
 }
 
+function useProjects() {
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/lookups/projects`);
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setProjects(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  return { projects, loading, error, fetchProjects, setProjects };
+}
+
+function useUnits() {
+  const [units, setUnits] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchUnits = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/lookups/units`);
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setUnits(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnits();
+  }, []);
+
+  return { units, loading, error, fetchUnits, setUnits };
+}
+
 export default function App() {
   const { areas, loading, error, fetchAreas, setAreas } = useAreas();
   const {
@@ -68,6 +124,14 @@ export default function App() {
     fetchDisciplines,
     setDisciplines,
   } = useDisciplines();
+  const {
+    projects,
+    loading: projectsLoading,
+    error: projectsError,
+    fetchProjects,
+    setProjects,
+  } = useProjects();
+  const { units, loading: unitsLoading, error: unitsError, fetchUnits, setUnits } = useUnits();
   const [createForm, setCreateForm] = useState({ area_name: "", area_acronym: "" });
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ area_name: "", area_acronym: "" });
@@ -84,6 +148,16 @@ export default function App() {
   });
   const [discSaving, setDiscSaving] = useState(false);
   const [discSaveError, setDiscSaveError] = useState("");
+  const [projectCreateForm, setProjectCreateForm] = useState({ project_name: "" });
+  const [projectEditingId, setProjectEditingId] = useState(null);
+  const [projectForm, setProjectForm] = useState({ project_name: "" });
+  const [projectSaving, setProjectSaving] = useState(false);
+  const [projectSaveError, setProjectSaveError] = useState("");
+  const [unitCreateForm, setUnitCreateForm] = useState({ unit_name: "" });
+  const [unitEditingId, setUnitEditingId] = useState(null);
+  const [unitForm, setUnitForm] = useState({ unit_name: "" });
+  const [unitSaving, setUnitSaving] = useState(false);
+  const [unitSaveError, setUnitSaveError] = useState("");
   const header = useMemo(() => {
     const areaLabel = loading ? "Loading areas…" : error ? "Areas unavailable" : `${areas.length} Areas`;
     const discLabel = disciplinesLoading
@@ -91,8 +165,31 @@ export default function App() {
       : disciplinesError
         ? "Disciplines unavailable"
         : `${disciplines.length} Disciplines`;
-    return `${areaLabel} • ${discLabel}`;
-  }, [areas.length, disciplines.length, loading, error, disciplinesLoading, disciplinesError]);
+    const projectLabel = projectsLoading
+      ? "Loading projects…"
+      : projectsError
+        ? "Projects unavailable"
+        : `${projects.length} Projects`;
+    const unitLabel = unitsLoading
+      ? "Loading units…"
+      : unitsError
+        ? "Units unavailable"
+        : `${units.length} Units`;
+    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel}`;
+  }, [
+    areas.length,
+    disciplines.length,
+    projects.length,
+    units.length,
+    loading,
+    error,
+    disciplinesLoading,
+    disciplinesError,
+    projectsLoading,
+    projectsError,
+    unitsLoading,
+    unitsError,
+  ]);
 
   return (
     <div className="page">
@@ -294,6 +391,378 @@ export default function App() {
               </div>
             ))}
             {loading && (
+              <div className="table-row muted">
+                <span colSpan={4}>Fetching…</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Projects</h2>
+          <span className="status">
+            {projectsLoading ? "Loading…" : projectsError ? "Error" : "Ready"}
+          </span>
+        </div>
+
+        {projectsError && <div className="alert alert-error">{projectsError}</div>}
+        {projectSaveError && <div className="alert alert-error">{projectSaveError}</div>}
+        {!projectsError && projects.length === 0 && !projectsLoading && (
+          <div className="alert">No projects available</div>
+        )}
+
+        <div className="panel subpanel">
+          <h3>Add project</h3>
+          <div className="create-row">
+            <input
+              className="input"
+              placeholder="Project name"
+              value={projectCreateForm.project_name}
+              onChange={(e) =>
+                setProjectCreateForm((f) => ({ ...f, project_name: e.target.value }))
+              }
+            />
+            <div />
+            <button
+              className="btn"
+              disabled={projectSaving || !projectCreateForm.project_name}
+              onClick={async () => {
+                setProjectSaveError("");
+                setProjectSaving(true);
+                try {
+                  const res = await fetch(`${API_BASE}/api/v1/lookups/projects/insert`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(projectCreateForm),
+                  });
+                  if (!res.ok) {
+                    const detail = await res.json().catch(() => ({}));
+                    throw new Error(detail.detail || `Create failed (${res.status})`);
+                  }
+                  const created = await res.json();
+                  setProjects((prev) => [...prev, created]);
+                  setProjectCreateForm({ project_name: "" });
+                } catch (err) {
+                  setProjectSaveError(err instanceof Error ? err.message : "Create failed");
+                } finally {
+                  setProjectSaving(false);
+                }
+              }}
+            >
+              {projectSaving ? "Saving…" : "Add"}
+            </button>
+          </div>
+        </div>
+
+        <div className="table">
+          <div className="table-head">
+            <span>ID</span>
+            <span>Name</span>
+            <span className="hide-on-small" />
+            <span>Actions</span>
+          </div>
+          <div className="table-body">
+            {projects.map((project) => (
+              <div className="table-row" key={project.project_id}>
+                <span>{project.project_id}</span>
+                {projectEditingId === project.project_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={projectForm.project_name}
+                      onChange={(e) =>
+                        setProjectForm((f) => ({ ...f, project_name: e.target.value }))
+                      }
+                    />
+                    <div />
+                  </>
+                ) : (
+                  <>
+                    <span>{project.project_name}</span>
+                    <span className="hide-on-small" />
+                  </>
+                )}
+                <span className="actions">
+                  {projectEditingId === project.project_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={projectSaving}
+                        onClick={async () => {
+                          setProjectSaveError("");
+                          setProjectSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/lookups/projects/update`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  project_id: project.project_id,
+                                  project_name: projectForm.project_name,
+                                }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setProjects((prev) =>
+                              prev.map((it) =>
+                                it.project_id === project.project_id ? updated : it,
+                              ),
+                            );
+                            setProjectEditingId(null);
+                          } catch (err) {
+                            setProjectSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setProjectSaving(false);
+                          }
+                        }}
+                      >
+                        {projectSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={projectSaving}
+                        onClick={() => {
+                          setProjectEditingId(null);
+                          setProjectSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setProjectEditingId(project.project_id);
+                          setProjectForm({ project_name: project.project_name });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={projectSaving}
+                        onClick={async () => {
+                          setProjectSaveError("");
+                          setProjectSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/lookups/projects/delete`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ project_id: project.project_id }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setProjects((prev) =>
+                              prev.filter((it) => it.project_id !== project.project_id),
+                            );
+                          } catch (err) {
+                            setProjectSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setProjectSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+            {projectsLoading && (
+              <div className="table-row muted">
+                <span colSpan={4}>Fetching…</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Units</h2>
+          <span className="status">
+            {unitsLoading ? "Loading…" : unitsError ? "Error" : "Ready"}
+          </span>
+        </div>
+
+        {unitsError && <div className="alert alert-error">{unitsError}</div>}
+        {unitSaveError && <div className="alert alert-error">{unitSaveError}</div>}
+        {!unitsError && units.length === 0 && !unitsLoading && (
+          <div className="alert">No units available</div>
+        )}
+
+        <div className="panel subpanel">
+          <h3>Add unit</h3>
+          <div className="create-row">
+            <input
+              className="input"
+              placeholder="Unit name"
+              value={unitCreateForm.unit_name}
+              onChange={(e) => setUnitCreateForm((f) => ({ ...f, unit_name: e.target.value }))}
+            />
+            <div />
+            <button
+              className="btn"
+              disabled={unitSaving || !unitCreateForm.unit_name}
+              onClick={async () => {
+                setUnitSaveError("");
+                setUnitSaving(true);
+                try {
+                  const res = await fetch(`${API_BASE}/api/v1/lookups/units/insert`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(unitCreateForm),
+                  });
+                  if (!res.ok) {
+                    const detail = await res.json().catch(() => ({}));
+                    throw new Error(detail.detail || `Create failed (${res.status})`);
+                  }
+                  const created = await res.json();
+                  setUnits((prev) => [...prev, created]);
+                  setUnitCreateForm({ unit_name: "" });
+                } catch (err) {
+                  setUnitSaveError(err instanceof Error ? err.message : "Create failed");
+                } finally {
+                  setUnitSaving(false);
+                }
+              }}
+            >
+              {unitSaving ? "Saving…" : "Add"}
+            </button>
+          </div>
+        </div>
+
+        <div className="table">
+          <div className="table-head">
+            <span>ID</span>
+            <span>Name</span>
+            <span className="hide-on-small" />
+            <span>Actions</span>
+          </div>
+          <div className="table-body">
+            {units.map((unit) => (
+              <div className="table-row" key={unit.unit_id}>
+                <span>{unit.unit_id}</span>
+                {unitEditingId === unit.unit_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={unitForm.unit_name}
+                      onChange={(e) => setUnitForm((f) => ({ ...f, unit_name: e.target.value }))}
+                    />
+                    <div />
+                  </>
+                ) : (
+                  <>
+                    <span>{unit.unit_name}</span>
+                    <span className="hide-on-small" />
+                  </>
+                )}
+                <span className="actions">
+                  {unitEditingId === unit.unit_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={unitSaving}
+                        onClick={async () => {
+                          setUnitSaveError("");
+                          setUnitSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/lookups/units/update`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                unit_id: unit.unit_id,
+                                unit_name: unitForm.unit_name,
+                              }),
+                            });
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setUnits((prev) =>
+                              prev.map((it) => (it.unit_id === unit.unit_id ? updated : it)),
+                            );
+                            setUnitEditingId(null);
+                          } catch (err) {
+                            setUnitSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setUnitSaving(false);
+                          }
+                        }}
+                      >
+                        {unitSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={unitSaving}
+                        onClick={() => {
+                          setUnitEditingId(null);
+                          setUnitSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setUnitEditingId(unit.unit_id);
+                          setUnitForm({ unit_name: unit.unit_name });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={unitSaving}
+                        onClick={async () => {
+                          setUnitSaveError("");
+                          setUnitSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/lookups/units/delete`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ unit_id: unit.unit_id }),
+                            });
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setUnits((prev) => prev.filter((it) => it.unit_id !== unit.unit_id));
+                          } catch (err) {
+                            setUnitSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setUnitSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+            {unitsLoading && (
               <div className="table-row muted">
                 <span colSpan={4}>Fetching…</span>
               </div>

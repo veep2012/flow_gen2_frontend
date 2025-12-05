@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from db.models import Area, Discipline
+from db.models import Area, Discipline, Project, Unit
 
 
 DATABASE_URL = os.getenv(
@@ -75,6 +75,46 @@ class DisciplineCreate(BaseModel):
 
 class DisciplineDelete(BaseModel):
     discipline_id: int
+
+
+class ProjectOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    project_id: int
+    project_name: str
+
+
+class ProjectUpdate(BaseModel):
+    project_id: int
+    project_name: str | None = None
+
+
+class ProjectCreate(BaseModel):
+    project_name: str
+
+
+class ProjectDelete(BaseModel):
+    project_id: int
+
+
+class UnitOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    unit_id: int
+    unit_name: str
+
+
+class UnitUpdate(BaseModel):
+    unit_id: int
+    unit_name: str | None = None
+
+
+class UnitCreate(BaseModel):
+    unit_name: str
+
+
+class UnitDelete(BaseModel):
+    unit_id: int
 
 
 def get_db() -> Iterable[Session]:
@@ -209,4 +249,108 @@ def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) 
     if not discipline:
         raise HTTPException(status_code=404, detail="Discipline not found")
     db.delete(discipline)
+    db.commit()
+
+
+@app.get("/api/v1/lookups/projects", response_model=list[ProjectOut])
+def list_projects(db: Session = Depends(get_db)) -> list[Project]:
+    projects = db.query(Project).order_by(Project.project_name).all()
+    if not projects:
+        raise HTTPException(status_code=404, detail="No projects found")
+    return projects
+
+
+@app.post("/api/v1/lookups/projects/update", response_model=ProjectOut)
+def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Project:
+    if payload.project_name is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    project = db.get(Project, payload.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if payload.project_name is not None:
+        project.project_name = payload.project_name
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Project name already exists")
+
+    db.refresh(project)
+    return project
+
+
+@app.post("/api/v1/lookups/projects/insert", response_model=ProjectOut, status_code=201)
+def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Project:
+    project = Project(project_name=payload.project_name)
+    db.add(project)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Project name already exists")
+    db.refresh(project)
+    return project
+
+
+@app.post("/api/v1/lookups/projects/delete", status_code=204)
+def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> None:
+    project = db.get(Project, payload.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    db.delete(project)
+    db.commit()
+
+
+@app.get("/api/v1/lookups/units", response_model=list[UnitOut])
+def list_units(db: Session = Depends(get_db)) -> list[Unit]:
+    units = db.query(Unit).order_by(Unit.unit_name).all()
+    if not units:
+        raise HTTPException(status_code=404, detail="No units found")
+    return units
+
+
+@app.post("/api/v1/lookups/units/update", response_model=UnitOut)
+def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
+    if payload.unit_name is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    unit = db.get(Unit, payload.unit_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail="Unit not found")
+
+    if payload.unit_name is not None:
+        unit.unit_name = payload.unit_name
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Unit name already exists")
+
+    db.refresh(unit)
+    return unit
+
+
+@app.post("/api/v1/lookups/units/insert", response_model=UnitOut, status_code=201)
+def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
+    unit = Unit(unit_name=payload.unit_name)
+    db.add(unit)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Unit name already exists")
+    db.refresh(unit)
+    return unit
+
+
+@app.post("/api/v1/lookups/units/delete", status_code=204)
+def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
+    unit = db.get(Unit, payload.unit_id)
+    if not unit:
+        raise HTTPException(status_code=404, detail="Unit not found")
+    db.delete(unit)
     db.commit()

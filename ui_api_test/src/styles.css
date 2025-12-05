@@ -199,6 +199,16 @@ h1 {
   color: var(--muted);
 }
 
+.hide-on-small {
+  display: none;
+}
+
+@media (min-width: 720px) {
+  .hide-on-small {
+    display: inline-block;
+  }
+}
+
 @media (max-width: 720px) {
   .hero {
     flex-direction: column;
