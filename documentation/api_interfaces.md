@@ -199,7 +199,7 @@ Jobpacks include `jobpack_id` and `jobpack_name`.
 - Errors: `404` if `jobpack_id` not found.
 
 ## Role lookups
-Roles include `role_id` (explicitly provided) and `role_name`.
+Roles include auto-generated `role_id` and `role_name`.
 
 ### List roles
 - `GET /api/v1/lookups/roles`
@@ -210,10 +210,10 @@ Roles include `role_id` (explicitly provided) and `role_name`.
 - `POST /api/v1/lookups/roles/insert`
 - Body:
 ```json
-{ "role_id": 10, "role_name": "Coordinator" }
+{ "role_name": "Coordinator" }
 ```
 - Success: `201` with created role.
-- Errors: `400` on id/name conflicts.
+- Errors: `400` on name conflicts.
 
 ### Update role
 - `POST /api/v1/lookups/roles/update`

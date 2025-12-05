@@ -262,9 +262,9 @@ export default function App() {
   const [jobpackForm, setJobpackForm] = useState({ jobpack_name: "" });
   const [jobpackSaving, setJobpackSaving] = useState(false);
   const [jobpackSaveError, setJobpackSaveError] = useState("");
-  const [roleCreateForm, setRoleCreateForm] = useState({ role_id: "", role_name: "" });
+  const [roleCreateForm, setRoleCreateForm] = useState({ role_name: "" });
   const [roleEditingId, setRoleEditingId] = useState(null);
-  const [roleForm, setRoleForm] = useState({ role_id: "", role_name: "" });
+  const [roleForm, setRoleForm] = useState({ role_name: "" });
   const [roleSaving, setRoleSaving] = useState(false);
   const [roleSaveError, setRoleSaveError] = useState("");
   const [milestoneCreateForm, setMilestoneCreateForm] = useState({
@@ -744,22 +744,13 @@ export default function App() {
           <div className="create-row">
             <input
               className="input"
-              placeholder="Role ID"
-              type="number"
-              value={roleCreateForm.role_id}
-              onChange={(e) =>
-                setRoleCreateForm((f) => ({ ...f, role_id: e.target.value ? Number(e.target.value) : "" }))
-              }
-            />
-            <input
-              className="input"
               placeholder="Role name"
               value={roleCreateForm.role_name}
               onChange={(e) => setRoleCreateForm((f) => ({ ...f, role_name: e.target.value }))}
             />
             <button
               className="btn"
-              disabled={roleSaving || roleCreateForm.role_id === "" || !roleCreateForm.role_name}
+              disabled={roleSaving || !roleCreateForm.role_name}
               onClick={async () => {
                 setRoleSaveError("");
                 setRoleSaving(true);
@@ -768,7 +759,6 @@ export default function App() {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                      role_id: Number(roleCreateForm.role_id),
                       role_name: roleCreateForm.role_name,
                     }),
                   });
@@ -778,7 +768,7 @@ export default function App() {
                   }
                   const created = await res.json();
                   setRoles((prev) => [...prev, created]);
-                  setRoleCreateForm({ role_id: "", role_name: "" });
+                  setRoleCreateForm({ role_name: "" });
                 } catch (err) {
                   setRoleSaveError(err instanceof Error ? err.message : "Create failed");
                 } finally {
@@ -870,7 +860,7 @@ export default function App() {
                         className="btn"
                         onClick={() => {
                           setRoleEditingId(role.role_id);
-                          setRoleForm({ role_name: role.role_name, role_id: role.role_id });
+                          setRoleForm({ role_name: role.role_name });
                         }}
                       >
                         Edit

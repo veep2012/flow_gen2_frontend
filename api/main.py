@@ -150,7 +150,6 @@ class RoleUpdate(BaseModel):
 
 
 class RoleCreate(BaseModel):
-    role_id: int
     role_name: str
 
 
@@ -502,13 +501,13 @@ def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
 
 @app.post("/api/v1/lookups/roles/insert", response_model=RoleOut, status_code=201)
 def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
-    role = Role(role_id=payload.role_id, role_name=payload.role_name)
+    role = Role(role_name=payload.role_name)
     db.add(role)
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Role id or name already exists")
+        raise HTTPException(status_code=400, detail="Role name already exists")
     db.refresh(role)
     return role
 

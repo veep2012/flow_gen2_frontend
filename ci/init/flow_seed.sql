@@ -88,6 +88,7 @@ SELECT setval(pg_get_serial_sequence('disciplines', 'discipline_id'), max(discip
 SELECT setval(pg_get_serial_sequence('projects', 'project_id'), max(project_id)) FROM projects;
 SELECT setval(pg_get_serial_sequence('units', 'unit_id'), max(unit_id)) FROM units;
 SELECT setval(pg_get_serial_sequence('jobpacks', 'jobpack_id'), max(jobpack_id)) FROM jobpacks;
+SELECT setval(pg_get_serial_sequence('roles', 'role_id'), max(role_id)) FROM roles;
 SELECT setval(pg_get_serial_sequence('person', 'person_id'), max(person_id)) FROM person;
 SELECT setval(pg_get_serial_sequence('doc_types', 'type_id'), max(type_id)) FROM doc_types;
 SELECT setval(pg_get_serial_sequence('users', 'user_id'), max(user_id)) FROM users;
@@ -170,4 +171,3 @@ BEGIN
 
     END LOOP;
 END $$;
-
