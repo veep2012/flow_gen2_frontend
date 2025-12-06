@@ -37,8 +37,6 @@ services:
     build:
       context: ..
       dockerfile: ci/Dockerfile.ui_api_test
-    environment:
-      - VITE_API_BASE_URL=http://localhost:5556
     ports:
       - "5557:5557"
     depends_on:

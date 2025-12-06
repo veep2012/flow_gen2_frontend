@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:5556";
+const API_BASE = (() => {
+  const configured = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+  if (typeof window !== "undefined") {
+    const { protocol, hostname } = window.location;
+    return `${protocol}//${hostname}:5556`;
+  }
+  return "http://localhost:5556";
+})();
 
 function useAreas() {
   const [areas, setAreas] = useState([]);
