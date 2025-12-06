@@ -26,6 +26,8 @@ services:
       dockerfile: ci/Dockerfile
     environment:
       PORT: 5556
+      # Comma-separated list; include deployed UI origins
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5557,http://89.35.124.200:5557}
     ports:
       - "5556:5556"
     depends_on:
