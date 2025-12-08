@@ -4,8 +4,9 @@ const API_BASE = (() => {
   const configured = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
   if (configured) return configured;
   if (typeof window !== "undefined") {
-    const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:5556`;
+    const { protocol, hostname, port } = window.location;
+    const portPart = port ? `:${port}` : "";
+    return `${protocol}//${hostname}${portPart}`;
   }
   return "http://localhost:5556";
 })();
