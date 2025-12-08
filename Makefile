@@ -8,8 +8,8 @@ DEFAULT_GOAL := help
 
 help:
 	@echo "Available targets:"
-	@echo "  app-up         Start API and UI test containers (no rebuild)"
-	@echo "  app-up-build   Build and start API and UI test containers"
+	@echo "  app-up         Start API, UI test, and nginx proxy containers (no rebuild)"
+	@echo "  app-up-build   Build and start API, UI test, and nginx proxy containers"
 	@echo "  app-down       Stop containers"
 	@echo "  ui-test-up     Start UI test container on port 5557 (no rebuild)"
 	@echo "  ui-test-up-build Build and start UI test container"
@@ -55,10 +55,10 @@ ui-test-down:
 	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) stop ui_api_test
 
 app-up:
-	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d api ui_api_test
+	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d api ui_api_test nginx
 
 app-up-build:
-	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d --build api ui_api_test
+	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d --build api ui_api_test nginx
 
 app-down:
 	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) down
