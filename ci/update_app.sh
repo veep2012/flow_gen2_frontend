@@ -32,6 +32,7 @@ fi
 
 echo "New commit detected ($last_recorded -> $after_pull). Restarting app..."
 
+make app-down
 make rebuild
 
 echo "$after_pull" > "$LAST_COMMIT_FILE"
