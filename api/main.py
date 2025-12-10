@@ -14,6 +14,7 @@ from db.models import (
     DocRevMilestone,
     DocRevStatus,
     Jobpack,
+    Person,
     Project,
     RevisionOverview,
     Role,
@@ -243,6 +244,29 @@ class DocRevStatusCreate(BaseModel):
 
 class DocRevStatusDelete(BaseModel):
     rev_status_id: int
+
+
+class PersonOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    person_id: int
+    person_name: str
+    photo_s3_uid: str | None = None
+
+
+class PersonUpdate(BaseModel):
+    person_id: int
+    person_name: str | None = None
+    photo_s3_uid: str | None = None
+
+
+class PersonCreate(BaseModel):
+    person_name: str
+    photo_s3_uid: str | None = None
+
+
+class PersonDelete(BaseModel):
+    person_id: int
 
 
 def get_db() -> Iterable[Session]:
@@ -786,4 +810,58 @@ def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get
     if not status:
         raise HTTPException(status_code=404, detail="Doc revision status not found")
     db.delete(status)
+    db.commit()
+
+
+@app.get("/api/v1/people/persons", response_model=list[PersonOut])
+def list_persons(db: Session = Depends(get_db)) -> list[Person]:
+    persons = db.query(Person).order_by(Person.person_name).all()
+    if not persons:
+        raise HTTPException(status_code=404, detail="No persons found")
+    return persons
+
+
+@app.post("/api/v1/people/persons/update", response_model=PersonOut)
+def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Person:
+    if payload.person_name is None and payload.photo_s3_uid is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    person = db.get(Person, payload.person_id)
+    if not person:
+        raise HTTPException(status_code=404, detail="Person not found")
+
+    if payload.person_name is not None:
+        person.person_name = payload.person_name
+    if payload.photo_s3_uid is not None:
+        person.photo_s3_uid = payload.photo_s3_uid
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Failed to update person")
+
+    db.refresh(person)
+    return person
+
+
+@app.post("/api/v1/people/persons/insert", response_model=PersonOut, status_code=201)
+def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Person:
+    person = Person(person_name=payload.person_name, photo_s3_uid=payload.photo_s3_uid)
+    db.add(person)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Failed to create person")
+    db.refresh(person)
+    return person
+
+
+@app.post("/api/v1/people/persons/delete", status_code=204)
+def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
+    person = db.get(Person, payload.person_id)
+    if not person:
+        raise HTTPException(status_code=404, detail="Person not found")
+    db.delete(person)
     db.commit()

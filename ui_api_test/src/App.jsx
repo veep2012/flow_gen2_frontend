@@ -263,6 +263,39 @@ function useDocRevStatuses() {
   return { statuses, loading, error, fetchStatuses, setStatuses };
 }
 
+function usePersons() {
+  const [persons, setPersons] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchPersons = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE}/api/v1/people/persons`);
+      if (res.status === 404) {
+        setPersons([]);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setPersons(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPersons();
+  }, []);
+
+  return { persons, loading, error, fetchPersons, setPersons };
+}
+
 export default function App() {
   const { areas, loading, error, fetchAreas, setAreas } = useAreas();
   const {
@@ -309,6 +342,13 @@ export default function App() {
     fetchStatuses,
     setStatuses,
   } = useDocRevStatuses();
+  const {
+    persons,
+    loading: personsLoading,
+    error: personsError,
+    fetchPersons,
+    setPersons,
+  } = usePersons();
   const [createForm, setCreateForm] = useState({ area_name: "", area_acronym: "" });
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ area_name: "", area_acronym: "" });
@@ -373,6 +413,11 @@ export default function App() {
   const [statusForm, setStatusForm] = useState({ rev_status_name: "" });
   const [statusSaving, setStatusSaving] = useState(false);
   const [statusSaveError, setStatusSaveError] = useState("");
+  const [personCreateForm, setPersonCreateForm] = useState({ person_name: "", photo_s3_uid: "" });
+  const [personEditingId, setPersonEditingId] = useState(null);
+  const [personForm, setPersonForm] = useState({ person_name: "", photo_s3_uid: "" });
+  const [personSaving, setPersonSaving] = useState(false);
+  const [personSaveError, setPersonSaveError] = useState("");
   const [activeTab, setActiveTab] = useState("lookups");
   const header = useMemo(() => {
     const areaLabel = loading ? "Loading areas…" : error ? "Areas unavailable" : `${areas.length} Areas`;
@@ -416,7 +461,12 @@ export default function App() {
       : statusesError
         ? "Statuses unavailable"
         : `${statuses.length} Rev statuses`;
-    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel} • ${jobpackLabel} • ${roleLabel} • ${milestoneLabel} • ${revisionLabel} • ${statusLabel}`;
+    const personsLabel = personsLoading
+      ? "Loading persons…"
+      : personsError
+        ? "Persons unavailable"
+        : `${persons.length} Persons`;
+    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel} • ${jobpackLabel} • ${roleLabel} • ${milestoneLabel} • ${revisionLabel} • ${statusLabel} • ${personsLabel}`;
   }, [
     areas.length,
     disciplines.length,
@@ -445,6 +495,9 @@ export default function App() {
     revisionOverviewError,
     statusesLoading,
     statusesError,
+    persons.length,
+    personsLoading,
+    personsError,
   ]);
 
   return (
@@ -2335,15 +2388,235 @@ export default function App() {
         <section className="panel" id="people-pane" role="tabpanel" aria-labelledby="people-tab">
           <div className="panel-header">
             <h2>Persons / Users</h2>
-            <span className="status">New tab</span>
+            <span className="status">
+              {personsLoading ? "Loading…" : personsError ? "Error" : "Ready"}
+            </span>
           </div>
-          <p className="lede">
-            This space is reserved for people/user management flows. Add the relevant endpoints and
-            UI here without crowding the lookup tools.
-          </p>
-          <div className="tab-placeholder">
-            <p>Coming soon: create, search, and inspect persons/users.</p>
-            <p className="hint">Keep using the Lookups tab for reference data while this builds out.</p>
+
+          {personsError && <div className="alert alert-error">{personsError}</div>}
+          {personSaveError && <div className="alert alert-error">{personSaveError}</div>}
+          {!personsError && persons.length === 0 && !personsLoading && (
+            <div className="alert">No persons available</div>
+          )}
+
+          <div className="panel subpanel">
+            <h3>Add person</h3>
+            <div className="create-row">
+              <input
+                className="input"
+                placeholder="Person name"
+                value={personCreateForm.person_name}
+                onChange={(e) =>
+                  setPersonCreateForm((f) => ({ ...f, person_name: e.target.value }))
+                }
+              />
+              <input
+                className="input"
+                placeholder="Photo S3 UID (optional)"
+                value={personCreateForm.photo_s3_uid}
+                onChange={(e) =>
+                  setPersonCreateForm((f) => ({ ...f, photo_s3_uid: e.target.value }))
+                }
+              />
+              <button
+                className="btn"
+                disabled={personSaving || !personCreateForm.person_name}
+                onClick={async () => {
+                  setPersonSaveError("");
+                  setPersonSaving(true);
+                  try {
+                    const res = await fetch(`${API_BASE}/api/v1/people/persons/insert`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        person_name: personCreateForm.person_name,
+                        photo_s3_uid:
+                          personCreateForm.photo_s3_uid === ""
+                            ? null
+                            : personCreateForm.photo_s3_uid,
+                      }),
+                    });
+                    if (!res.ok) {
+                      const detail = await res.json().catch(() => ({}));
+                      throw new Error(detail.detail || `Create failed (${res.status})`);
+                    }
+                    const created = await res.json();
+                    setPersons((prev) => [...prev, created]);
+                    setPersonCreateForm({ person_name: "", photo_s3_uid: "" });
+                  } catch (err) {
+                    setPersonSaveError(err instanceof Error ? err.message : "Create failed");
+                  } finally {
+                    setPersonSaving(false);
+                  }
+                }}
+              >
+                {personSaving ? "Saving…" : "Add"}
+              </button>
+            </div>
+          </div>
+
+          <div className="table">
+            <div className="table-head">
+              <span>ID</span>
+              <span>Name</span>
+              <span>Photo UID</span>
+              <span>Actions</span>
+            </div>
+            <div className="table-body">
+              {persons.map((person) => (
+                <div className="table-row" key={person.person_id}>
+                  <span>{person.person_id}</span>
+                  {personEditingId === person.person_id ? (
+                    <>
+                      <input
+                        className="input"
+                        value={personForm.person_name}
+                        onChange={(e) =>
+                          setPersonForm((f) => ({ ...f, person_name: e.target.value }))
+                        }
+                      />
+                      <input
+                        className="input"
+                        value={personForm.photo_s3_uid ?? ""}
+                        onChange={(e) =>
+                          setPersonForm((f) => ({ ...f, photo_s3_uid: e.target.value }))
+                        }
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <span>{person.person_name}</span>
+                      <span className="tag">
+                        {person.photo_s3_uid === null || person.photo_s3_uid === undefined
+                          ? "—"
+                          : person.photo_s3_uid}
+                      </span>
+                    </>
+                  )}
+                  <span className="actions">
+                    {personEditingId === person.person_id ? (
+                      <>
+                        <button
+                          className="btn"
+                          disabled={personSaving}
+                          onClick={async () => {
+                            setPersonSaveError("");
+                            setPersonSaving(true);
+                            try {
+                              const res = await fetch(
+                                `${API_BASE}/api/v1/people/persons/update`,
+                                {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    person_id: person.person_id,
+                                    person_name: personForm.person_name,
+                                    photo_s3_uid:
+                                      personForm.photo_s3_uid === ""
+                                        ? null
+                                        : personForm.photo_s3_uid,
+                                  }),
+                                },
+                              );
+                              if (!res.ok) {
+                                const detail = await res.json().catch(() => ({}));
+                                throw new Error(detail.detail || `Save failed (${res.status})`);
+                              }
+                              const updated = await res.json();
+                              setPersons((prev) =>
+                                prev.map((it) =>
+                                  it.person_id === person.person_id ? updated : it,
+                                ),
+                              );
+                              setPersonEditingId(null);
+                            } catch (err) {
+                              setPersonSaveError(err instanceof Error ? err.message : "Save failed");
+                            } finally {
+                              setPersonSaving(false);
+                            }
+                          }}
+                        >
+                          {personSaving ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          disabled={personSaving}
+                          onClick={() => {
+                            setPersonEditingId(null);
+                            setPersonSaveError("");
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="btn"
+                          onClick={() => {
+                            setPersonEditingId(person.person_id);
+                            setPersonForm({
+                              person_name: person.person_name,
+                              photo_s3_uid:
+                                person.photo_s3_uid === null || person.photo_s3_uid === undefined
+                                  ? ""
+                                  : person.photo_s3_uid,
+                            });
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          disabled={personSaving}
+                          onClick={async () => {
+                            setPersonSaveError("");
+                            setPersonSaving(true);
+                            try {
+                              const res = await fetch(
+                                `${API_BASE}/api/v1/people/persons/delete`,
+                                {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ person_id: person.person_id }),
+                                },
+                              );
+                              if (!res.ok) {
+                                const detail = await res.json().catch(() => ({}));
+                                throw new Error(detail.detail || `Delete failed (${res.status})`);
+                              }
+                              setPersons((prev) =>
+                                prev.filter((it) => it.person_id !== person.person_id),
+                              );
+                            } catch (err) {
+                              setPersonSaveError(
+                                err instanceof Error ? err.message : "Delete failed",
+                              );
+                            } finally {
+                              setPersonSaving(false);
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </span>
+                </div>
+              ))}
+              {personsLoading && (
+                <div className="table-row muted">
+                  <span colSpan={4}>Fetching…</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="panel subpanel">
+            <h3>Users</h3>
+            <p className="muted">
+              User management will appear here next. Use Persons above for now.
+            </p>
           </div>
         </section>
       )}
