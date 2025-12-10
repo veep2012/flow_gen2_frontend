@@ -94,7 +94,7 @@ erDiagram
 
     USERS { 
         smallint user_id PK 
-        smallint person_id FK UK
+        smallint person_id FK "unique"
         smallint role_id FK
         string user_acronym
     }
@@ -106,7 +106,6 @@ erDiagram
         smallint user_id FK
         smallint project_id FK "nullable"
         smallint discipline_id FK "nullable"
-        check "project_id OR discipline_id"
     }
 
     DISTRIBUTION_LIST {
@@ -165,7 +164,6 @@ erDiagram
     DISTRIBUTION_LIST }|--|{ PERSON : "includes"
 
 ```
-
 
 
 
