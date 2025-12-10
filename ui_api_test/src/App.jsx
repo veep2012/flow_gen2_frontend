@@ -329,6 +329,39 @@ function useUsers() {
   return { users, loading, error, fetchUsers, setUsers };
 }
 
+function usePermissions() {
+  const [permissions, setPermissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchPermissions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE}/api/v1/people/permissions`);
+      if (res.status === 404) {
+        setPermissions([]);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setPermissions(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPermissions();
+  }, []);
+
+  return { permissions, loading, error, fetchPermissions, setPermissions };
+}
+
 export default function App() {
   const { areas, loading, error, fetchAreas, setAreas } = useAreas();
   const {
@@ -389,6 +422,13 @@ export default function App() {
     fetchUsers,
     setUsers,
   } = useUsers();
+  const {
+    permissions,
+    loading: permissionsLoading,
+    error: permissionsError,
+    fetchPermissions,
+    setPermissions,
+  } = usePermissions();
   const availablePersons = useMemo(
     () => persons.filter((p) => !users.some((u) => u.person_id === p.person_id)),
     [persons, users],
@@ -471,6 +511,15 @@ export default function App() {
   const [userForm, setUserForm] = useState({ person_id: "", user_acronym: "", role_id: "" });
   const [userSaving, setUserSaving] = useState(false);
   const [userSaveError, setUserSaveError] = useState("");
+  const [permissionCreateForm, setPermissionCreateForm] = useState({
+    user_id: "",
+    project_id: "",
+    discipline_id: "",
+  });
+  const [permissionSaving, setPermissionSaving] = useState(false);
+  const [permissionSaveError, setPermissionSaveError] = useState("");
+  const [permissionEditingKey, setPermissionEditingKey] = useState(null);
+  const [permissionForm, setPermissionForm] = useState({ project_id: "", discipline_id: "" });
   const [activeTab, setActiveTab] = useState("lookups");
   const header = useMemo(() => {
     const areaLabel = loading ? "Loading areas…" : error ? "Areas unavailable" : `${areas.length} Areas`;
@@ -524,7 +573,12 @@ export default function App() {
       : usersError
         ? "Users unavailable"
         : `${users.length} Users`;
-    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel} • ${jobpackLabel} • ${roleLabel} • ${milestoneLabel} • ${revisionLabel} • ${statusLabel} • ${personsLabel} • ${usersLabel}`;
+    const permissionsLabel = permissionsLoading
+      ? "Loading permissions…"
+      : permissionsError
+        ? "Permissions unavailable"
+        : `${permissions.length} Permissions`;
+    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel} • ${jobpackLabel} • ${roleLabel} • ${milestoneLabel} • ${revisionLabel} • ${statusLabel} • ${personsLabel} • ${usersLabel} • ${permissionsLabel}`;
   }, [
     areas.length,
     disciplines.length,
@@ -559,6 +613,9 @@ export default function App() {
     users.length,
     usersLoading,
     usersError,
+    permissions.length,
+    permissionsLoading,
+    permissionsError,
   ]);
 
   return (
@@ -2752,6 +2809,7 @@ export default function App() {
               </button>
             </div>
 
+
             <div className="table users-table">
               <div className="table-head">
                 <span>ID</span>
@@ -2892,6 +2950,7 @@ export default function App() {
                                     throw new Error(detail.detail || `Delete failed (${res.status})`);
                                   }
                                   setUsers((prev) => prev.filter((it) => it.user_id !== user.user_id));
+                                  fetchPermissions();
                                 } catch (err) {
                                   setUserSaveError(err instanceof Error ? err.message : "Delete failed");
                                 } finally {
@@ -2910,6 +2969,301 @@ export default function App() {
                 {usersLoading && (
                   <div className="table-row muted">
                     <span colSpan={5}>Fetching…</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="panel subpanel">
+            <h3>Permissions</h3>
+            {permissionsError && <div className="alert alert-error">{permissionsError}</div>}
+            {permissionSaveError && <div className="alert alert-error">{permissionSaveError}</div>}
+            {!permissionsError && permissions.length === 0 && !permissionsLoading && (
+              <div className="alert">No permissions defined</div>
+            )}
+
+            <div className="create-row permission-create">
+              <select
+                className="input"
+                value={permissionCreateForm.user_id}
+                onChange={(e) =>
+                  setPermissionCreateForm((f) => ({ ...f, user_id: e.target.value }))
+                }
+              >
+                <option value="">Select user</option>
+                {users.map((user) => {
+                  const person = persons.find((p) => p.person_id === user.person_id);
+                  return (
+                    <option key={user.user_id} value={user.user_id}>
+                      {user.user_acronym} — {person ? person.person_name : `Person ${user.person_id}`}
+                    </option>
+                  );
+                })}
+              </select>
+              <select
+                className="input"
+                value={permissionCreateForm.project_id}
+                onChange={(e) =>
+                  setPermissionCreateForm((f) => ({ ...f, project_id: e.target.value }))
+                }
+              >
+                <option value="">Any project</option>
+                {projects.map((project) => (
+                  <option key={project.project_id} value={project.project_id}>
+                    {project.project_name}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="input"
+                value={permissionCreateForm.discipline_id}
+                onChange={(e) =>
+                  setPermissionCreateForm((f) => ({ ...f, discipline_id: e.target.value }))
+                }
+              >
+                <option value="">Any discipline</option>
+                {disciplines.map((discipline) => (
+                  <option key={discipline.discipline_id} value={discipline.discipline_id}>
+                    {discipline.discipline_name}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="btn"
+                disabled={
+                  permissionSaving ||
+                  !permissionCreateForm.user_id ||
+                  (!permissionCreateForm.project_id && !permissionCreateForm.discipline_id)
+                }
+                onClick={async () => {
+                  setPermissionSaveError("");
+                  setPermissionSaving(true);
+                  try {
+                    const res = await fetch(`${API_BASE}/api/v1/people/permissions/insert`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        user_id: Number(permissionCreateForm.user_id),
+                        project_id:
+                          permissionCreateForm.project_id === ""
+                            ? null
+                            : Number(permissionCreateForm.project_id),
+                        discipline_id:
+                          permissionCreateForm.discipline_id === ""
+                            ? null
+                            : Number(permissionCreateForm.discipline_id),
+                      }),
+                    });
+                    if (!res.ok) {
+                      const detail = await res.json().catch(() => ({}));
+                      throw new Error(detail.detail || `Create failed (${res.status})`);
+                    }
+                    const created = await res.json();
+                    setPermissions((prev) => [...prev, created]);
+                    setPermissionCreateForm({ user_id: "", project_id: "", discipline_id: "" });
+                  } catch (err) {
+                    setPermissionSaveError(err instanceof Error ? err.message : "Create failed");
+                  } finally {
+                    setPermissionSaving(false);
+                  }
+                }}
+              >
+                {permissionSaving ? "Saving…" : "Add"}
+              </button>
+            </div>
+
+            <div className="table permissions-table">
+              <div className="table-head">
+                <span>User</span>
+                <span>Project</span>
+                <span>Discipline</span>
+                <span>Actions</span>
+              </div>
+              <div className="table-body">
+                {permissions.map((perm) => {
+                  const user = users.find((u) => u.user_id === perm.user_id);
+                  const person = user ? persons.find((p) => p.person_id === user.person_id) : null;
+                  const project = perm.project_id
+                    ? projects.find((p) => p.project_id === perm.project_id)
+                    : null;
+                  const discipline = perm.discipline_id
+                    ? disciplines.find((d) => d.discipline_id === perm.discipline_id)
+                    : null;
+                  const editingKey = `${perm.permission_id}`;
+                  return (
+                    <div className="table-row" key={perm.permission_id}>
+                      <span>
+                        {user ? user.user_acronym : `User ${perm.user_id}`}
+                        {person ? ` (${person.person_name})` : ""}
+                      </span>
+                      <span>
+                        {permissionEditingKey === editingKey ? (
+                          <select
+                            className="input"
+                            value={permissionForm.project_id}
+                            onChange={(e) =>
+                              setPermissionForm((f) => ({ ...f, project_id: e.target.value }))
+                            }
+                          >
+                            <option value="">Any project</option>
+                            {projects.map((project) => (
+                              <option key={project.project_id} value={project.project_id}>
+                                {project.project_name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          project ? project.project_name : "Any project"
+                        )}
+                      </span>
+                      <span>
+                        {permissionEditingKey === editingKey ? (
+                          <select
+                            className="input"
+                            value={permissionForm.discipline_id}
+                            onChange={(e) =>
+                              setPermissionForm((f) => ({ ...f, discipline_id: e.target.value }))
+                            }
+                          >
+                            <option value="">Any discipline</option>
+                            {disciplines.map((discipline) => (
+                              <option key={discipline.discipline_id} value={discipline.discipline_id}>
+                                {discipline.discipline_name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          discipline ? discipline.discipline_name : "Any discipline"
+                        )}
+                      </span>
+                      <span className="actions">
+                        {permissionEditingKey === editingKey ? (
+                          <>
+                            <button
+                              className="btn"
+                              disabled={permissionSaving}
+                              onClick={async () => {
+                                setPermissionSaveError("");
+                                setPermissionSaving(true);
+                                try {
+                                  const res = await fetch(`${API_BASE}/api/v1/people/permissions/update`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      permission_id: perm.permission_id,
+                                      user_id: perm.user_id,
+                                      project_id: perm.project_id,
+                                      discipline_id: perm.discipline_id,
+                                      new_project_id:
+                                        permissionForm.project_id === ""
+                                          ? null
+                                          : Number(permissionForm.project_id),
+                                      new_discipline_id:
+                                        permissionForm.discipline_id === ""
+                                          ? null
+                                          : Number(permissionForm.discipline_id),
+                                    }),
+                                  });
+                                  if (!res.ok) {
+                                    const detail = await res.json().catch(() => ({}));
+                                    throw new Error(detail.detail || `Save failed (${res.status})`);
+                                  }
+                                  const updated = await res.json();
+                                  setPermissions((prev) =>
+                                    prev.map((p) =>
+                                      p.user_id === perm.user_id &&
+                                      p.project_id === perm.project_id &&
+                                      p.discipline_id === perm.discipline_id
+                                        ? updated
+                                        : p,
+                                    ),
+                                  );
+                                  setPermissionEditingKey(null);
+                                } catch (err) {
+                                  setPermissionSaveError(err instanceof Error ? err.message : "Save failed");
+                                } finally {
+                                  setPermissionSaving(false);
+                                }
+                              }}
+                            >
+                              {permissionSaving ? "Saving…" : "Save"}
+                            </button>
+                            <button
+                              className="btn btn-ghost"
+                              disabled={permissionSaving}
+                              onClick={() => {
+                                setPermissionEditingKey(null);
+                                setPermissionSaveError("");
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                setPermissionEditingKey(editingKey);
+                                setPermissionForm({
+                                  project_id: perm.project_id === null ? "" : String(perm.project_id),
+                                  discipline_id:
+                                    perm.discipline_id === null ? "" : String(perm.discipline_id),
+                                });
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                        className="btn btn-ghost"
+                        disabled={permissionSaving}
+                        onClick={async () => {
+                          setPermissionSaveError("");
+                          setPermissionSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/people/permissions/delete`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                permission_id: perm.permission_id,
+                                user_id: perm.user_id,
+                                project_id: perm.project_id,
+                                discipline_id: perm.discipline_id,
+                              }),
+                            });
+                                  if (!res.ok) {
+                                    const detail = await res.json().catch(() => ({}));
+                                    throw new Error(detail.detail || `Delete failed (${res.status})`);
+                                  }
+                                  setPermissions((prev) =>
+                                    prev.filter(
+                                      (p) =>
+                                        !(
+                                          p.user_id === perm.user_id &&
+                                          p.project_id === perm.project_id &&
+                                          p.discipline_id === perm.discipline_id
+                                        ),
+                                    ),
+                                  );
+                                } catch (err) {
+                                  setPermissionSaveError(err instanceof Error ? err.message : "Delete failed");
+                                } finally {
+                                  setPermissionSaving(false);
+                                }
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+                {permissionsLoading && (
+                  <div className="table-row muted">
+                    <span colSpan={4}>Fetching…</span>
                   </div>
                 )}
               </div>

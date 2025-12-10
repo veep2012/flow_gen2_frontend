@@ -14,6 +14,7 @@ from db.models import (
     DocRevMilestone,
     DocRevStatus,
     Jobpack,
+    Permission,
     Person,
     Project,
     RevisionOverview,
@@ -294,6 +295,52 @@ class UserCreate(BaseModel):
 
 class UserDelete(BaseModel):
     user_id: int
+
+
+class PermissionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    permission_id: int
+    user_id: int
+    project_id: int | None = None
+    discipline_id: int | None = None
+
+
+class PermissionCreate(BaseModel):
+    user_id: int
+    project_id: int | None = None
+    discipline_id: int | None = None
+
+    def validate_scope(self) -> None:
+        if self.project_id is None and self.discipline_id is None:
+            raise HTTPException(status_code=400, detail="Provide project_id or discipline_id")
+
+
+class PermissionDelete(BaseModel):
+    permission_id: int | None = None
+    user_id: int
+    project_id: int | None = None
+    discipline_id: int | None = None
+
+    def validate_scope(self) -> None:
+        if self.permission_id is None and self.project_id is None and self.discipline_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Provide permission_id or project_id/discipline_id to identify the permission",
+            )
+
+
+class PermissionUpdate(BaseModel):
+    permission_id: int | None = None
+    user_id: int
+    project_id: int | None = None
+    discipline_id: int | None = None
+    new_project_id: int | None = None
+    new_discipline_id: int | None = None
+
+    def validate_current(self) -> None:
+        if self.project_id is None and self.discipline_id is None:
+            raise HTTPException(status_code=400, detail="Provide current project_id or discipline_id")
 
 
 def get_db() -> Iterable[Session]:
@@ -961,4 +1008,119 @@ def delete_user(payload: UserDelete, db: Session = Depends(get_db)) -> None:
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     db.delete(user)
+    db.commit()
+
+
+def _permission_filter(query, payload) -> Session:
+    if getattr(payload, "permission_id", None) is not None:
+        return query.filter(Permission.permission_id == payload.permission_id)
+
+    query = query.filter(Permission.user_id == payload.user_id)
+    if payload.project_id is None:
+        query = query.filter(Permission.project_id.is_(None))
+    else:
+        query = query.filter(Permission.project_id == payload.project_id)
+    if payload.discipline_id is None:
+        query = query.filter(Permission.discipline_id.is_(None))
+    else:
+        query = query.filter(Permission.discipline_id == payload.discipline_id)
+    return query
+
+
+@app.get("/api/v1/people/permissions", response_model=list[PermissionOut])
+def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
+    permissions = db.query(Permission).order_by(Permission.user_id).all()
+    if not permissions:
+        raise HTTPException(status_code=404, detail="No permissions found")
+    return permissions
+
+
+@app.post("/api/v1/people/permissions/insert", response_model=PermissionOut, status_code=201)
+def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) -> Permission:
+    payload.validate_scope()
+
+    user = db.get(User, payload.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if payload.project_id is not None and not db.get(Project, payload.project_id):
+        raise HTTPException(status_code=404, detail="Project not found")
+    if payload.discipline_id is not None and not db.get(Discipline, payload.discipline_id):
+        raise HTTPException(status_code=404, detail="Discipline not found")
+
+    existing = _permission_filter(db.query(Permission), payload).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Permission already exists")
+
+    permission = Permission(
+        user_id=payload.user_id,
+        project_id=payload.project_id,
+        discipline_id=payload.discipline_id,
+    )
+    db.add(permission)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Failed to create permission")
+    db.refresh(permission)
+    return permission
+
+
+@app.post("/api/v1/people/permissions/update", response_model=PermissionOut)
+def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) -> Permission:
+    payload.validate_current()
+
+    existing = _permission_filter(db.query(Permission), payload).first()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Permission not found")
+
+    provided_project = "new_project_id" in payload.model_fields_set
+    provided_discipline = "new_discipline_id" in payload.model_fields_set
+    if not provided_project and not provided_discipline:
+        raise HTTPException(status_code=400, detail="Provide new_project_id or new_discipline_id")
+
+    # Resolve target scope (fallback to current if not provided, allow explicit null)
+    target_project_id = existing.project_id if not provided_project else payload.new_project_id
+    target_discipline_id = (
+        existing.discipline_id if not provided_discipline else payload.new_discipline_id
+    )
+
+    # Validate references
+    if target_project_id is not None and not db.get(Project, target_project_id):
+        raise HTTPException(status_code=404, detail="Project not found")
+    if target_discipline_id is not None and not db.get(Discipline, target_discipline_id):
+        raise HTTPException(status_code=404, detail="Discipline not found")
+
+    # Check for duplicate with new scope
+    if target_project_id != existing.project_id or target_discipline_id != existing.discipline_id:
+        dup_payload = PermissionCreate(
+            user_id=existing.user_id,
+            project_id=target_project_id,
+            discipline_id=target_discipline_id,
+        )
+        if _permission_filter(db.query(Permission), dup_payload).first():
+            raise HTTPException(status_code=400, detail="Permission already exists")
+
+    existing.project_id = target_project_id
+    existing.discipline_id = target_discipline_id
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Failed to update permission")
+
+    db.refresh(existing)
+    return existing
+
+
+@app.post("/api/v1/people/permissions/delete", status_code=204)
+def delete_permission(payload: PermissionDelete, db: Session = Depends(get_db)) -> None:
+    payload.validate_scope()
+
+    permission = _permission_filter(db.query(Permission), payload).first()
+    if not permission:
+        raise HTTPException(status_code=404, detail="Permission not found")
+    db.delete(permission)
     db.commit()

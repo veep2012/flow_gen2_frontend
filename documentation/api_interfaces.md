@@ -238,6 +238,50 @@ Users map a person to a role with an acronym. Shape: `user_id`, `person_id`, `us
 - Success: `204` with empty body.
 - Errors: `404` if `user_id` not found.
 
+## Permissions
+Permissions tie a user to a project and/or discipline. At least one of `project_id` or `discipline_id` must be provided.
+
+### List permissions
+- `GET /api/v1/people/permissions`
+- Success: `200` sorted by `user_id`.
+- Errors: `404` if none exist.
+
+### Insert permission
+- `POST /api/v1/people/permissions/insert`
+- Body:
+```json
+{ "user_id": 7, "project_id": 3, "discipline_id": 2 }
+```
+- `project_id` and `discipline_id` are optional individually, but at least one must be present.
+- Success: `201` with created permission.
+- Errors: `400` if permission already exists or scope missing; `404` if `user_id`, `project_id`, or `discipline_id` (when provided) are not found.
+
+### Update permission
+- `POST /api/v1/people/permissions/update`
+- Body (current scope plus new scope, at least one new field required):
+```json
+{
+  "permission_id": 42,
+  "user_id": 7,
+  "project_id": 3,
+  "discipline_id": 2,
+  "new_project_id": 4,
+  "new_discipline_id": null
+}
+```
+- `permission_id` is preferred; otherwise `project_id`/`discipline_id` identify the existing permission. `new_*` set the target scope; omit a `new_*` to keep the current value, or pass `null` to clear it.
+- Success: `200` with updated permission.
+- Errors: `400` if no new scope provided or duplicate; `404` if the current permission or referenced project/discipline is not found.
+
+### Delete permission
+- `POST /api/v1/people/permissions/delete`
+- Body:
+```json
+{ "permission_id": 42, "user_id": 7, "project_id": 3, "discipline_id": 2 }
+```
+- Success: `204` with empty body.
+- Errors: `400` if scope missing; `404` if the permission does not exist.
+
 ## Doc revision milestone lookups
 Milestones include `milestone_id`, `milestone_name`, and optional integer `progress`.
 

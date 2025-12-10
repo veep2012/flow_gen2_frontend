@@ -4,8 +4,10 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     MetaData,
     PrimaryKeyConstraint,
@@ -13,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, foreign, mapped_column, relationship
 
@@ -213,11 +216,47 @@ class DistributionListContent(Base):
 
 class Permission(Base):
     __tablename__ = "permissions"
-    __table_args__ = (PrimaryKeyConstraint("user_id", "project_id", "discipline_id"),)
+    __table_args__ = (
+        CheckConstraint(
+            "project_id IS NOT NULL OR discipline_id IS NOT NULL",
+            name="chk_permissions_scope",
+        ),
+        Index(
+            "ix_permissions_user_proj_disc",
+            "user_id",
+            "project_id",
+            "discipline_id",
+            unique=True,
+            postgresql_where=text("project_id IS NOT NULL AND discipline_id IS NOT NULL"),
+        ),
+        Index(
+            "ix_permissions_user_proj_anydisc",
+            "user_id",
+            "project_id",
+            unique=True,
+            postgresql_where=text("discipline_id IS NULL"),
+        ),
+        Index(
+            "ix_permissions_user_anyproj_disc",
+            "user_id",
+            "discipline_id",
+            unique=True,
+            postgresql_where=text("project_id IS NULL"),
+        ),
+        Index(
+            "ix_permissions_user_anyscope",
+            "user_id",
+            unique=True,
+            postgresql_where=text("project_id IS NULL AND discipline_id IS NULL"),
+        ),
+    )
 
+    permission_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("flow.users.user_id"), nullable=False)
     project_id: Mapped[Optional[int]] = mapped_column(ForeignKey("flow.projects.project_id"))
-    discipline_id: Mapped[Optional[int]] = mapped_column(ForeignKey("flow.disciplines.discipline_id"))
+    discipline_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("flow.disciplines.discipline_id")
+    )
 
     user: Mapped[User] = relationship(back_populates="permissions")
     project: Mapped[Optional[Project]] = relationship(back_populates="permissions")

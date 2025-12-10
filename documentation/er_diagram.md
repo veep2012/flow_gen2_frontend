@@ -102,9 +102,11 @@ erDiagram
     ROLES { smallint role_id PK string role_name }
     
     PERMISSIONS {
+        integer permission_id PK
         smallint user_id FK
-        smallint project_id FK
-        smallint discipline_id FK
+        smallint project_id FK "nullable"
+        smallint discipline_id FK "nullable"
+        check "project_id OR discipline_id"
     }
 
     DISTRIBUTION_LIST {
@@ -163,7 +165,6 @@ erDiagram
     DISTRIBUTION_LIST }|--|{ PERSON : "includes"
 
 ```
-
 
 
 
