@@ -94,7 +94,7 @@ erDiagram
 
     USERS { 
         smallint user_id PK 
-        smallint person_id FK 
+        smallint person_id FK UK
         smallint role_id FK
         string user_acronym
     }
@@ -102,9 +102,11 @@ erDiagram
     ROLES { smallint role_id PK string role_name }
     
     PERMISSIONS {
+        integer permission_id PK
         smallint user_id FK
-        smallint project_id FK
-        smallint discipline_id FK
+        smallint project_id FK "nullable"
+        smallint discipline_id FK "nullable"
+        check "project_id OR discipline_id"
     }
 
     DISTRIBUTION_LIST {
@@ -149,7 +151,7 @@ erDiagram
     FILES ||--o{ FILES_COMMENTED : "annotated in"
     
     %% User Management
-    PERSON ||--|| USERS : "has account"
+    PERSON ||--|| USERS : "has single account"
     ROLES ||--o{ USERS : "assigned"
     USERS ||--o{ FILES_COMMENTED : "comments by"
     
@@ -163,8 +165,6 @@ erDiagram
     DISTRIBUTION_LIST }|--|{ PERSON : "includes"
 
 ```
-
-
 
 
 

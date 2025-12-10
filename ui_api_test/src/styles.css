@@ -67,6 +67,61 @@ h1 {
   font-weight: 600;
 }
 
+.tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 18px;
+}
+
+.tab {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab.is-active {
+  border-color: rgba(22, 163, 74, 0.6);
+  background: rgba(22, 163, 74, 0.12);
+  color: #bbf7d0;
+  box-shadow: 0 10px 30px rgba(22, 163, 74, 0.12);
+}
+
+.tab:focus-visible {
+  outline: 2px solid rgba(22, 163, 74, 0.8);
+  outline-offset: 3px;
+}
+
+.tab-placeholder {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.users-table .table-head,
+.users-table .table-row {
+  grid-template-columns: 70px 1.2fr 140px 140px 150px;
+}
+
+.user-create {
+  grid-template-columns: 1fr 180px 1fr 120px;
+}
+
+.permissions-table .table-head,
+.permissions-table .table-row {
+  grid-template-columns: 1.2fr 1fr 1fr 140px;
+}
+
+.permission-create {
+  grid-template-columns: 1fr 1fr 1fr 120px;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -234,5 +289,15 @@ h1 {
 
   .create-row .btn {
     grid-column: span 2;
+  }
+
+  .users-table .table-head,
+  .users-table .table-row {
+    grid-template-columns: 60px 1fr 120px 120px 130px;
+  }
+
+  .permissions-table .table-head,
+  .permissions-table .table-row {
+    grid-template-columns: 1fr 1fr 1fr 120px;
   }
 }

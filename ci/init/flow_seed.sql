@@ -76,7 +76,9 @@ INSERT INTO users (user_id, person_id, user_acronym, role_id) VALUES
 (1,1,'ZAML',3),(2,2,'FDQC',1),(3,3,'ASBB',2),(4,4,'KONI',1);
 
 -- Permissions
-INSERT INTO permissions (user_id, project_id, discipline_id) VALUES (1,4,NULL),(3,3,NULL);
+INSERT INTO permissions (permission_id, user_id, project_id, discipline_id) VALUES 
+(1,1,4,NULL),
+(2,3,3,NULL);
 
 -- --------------------------------------------------------
 -- 2. Sequence Reset (CRITICAL)
@@ -94,6 +96,7 @@ SELECT setval(pg_get_serial_sequence('doc_rev_statuses', 'rev_status_id'), max(r
 SELECT setval(pg_get_serial_sequence('person', 'person_id'), max(person_id)) FROM person;
 SELECT setval(pg_get_serial_sequence('doc_types', 'type_id'), max(type_id)) FROM doc_types;
 SELECT setval(pg_get_serial_sequence('users', 'user_id'), max(user_id)) FROM users;
+SELECT setval(pg_get_serial_sequence('permissions', 'permission_id'), max(permission_id)) FROM permissions;
 
 -- --------------------------------------------------------
 -- 3. Generate Fake Documents & Revisions

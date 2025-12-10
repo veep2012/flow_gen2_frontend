@@ -159,7 +159,7 @@ function useRoles() {
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/v1/lookups/roles`);
+      const res = await fetch(`${API_BASE}/api/v1/people/roles`);
       if (!res.ok) {
         throw new Error(`API error ${res.status}`);
       }
@@ -263,6 +263,105 @@ function useDocRevStatuses() {
   return { statuses, loading, error, fetchStatuses, setStatuses };
 }
 
+function usePersons() {
+  const [persons, setPersons] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchPersons = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE}/api/v1/people/persons`);
+      if (res.status === 404) {
+        setPersons([]);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setPersons(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPersons();
+  }, []);
+
+  return { persons, loading, error, fetchPersons, setPersons };
+}
+
+function useUsers() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE}/api/v1/people/users`);
+      if (res.status === 404) {
+        setUsers([]);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setUsers(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  return { users, loading, error, fetchUsers, setUsers };
+}
+
+function usePermissions() {
+  const [permissions, setPermissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchPermissions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE}/api/v1/people/permissions`);
+      if (res.status === 404) {
+        setPermissions([]);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setPermissions(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPermissions();
+  }, []);
+
+  return { permissions, loading, error, fetchPermissions, setPermissions };
+}
+
 export default function App() {
   const { areas, loading, error, fetchAreas, setAreas } = useAreas();
   const {
@@ -309,6 +408,31 @@ export default function App() {
     fetchStatuses,
     setStatuses,
   } = useDocRevStatuses();
+  const {
+    persons,
+    loading: personsLoading,
+    error: personsError,
+    fetchPersons,
+    setPersons,
+  } = usePersons();
+  const {
+    users,
+    loading: usersLoading,
+    error: usersError,
+    fetchUsers,
+    setUsers,
+  } = useUsers();
+  const {
+    permissions,
+    loading: permissionsLoading,
+    error: permissionsError,
+    fetchPermissions,
+    setPermissions,
+  } = usePermissions();
+  const availablePersons = useMemo(
+    () => persons.filter((p) => !users.some((u) => u.person_id === p.person_id)),
+    [persons, users],
+  );
   const [createForm, setCreateForm] = useState({ area_name: "", area_acronym: "" });
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ area_name: "", area_acronym: "" });
@@ -373,6 +497,30 @@ export default function App() {
   const [statusForm, setStatusForm] = useState({ rev_status_name: "" });
   const [statusSaving, setStatusSaving] = useState(false);
   const [statusSaveError, setStatusSaveError] = useState("");
+  const [personCreateForm, setPersonCreateForm] = useState({ person_name: "", photo_s3_uid: "" });
+  const [personEditingId, setPersonEditingId] = useState(null);
+  const [personForm, setPersonForm] = useState({ person_name: "", photo_s3_uid: "" });
+  const [personSaving, setPersonSaving] = useState(false);
+  const [personSaveError, setPersonSaveError] = useState("");
+  const [userCreateForm, setUserCreateForm] = useState({
+    person_id: "",
+    user_acronym: "",
+    role_id: "",
+  });
+  const [userEditingId, setUserEditingId] = useState(null);
+  const [userForm, setUserForm] = useState({ person_id: "", user_acronym: "", role_id: "" });
+  const [userSaving, setUserSaving] = useState(false);
+  const [userSaveError, setUserSaveError] = useState("");
+  const [permissionCreateForm, setPermissionCreateForm] = useState({
+    user_id: "",
+    project_id: "",
+    discipline_id: "",
+  });
+  const [permissionSaving, setPermissionSaving] = useState(false);
+  const [permissionSaveError, setPermissionSaveError] = useState("");
+  const [permissionEditingKey, setPermissionEditingKey] = useState(null);
+  const [permissionForm, setPermissionForm] = useState({ project_id: "", discipline_id: "" });
+  const [activeTab, setActiveTab] = useState("lookups");
   const header = useMemo(() => {
     const areaLabel = loading ? "Loading areas…" : error ? "Areas unavailable" : `${areas.length} Areas`;
     const discLabel = disciplinesLoading
@@ -415,7 +563,22 @@ export default function App() {
       : statusesError
         ? "Statuses unavailable"
         : `${statuses.length} Rev statuses`;
-    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel} • ${jobpackLabel} • ${roleLabel} • ${milestoneLabel} • ${revisionLabel} • ${statusLabel}`;
+    const personsLabel = personsLoading
+      ? "Loading persons…"
+      : personsError
+        ? "Persons unavailable"
+        : `${persons.length} Persons`;
+    const usersLabel = usersLoading
+      ? "Loading users…"
+      : usersError
+        ? "Users unavailable"
+        : `${users.length} Users`;
+    const permissionsLabel = permissionsLoading
+      ? "Loading permissions…"
+      : permissionsError
+        ? "Permissions unavailable"
+        : `${permissions.length} Permissions`;
+    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel} • ${jobpackLabel} • ${roleLabel} • ${milestoneLabel} • ${revisionLabel} • ${statusLabel} • ${personsLabel} • ${usersLabel} • ${permissionsLabel}`;
   }, [
     areas.length,
     disciplines.length,
@@ -444,6 +607,15 @@ export default function App() {
     revisionOverviewError,
     statusesLoading,
     statusesError,
+    persons.length,
+    personsLoading,
+    personsError,
+    users.length,
+    usersLoading,
+    usersError,
+    permissions.length,
+    permissionsLoading,
+    permissionsError,
   ]);
 
   return (
@@ -453,19 +625,45 @@ export default function App() {
           <p className="eyebrow">Flow Docs</p>
           <h1>Project lookups</h1>
           <p className="lede">
-            Lightweight UI to inspect lookup tables served by the FastAPI backend.
+            Lightweight UI to inspect lookup tables served by the FastAPI backend. Switch tabs to
+            separate lookups from future person/user management.
           </p>
           <p className="hint">API base: {API_BASE}</p>
         </div>
         <div className="pill">{header}</div>
       </div>
 
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Areas</h2>
-          <span className="status">
-            {loading ? "Loading…" : error ? "Error" : "Ready"}
-          </span>
+      <div className="tabs" role="tablist" aria-label="Test UI sections">
+        <button
+          id="lookups-tab"
+          className={`tab ${activeTab === "lookups" ? "is-active" : ""}`}
+          role="tab"
+          aria-selected={activeTab === "lookups"}
+          aria-controls="lookups-pane"
+          onClick={() => setActiveTab("lookups")}
+        >
+          Lookups
+        </button>
+        <button
+          id="people-tab"
+          className={`tab ${activeTab === "people" ? "is-active" : ""}`}
+          role="tab"
+          aria-selected={activeTab === "people"}
+          aria-controls="people-pane"
+          onClick={() => setActiveTab("people")}
+        >
+          Persons / Users
+        </button>
+      </div>
+
+      {activeTab === "lookups" ? (
+        <>
+          <section className="panel" id="lookups-pane" role="tabpanel" aria-labelledby="lookups-tab">
+            <div className="panel-header">
+              <h2>Areas</h2>
+              <span className="status">
+                {loading ? "Loading…" : error ? "Error" : "Ready"}
+              </span>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
@@ -1338,14 +1536,14 @@ export default function App() {
               disabled={roleSaving || !roleCreateForm.role_name}
               onClick={async () => {
                 setRoleSaveError("");
-                setRoleSaving(true);
-                try {
-                  const res = await fetch(`${API_BASE}/api/v1/lookups/roles/insert`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      role_name: roleCreateForm.role_name,
-                    }),
+                  setRoleSaving(true);
+                  try {
+                    const res = await fetch(`${API_BASE}/api/v1/people/roles/insert`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        role_name: roleCreateForm.role_name,
+                      }),
                   });
                   if (!res.ok) {
                     const detail = await res.json().catch(() => ({}));
@@ -1399,15 +1597,15 @@ export default function App() {
                         className="btn"
                         disabled={roleSaving}
                         onClick={async () => {
-                          setRoleSaveError("");
-                          setRoleSaving(true);
-                          try {
-                            const res = await fetch(`${API_BASE}/api/v1/lookups/roles/update`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                role_id: role.role_id,
-                                role_name: roleForm.role_name,
+                            setRoleSaveError("");
+                            setRoleSaving(true);
+                            try {
+                              const res = await fetch(`${API_BASE}/api/v1/people/roles/update`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  role_id: role.role_id,
+                                  role_name: roleForm.role_name,
                               }),
                             });
                             if (!res.ok) {
@@ -1454,14 +1652,14 @@ export default function App() {
                         className="btn btn-ghost"
                         disabled={roleSaving}
                         onClick={async () => {
-                          setRoleSaveError("");
-                          setRoleSaving(true);
-                          try {
-                            const res = await fetch(`${API_BASE}/api/v1/lookups/roles/delete`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ role_id: role.role_id }),
-                            });
+                            setRoleSaveError("");
+                            setRoleSaving(true);
+                            try {
+                              const res = await fetch(`${API_BASE}/api/v1/people/roles/delete`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ role_id: role.role_id }),
+                              });
                             if (!res.ok) {
                               const detail = await res.json().catch(() => ({}));
                               throw new Error(detail.detail || `Delete failed (${res.status})`);
@@ -2302,7 +2500,777 @@ export default function App() {
             )}
           </div>
         </div>
-      </section>
+          </section>
+        </>
+      ) : (
+        <section className="panel" id="people-pane" role="tabpanel" aria-labelledby="people-tab">
+          <div className="panel-header">
+            <h2>Persons / Users</h2>
+            <span className="status">
+              {personsLoading ? "Loading…" : personsError ? "Error" : "Ready"}
+            </span>
+          </div>
+
+          {personsError && <div className="alert alert-error">{personsError}</div>}
+          {personSaveError && <div className="alert alert-error">{personSaveError}</div>}
+          {!personsError && persons.length === 0 && !personsLoading && (
+            <div className="alert">No persons available</div>
+          )}
+
+          <div className="panel subpanel">
+            <h3>Add person</h3>
+            <div className="create-row">
+              <input
+                className="input"
+                placeholder="Person name"
+                value={personCreateForm.person_name}
+                onChange={(e) =>
+                  setPersonCreateForm((f) => ({ ...f, person_name: e.target.value }))
+                }
+              />
+              <input
+                className="input"
+                placeholder="Photo S3 UID (optional)"
+                value={personCreateForm.photo_s3_uid}
+                onChange={(e) =>
+                  setPersonCreateForm((f) => ({ ...f, photo_s3_uid: e.target.value }))
+                }
+              />
+              <button
+                className="btn"
+                disabled={personSaving || !personCreateForm.person_name}
+                onClick={async () => {
+                  setPersonSaveError("");
+                  setPersonSaving(true);
+                  try {
+                    const res = await fetch(`${API_BASE}/api/v1/people/persons/insert`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        person_name: personCreateForm.person_name,
+                        photo_s3_uid:
+                          personCreateForm.photo_s3_uid === ""
+                            ? null
+                            : personCreateForm.photo_s3_uid,
+                      }),
+                    });
+                    if (!res.ok) {
+                      const detail = await res.json().catch(() => ({}));
+                      throw new Error(detail.detail || `Create failed (${res.status})`);
+                    }
+                    const created = await res.json();
+                    setPersons((prev) => [...prev, created]);
+                    setPersonCreateForm({ person_name: "", photo_s3_uid: "" });
+                  } catch (err) {
+                    setPersonSaveError(err instanceof Error ? err.message : "Create failed");
+                  } finally {
+                    setPersonSaving(false);
+                  }
+                }}
+              >
+                {personSaving ? "Saving…" : "Add"}
+              </button>
+            </div>
+          </div>
+
+          <div className="table">
+            <div className="table-head">
+              <span>ID</span>
+              <span>Name</span>
+              <span>Photo UID</span>
+              <span>Actions</span>
+            </div>
+            <div className="table-body">
+              {persons.map((person) => (
+                <div className="table-row" key={person.person_id}>
+                  <span>{person.person_id}</span>
+                  {personEditingId === person.person_id ? (
+                    <>
+                      <input
+                        className="input"
+                        value={personForm.person_name}
+                        onChange={(e) =>
+                          setPersonForm((f) => ({ ...f, person_name: e.target.value }))
+                        }
+                      />
+                      <input
+                        className="input"
+                        value={personForm.photo_s3_uid ?? ""}
+                        onChange={(e) =>
+                          setPersonForm((f) => ({ ...f, photo_s3_uid: e.target.value }))
+                        }
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <span>{person.person_name}</span>
+                      <span className="tag">
+                        {person.photo_s3_uid === null || person.photo_s3_uid === undefined
+                          ? "—"
+                          : person.photo_s3_uid}
+                      </span>
+                    </>
+                  )}
+                  <span className="actions">
+                    {personEditingId === person.person_id ? (
+                      <>
+                        <button
+                          className="btn"
+                          disabled={personSaving}
+                          onClick={async () => {
+                            setPersonSaveError("");
+                            setPersonSaving(true);
+                            try {
+                              const res = await fetch(
+                                `${API_BASE}/api/v1/people/persons/update`,
+                                {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    person_id: person.person_id,
+                                    person_name: personForm.person_name,
+                                    photo_s3_uid:
+                                      personForm.photo_s3_uid === ""
+                                        ? null
+                                        : personForm.photo_s3_uid,
+                                  }),
+                                },
+                              );
+                              if (!res.ok) {
+                                const detail = await res.json().catch(() => ({}));
+                                throw new Error(detail.detail || `Save failed (${res.status})`);
+                              }
+                              const updated = await res.json();
+                              setPersons((prev) =>
+                                prev.map((it) =>
+                                  it.person_id === person.person_id ? updated : it,
+                                ),
+                              );
+                              setPersonEditingId(null);
+                            } catch (err) {
+                              setPersonSaveError(err instanceof Error ? err.message : "Save failed");
+                            } finally {
+                              setPersonSaving(false);
+                            }
+                          }}
+                        >
+                          {personSaving ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          disabled={personSaving}
+                          onClick={() => {
+                            setPersonEditingId(null);
+                            setPersonSaveError("");
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="btn"
+                          onClick={() => {
+                            setPersonEditingId(person.person_id);
+                            setPersonForm({
+                              person_name: person.person_name,
+                              photo_s3_uid:
+                                person.photo_s3_uid === null || person.photo_s3_uid === undefined
+                                  ? ""
+                                  : person.photo_s3_uid,
+                            });
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          disabled={personSaving}
+                          onClick={async () => {
+                            setPersonSaveError("");
+                            setPersonSaving(true);
+                            try {
+                              const res = await fetch(
+                                `${API_BASE}/api/v1/people/persons/delete`,
+                                {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ person_id: person.person_id }),
+                                },
+                              );
+                              if (!res.ok) {
+                                const detail = await res.json().catch(() => ({}));
+                                throw new Error(detail.detail || `Delete failed (${res.status})`);
+                              }
+                              setPersons((prev) =>
+                                prev.filter((it) => it.person_id !== person.person_id),
+                              );
+                            } catch (err) {
+                              setPersonSaveError(
+                                err instanceof Error ? err.message : "Delete failed",
+                              );
+                            } finally {
+                              setPersonSaving(false);
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </span>
+                </div>
+              ))}
+              {personsLoading && (
+                <div className="table-row muted">
+                  <span colSpan={4}>Fetching…</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="panel subpanel">
+            <h3>Users</h3>
+            {usersError && <div className="alert alert-error">{usersError}</div>}
+            {userSaveError && <div className="alert alert-error">{userSaveError}</div>}
+            {!usersError && users.length === 0 && !usersLoading && (
+              <div className="alert">No users available</div>
+            )}
+
+            <div className="create-row user-create">
+              <select
+                className="input"
+                value={userCreateForm.person_id}
+                onChange={(e) =>
+                  setUserCreateForm((f) => ({ ...f, person_id: e.target.value }))
+                }
+              >
+                <option value="">Select person</option>
+                {availablePersons.map((person) => (
+                  <option key={person.person_id} value={person.person_id}>
+                    {person.person_name} (ID {person.person_id})
+                  </option>
+                ))}
+              </select>
+              <input
+                className="input"
+                placeholder="User acronym"
+                value={userCreateForm.user_acronym}
+                onChange={(e) =>
+                  setUserCreateForm((f) => ({ ...f, user_acronym: e.target.value }))
+                }
+              />
+              <select
+                className="input"
+                value={userCreateForm.role_id}
+                onChange={(e) => setUserCreateForm((f) => ({ ...f, role_id: e.target.value }))}
+              >
+                <option value="">Select role</option>
+                {roles.map((role) => (
+                  <option key={role.role_id} value={role.role_id}>
+                    {role.role_name}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="btn"
+                disabled={
+                  userSaving || !userCreateForm.person_id || !userCreateForm.user_acronym || !userCreateForm.role_id
+                }
+                onClick={async () => {
+                  setUserSaveError("");
+                  setUserSaving(true);
+                  try {
+                    const res = await fetch(`${API_BASE}/api/v1/people/users/insert`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        person_id: Number(userCreateForm.person_id),
+                        user_acronym: userCreateForm.user_acronym,
+                        role_id: Number(userCreateForm.role_id),
+                      }),
+                    });
+                    if (!res.ok) {
+                      const detail = await res.json().catch(() => ({}));
+                      throw new Error(detail.detail || `Create failed (${res.status})`);
+                    }
+                    const created = await res.json();
+                    setUsers((prev) => [...prev, created]);
+                    setUserCreateForm({ person_id: "", user_acronym: "", role_id: "" });
+                  } catch (err) {
+                    setUserSaveError(err instanceof Error ? err.message : "Create failed");
+                  } finally {
+                    setUserSaving(false);
+                  }
+                }}
+              >
+                {userSaving ? "Saving…" : "Add"}
+              </button>
+            </div>
+
+
+            <div className="table users-table">
+              <div className="table-head">
+                <span>ID</span>
+                <span>Person</span>
+                <span>Acronym</span>
+                <span>Role</span>
+                <span>Actions</span>
+              </div>
+              <div className="table-body">
+                {users.map((user) => {
+                  const person = persons.find((p) => p.person_id === user.person_id);
+                  const role = roles.find((r) => r.role_id === user.role_id);
+                  return (
+                    <div className="table-row" key={user.user_id}>
+                      <span>{user.user_id}</span>
+                      {userEditingId === user.user_id ? (
+                        <>
+                          <select
+                            className="input"
+                            value={userForm.person_id}
+                            onChange={(e) =>
+                              setUserForm((f) => ({ ...f, person_id: e.target.value }))
+                            }
+                          >
+                            <option value="">Select person</option>
+                            {[...availablePersons, person].filter(Boolean).map((p) => (
+                              <option key={p.person_id} value={p.person_id}>
+                                {p.person_name} (ID {p.person_id})
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            className="input"
+                            value={userForm.user_acronym}
+                            onChange={(e) =>
+                              setUserForm((f) => ({ ...f, user_acronym: e.target.value }))
+                            }
+                          />
+                          <select
+                            className="input"
+                            value={userForm.role_id}
+                            onChange={(e) => setUserForm((f) => ({ ...f, role_id: e.target.value }))}
+                          >
+                            <option value="">Select role</option>
+                            {roles.map((r) => (
+                              <option key={r.role_id} value={r.role_id}>
+                                {r.role_name}
+                              </option>
+                            ))}
+                          </select>
+                        </>
+                      ) : (
+                        <>
+                          <span>{person ? person.person_name : `Person ${user.person_id}`}</span>
+                          <span className="tag">{user.user_acronym}</span>
+                          <span className="tag">{role ? role.role_name : `Role ${user.role_id}`}</span>
+                        </>
+                      )}
+                      <span className="actions">
+                        {userEditingId === user.user_id ? (
+                          <>
+                            <button
+                              className="btn"
+                              disabled={userSaving}
+                              onClick={async () => {
+                                setUserSaveError("");
+                                setUserSaving(true);
+                                try {
+                                  const res = await fetch(`${API_BASE}/api/v1/people/users/update`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      user_id: user.user_id,
+                                      person_id:
+                                        userForm.person_id === "" ? null : Number(userForm.person_id),
+                                      user_acronym: userForm.user_acronym,
+                                      role_id: userForm.role_id === "" ? null : Number(userForm.role_id),
+                                    }),
+                                  });
+                                  if (!res.ok) {
+                                    const detail = await res.json().catch(() => ({}));
+                                    throw new Error(detail.detail || `Save failed (${res.status})`);
+                                  }
+                                  const updated = await res.json();
+                                  setUsers((prev) =>
+                                    prev.map((it) => (it.user_id === user.user_id ? updated : it)),
+                                  );
+                                  setUserEditingId(null);
+                                } catch (err) {
+                                  setUserSaveError(err instanceof Error ? err.message : "Save failed");
+                                } finally {
+                                  setUserSaving(false);
+                                }
+                              }}
+                            >
+                              {userSaving ? "Saving…" : "Save"}
+                            </button>
+                            <button
+                              className="btn btn-ghost"
+                              disabled={userSaving}
+                              onClick={() => {
+                                setUserEditingId(null);
+                                setUserSaveError("");
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                setUserEditingId(user.user_id);
+                                setUserForm({
+                                  person_id: String(user.person_id),
+                                  user_acronym: user.user_acronym,
+                                  role_id: String(user.role_id),
+                                });
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="btn btn-ghost"
+                              disabled={userSaving}
+                              onClick={async () => {
+                                setUserSaveError("");
+                                setUserSaving(true);
+                                try {
+                                  const res = await fetch(`${API_BASE}/api/v1/people/users/delete`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ user_id: user.user_id }),
+                                  });
+                                  if (!res.ok) {
+                                    const detail = await res.json().catch(() => ({}));
+                                    throw new Error(detail.detail || `Delete failed (${res.status})`);
+                                  }
+                                  setUsers((prev) => prev.filter((it) => it.user_id !== user.user_id));
+                                  fetchPermissions();
+                                } catch (err) {
+                                  setUserSaveError(err instanceof Error ? err.message : "Delete failed");
+                                } finally {
+                                  setUserSaving(false);
+                                }
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+                {usersLoading && (
+                  <div className="table-row muted">
+                    <span colSpan={5}>Fetching…</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="panel subpanel">
+            <h3>Permissions</h3>
+            {permissionsError && <div className="alert alert-error">{permissionsError}</div>}
+            {permissionSaveError && <div className="alert alert-error">{permissionSaveError}</div>}
+            {!permissionsError && permissions.length === 0 && !permissionsLoading && (
+              <div className="alert">No permissions defined</div>
+            )}
+
+            <div className="create-row permission-create">
+              <select
+                className="input"
+                value={permissionCreateForm.user_id}
+                onChange={(e) =>
+                  setPermissionCreateForm((f) => ({ ...f, user_id: e.target.value }))
+                }
+              >
+                <option value="">Select user</option>
+                {users.map((user) => {
+                  const person = persons.find((p) => p.person_id === user.person_id);
+                  return (
+                    <option key={user.user_id} value={user.user_id}>
+                      {user.user_acronym} — {person ? person.person_name : `Person ${user.person_id}`}
+                    </option>
+                  );
+                })}
+              </select>
+              <select
+                className="input"
+                value={permissionCreateForm.project_id}
+                onChange={(e) =>
+                  setPermissionCreateForm((f) => ({ ...f, project_id: e.target.value }))
+                }
+              >
+                <option value="">Any project</option>
+                {projects.map((project) => (
+                  <option key={project.project_id} value={project.project_id}>
+                    {project.project_name}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="input"
+                value={permissionCreateForm.discipline_id}
+                onChange={(e) =>
+                  setPermissionCreateForm((f) => ({ ...f, discipline_id: e.target.value }))
+                }
+              >
+                <option value="">Any discipline</option>
+                {disciplines.map((discipline) => (
+                  <option key={discipline.discipline_id} value={discipline.discipline_id}>
+                    {discipline.discipline_name}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="btn"
+                disabled={
+                  permissionSaving ||
+                  !permissionCreateForm.user_id ||
+                  (!permissionCreateForm.project_id && !permissionCreateForm.discipline_id)
+                }
+                onClick={async () => {
+                  setPermissionSaveError("");
+                  setPermissionSaving(true);
+                  try {
+                    const res = await fetch(`${API_BASE}/api/v1/people/permissions/insert`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        user_id: Number(permissionCreateForm.user_id),
+                        project_id:
+                          permissionCreateForm.project_id === ""
+                            ? null
+                            : Number(permissionCreateForm.project_id),
+                        discipline_id:
+                          permissionCreateForm.discipline_id === ""
+                            ? null
+                            : Number(permissionCreateForm.discipline_id),
+                      }),
+                    });
+                    if (!res.ok) {
+                      const detail = await res.json().catch(() => ({}));
+                      throw new Error(detail.detail || `Create failed (${res.status})`);
+                    }
+                    const created = await res.json();
+                    setPermissions((prev) => [...prev, created]);
+                    setPermissionCreateForm({ user_id: "", project_id: "", discipline_id: "" });
+                  } catch (err) {
+                    setPermissionSaveError(err instanceof Error ? err.message : "Create failed");
+                  } finally {
+                    setPermissionSaving(false);
+                  }
+                }}
+              >
+                {permissionSaving ? "Saving…" : "Add"}
+              </button>
+            </div>
+
+            <div className="table permissions-table">
+              <div className="table-head">
+                <span>User</span>
+                <span>Project</span>
+                <span>Discipline</span>
+                <span>Actions</span>
+              </div>
+              <div className="table-body">
+                {permissions.map((perm) => {
+                  const user = users.find((u) => u.user_id === perm.user_id);
+                  const person = user ? persons.find((p) => p.person_id === user.person_id) : null;
+                  const project = perm.project_id
+                    ? projects.find((p) => p.project_id === perm.project_id)
+                    : null;
+                  const discipline = perm.discipline_id
+                    ? disciplines.find((d) => d.discipline_id === perm.discipline_id)
+                    : null;
+                  const editingKey = `${perm.permission_id}`;
+                  return (
+                    <div className="table-row" key={perm.permission_id}>
+                      <span>
+                        {user ? user.user_acronym : `User ${perm.user_id}`}
+                        {person ? ` (${person.person_name})` : ""}
+                      </span>
+                      <span>
+                        {permissionEditingKey === editingKey ? (
+                          <select
+                            className="input"
+                            value={permissionForm.project_id}
+                            onChange={(e) =>
+                              setPermissionForm((f) => ({ ...f, project_id: e.target.value }))
+                            }
+                          >
+                            <option value="">Any project</option>
+                            {projects.map((project) => (
+                              <option key={project.project_id} value={project.project_id}>
+                                {project.project_name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          project ? project.project_name : "Any project"
+                        )}
+                      </span>
+                      <span>
+                        {permissionEditingKey === editingKey ? (
+                          <select
+                            className="input"
+                            value={permissionForm.discipline_id}
+                            onChange={(e) =>
+                              setPermissionForm((f) => ({ ...f, discipline_id: e.target.value }))
+                            }
+                          >
+                            <option value="">Any discipline</option>
+                            {disciplines.map((discipline) => (
+                              <option key={discipline.discipline_id} value={discipline.discipline_id}>
+                                {discipline.discipline_name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          discipline ? discipline.discipline_name : "Any discipline"
+                        )}
+                      </span>
+                      <span className="actions">
+                        {permissionEditingKey === editingKey ? (
+                          <>
+                            <button
+                              className="btn"
+                              disabled={permissionSaving}
+                              onClick={async () => {
+                                setPermissionSaveError("");
+                                setPermissionSaving(true);
+                                try {
+                                  const res = await fetch(`${API_BASE}/api/v1/people/permissions/update`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      permission_id: perm.permission_id,
+                                      user_id: perm.user_id,
+                                      project_id: perm.project_id,
+                                      discipline_id: perm.discipline_id,
+                                      new_project_id:
+                                        permissionForm.project_id === ""
+                                          ? null
+                                          : Number(permissionForm.project_id),
+                                      new_discipline_id:
+                                        permissionForm.discipline_id === ""
+                                          ? null
+                                          : Number(permissionForm.discipline_id),
+                                    }),
+                                  });
+                                  if (!res.ok) {
+                                    const detail = await res.json().catch(() => ({}));
+                                    throw new Error(detail.detail || `Save failed (${res.status})`);
+                                  }
+                                  const updated = await res.json();
+                                  setPermissions((prev) =>
+                                    prev.map((p) =>
+                                      p.user_id === perm.user_id &&
+                                      p.project_id === perm.project_id &&
+                                      p.discipline_id === perm.discipline_id
+                                        ? updated
+                                        : p,
+                                    ),
+                                  );
+                                  setPermissionEditingKey(null);
+                                } catch (err) {
+                                  setPermissionSaveError(err instanceof Error ? err.message : "Save failed");
+                                } finally {
+                                  setPermissionSaving(false);
+                                }
+                              }}
+                            >
+                              {permissionSaving ? "Saving…" : "Save"}
+                            </button>
+                            <button
+                              className="btn btn-ghost"
+                              disabled={permissionSaving}
+                              onClick={() => {
+                                setPermissionEditingKey(null);
+                                setPermissionSaveError("");
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                setPermissionEditingKey(editingKey);
+                                setPermissionForm({
+                                  project_id: perm.project_id === null ? "" : String(perm.project_id),
+                                  discipline_id:
+                                    perm.discipline_id === null ? "" : String(perm.discipline_id),
+                                });
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                        className="btn btn-ghost"
+                        disabled={permissionSaving}
+                        onClick={async () => {
+                          setPermissionSaveError("");
+                          setPermissionSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/people/permissions/delete`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                permission_id: perm.permission_id,
+                                user_id: perm.user_id,
+                                project_id: perm.project_id,
+                                discipline_id: perm.discipline_id,
+                              }),
+                            });
+                                  if (!res.ok) {
+                                    const detail = await res.json().catch(() => ({}));
+                                    throw new Error(detail.detail || `Delete failed (${res.status})`);
+                                  }
+                                  setPermissions((prev) =>
+                                    prev.filter(
+                                      (p) =>
+                                        !(
+                                          p.user_id === perm.user_id &&
+                                          p.project_id === perm.project_id &&
+                                          p.discipline_id === perm.discipline_id
+                                        ),
+                                    ),
+                                  );
+                                } catch (err) {
+                                  setPermissionSaveError(err instanceof Error ? err.message : "Delete failed");
+                                } finally {
+                                  setPermissionSaving(false);
+                                }
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+                {permissionsLoading && (
+                  <div className="table-row muted">
+                    <span colSpan={4}>Fetching…</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
