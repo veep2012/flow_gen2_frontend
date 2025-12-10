@@ -373,6 +373,7 @@ export default function App() {
   const [statusForm, setStatusForm] = useState({ rev_status_name: "" });
   const [statusSaving, setStatusSaving] = useState(false);
   const [statusSaveError, setStatusSaveError] = useState("");
+  const [activeTab, setActiveTab] = useState("lookups");
   const header = useMemo(() => {
     const areaLabel = loading ? "Loading areas…" : error ? "Areas unavailable" : `${areas.length} Areas`;
     const discLabel = disciplinesLoading
@@ -453,19 +454,45 @@ export default function App() {
           <p className="eyebrow">Flow Docs</p>
           <h1>Project lookups</h1>
           <p className="lede">
-            Lightweight UI to inspect lookup tables served by the FastAPI backend.
+            Lightweight UI to inspect lookup tables served by the FastAPI backend. Switch tabs to
+            separate lookups from future person/user management.
           </p>
           <p className="hint">API base: {API_BASE}</p>
         </div>
         <div className="pill">{header}</div>
       </div>
 
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Areas</h2>
-          <span className="status">
-            {loading ? "Loading…" : error ? "Error" : "Ready"}
-          </span>
+      <div className="tabs" role="tablist" aria-label="Test UI sections">
+        <button
+          id="lookups-tab"
+          className={`tab ${activeTab === "lookups" ? "is-active" : ""}`}
+          role="tab"
+          aria-selected={activeTab === "lookups"}
+          aria-controls="lookups-pane"
+          onClick={() => setActiveTab("lookups")}
+        >
+          Lookups
+        </button>
+        <button
+          id="people-tab"
+          className={`tab ${activeTab === "people" ? "is-active" : ""}`}
+          role="tab"
+          aria-selected={activeTab === "people"}
+          aria-controls="people-pane"
+          onClick={() => setActiveTab("people")}
+        >
+          Persons / Users
+        </button>
+      </div>
+
+      {activeTab === "lookups" ? (
+        <>
+          <section className="panel" id="lookups-pane" role="tabpanel" aria-labelledby="lookups-tab">
+            <div className="panel-header">
+              <h2>Areas</h2>
+              <span className="status">
+                {loading ? "Loading…" : error ? "Error" : "Ready"}
+              </span>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
@@ -2302,7 +2329,24 @@ export default function App() {
             )}
           </div>
         </div>
-      </section>
+          </section>
+        </>
+      ) : (
+        <section className="panel" id="people-pane" role="tabpanel" aria-labelledby="people-tab">
+          <div className="panel-header">
+            <h2>Persons / Users</h2>
+            <span className="status">New tab</span>
+          </div>
+          <p className="lede">
+            This space is reserved for people/user management flows. Add the relevant endpoints and
+            UI here without crowding the lookup tools.
+          </p>
+          <div className="tab-placeholder">
+            <p>Coming soon: create, search, and inspect persons/users.</p>
+            <p className="hint">Keep using the Lookups tab for reference data while this builds out.</p>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

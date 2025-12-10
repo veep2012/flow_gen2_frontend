@@ -23,7 +23,7 @@ services:
     container_name: flow_gen2_api
     build:
       context: ..
-      dockerfile: ci/Dockerfile
+      dockerfile: ci/Dockerfile.api
     environment:
       PORT: 5556
       # Comma-separated list; include deployed UI origins
