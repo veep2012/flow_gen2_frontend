@@ -161,6 +161,7 @@ class Person(Base):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (UniqueConstraint("person_id", name="uq_users_person_id"),)
 
     user_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     person_id: Mapped[int] = mapped_column(ForeignKey("flow.person.person_id"), nullable=False)

@@ -135,12 +135,12 @@ Jobpacks include `jobpack_id` and `jobpack_name`.
 Roles include auto-generated `role_id` and `role_name`.
 
 ### List roles
-- `GET /api/v1/lookups/roles`
+- `GET /api/v1/people/roles`
 - Success: `200` sorted by `role_name`.
 - Errors: `404` if none exist.
 
 ### Insert role
-- `POST /api/v1/lookups/roles/insert`
+- `POST /api/v1/people/roles/insert`
 - Body:
 ```json
 { "role_name": "Coordinator" }
@@ -149,7 +149,7 @@ Roles include auto-generated `role_id` and `role_name`.
 - Errors: `400` on name conflicts.
 
 ### Update role
-- `POST /api/v1/lookups/roles/update`
+- `POST /api/v1/people/roles/update`
 - Body:
 ```json
 { "role_id": 10, "role_name": "Lead Coordinator" }
@@ -158,13 +158,85 @@ Roles include auto-generated `role_id` and `role_name`.
 - Errors: `400` if missing fields or uniqueness conflict; `404` if `role_id` not found.
 
 ### Delete role
-- `POST /api/v1/lookups/roles/delete`
+- `POST /api/v1/people/roles/delete`
 - Body:
 ```json
 { "role_id": 10 }
 ```
 - Success: `204` with empty body.
 - Errors: `404` if `role_id` not found.
+
+## People directory
+Person objects include `person_id`, `person_name`, and optional `photo_s3_uid`.
+
+### List persons
+- `GET /api/v1/people/persons`
+- Success: `200` sorted by `person_name`.
+- Errors: `404` if none exist.
+
+### Insert person
+- `POST /api/v1/people/persons/insert`
+- Body:
+```json
+{ "person_name": "Ada Lovelace", "photo_s3_uid": "s3-key-123" }
+```
+- `photo_s3_uid` is optional (null if omitted).
+- Success: `201` with created person.
+- Errors: `400` on insert failure.
+
+### Update person
+- `POST /api/v1/people/persons/update`
+- Body (at least one optional field required):
+```json
+{ "person_id": 12, "person_name": "Grace Hopper", "photo_s3_uid": null }
+```
+- Success: `200` with updated person.
+- Errors: `400` if no fields provided; `404` if `person_id` not found.
+
+### Delete person
+- `POST /api/v1/people/persons/delete`
+- Body:
+```json
+{ "person_id": 12 }
+```
+- Success: `204` with empty body.
+- Errors: `404` if `person_id` not found.
+
+## Users
+Users map a person to a role with an acronym. Shape: `user_id`, `person_id`, `user_acronym`, `role_id`.
+
+### List users
+- `GET /api/v1/people/users`
+- Success: `200` sorted by `user_acronym`.
+- Errors: `404` if none exist.
+
+### Insert user
+- `POST /api/v1/people/users/insert`
+- Body:
+```json
+{ "person_id": 12, "user_acronym": "ALV", "role_id": 3 }
+```
+- `person_id` must reference an existing person; `role_id` must reference an existing role.
+- Success: `201` with created user.
+- Errors: `400` on insert failure; `404` if `person_id` or `role_id` not found.
+
+### Update user
+- `POST /api/v1/people/users/update`
+- Body (at least one optional field required):
+```json
+{ "user_id": 7, "person_id": 12, "user_acronym": "ALV2", "role_id": 4 }
+```
+- Success: `200` with updated user.
+- Errors: `400` if no fields provided or update fails; `404` if `user_id`, `person_id`, or `role_id` not found.
+
+### Delete user
+- `POST /api/v1/people/users/delete`
+- Body:
+```json
+{ "user_id": 7 }
+```
+- Success: `204` with empty body.
+- Errors: `404` if `user_id` not found.
 
 ## Doc revision milestone lookups
 Milestones include `milestone_id`, `milestone_name`, and optional integer `progress`.

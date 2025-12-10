@@ -94,7 +94,7 @@ erDiagram
 
     USERS { 
         smallint user_id PK 
-        smallint person_id FK 
+        smallint person_id FK UK
         smallint role_id FK
         string user_acronym
     }
@@ -149,7 +149,7 @@ erDiagram
     FILES ||--o{ FILES_COMMENTED : "annotated in"
     
     %% User Management
-    PERSON ||--|| USERS : "has account"
+    PERSON ||--|| USERS : "has single account"
     ROLES ||--o{ USERS : "assigned"
     USERS ||--o{ FILES_COMMENTED : "comments by"
     
@@ -163,7 +163,6 @@ erDiagram
     DISTRIBUTION_LIST }|--|{ PERSON : "includes"
 
 ```
-
 
 
 

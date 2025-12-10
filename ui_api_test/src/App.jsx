@@ -159,7 +159,7 @@ function useRoles() {
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/v1/lookups/roles`);
+      const res = await fetch(`${API_BASE}/api/v1/people/roles`);
       if (!res.ok) {
         throw new Error(`API error ${res.status}`);
       }
@@ -296,6 +296,39 @@ function usePersons() {
   return { persons, loading, error, fetchPersons, setPersons };
 }
 
+function useUsers() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE}/api/v1/people/users`);
+      if (res.status === 404) {
+        setUsers([]);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setUsers(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  return { users, loading, error, fetchUsers, setUsers };
+}
+
 export default function App() {
   const { areas, loading, error, fetchAreas, setAreas } = useAreas();
   const {
@@ -349,6 +382,17 @@ export default function App() {
     fetchPersons,
     setPersons,
   } = usePersons();
+  const {
+    users,
+    loading: usersLoading,
+    error: usersError,
+    fetchUsers,
+    setUsers,
+  } = useUsers();
+  const availablePersons = useMemo(
+    () => persons.filter((p) => !users.some((u) => u.person_id === p.person_id)),
+    [persons, users],
+  );
   const [createForm, setCreateForm] = useState({ area_name: "", area_acronym: "" });
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ area_name: "", area_acronym: "" });
@@ -418,6 +462,15 @@ export default function App() {
   const [personForm, setPersonForm] = useState({ person_name: "", photo_s3_uid: "" });
   const [personSaving, setPersonSaving] = useState(false);
   const [personSaveError, setPersonSaveError] = useState("");
+  const [userCreateForm, setUserCreateForm] = useState({
+    person_id: "",
+    user_acronym: "",
+    role_id: "",
+  });
+  const [userEditingId, setUserEditingId] = useState(null);
+  const [userForm, setUserForm] = useState({ person_id: "", user_acronym: "", role_id: "" });
+  const [userSaving, setUserSaving] = useState(false);
+  const [userSaveError, setUserSaveError] = useState("");
   const [activeTab, setActiveTab] = useState("lookups");
   const header = useMemo(() => {
     const areaLabel = loading ? "Loading areas…" : error ? "Areas unavailable" : `${areas.length} Areas`;
@@ -466,7 +519,12 @@ export default function App() {
       : personsError
         ? "Persons unavailable"
         : `${persons.length} Persons`;
-    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel} • ${jobpackLabel} • ${roleLabel} • ${milestoneLabel} • ${revisionLabel} • ${statusLabel} • ${personsLabel}`;
+    const usersLabel = usersLoading
+      ? "Loading users…"
+      : usersError
+        ? "Users unavailable"
+        : `${users.length} Users`;
+    return `${areaLabel} • ${discLabel} • ${projectLabel} • ${unitLabel} • ${jobpackLabel} • ${roleLabel} • ${milestoneLabel} • ${revisionLabel} • ${statusLabel} • ${personsLabel} • ${usersLabel}`;
   }, [
     areas.length,
     disciplines.length,
@@ -498,6 +556,9 @@ export default function App() {
     persons.length,
     personsLoading,
     personsError,
+    users.length,
+    usersLoading,
+    usersError,
   ]);
 
   return (
@@ -1418,14 +1479,14 @@ export default function App() {
               disabled={roleSaving || !roleCreateForm.role_name}
               onClick={async () => {
                 setRoleSaveError("");
-                setRoleSaving(true);
-                try {
-                  const res = await fetch(`${API_BASE}/api/v1/lookups/roles/insert`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      role_name: roleCreateForm.role_name,
-                    }),
+                  setRoleSaving(true);
+                  try {
+                    const res = await fetch(`${API_BASE}/api/v1/people/roles/insert`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        role_name: roleCreateForm.role_name,
+                      }),
                   });
                   if (!res.ok) {
                     const detail = await res.json().catch(() => ({}));
@@ -1479,15 +1540,15 @@ export default function App() {
                         className="btn"
                         disabled={roleSaving}
                         onClick={async () => {
-                          setRoleSaveError("");
-                          setRoleSaving(true);
-                          try {
-                            const res = await fetch(`${API_BASE}/api/v1/lookups/roles/update`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                role_id: role.role_id,
-                                role_name: roleForm.role_name,
+                            setRoleSaveError("");
+                            setRoleSaving(true);
+                            try {
+                              const res = await fetch(`${API_BASE}/api/v1/people/roles/update`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  role_id: role.role_id,
+                                  role_name: roleForm.role_name,
                               }),
                             });
                             if (!res.ok) {
@@ -1534,14 +1595,14 @@ export default function App() {
                         className="btn btn-ghost"
                         disabled={roleSaving}
                         onClick={async () => {
-                          setRoleSaveError("");
-                          setRoleSaving(true);
-                          try {
-                            const res = await fetch(`${API_BASE}/api/v1/lookups/roles/delete`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ role_id: role.role_id }),
-                            });
+                            setRoleSaveError("");
+                            setRoleSaving(true);
+                            try {
+                              const res = await fetch(`${API_BASE}/api/v1/people/roles/delete`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ role_id: role.role_id }),
+                              });
                             if (!res.ok) {
                               const detail = await res.json().catch(() => ({}));
                               throw new Error(detail.detail || `Delete failed (${res.status})`);
@@ -2614,9 +2675,245 @@ export default function App() {
 
           <div className="panel subpanel">
             <h3>Users</h3>
-            <p className="muted">
-              User management will appear here next. Use Persons above for now.
-            </p>
+            {usersError && <div className="alert alert-error">{usersError}</div>}
+            {userSaveError && <div className="alert alert-error">{userSaveError}</div>}
+            {!usersError && users.length === 0 && !usersLoading && (
+              <div className="alert">No users available</div>
+            )}
+
+            <div className="create-row user-create">
+              <select
+                className="input"
+                value={userCreateForm.person_id}
+                onChange={(e) =>
+                  setUserCreateForm((f) => ({ ...f, person_id: e.target.value }))
+                }
+              >
+                <option value="">Select person</option>
+                {availablePersons.map((person) => (
+                  <option key={person.person_id} value={person.person_id}>
+                    {person.person_name} (ID {person.person_id})
+                  </option>
+                ))}
+              </select>
+              <input
+                className="input"
+                placeholder="User acronym"
+                value={userCreateForm.user_acronym}
+                onChange={(e) =>
+                  setUserCreateForm((f) => ({ ...f, user_acronym: e.target.value }))
+                }
+              />
+              <select
+                className="input"
+                value={userCreateForm.role_id}
+                onChange={(e) => setUserCreateForm((f) => ({ ...f, role_id: e.target.value }))}
+              >
+                <option value="">Select role</option>
+                {roles.map((role) => (
+                  <option key={role.role_id} value={role.role_id}>
+                    {role.role_name}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="btn"
+                disabled={
+                  userSaving || !userCreateForm.person_id || !userCreateForm.user_acronym || !userCreateForm.role_id
+                }
+                onClick={async () => {
+                  setUserSaveError("");
+                  setUserSaving(true);
+                  try {
+                    const res = await fetch(`${API_BASE}/api/v1/people/users/insert`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        person_id: Number(userCreateForm.person_id),
+                        user_acronym: userCreateForm.user_acronym,
+                        role_id: Number(userCreateForm.role_id),
+                      }),
+                    });
+                    if (!res.ok) {
+                      const detail = await res.json().catch(() => ({}));
+                      throw new Error(detail.detail || `Create failed (${res.status})`);
+                    }
+                    const created = await res.json();
+                    setUsers((prev) => [...prev, created]);
+                    setUserCreateForm({ person_id: "", user_acronym: "", role_id: "" });
+                  } catch (err) {
+                    setUserSaveError(err instanceof Error ? err.message : "Create failed");
+                  } finally {
+                    setUserSaving(false);
+                  }
+                }}
+              >
+                {userSaving ? "Saving…" : "Add"}
+              </button>
+            </div>
+
+            <div className="table users-table">
+              <div className="table-head">
+                <span>ID</span>
+                <span>Person</span>
+                <span>Acronym</span>
+                <span>Role</span>
+                <span>Actions</span>
+              </div>
+              <div className="table-body">
+                {users.map((user) => {
+                  const person = persons.find((p) => p.person_id === user.person_id);
+                  const role = roles.find((r) => r.role_id === user.role_id);
+                  return (
+                    <div className="table-row" key={user.user_id}>
+                      <span>{user.user_id}</span>
+                      {userEditingId === user.user_id ? (
+                        <>
+                          <select
+                            className="input"
+                            value={userForm.person_id}
+                            onChange={(e) =>
+                              setUserForm((f) => ({ ...f, person_id: e.target.value }))
+                            }
+                          >
+                            <option value="">Select person</option>
+                            {[...availablePersons, person].filter(Boolean).map((p) => (
+                              <option key={p.person_id} value={p.person_id}>
+                                {p.person_name} (ID {p.person_id})
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            className="input"
+                            value={userForm.user_acronym}
+                            onChange={(e) =>
+                              setUserForm((f) => ({ ...f, user_acronym: e.target.value }))
+                            }
+                          />
+                          <select
+                            className="input"
+                            value={userForm.role_id}
+                            onChange={(e) => setUserForm((f) => ({ ...f, role_id: e.target.value }))}
+                          >
+                            <option value="">Select role</option>
+                            {roles.map((r) => (
+                              <option key={r.role_id} value={r.role_id}>
+                                {r.role_name}
+                              </option>
+                            ))}
+                          </select>
+                        </>
+                      ) : (
+                        <>
+                          <span>{person ? person.person_name : `Person ${user.person_id}`}</span>
+                          <span className="tag">{user.user_acronym}</span>
+                          <span className="tag">{role ? role.role_name : `Role ${user.role_id}`}</span>
+                        </>
+                      )}
+                      <span className="actions">
+                        {userEditingId === user.user_id ? (
+                          <>
+                            <button
+                              className="btn"
+                              disabled={userSaving}
+                              onClick={async () => {
+                                setUserSaveError("");
+                                setUserSaving(true);
+                                try {
+                                  const res = await fetch(`${API_BASE}/api/v1/people/users/update`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      user_id: user.user_id,
+                                      person_id:
+                                        userForm.person_id === "" ? null : Number(userForm.person_id),
+                                      user_acronym: userForm.user_acronym,
+                                      role_id: userForm.role_id === "" ? null : Number(userForm.role_id),
+                                    }),
+                                  });
+                                  if (!res.ok) {
+                                    const detail = await res.json().catch(() => ({}));
+                                    throw new Error(detail.detail || `Save failed (${res.status})`);
+                                  }
+                                  const updated = await res.json();
+                                  setUsers((prev) =>
+                                    prev.map((it) => (it.user_id === user.user_id ? updated : it)),
+                                  );
+                                  setUserEditingId(null);
+                                } catch (err) {
+                                  setUserSaveError(err instanceof Error ? err.message : "Save failed");
+                                } finally {
+                                  setUserSaving(false);
+                                }
+                              }}
+                            >
+                              {userSaving ? "Saving…" : "Save"}
+                            </button>
+                            <button
+                              className="btn btn-ghost"
+                              disabled={userSaving}
+                              onClick={() => {
+                                setUserEditingId(null);
+                                setUserSaveError("");
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                setUserEditingId(user.user_id);
+                                setUserForm({
+                                  person_id: String(user.person_id),
+                                  user_acronym: user.user_acronym,
+                                  role_id: String(user.role_id),
+                                });
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="btn btn-ghost"
+                              disabled={userSaving}
+                              onClick={async () => {
+                                setUserSaveError("");
+                                setUserSaving(true);
+                                try {
+                                  const res = await fetch(`${API_BASE}/api/v1/people/users/delete`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ user_id: user.user_id }),
+                                  });
+                                  if (!res.ok) {
+                                    const detail = await res.json().catch(() => ({}));
+                                    throw new Error(detail.detail || `Delete failed (${res.status})`);
+                                  }
+                                  setUsers((prev) => prev.filter((it) => it.user_id !== user.user_id));
+                                } catch (err) {
+                                  setUserSaveError(err instanceof Error ? err.message : "Delete failed");
+                                } finally {
+                                  setUserSaving(false);
+                                }
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+                {usersLoading && (
+                  <div className="table-row muted">
+                    <span colSpan={5}>Fetching…</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </section>
       )}

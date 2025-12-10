@@ -104,6 +104,15 @@ h1 {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.users-table .table-head,
+.users-table .table-row {
+  grid-template-columns: 70px 1.2fr 140px 140px 150px;
+}
+
+.user-create {
+  grid-template-columns: 1fr 180px 1fr 120px;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -271,5 +280,10 @@ h1 {
 
   .create-row .btn {
     grid-column: span 2;
+  }
+
+  .users-table .table-head,
+  .users-table .table-row {
+    grid-template-columns: 60px 1fr 120px 120px 130px;
   }
 }

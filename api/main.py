@@ -19,6 +19,7 @@ from db.models import (
     RevisionOverview,
     Role,
     Unit,
+    User,
 )
 
 
@@ -267,6 +268,32 @@ class PersonCreate(BaseModel):
 
 class PersonDelete(BaseModel):
     person_id: int
+
+
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: int
+    person_id: int
+    user_acronym: str
+    role_id: int
+
+
+class UserUpdate(BaseModel):
+    user_id: int
+    person_id: int | None = None
+    user_acronym: str | None = None
+    role_id: int | None = None
+
+
+class UserCreate(BaseModel):
+    person_id: int
+    user_acronym: str
+    role_id: int
+
+
+class UserDelete(BaseModel):
+    user_id: int
 
 
 def get_db() -> Iterable[Session]:
@@ -559,7 +586,7 @@ def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> Non
     db.commit()
 
 
-@app.get("/api/v1/lookups/roles", response_model=list[RoleOut])
+@app.get("/api/v1/people/roles", response_model=list[RoleOut])
 def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     roles = db.query(Role).order_by(Role.role_name).all()
     if not roles:
@@ -567,7 +594,7 @@ def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     return roles
 
 
-@app.post("/api/v1/lookups/roles/update", response_model=RoleOut)
+@app.post("/api/v1/people/roles/update", response_model=RoleOut)
 def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
     if payload.role_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -588,7 +615,7 @@ def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
     return role
 
 
-@app.post("/api/v1/lookups/roles/insert", response_model=RoleOut, status_code=201)
+@app.post("/api/v1/people/roles/insert", response_model=RoleOut, status_code=201)
 def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     role = Role(role_name=payload.role_name)
     db.add(role)
@@ -601,7 +628,7 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     return role
 
 
-@app.post("/api/v1/lookups/roles/delete", status_code=204)
+@app.post("/api/v1/people/roles/delete", status_code=204)
 def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     role = db.get(Role, payload.role_id)
     if not role:
@@ -864,4 +891,74 @@ def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
     if not person:
         raise HTTPException(status_code=404, detail="Person not found")
     db.delete(person)
+    db.commit()
+
+
+@app.get("/api/v1/people/users", response_model=list[UserOut])
+def list_users(db: Session = Depends(get_db)) -> list[User]:
+    users = db.query(User).order_by(User.user_acronym).all()
+    if not users:
+        raise HTTPException(status_code=404, detail="No users found")
+    return users
+
+
+@app.post("/api/v1/people/users/update", response_model=UserOut)
+def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
+    if payload.person_id is None and payload.user_acronym is None and payload.role_id is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    user = db.get(User, payload.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if payload.person_id is not None:
+        person = db.get(Person, payload.person_id)
+        if not person:
+            raise HTTPException(status_code=404, detail="Person not found")
+        user.person_id = payload.person_id
+    if payload.user_acronym is not None:
+        user.user_acronym = payload.user_acronym
+    if payload.role_id is not None:
+        role = db.get(Role, payload.role_id)
+        if not role:
+            raise HTTPException(status_code=404, detail="Role not found")
+        user.role_id = payload.role_id
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Failed to update user")
+
+    db.refresh(user)
+    return user
+
+
+@app.post("/api/v1/people/users/insert", response_model=UserOut, status_code=201)
+def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
+    person = db.get(Person, payload.person_id)
+    if not person:
+        raise HTTPException(status_code=404, detail="Person not found")
+
+    role = db.get(Role, payload.role_id)
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    user = User(person_id=payload.person_id, user_acronym=payload.user_acronym, role_id=payload.role_id)
+    db.add(user)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Failed to create user")
+    db.refresh(user)
+    return user
+
+
+@app.post("/api/v1/people/users/delete", status_code=204)
+def delete_user(payload: UserDelete, db: Session = Depends(get_db)) -> None:
+    user = db.get(User, payload.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
     db.commit()
