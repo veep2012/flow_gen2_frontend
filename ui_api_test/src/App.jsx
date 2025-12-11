@@ -159,7 +159,12 @@ function useDocTypes() {
   const fetchDocTypes = async () => {
     try {
       setLoading(true);
+      setError(null);
       const res = await fetch(`${API_BASE}/api/v1/documents/doc_types`);
+      if (res.status === 404) {
+        setDocTypes([]);
+        return;
+      }
       if (!res.ok) {
         throw new Error(`API error ${res.status}`);
       }
@@ -557,6 +562,19 @@ export default function App() {
   const [jobpackForm, setJobpackForm] = useState({ jobpack_name: "" });
   const [jobpackSaving, setJobpackSaving] = useState(false);
   const [jobpackSaveError, setJobpackSaveError] = useState("");
+  const [docTypeCreateForm, setDocTypeCreateForm] = useState({
+    doc_type_name: "",
+    doc_type_acronym: "",
+    ref_discipline_id: "",
+  });
+  const [docTypeEditingId, setDocTypeEditingId] = useState(null);
+  const [docTypeForm, setDocTypeForm] = useState({
+    doc_type_name: "",
+    doc_type_acronym: "",
+    ref_discipline_id: "",
+  });
+  const [docTypeSaving, setDocTypeSaving] = useState(false);
+  const [docTypeSaveError, setDocTypeSaveError] = useState("");
   const [roleCreateForm, setRoleCreateForm] = useState({ role_name: "" });
   const [roleEditingId, setRoleEditingId] = useState(null);
   const [roleForm, setRoleForm] = useState({ role_name: "" });
@@ -2606,129 +2624,389 @@ export default function App() {
           </section>
         </>
       ) : activeTab === "documents" ? (
-        <section className="panel" id="docs-pane" role="tabpanel" aria-labelledby="docs-tab">
-          <div className="panel-header">
-            <h2>Documents / Revisions</h2>
-            <span className="status">
-              {docsLoading ? "Loading…" : docsError ? "Error" : `${docs.length} docs`}
-            </span>
-          </div>
-
-          {docsError && <div className="alert alert-error">{docsError}</div>}
-          {docTypesError && <div className="alert alert-error">{docTypesError}</div>}
-          {jobpacksError && <div className="alert alert-error">{jobpacksError}</div>}
-          {unitsError && <div className="alert alert-error">{unitsError}</div>}
-          {error && <div className="alert alert-error">{error}</div>}
-          {!docProjectId && (
-            <div className="alert">Select a project to load documents.</div>
-          )}
-          {!docsError && docProjectId && docs.length === 0 && !docsLoading && (
-            <div className="alert">No documents found for this project.</div>
-          )}
-
-          <div className="panel subpanel">
-            <h3>Filter</h3>
-            <div className="create-row doc-filter">
-              <select
-                className="input"
-                value={docProjectId}
-                onChange={(e) => {
-                  const newVal = e.target.value;
-                  setDocProjectId(newVal);
-                  if (newVal) {
-                    fetchDocs(Number(newVal));
-                  } else {
-                    setDocs([]);
-                  }
-                }}
-              >
-                <option value="">Select project</option>
-                {projects.map((project) => (
-                  <option key={project.project_id} value={project.project_id}>
-                    {project.project_name}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="btn"
-                disabled={!docProjectId || docsLoading}
-                onClick={() => fetchDocs(Number(docProjectId))}
-              >
-                {docsLoading ? "Loading…" : "Refresh"}
-              </button>
+        <>
+          <section className="panel" id="docs-pane" role="tabpanel" aria-labelledby="docs-tab">
+            <div className="panel-header">
+              <h2>Documents / Revisions</h2>
+              <span className="status">
+                {docsLoading ? "Loading…" : docsError ? "Error" : `${docs.length} docs`}
+              </span>
             </div>
-          </div>
 
-          <div className="table docs-table">
-            <div className="table-head">
-              <span>ID</span>
-              <span>Name</span>
-              <span>Title</span>
-              <span>Type</span>
-              <span>Discipline</span>
-              <span>Jobpack</span>
-              <span>Area</span>
-              <span>Unit</span>
-              <span>Current rev</span>
+            {docsError && <div className="alert alert-error">{docsError}</div>}
+            {docTypesError && <div className="alert alert-error">{docTypesError}</div>}
+            {jobpacksError && <div className="alert alert-error">{jobpacksError}</div>}
+            {unitsError && <div className="alert alert-error">{unitsError}</div>}
+            {error && <div className="alert alert-error">{error}</div>}
+            {!docProjectId && (
+              <div className="alert">Select a project to load documents.</div>
+            )}
+            {!docsError && docProjectId && docs.length === 0 && !docsLoading && (
+              <div className="alert">No documents found for this project.</div>
+            )}
+
+            <div className="panel subpanel">
+              <h3>Filter</h3>
+              <div className="create-row doc-filter">
+                <select
+                  className="input"
+                  value={docProjectId}
+                  onChange={(e) => {
+                    const newVal = e.target.value;
+                    setDocProjectId(newVal);
+                    if (newVal) {
+                      fetchDocs(Number(newVal));
+                    } else {
+                      setDocs([]);
+                    }
+                  }}
+                >
+                  <option value="">Select project</option>
+                  {projects.map((project) => (
+                    <option key={project.project_id} value={project.project_id}>
+                      {project.project_name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="btn"
+                  disabled={!docProjectId || docsLoading}
+                  onClick={() => fetchDocs(Number(docProjectId))}
+                >
+                  {docsLoading ? "Loading…" : "Refresh"}
+                </button>
+              </div>
             </div>
-            <div className="table-body">
-              {docs.map((doc) => (
-                <div className="table-row" key={doc.doc_id}>
-                  <span>{doc.doc_id}</span>
-                  <span className="tag">{doc.doc_name_uq || doc.doc_name_unique}</span>
-                  <span>{doc.title}</span>
-                  <span>
-                    {doc.doc_type_name
-                      ? `${doc.doc_type_name}${
-                          doc.discipline_acronym ? ` (${doc.discipline_acronym})` : ""
-                        }`
-                      : docTypeById[doc.type_id]
-                        ? `${docTypeById[doc.type_id].doc_type_name}${
-                            docTypeById[doc.type_id].discipline_acronym
-                              ? ` (${docTypeById[doc.type_id].discipline_acronym})`
-                              : ""
+
+            <div className="table docs-table">
+              <div className="table-head">
+                <span>ID</span>
+                <span>Name</span>
+                <span>Title</span>
+                <span>Type</span>
+                <span>Discipline</span>
+                <span>Jobpack</span>
+                <span>Area</span>
+                <span>Unit</span>
+                <span>Current rev</span>
+              </div>
+              <div className="table-body">
+                {docs.map((doc) => (
+                  <div className="table-row" key={doc.doc_id}>
+                    <span>{doc.doc_id}</span>
+                    <span className="tag">{doc.doc_name_uq || doc.doc_name_unique}</span>
+                    <span>{doc.title}</span>
+                    <span>
+                      {doc.doc_type_name
+                        ? `${doc.doc_type_name}${
+                            doc.discipline_acronym ? ` (${doc.discipline_acronym})` : ""
                           }`
-                        : `Type ${doc.type_id}`}
-                  </span>
-                  <span>
-                    {doc.discipline_name
-                      ? `${doc.discipline_name}${
-                          doc.discipline_acronym ? ` (${doc.discipline_acronym})` : ""
-                        }`
-                      : docTypeById[doc.type_id]
-                        ? `${docTypeById[doc.type_id].discipline_name || "Discipline"}${
-                            docTypeById[doc.type_id].discipline_acronym
-                              ? ` (${docTypeById[doc.type_id].discipline_acronym})`
-                              : ""
+                        : docTypeById[doc.type_id]
+                          ? `${docTypeById[doc.type_id].doc_type_name}${
+                              docTypeById[doc.type_id].discipline_acronym
+                                ? ` (${docTypeById[doc.type_id].discipline_acronym})`
+                                : ""
                             }`
-                        : "—"}
-                  </span>
-                  <span>
-                    {doc.jobpack_name
-                      ? doc.jobpack_name
-                      : doc.jobpack_id
-                        ? jobpackById[doc.jobpack_id] || `Jobpack ${doc.jobpack_id}`
-                        : "—"}
-                  </span>
-                  <span>
-                    {doc.area_name
-                      ? `${doc.area_name}${doc.area_acronym ? ` (${doc.area_acronym})` : ""}`
-                      : areaById[doc.area_id] || `Area ${doc.area_id}`}
-                  </span>
-                  <span>
-                    {doc.unit_name ? doc.unit_name : unitById[doc.unit_id] || `Unit ${doc.unit_id}`}
-                  </span>
-                  <span>{doc.rev_current_id ?? "—"}</span>
-                </div>
-              ))}
-          {docsLoading && (
-            <div className="table-row muted">
-                  <span colSpan={7}>Fetching…</span>
-                </div>
-              )}
+                          : `Type ${doc.type_id}`}
+                    </span>
+                    <span>
+                      {doc.discipline_name
+                        ? `${doc.discipline_name}${
+                            doc.discipline_acronym ? ` (${doc.discipline_acronym})` : ""
+                          }`
+                        : docTypeById[doc.type_id]
+                          ? `${docTypeById[doc.type_id].discipline_name || "Discipline"}${
+                              docTypeById[doc.type_id].discipline_acronym
+                                ? ` (${docTypeById[doc.type_id].discipline_acronym})`
+                                : ""
+                            }`
+                          : "—"}
+                    </span>
+                    <span>
+                      {doc.jobpack_name
+                        ? doc.jobpack_name
+                        : doc.jobpack_id
+                          ? jobpackById[doc.jobpack_id] || `Jobpack ${doc.jobpack_id}`
+                          : "—"}
+                    </span>
+                    <span>
+                      {doc.area_name
+                        ? `${doc.area_name}${doc.area_acronym ? ` (${doc.area_acronym})` : ""}`
+                        : areaById[doc.area_id] || `Area ${doc.area_id}`}
+                    </span>
+                    <span>
+                      {doc.unit_name ? doc.unit_name : unitById[doc.unit_id] || `Unit ${doc.unit_id}`}
+                    </span>
+                    <span>{doc.rev_current_id ?? "—"}</span>
+                  </div>
+                ))}
+                {docsLoading && (
+                  <div className="table-row muted">
+                    <span colSpan={7}>Fetching…</span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Doc types</h2>
+              <span className="status">
+                {docTypesLoading ? "Loading…" : docTypesError ? "Error" : "Ready"}
+              </span>
+            </div>
+
+            {docTypesError && <div className="alert alert-error">{docTypesError}</div>}
+            {docTypeSaveError && <div className="alert alert-error">{docTypeSaveError}</div>}
+            {!docTypesError && docTypes.length === 0 && !docTypesLoading && (
+              <div className="alert">No doc types available</div>
+            )}
+
+            <div className="panel subpanel">
+              <h3>Add doc type</h3>
+              <div className="create-row">
+                <input
+                  className="input"
+                  placeholder="Doc type name"
+                  value={docTypeCreateForm.doc_type_name}
+                  onChange={(e) =>
+                    setDocTypeCreateForm((f) => ({ ...f, doc_type_name: e.target.value }))
+                  }
+                />
+                <input
+                  className="input"
+                  placeholder="Acronym"
+                  value={docTypeCreateForm.doc_type_acronym}
+                  onChange={(e) =>
+                    setDocTypeCreateForm((f) => ({ ...f, doc_type_acronym: e.target.value }))
+                  }
+                />
+                <select
+                  className="input"
+                  value={docTypeCreateForm.ref_discipline_id}
+                  onChange={(e) =>
+                    setDocTypeCreateForm((f) => ({ ...f, ref_discipline_id: e.target.value }))
+                  }
+                >
+                  <option value="">Select discipline</option>
+                  {disciplines.map((disc) => (
+                    <option key={disc.discipline_id} value={disc.discipline_id}>
+                      {disc.discipline_name} ({disc.discipline_acronym})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="btn"
+                  disabled={
+                    docTypeSaving ||
+                    !docTypeCreateForm.doc_type_name ||
+                    !docTypeCreateForm.doc_type_acronym ||
+                    !docTypeCreateForm.ref_discipline_id
+                  }
+                  onClick={async () => {
+                    setDocTypeSaveError("");
+                    setDocTypeSaving(true);
+                    try {
+                      const res = await fetch(`${API_BASE}/api/v1/documents/doc_types/insert`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          doc_type_name: docTypeCreateForm.doc_type_name,
+                          doc_type_acronym: docTypeCreateForm.doc_type_acronym,
+                          ref_discipline_id: Number(docTypeCreateForm.ref_discipline_id),
+                        }),
+                      });
+                      if (!res.ok) {
+                        const detail = await res.json().catch(() => ({}));
+                        throw new Error(detail.detail || `Create failed (${res.status})`);
+                      }
+                      const created = await res.json();
+                      setDocTypes((prev) => [...prev, created]);
+                      setDocTypeCreateForm({
+                        doc_type_name: "",
+                        doc_type_acronym: "",
+                        ref_discipline_id: "",
+                      });
+                    } catch (err) {
+                      setDocTypeSaveError(err instanceof Error ? err.message : "Create failed");
+                    } finally {
+                      setDocTypeSaving(false);
+                    }
+                  }}
+                >
+                  {docTypeSaving ? "Saving…" : "Add"}
+                </button>
+              </div>
+            </div>
+
+            <div className="table">
+              <div className="table-head">
+                <span>ID</span>
+                <span>Name</span>
+                <span>Acronym</span>
+                <span>Discipline</span>
+                <span>Actions</span>
+              </div>
+              <div className="table-body">
+                {docTypes.map((dt) => (
+                  <div className="table-row" key={dt.type_id}>
+                <span>{dt.type_id}</span>
+                {docTypeEditingId === dt.type_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={docTypeForm.doc_type_name}
+                      onChange={(e) =>
+                        setDocTypeForm((f) => ({ ...f, doc_type_name: e.target.value }))
+                      }
+                    />
+                    <input
+                      className="input"
+                      value={docTypeForm.doc_type_acronym}
+                      onChange={(e) =>
+                        setDocTypeForm((f) => ({ ...f, doc_type_acronym: e.target.value }))
+                      }
+                    />
+                    <select
+                      className="input"
+                      value={docTypeForm.ref_discipline_id}
+                      onChange={(e) =>
+                        setDocTypeForm((f) => ({ ...f, ref_discipline_id: e.target.value }))
+                      }
+                    >
+                      <option value="">Select discipline</option>
+                      {disciplines.map((disc) => (
+                        <option key={disc.discipline_id} value={disc.discipline_id}>
+                          {disc.discipline_name} ({disc.discipline_acronym})
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                ) : (
+                  <>
+                    <span>{dt.doc_type_name}</span>
+                    <span className="tag">{dt.doc_type_acronym}</span>
+                    <span>
+                      {dt.discipline_name
+                        ? `${dt.discipline_name}${
+                            dt.discipline_acronym ? ` (${dt.discipline_acronym})` : ""
+                          }`
+                        : `Discipline ${dt.ref_discipline_id}`}
+                    </span>
+                  </>
+                )}
+                <span className="actions">
+                  {docTypeEditingId === dt.type_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={
+                          docTypeSaving ||
+                          !docTypeForm.doc_type_name ||
+                          !docTypeForm.doc_type_acronym ||
+                          !docTypeForm.ref_discipline_id
+                        }
+                        onClick={async () => {
+                          setDocTypeSaveError("");
+                          setDocTypeSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/documents/doc_types/update`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                type_id: dt.type_id,
+                                doc_type_name: docTypeForm.doc_type_name,
+                                doc_type_acronym: docTypeForm.doc_type_acronym,
+                                ref_discipline_id: Number(docTypeForm.ref_discipline_id),
+                              }),
+                            });
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setDocTypes((prev) =>
+                              prev.map((it) => (it.type_id === dt.type_id ? updated : it)),
+                            );
+                            setDocTypeEditingId(null);
+                          } catch (err) {
+                            setDocTypeSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setDocTypeSaving(false);
+                          }
+                        }}
+                      >
+                        {docTypeSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={docTypeSaving}
+                        onClick={() => {
+                          setDocTypeEditingId(null);
+                          setDocTypeSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setDocTypeEditingId(dt.type_id);
+                          setDocTypeForm({
+                            doc_type_name: dt.doc_type_name,
+                            doc_type_acronym: dt.doc_type_acronym,
+                            ref_discipline_id: dt.ref_discipline_id
+                              ? String(dt.ref_discipline_id)
+                              : "",
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={docTypeSaving}
+                        onClick={async () => {
+                          setDocTypeSaveError("");
+                          setDocTypeSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/documents/doc_types/delete`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ type_id: dt.type_id }),
+                            });
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setDocTypes((prev) => prev.filter((it) => it.type_id !== dt.type_id));
+                          } catch (err) {
+                            setDocTypeSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setDocTypeSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+                {docTypesLoading && (
+                  <div className="table-row muted">
+                    <span colSpan={5}>Fetching…</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        </>
       ) : (
         <section className="panel" id="people-pane" role="tabpanel" aria-labelledby="people-tab">
           <div className="panel-header">

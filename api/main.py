@@ -169,6 +169,23 @@ class DocTypeOut(BaseModel):
     discipline_acronym: str | None = None
 
 
+class DocTypeCreate(BaseModel):
+    doc_type_name: str
+    ref_discipline_id: int
+    doc_type_acronym: str
+
+
+class DocTypeUpdate(BaseModel):
+    type_id: int
+    doc_type_name: str | None = None
+    ref_discipline_id: int | None = None
+    doc_type_acronym: str | None = None
+
+
+class DocTypeDelete(BaseModel):
+    type_id: int
+
+
 class DocOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -431,6 +448,18 @@ def _build_permission_out(permission: Permission) -> PermissionOut:
         person_name=person.person_name if person else None,
         project_name=project.project_name if project else None,
         discipline_name=discipline.discipline_name if discipline else None,
+    )
+
+
+def _build_doc_type_out(doc_type: DocType, discipline: Discipline | None = None) -> DocTypeOut:
+    discipline = discipline or doc_type.discipline
+    return DocTypeOut(
+        type_id=doc_type.type_id,
+        doc_type_name=doc_type.doc_type_name,
+        ref_discipline_id=doc_type.ref_discipline_id,
+        doc_type_acronym=doc_type.doc_type_acronym,
+        discipline_name=discipline.discipline_name if discipline else None,
+        discipline_acronym=discipline.discipline_acronym if discipline else None,
     )
 
 
@@ -716,17 +745,72 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
     )
     if not doc_types:
         raise HTTPException(status_code=404, detail="No doc types found")
-    return [
-        DocTypeOut(
-            type_id=dt.type_id,
-            doc_type_name=dt.doc_type_name,
-            ref_discipline_id=dt.ref_discipline_id,
-            doc_type_acronym=dt.doc_type_acronym,
-            discipline_name=disc.discipline_name,
-            discipline_acronym=disc.discipline_acronym,
-        )
-        for dt, disc in doc_types
-    ]
+    return [_build_doc_type_out(dt, disc) for dt, disc in doc_types]
+
+
+@app.post("/api/v1/documents/doc_types/insert", response_model=DocTypeOut, status_code=201)
+def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> DocType:
+    discipline = db.get(Discipline, payload.ref_discipline_id)
+    if not discipline:
+        raise HTTPException(status_code=404, detail="Discipline not found")
+
+    doc_type = DocType(
+        doc_type_name=payload.doc_type_name,
+        ref_discipline_id=payload.ref_discipline_id,
+        doc_type_acronym=payload.doc_type_acronym,
+    )
+    db.add(doc_type)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Doc type already exists")
+
+    db.refresh(doc_type)
+    return _build_doc_type_out(doc_type)
+
+
+@app.post("/api/v1/documents/doc_types/update", response_model=DocTypeOut)
+def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> DocType:
+    if (
+        payload.doc_type_name is None
+        and payload.doc_type_acronym is None
+        and payload.ref_discipline_id is None
+    ):
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    doc_type = db.get(DocType, payload.type_id)
+    if not doc_type:
+        raise HTTPException(status_code=404, detail="Doc type not found")
+
+    if payload.ref_discipline_id is not None:
+        discipline = db.get(Discipline, payload.ref_discipline_id)
+        if not discipline:
+            raise HTTPException(status_code=404, detail="Discipline not found")
+        doc_type.ref_discipline_id = payload.ref_discipline_id
+
+    if payload.doc_type_name is not None:
+        doc_type.doc_type_name = payload.doc_type_name
+    if payload.doc_type_acronym is not None:
+        doc_type.doc_type_acronym = payload.doc_type_acronym
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Doc type already exists")
+
+    db.refresh(doc_type)
+    return _build_doc_type_out(doc_type)
+
+
+@app.post("/api/v1/documents/doc_types/delete", status_code=204)
+def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> None:
+    doc_type = db.get(DocType, payload.type_id)
+    if not doc_type:
+        raise HTTPException(status_code=404, detail="Doc type not found")
+    db.delete(doc_type)
+    db.commit()
 
 
 @app.get("/api/v1/documents/docs", response_model=list[DocOut])
