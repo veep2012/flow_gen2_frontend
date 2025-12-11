@@ -1,7 +1,7 @@
 import os
 from typing import Iterable
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import create_engine
@@ -13,6 +13,8 @@ from db.models import (
     Discipline,
     DocRevMilestone,
     DocRevStatus,
+    DocType,
+    Doc,
     Jobpack,
     Permission,
     Person,
@@ -154,6 +156,41 @@ class JobpackCreate(BaseModel):
 
 class JobpackDelete(BaseModel):
     jobpack_id: int
+
+
+class DocTypeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    type_id: int
+    doc_type_name: str
+    ref_discipline_id: int
+    doc_type_acronym: str
+
+
+class DocOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    doc_id: int
+    doc_name_unique: str
+    doc_name_uq: str | None = None
+    title: str
+    project_id: int | None = None
+    project_name: str | None = None
+    jobpack_id: int | None = None
+    jobpack_name: str | None = None
+    type_id: int
+    doc_type_name: str | None = None
+    doc_type_acronym: str | None = None
+    area_id: int
+    area_name: str | None = None
+    area_acronym: str | None = None
+    unit_id: int
+    unit_name: str | None = None
+    rev_actual_id: int | None = None
+    rev_current_id: int | None = None
+    discipline_id: int | None = None
+    discipline_name: str | None = None
+    discipline_acronym: str | None = None
 
 
 class RoleOut(BaseModel):
@@ -631,6 +668,61 @@ def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> Non
         raise HTTPException(status_code=404, detail="Jobpack not found")
     db.delete(jobpack)
     db.commit()
+
+
+@app.get("/api/v1/documents/doc_types", response_model=list[DocTypeOut])
+def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
+    doc_types = db.query(DocType).order_by(DocType.doc_type_name).all()
+    if not doc_types:
+        raise HTTPException(status_code=404, detail="No doc types found")
+    return doc_types
+
+
+@app.get("/api/v1/documents/docs", response_model=list[DocOut])
+def list_documents_for_project(
+    project_id: int = Query(..., description="Project ID to filter documents by"),
+    db: Session = Depends(get_db),
+) -> list[Doc]:
+    docs = (
+        db.query(Doc, DocType, Discipline, Project, Jobpack, Area, Unit)
+        .join(DocType, Doc.type_id == DocType.type_id)
+        .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
+        .outerjoin(Project, Doc.project_id == Project.project_id)
+        .outerjoin(Jobpack, Doc.jobpack_id == Jobpack.jobpack_id)
+        .join(Area, Doc.area_id == Area.area_id)
+        .join(Unit, Doc.unit_id == Unit.unit_id)
+        .filter(Doc.project_id == project_id)
+        .order_by(Doc.doc_name_unique)
+        .all()
+    )
+    if not docs:
+        raise HTTPException(status_code=404, detail="No documents found for project")
+    return [
+        DocOut(
+            doc_id=doc.doc_id,
+            doc_name_unique=doc.doc_name_unique,
+            doc_name_uq=doc.doc_name_unique,
+            title=doc.title,
+            project_id=doc.project_id,
+            project_name=project.project_name if project else None,
+            jobpack_id=doc.jobpack_id,
+            jobpack_name=jobpack.jobpack_name if jobpack else None,
+            type_id=doc.type_id,
+            doc_type_name=doc_type.doc_type_name,
+            doc_type_acronym=doc_type.doc_type_acronym,
+            area_id=doc.area_id,
+            area_name=area.area_name,
+            area_acronym=area.area_acronym,
+            unit_id=doc.unit_id,
+            unit_name=unit.unit_name,
+            rev_actual_id=doc.rev_actual_id,
+            rev_current_id=doc.rev_current_id,
+            discipline_id=discipline.discipline_id,
+            discipline_name=discipline.discipline_name,
+            discipline_acronym=discipline.discipline_acronym,
+        )
+        for doc, doc_type, discipline, project, jobpack, area, unit in docs
+    ]
 
 
 @app.get("/api/v1/people/roles", response_model=list[RoleOut])

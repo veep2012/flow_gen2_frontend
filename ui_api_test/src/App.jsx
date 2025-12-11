@@ -151,6 +151,67 @@ function useJobpacks() {
   return { jobpacks, loading, error, fetchJobpacks, setJobpacks };
 }
 
+function useDocTypes() {
+  const [docTypes, setDocTypes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchDocTypes = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/documents/doc_types`);
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setDocTypes(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDocTypes();
+  }, []);
+
+  return { docTypes, loading, error, fetchDocTypes, setDocTypes };
+}
+
+function useDocsByProject() {
+  const [docs, setDocs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchDocs = async (projectId) => {
+    if (!projectId) {
+      setDocs([]);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE}/api/v1/documents/docs?project_id=${projectId}`);
+      if (res.status === 404) {
+        setDocs([]);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setDocs(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { docs, loading, error, fetchDocs, setDocs };
+}
+
 function useRoles() {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -378,6 +439,7 @@ export default function App() {
     fetchProjects,
     setProjects,
   } = useProjects();
+  const { docs, loading: docsLoading, error: docsError, fetchDocs, setDocs } = useDocsByProject();
   const { units, loading: unitsLoading, error: unitsError, fetchUnits, setUnits } = useUnits();
   const {
     jobpacks,
@@ -386,6 +448,13 @@ export default function App() {
     fetchJobpacks,
     setJobpacks,
   } = useJobpacks();
+  const {
+    docTypes,
+    loading: docTypesLoading,
+    error: docTypesError,
+    fetchDocTypes,
+    setDocTypes,
+  } = useDocTypes();
   const { roles, loading: rolesLoading, error: rolesError, fetchRoles, setRoles } = useRoles();
   const {
     milestones,
@@ -429,9 +498,33 @@ export default function App() {
     fetchPermissions,
     setPermissions,
   } = usePermissions();
+  const [docProjectId, setDocProjectId] = useState("");
+  useEffect(() => {
+    if (projects.length > 0 && docProjectId === "") {
+      const firstProjectId = projects[0].project_id;
+      setDocProjectId(String(firstProjectId));
+      fetchDocs(firstProjectId);
+    }
+  }, [projects, docProjectId]);
   const availablePersons = useMemo(
     () => persons.filter((p) => !users.some((u) => u.person_id === p.person_id)),
     [persons, users],
+  );
+  const areaById = useMemo(
+    () => Object.fromEntries(areas.map((a) => [a.area_id, a.area_name])),
+    [areas],
+  );
+  const unitById = useMemo(
+    () => Object.fromEntries(units.map((u) => [u.unit_id, u.unit_name])),
+    [units],
+  );
+  const docTypeById = useMemo(
+    () => Object.fromEntries(docTypes.map((t) => [t.type_id, t.doc_type_name])),
+    [docTypes],
+  );
+  const jobpackById = useMemo(
+    () => Object.fromEntries(jobpacks.map((j) => [j.jobpack_id, j.jobpack_name])),
+    [jobpacks],
   );
   const [createForm, setCreateForm] = useState({ area_name: "", area_acronym: "" });
   const [editingId, setEditingId] = useState(null);
@@ -643,6 +736,16 @@ export default function App() {
           onClick={() => setActiveTab("lookups")}
         >
           Lookups
+        </button>
+        <button
+          id="docs-tab"
+          className={`tab ${activeTab === "documents" ? "is-active" : ""}`}
+          role="tab"
+          aria-selected={activeTab === "documents"}
+          aria-controls="docs-pane"
+          onClick={() => setActiveTab("documents")}
+        >
+          Documents / Revisions
         </button>
         <button
           id="people-tab"
@@ -2502,6 +2605,130 @@ export default function App() {
         </div>
           </section>
         </>
+      ) : activeTab === "documents" ? (
+        <section className="panel" id="docs-pane" role="tabpanel" aria-labelledby="docs-tab">
+          <div className="panel-header">
+            <h2>Documents / Revisions</h2>
+            <span className="status">
+              {docsLoading ? "Loading…" : docsError ? "Error" : `${docs.length} docs`}
+            </span>
+          </div>
+
+          {docsError && <div className="alert alert-error">{docsError}</div>}
+          {docTypesError && <div className="alert alert-error">{docTypesError}</div>}
+          {jobpacksError && <div className="alert alert-error">{jobpacksError}</div>}
+          {unitsError && <div className="alert alert-error">{unitsError}</div>}
+          {error && <div className="alert alert-error">{error}</div>}
+          {!docProjectId && (
+            <div className="alert">Select a project to load documents.</div>
+          )}
+          {!docsError && docProjectId && docs.length === 0 && !docsLoading && (
+            <div className="alert">No documents found for this project.</div>
+          )}
+
+          <div className="panel subpanel">
+            <h3>Filter</h3>
+            <div className="create-row doc-filter">
+              <select
+                className="input"
+                value={docProjectId}
+                onChange={(e) => {
+                  const newVal = e.target.value;
+                  setDocProjectId(newVal);
+                  if (newVal) {
+                    fetchDocs(Number(newVal));
+                  } else {
+                    setDocs([]);
+                  }
+                }}
+              >
+                <option value="">Select project</option>
+                {projects.map((project) => (
+                  <option key={project.project_id} value={project.project_id}>
+                    {project.project_name}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="btn"
+                disabled={!docProjectId || docsLoading}
+                onClick={() => fetchDocs(Number(docProjectId))}
+              >
+                {docsLoading ? "Loading…" : "Refresh"}
+              </button>
+            </div>
+          </div>
+
+          <div className="table docs-table">
+            <div className="table-head">
+              <span>ID</span>
+              <span>Name</span>
+              <span>Title</span>
+              <span>Type</span>
+              <span>Discipline</span>
+              <span>Jobpack</span>
+              <span>Area</span>
+              <span>Unit</span>
+              <span>Current rev</span>
+            </div>
+            <div className="table-body">
+              {docs.map((doc) => (
+                <div className="table-row" key={doc.doc_id}>
+                  <span>{doc.doc_id}</span>
+                  <span className="tag">{doc.doc_name_uq || doc.doc_name_unique}</span>
+                  <span>{doc.title}</span>
+                  <span>
+                    {doc.doc_type_name
+                      ? `${doc.doc_type_name}${
+                          doc.discipline_acronym ? ` (${doc.discipline_acronym})` : ""
+                        }`
+                      : docTypeById[doc.type_id]
+                        ? `${docTypeById[doc.type_id].doc_type_name}${
+                            docTypeById[doc.type_id].discipline_acronym
+                              ? ` (${docTypeById[doc.type_id].discipline_acronym})`
+                              : ""
+                          }`
+                        : `Type ${doc.type_id}`}
+                  </span>
+                  <span>
+                    {doc.discipline_name
+                      ? `${doc.discipline_name}${
+                          doc.discipline_acronym ? ` (${doc.discipline_acronym})` : ""
+                        }`
+                      : docTypeById[doc.type_id]
+                        ? `${docTypeById[doc.type_id].discipline_name || "Discipline"}${
+                            docTypeById[doc.type_id].discipline_acronym
+                              ? ` (${docTypeById[doc.type_id].discipline_acronym})`
+                              : ""
+                            }`
+                        : "—"}
+                  </span>
+                  <span>
+                    {doc.jobpack_name
+                      ? doc.jobpack_name
+                      : doc.jobpack_id
+                        ? jobpackById[doc.jobpack_id] || `Jobpack ${doc.jobpack_id}`
+                        : "—"}
+                  </span>
+                  <span>
+                    {doc.area_name
+                      ? `${doc.area_name}${doc.area_acronym ? ` (${doc.area_acronym})` : ""}`
+                      : areaById[doc.area_id] || `Area ${doc.area_id}`}
+                  </span>
+                  <span>
+                    {doc.unit_name ? doc.unit_name : unitById[doc.unit_id] || `Unit ${doc.unit_id}`}
+                  </span>
+                  <span>{doc.rev_current_id ?? "—"}</span>
+                </div>
+              ))}
+          {docsLoading && (
+            <div className="table-row muted">
+                  <span colSpan={7}>Fetching…</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       ) : (
         <section className="panel" id="people-pane" role="tabpanel" aria-labelledby="people-tab">
           <div className="panel-header">
