@@ -165,6 +165,8 @@ class DocTypeOut(BaseModel):
     doc_type_name: str
     ref_discipline_id: int
     doc_type_acronym: str
+    discipline_name: str | None = None
+    discipline_acronym: str | None = None
 
 
 class DocOut(BaseModel):
@@ -315,6 +317,8 @@ class UserOut(BaseModel):
     person_id: int
     user_acronym: str
     role_id: int
+    person_name: str | None = None
+    role_name: str | None = None
 
 
 class UserUpdate(BaseModel):
@@ -341,6 +345,10 @@ class PermissionOut(BaseModel):
     user_id: int
     project_id: int | None = None
     discipline_id: int | None = None
+    user_acronym: str | None = None
+    person_name: str | None = None
+    project_name: str | None = None
+    discipline_name: str | None = None
 
 
 class PermissionCreate(BaseModel):
@@ -396,6 +404,34 @@ def read_root() -> dict[str, str]:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+def _build_user_out(user: User) -> UserOut:
+    return UserOut(
+        user_id=user.user_id,
+        person_id=user.person_id,
+        user_acronym=user.user_acronym,
+        role_id=user.role_id,
+        person_name=user.person.person_name if user.person else None,
+        role_name=user.role.role_name if user.role else None,
+    )
+
+
+def _build_permission_out(permission: Permission) -> PermissionOut:
+    user = permission.user
+    person = user.person if user else None
+    project = permission.project
+    discipline = permission.discipline
+    return PermissionOut(
+        permission_id=permission.permission_id,
+        user_id=permission.user_id,
+        project_id=permission.project_id,
+        discipline_id=permission.discipline_id,
+        user_acronym=user.user_acronym if user else None,
+        person_name=person.person_name if person else None,
+        project_name=project.project_name if project else None,
+        discipline_name=discipline.discipline_name if discipline else None,
+    )
 
 
 @app.get("/api/v1/lookups/areas", response_model=list[AreaOut])
@@ -672,10 +708,25 @@ def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> Non
 
 @app.get("/api/v1/documents/doc_types", response_model=list[DocTypeOut])
 def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
-    doc_types = db.query(DocType).order_by(DocType.doc_type_name).all()
+    doc_types = (
+        db.query(DocType, Discipline)
+        .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
+        .order_by(DocType.doc_type_name)
+        .all()
+    )
     if not doc_types:
         raise HTTPException(status_code=404, detail="No doc types found")
-    return doc_types
+    return [
+        DocTypeOut(
+            type_id=dt.type_id,
+            doc_type_name=dt.doc_type_name,
+            ref_discipline_id=dt.ref_discipline_id,
+            doc_type_acronym=dt.doc_type_acronym,
+            discipline_name=disc.discipline_name,
+            discipline_acronym=disc.discipline_acronym,
+        )
+        for dt, disc in doc_types
+    ]
 
 
 @app.get("/api/v1/documents/docs", response_model=list[DocOut])
@@ -1035,10 +1086,16 @@ def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
 
 @app.get("/api/v1/people/users", response_model=list[UserOut])
 def list_users(db: Session = Depends(get_db)) -> list[User]:
-    users = db.query(User).order_by(User.user_acronym).all()
+    users = (
+        db.query(User)
+        .join(Person, User.person_id == Person.person_id)
+        .join(Role, User.role_id == Role.role_id)
+        .order_by(User.user_acronym)
+        .all()
+    )
     if not users:
         raise HTTPException(status_code=404, detail="No users found")
-    return users
+    return [_build_user_out(user) for user in users]
 
 
 @app.post("/api/v1/people/users/update", response_model=UserOut)
@@ -1070,7 +1127,7 @@ def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
         raise HTTPException(status_code=400, detail="Failed to update user")
 
     db.refresh(user)
-    return user
+    return _build_user_out(user)
 
 
 @app.post("/api/v1/people/users/insert", response_model=UserOut, status_code=201)
@@ -1091,7 +1148,7 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
         db.rollback()
         raise HTTPException(status_code=400, detail="Failed to create user")
     db.refresh(user)
-    return user
+    return _build_user_out(user)
 
 
 @app.post("/api/v1/people/users/delete", status_code=204)
@@ -1124,7 +1181,7 @@ def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
     permissions = db.query(Permission).order_by(Permission.user_id).all()
     if not permissions:
         raise HTTPException(status_code=404, detail="No permissions found")
-    return permissions
+    return [_build_permission_out(p) for p in permissions]
 
 
 @app.post("/api/v1/people/permissions/insert", response_model=PermissionOut, status_code=201)
@@ -1156,7 +1213,7 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
         db.rollback()
         raise HTTPException(status_code=400, detail="Failed to create permission")
     db.refresh(permission)
-    return permission
+    return _build_permission_out(permission)
 
 
 @app.post("/api/v1/people/permissions/update", response_model=PermissionOut)
@@ -1204,7 +1261,7 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
         raise HTTPException(status_code=400, detail="Failed to update permission")
 
     db.refresh(existing)
-    return existing
+    return _build_permission_out(existing)
 
 
 @app.post("/api/v1/people/permissions/delete", status_code=204)
