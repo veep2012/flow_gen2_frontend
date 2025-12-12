@@ -151,6 +151,72 @@ function useJobpacks() {
   return { jobpacks, loading, error, fetchJobpacks, setJobpacks };
 }
 
+function useDocTypes() {
+  const [docTypes, setDocTypes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchDocTypes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE}/api/v1/documents/doc_types`);
+      if (res.status === 404) {
+        setDocTypes([]);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setDocTypes(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDocTypes();
+  }, []);
+
+  return { docTypes, loading, error, fetchDocTypes, setDocTypes };
+}
+
+function useDocsByProject() {
+  const [docs, setDocs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchDocs = async (projectId) => {
+    if (!projectId) {
+      setDocs([]);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE}/api/v1/documents/docs?project_id=${projectId}`);
+      if (res.status === 404) {
+        setDocs([]);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setDocs(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { docs, loading, error, fetchDocs, setDocs };
+}
+
 function useRoles() {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -187,7 +253,7 @@ function useMilestones() {
   const fetchMilestones = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/v1/lookups/doc_rev_milestones`);
+      const res = await fetch(`${API_BASE}/api/v1/documents/doc_rev_milestones`);
       if (!res.ok) {
         throw new Error(`API error ${res.status}`);
       }
@@ -215,7 +281,7 @@ function useRevisionOverview() {
   const fetchRevisionOverview = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/v1/lookups/revision_overview`);
+      const res = await fetch(`${API_BASE}/api/v1/documents/revision_overview`);
       if (!res.ok) {
         throw new Error(`API error ${res.status}`);
       }
@@ -378,6 +444,7 @@ export default function App() {
     fetchProjects,
     setProjects,
   } = useProjects();
+  const { docs, loading: docsLoading, error: docsError, fetchDocs, setDocs } = useDocsByProject();
   const { units, loading: unitsLoading, error: unitsError, fetchUnits, setUnits } = useUnits();
   const {
     jobpacks,
@@ -386,6 +453,13 @@ export default function App() {
     fetchJobpacks,
     setJobpacks,
   } = useJobpacks();
+  const {
+    docTypes,
+    loading: docTypesLoading,
+    error: docTypesError,
+    fetchDocTypes,
+    setDocTypes,
+  } = useDocTypes();
   const { roles, loading: rolesLoading, error: rolesError, fetchRoles, setRoles } = useRoles();
   const {
     milestones,
@@ -429,9 +503,33 @@ export default function App() {
     fetchPermissions,
     setPermissions,
   } = usePermissions();
+  const [docProjectId, setDocProjectId] = useState("");
+  useEffect(() => {
+    if (projects.length > 0 && docProjectId === "") {
+      const firstProjectId = projects[0].project_id;
+      setDocProjectId(String(firstProjectId));
+      fetchDocs(firstProjectId);
+    }
+  }, [projects, docProjectId]);
   const availablePersons = useMemo(
     () => persons.filter((p) => !users.some((u) => u.person_id === p.person_id)),
     [persons, users],
+  );
+  const areaById = useMemo(
+    () => Object.fromEntries(areas.map((a) => [a.area_id, a.area_name])),
+    [areas],
+  );
+  const unitById = useMemo(
+    () => Object.fromEntries(units.map((u) => [u.unit_id, u.unit_name])),
+    [units],
+  );
+  const docTypeById = useMemo(
+    () => Object.fromEntries(docTypes.map((t) => [t.type_id, t.doc_type_name])),
+    [docTypes],
+  );
+  const jobpackById = useMemo(
+    () => Object.fromEntries(jobpacks.map((j) => [j.jobpack_id, j.jobpack_name])),
+    [jobpacks],
   );
   const [createForm, setCreateForm] = useState({ area_name: "", area_acronym: "" });
   const [editingId, setEditingId] = useState(null);
@@ -464,6 +562,19 @@ export default function App() {
   const [jobpackForm, setJobpackForm] = useState({ jobpack_name: "" });
   const [jobpackSaving, setJobpackSaving] = useState(false);
   const [jobpackSaveError, setJobpackSaveError] = useState("");
+  const [docTypeCreateForm, setDocTypeCreateForm] = useState({
+    doc_type_name: "",
+    doc_type_acronym: "",
+    ref_discipline_id: "",
+  });
+  const [docTypeEditingId, setDocTypeEditingId] = useState(null);
+  const [docTypeForm, setDocTypeForm] = useState({
+    doc_type_name: "",
+    doc_type_acronym: "",
+    ref_discipline_id: "",
+  });
+  const [docTypeSaving, setDocTypeSaving] = useState(false);
+  const [docTypeSaveError, setDocTypeSaveError] = useState("");
   const [roleCreateForm, setRoleCreateForm] = useState({ role_name: "" });
   const [roleEditingId, setRoleEditingId] = useState(null);
   const [roleForm, setRoleForm] = useState({ role_name: "" });
@@ -643,6 +754,16 @@ export default function App() {
           onClick={() => setActiveTab("lookups")}
         >
           Lookups
+        </button>
+        <button
+          id="docs-tab"
+          className={`tab ${activeTab === "documents" ? "is-active" : ""}`}
+          role="tab"
+          aria-selected={activeTab === "documents"}
+          aria-controls="docs-pane"
+          onClick={() => setActiveTab("documents")}
+        >
+          Documents / Revisions
         </button>
         <button
           id="people-tab"
@@ -846,282 +967,6 @@ export default function App() {
             {loading && (
               <div className="table-row muted">
                 <span colSpan={4}>Fetching…</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Revision overview</h2>
-          <span className="status">
-            {revisionOverviewLoading ? "Loading…" : revisionOverviewError ? "Error" : "Ready"}
-          </span>
-        </div>
-
-        {revisionOverviewError && <div className="alert alert-error">{revisionOverviewError}</div>}
-        {revSaveError && <div className="alert alert-error">{revSaveError}</div>}
-        {!revisionOverviewError && revisionOverview.length === 0 && !revisionOverviewLoading && (
-          <div className="alert">No revision codes available</div>
-        )}
-
-        <div className="panel subpanel">
-          <h3>Add revision code</h3>
-          <div className="create-row rev-create">
-            <input
-              className="input"
-              placeholder="Code name"
-              value={revCreateForm.rev_code_name}
-              onChange={(e) => setRevCreateForm((f) => ({ ...f, rev_code_name: e.target.value }))}
-            />
-            <input
-              className="input"
-              placeholder="Acronym"
-              value={revCreateForm.rev_code_acronym}
-              onChange={(e) =>
-                setRevCreateForm((f) => ({ ...f, rev_code_acronym: e.target.value }))
-              }
-            />
-            <input
-              className="input"
-              placeholder="Description"
-              value={revCreateForm.rev_description}
-              onChange={(e) =>
-                setRevCreateForm((f) => ({ ...f, rev_description: e.target.value }))
-              }
-            />
-            <input
-              className="input"
-              type="number"
-              placeholder="Percent"
-              value={revCreateForm.percentage}
-              onChange={(e) =>
-                setRevCreateForm((f) => ({
-                  ...f,
-                  percentage: e.target.value === "" ? "" : Number(e.target.value),
-                }))
-              }
-            />
-            <button
-              className="btn"
-              disabled={
-                revSaving ||
-                !revCreateForm.rev_code_name ||
-                !revCreateForm.rev_code_acronym ||
-                !revCreateForm.rev_description
-              }
-              onClick={async () => {
-                setRevSaveError("");
-                setRevSaving(true);
-                try {
-                  const res = await fetch(`${API_BASE}/api/v1/lookups/revision_overview/insert`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      rev_code_name: revCreateForm.rev_code_name,
-                      rev_code_acronym: revCreateForm.rev_code_acronym,
-                      rev_description: revCreateForm.rev_description,
-                      percentage:
-                        revCreateForm.percentage === "" ? null : Number(revCreateForm.percentage),
-                    }),
-                  });
-                  if (!res.ok) {
-                    const detail = await res.json().catch(() => ({}));
-                    throw new Error(detail.detail || `Create failed (${res.status})`);
-                  }
-                  const created = await res.json();
-                  setRevisionOverview((prev) => [...prev, created]);
-                  setRevCreateForm({
-                    rev_code_name: "",
-                    rev_code_acronym: "",
-                    rev_description: "",
-                    percentage: "",
-                  });
-                } catch (err) {
-                  setRevSaveError(err instanceof Error ? err.message : "Create failed");
-                } finally {
-                  setRevSaving(false);
-                }
-              }}
-            >
-              {revSaving ? "Saving…" : "Add"}
-            </button>
-          </div>
-        </div>
-
-        <div className="table rev-table">
-          <div className="table-head rev-head">
-            <span>ID</span>
-            <span>Name</span>
-            <span>Acronym</span>
-            <span>Description</span>
-            <span>Percent</span>
-            <span>Actions</span>
-          </div>
-          <div className="table-body">
-            {revisionOverview.map((rev) => (
-              <div className="table-row rev-row" key={rev.rev_code_id}>
-                <span>{rev.rev_code_id}</span>
-                {revEditingId === rev.rev_code_id ? (
-                  <>
-                    <input
-                      className="input"
-                      value={revForm.rev_code_name}
-                      onChange={(e) =>
-                        setRevForm((f) => ({ ...f, rev_code_name: e.target.value }))
-                      }
-                    />
-                    <input
-                      className="input"
-                      value={revForm.rev_code_acronym}
-                      onChange={(e) =>
-                        setRevForm((f) => ({ ...f, rev_code_acronym: e.target.value }))
-                      }
-                    />
-                    <input
-                      className="input"
-                      value={revForm.rev_description}
-                      onChange={(e) =>
-                        setRevForm((f) => ({ ...f, rev_description: e.target.value }))
-                      }
-                    />
-                    <input
-                      className="input"
-                      type="number"
-                      value={revForm.percentage}
-                      onChange={(e) =>
-                        setRevForm((f) => ({
-                          ...f,
-                          percentage: e.target.value === "" ? "" : Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </>
-                ) : (
-                  <>
-                    <span>{rev.rev_code_name}</span>
-                    <span className="tag">{rev.rev_code_acronym}</span>
-                    <span>{rev.rev_description}</span>
-                    <span className="tag">
-                      {rev.percentage === null || rev.percentage === undefined
-                        ? "—"
-                        : `${rev.percentage}%`}
-                    </span>
-                  </>
-                )}
-                <span className="actions">
-                  {revEditingId === rev.rev_code_id ? (
-                    <>
-                      <button
-                        className="btn"
-                        disabled={revSaving}
-                        onClick={async () => {
-                          setRevSaveError("");
-                          setRevSaving(true);
-                          try {
-                            const res = await fetch(
-                              `${API_BASE}/api/v1/lookups/revision_overview/update`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  rev_code_id: rev.rev_code_id,
-                                  rev_code_name: revForm.rev_code_name,
-                                  rev_code_acronym: revForm.rev_code_acronym,
-                                  rev_description: revForm.rev_description,
-                                  percentage:
-                                    revForm.percentage === "" ? null : Number(revForm.percentage),
-                                }),
-                              },
-                            );
-                            if (!res.ok) {
-                              const detail = await res.json().catch(() => ({}));
-                              throw new Error(detail.detail || `Save failed (${res.status})`);
-                            }
-                            const updated = await res.json();
-                            setRevisionOverview((prev) =>
-                              prev.map((it) => (it.rev_code_id === rev.rev_code_id ? updated : it)),
-                            );
-                            setRevEditingId(null);
-                          } catch (err) {
-                            setRevSaveError(err instanceof Error ? err.message : "Save failed");
-                          } finally {
-                            setRevSaving(false);
-                          }
-                        }}
-                      >
-                        {revSaving ? "Saving…" : "Save"}
-                      </button>
-                      <button
-                        className="btn btn-ghost"
-                        disabled={revSaving}
-                        onClick={() => {
-                          setRevEditingId(null);
-                          setRevSaveError("");
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        className="btn"
-                        onClick={() => {
-                          setRevEditingId(rev.rev_code_id);
-                          setRevForm({
-                            rev_code_name: rev.rev_code_name,
-                            rev_code_acronym: rev.rev_code_acronym,
-                            rev_description: rev.rev_description,
-                            percentage:
-                              rev.percentage === null || rev.percentage === undefined
-                                ? ""
-                                : rev.percentage,
-                          });
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-ghost"
-                        disabled={revSaving}
-                        onClick={async () => {
-                          setRevSaveError("");
-                          setRevSaving(true);
-                          try {
-                            const res = await fetch(
-                              `${API_BASE}/api/v1/lookups/revision_overview/delete`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ rev_code_id: rev.rev_code_id }),
-                              },
-                            );
-                            if (!res.ok) {
-                              const detail = await res.json().catch(() => ({}));
-                              throw new Error(detail.detail || `Delete failed (${res.status})`);
-                            }
-                            setRevisionOverview((prev) =>
-                              prev.filter((it) => it.rev_code_id !== rev.rev_code_id),
-                            );
-                          } catch (err) {
-                            setRevSaveError(err instanceof Error ? err.message : "Delete failed");
-                          } finally {
-                            setRevSaving(false);
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </span>
-              </div>
-            ))}
-            {revisionOverviewLoading && (
-              <div className="table-row muted">
-                <span colSpan={6}>Fetching…</span>
               </div>
             )}
           </div>
@@ -1680,236 +1525,6 @@ export default function App() {
               </div>
             ))}
             {rolesLoading && (
-              <div className="table-row muted">
-                <span colSpan={4}>Fetching…</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Doc revision milestones</h2>
-          <span className="status">
-            {milestonesLoading ? "Loading…" : milestonesError ? "Error" : "Ready"}
-          </span>
-        </div>
-
-        {milestonesError && <div className="alert alert-error">{milestonesError}</div>}
-        {milestoneSaveError && <div className="alert alert-error">{milestoneSaveError}</div>}
-        {!milestonesError && milestones.length === 0 && !milestonesLoading && (
-          <div className="alert">No milestones available</div>
-        )}
-
-        <div className="panel subpanel">
-          <h3>Add milestone</h3>
-          <div className="create-row">
-            <input
-              className="input"
-              placeholder="Milestone name"
-              value={milestoneCreateForm.milestone_name}
-              onChange={(e) =>
-                setMilestoneCreateForm((f) => ({ ...f, milestone_name: e.target.value }))
-              }
-            />
-            <input
-              className="input"
-              type="number"
-              placeholder="Progress (%)"
-              value={milestoneCreateForm.progress}
-              onChange={(e) =>
-                setMilestoneCreateForm((f) => ({
-                  ...f,
-                  progress: e.target.value === "" ? "" : Number(e.target.value),
-                }))
-              }
-            />
-            <button
-              className="btn"
-              disabled={milestoneSaving || !milestoneCreateForm.milestone_name}
-              onClick={async () => {
-                setMilestoneSaveError("");
-                setMilestoneSaving(true);
-                try {
-                  const res = await fetch(`${API_BASE}/api/v1/lookups/doc_rev_milestones/insert`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      milestone_name: milestoneCreateForm.milestone_name,
-                      progress:
-                        milestoneCreateForm.progress === "" ? null : Number(milestoneCreateForm.progress),
-                    }),
-                  });
-                  if (!res.ok) {
-                    const detail = await res.json().catch(() => ({}));
-                    throw new Error(detail.detail || `Create failed (${res.status})`);
-                  }
-                  const created = await res.json();
-                  setMilestones((prev) => [...prev, created]);
-                  setMilestoneCreateForm({ milestone_name: "", progress: "" });
-                } catch (err) {
-                  setMilestoneSaveError(err instanceof Error ? err.message : "Create failed");
-                } finally {
-                  setMilestoneSaving(false);
-                }
-              }}
-            >
-              {milestoneSaving ? "Saving…" : "Add"}
-            </button>
-          </div>
-        </div>
-
-        <div className="table">
-          <div className="table-head">
-            <span>ID</span>
-            <span>Name</span>
-            <span>Progress</span>
-            <span>Actions</span>
-          </div>
-          <div className="table-body">
-            {milestones.map((milestone) => (
-              <div className="table-row" key={milestone.milestone_id}>
-                <span>{milestone.milestone_id}</span>
-                {milestoneEditingId === milestone.milestone_id ? (
-                  <>
-                    <input
-                      className="input"
-                      value={milestoneForm.milestone_name}
-                      onChange={(e) =>
-                        setMilestoneForm((f) => ({ ...f, milestone_name: e.target.value }))
-                      }
-                    />
-                    <input
-                      className="input"
-                      type="number"
-                      value={milestoneForm.progress}
-                      onChange={(e) =>
-                        setMilestoneForm((f) => ({
-                          ...f,
-                          progress: e.target.value === "" ? "" : Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </>
-                ) : (
-                  <>
-                    <span>{milestone.milestone_name}</span>
-                    <span className="tag">
-                      {milestone.progress === null || milestone.progress === undefined
-                        ? "—"
-                        : `${milestone.progress}%`}
-                    </span>
-                  </>
-                )}
-                <span className="actions">
-                  {milestoneEditingId === milestone.milestone_id ? (
-                    <>
-                      <button
-                        className="btn"
-                        disabled={milestoneSaving}
-                        onClick={async () => {
-                          setMilestoneSaveError("");
-                          setMilestoneSaving(true);
-                          try {
-                            const res = await fetch(
-                              `${API_BASE}/api/v1/lookups/doc_rev_milestones/update`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  milestone_id: milestone.milestone_id,
-                                  milestone_name: milestoneForm.milestone_name,
-                                  progress:
-                                    milestoneForm.progress === "" ? null : Number(milestoneForm.progress),
-                                }),
-                              },
-                            );
-                            if (!res.ok) {
-                              const detail = await res.json().catch(() => ({}));
-                              throw new Error(detail.detail || `Save failed (${res.status})`);
-                            }
-                            const updated = await res.json();
-                            setMilestones((prev) =>
-                              prev.map((it) =>
-                                it.milestone_id === milestone.milestone_id ? updated : it,
-                              ),
-                            );
-                            setMilestoneEditingId(null);
-                          } catch (err) {
-                            setMilestoneSaveError(err instanceof Error ? err.message : "Save failed");
-                          } finally {
-                            setMilestoneSaving(false);
-                          }
-                        }}
-                      >
-                        {milestoneSaving ? "Saving…" : "Save"}
-                      </button>
-                      <button
-                        className="btn btn-ghost"
-                        disabled={milestoneSaving}
-                        onClick={() => {
-                          setMilestoneEditingId(null);
-                          setMilestoneSaveError("");
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        className="btn"
-                        onClick={() => {
-                          setMilestoneEditingId(milestone.milestone_id);
-                          setMilestoneForm({
-                            milestone_name: milestone.milestone_name,
-                            progress:
-                              milestone.progress === null || milestone.progress === undefined
-                                ? ""
-                                : milestone.progress,
-                          });
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-ghost"
-                        disabled={milestoneSaving}
-                        onClick={async () => {
-                          setMilestoneSaveError("");
-                          setMilestoneSaving(true);
-                          try {
-                            const res = await fetch(
-                              `${API_BASE}/api/v1/lookups/doc_rev_milestones/delete`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ milestone_id: milestone.milestone_id }),
-                              },
-                            );
-                            if (!res.ok) {
-                              const detail = await res.json().catch(() => ({}));
-                              throw new Error(detail.detail || `Delete failed (${res.status})`);
-                            }
-                            setMilestones((prev) =>
-                              prev.filter((it) => it.milestone_id !== milestone.milestone_id),
-                            );
-                          } catch (err) {
-                            setMilestoneSaveError(err instanceof Error ? err.message : "Delete failed");
-                          } finally {
-                            setMilestoneSaving(false);
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </span>
-              </div>
-            ))}
-            {milestonesLoading && (
               <div className="table-row muted">
                 <span colSpan={4}>Fetching…</span>
               </div>
@@ -2500,6 +2115,910 @@ export default function App() {
             )}
           </div>
         </div>
+          </section>
+        </>
+      ) : activeTab === "documents" ? (
+        <>
+          <section className="panel" id="docs-pane" role="tabpanel" aria-labelledby="docs-tab">
+            <div className="panel-header">
+              <h2>Documents / Revisions</h2>
+              <span className="status">
+                {docsLoading ? "Loading…" : docsError ? "Error" : `${docs.length} docs`}
+              </span>
+            </div>
+
+            {docsError && <div className="alert alert-error">{docsError}</div>}
+            {docTypesError && <div className="alert alert-error">{docTypesError}</div>}
+            {jobpacksError && <div className="alert alert-error">{jobpacksError}</div>}
+            {unitsError && <div className="alert alert-error">{unitsError}</div>}
+            {error && <div className="alert alert-error">{error}</div>}
+            {!docProjectId && (
+              <div className="alert">Select a project to load documents.</div>
+            )}
+            {!docsError && docProjectId && docs.length === 0 && !docsLoading && (
+              <div className="alert">No documents found for this project.</div>
+            )}
+
+            <div className="panel subpanel">
+              <h3>Filter</h3>
+              <div className="create-row doc-filter">
+                <select
+                  className="input"
+                  value={docProjectId}
+                  onChange={(e) => {
+                    const newVal = e.target.value;
+                    setDocProjectId(newVal);
+                    if (newVal) {
+                      fetchDocs(Number(newVal));
+                    } else {
+                      setDocs([]);
+                    }
+                  }}
+                >
+                  <option value="">Select project</option>
+                  {projects.map((project) => (
+                    <option key={project.project_id} value={project.project_id}>
+                      {project.project_name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="btn"
+                  disabled={!docProjectId || docsLoading}
+                  onClick={() => fetchDocs(Number(docProjectId))}
+                >
+                  {docsLoading ? "Loading…" : "Refresh"}
+                </button>
+              </div>
+            </div>
+
+            <div className="table docs-table">
+              <div className="table-head">
+                <span>ID</span>
+                <span>Name</span>
+                <span>Title</span>
+                <span>Type</span>
+                <span>Discipline</span>
+                <span>Jobpack</span>
+                <span>Area</span>
+                <span>Unit</span>
+                <span>Current rev</span>
+                <span>Rev seq</span>
+                <span>Rev code</span>
+                <span>Rev %</span>
+              </div>
+              <div className="table-body">
+                {docs.map((doc) => (
+                  <div className="table-row" key={doc.doc_id}>
+                    <span>{doc.doc_id}</span>
+                    <span className="tag">{doc.doc_name_uq || doc.doc_name_unique}</span>
+                    <span>{doc.title}</span>
+                    <span>
+                      {doc.doc_type_name
+                        ? `${doc.doc_type_name}${
+                            doc.discipline_acronym ? ` (${doc.discipline_acronym})` : ""
+                          }`
+                        : docTypeById[doc.type_id]
+                          ? `${docTypeById[doc.type_id].doc_type_name}${
+                              docTypeById[doc.type_id].discipline_acronym
+                                ? ` (${docTypeById[doc.type_id].discipline_acronym})`
+                                : ""
+                            }`
+                          : `Type ${doc.type_id}`}
+                    </span>
+                    <span>
+                      {doc.discipline_name
+                        ? `${doc.discipline_name}${
+                            doc.discipline_acronym ? ` (${doc.discipline_acronym})` : ""
+                          }`
+                        : docTypeById[doc.type_id]
+                          ? `${docTypeById[doc.type_id].discipline_name || "Discipline"}${
+                              docTypeById[doc.type_id].discipline_acronym
+                                ? ` (${docTypeById[doc.type_id].discipline_acronym})`
+                                : ""
+                            }`
+                          : "—"}
+                    </span>
+                    <span>
+                      {doc.jobpack_name
+                        ? doc.jobpack_name
+                        : doc.jobpack_id
+                          ? jobpackById[doc.jobpack_id] || `Jobpack ${doc.jobpack_id}`
+                          : "—"}
+                    </span>
+                    <span>
+                      {doc.area_name
+                        ? `${doc.area_name}${doc.area_acronym ? ` (${doc.area_acronym})` : ""}`
+                        : areaById[doc.area_id] || `Area ${doc.area_id}`}
+                    </span>
+                  <span>
+                    {doc.unit_name ? doc.unit_name : unitById[doc.unit_id] || `Unit ${doc.unit_id}`}
+                  </span>
+                  <span>{doc.rev_current_id ?? "—"}</span>
+                  <span>{doc.rev_seq_num ?? "—"}</span>
+                  <span>
+                    {doc.rev_code_acronym
+                      ? `${doc.rev_code_acronym}${doc.rev_code_name ? ` (${doc.rev_code_name})` : ""}`
+                      : doc.rev_code_name || "—"}
+                  </span>
+                  <span className="tag">
+                    {doc.percentage === null || doc.percentage === undefined
+                      ? "—"
+                      : `${doc.percentage}%`}
+                  </span>
+                </div>
+              ))}
+              {docsLoading && (
+                <div className="table-row muted">
+                    <span colSpan={10}>Fetching…</span>
+                </div>
+              )}
+            </div>
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Revision overview</h2>
+              <span className="status">
+                {revisionOverviewLoading ? "Loading…" : revisionOverviewError ? "Error" : "Ready"}
+              </span>
+            </div>
+
+            {revisionOverviewError && <div className="alert alert-error">{revisionOverviewError}</div>}
+            {revSaveError && <div className="alert alert-error">{revSaveError}</div>}
+            {!revisionOverviewError && revisionOverview.length === 0 && !revisionOverviewLoading && (
+              <div className="alert">No revision codes available</div>
+            )}
+
+            <div className="panel subpanel">
+              <h3>Add revision code</h3>
+              <div className="create-row rev-create">
+                <input
+                  className="input"
+                  placeholder="Code name"
+                  value={revCreateForm.rev_code_name}
+                  onChange={(e) => setRevCreateForm((f) => ({ ...f, rev_code_name: e.target.value }))}
+                />
+                <input
+                  className="input"
+                  placeholder="Acronym"
+                  value={revCreateForm.rev_code_acronym}
+                  onChange={(e) =>
+                    setRevCreateForm((f) => ({ ...f, rev_code_acronym: e.target.value }))
+                  }
+                />
+                <input
+                  className="input"
+                  placeholder="Description"
+                  value={revCreateForm.rev_description}
+                  onChange={(e) =>
+                    setRevCreateForm((f) => ({ ...f, rev_description: e.target.value }))
+                  }
+                />
+                <input
+                  className="input"
+                  type="number"
+                  placeholder="Percent"
+                  value={revCreateForm.percentage}
+                  onChange={(e) =>
+                    setRevCreateForm((f) => ({
+                      ...f,
+                      percentage: e.target.value === "" ? "" : Number(e.target.value),
+                    }))
+                  }
+                />
+                <button
+                  className="btn"
+                  disabled={
+                    revSaving ||
+                    !revCreateForm.rev_code_name ||
+                    !revCreateForm.rev_code_acronym ||
+                    !revCreateForm.rev_description
+                  }
+                  onClick={async () => {
+                    setRevSaveError("");
+                    setRevSaving(true);
+                    try {
+                      const res = await fetch(`${API_BASE}/api/v1/documents/revision_overview/insert`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          rev_code_name: revCreateForm.rev_code_name,
+                          rev_code_acronym: revCreateForm.rev_code_acronym,
+                          rev_description: revCreateForm.rev_description,
+                          percentage:
+                            revCreateForm.percentage === "" ? null : Number(revCreateForm.percentage),
+                        }),
+                      });
+                      if (!res.ok) {
+                        const detail = await res.json().catch(() => ({}));
+                        throw new Error(detail.detail || `Create failed (${res.status})`);
+                      }
+                      const created = await res.json();
+                      setRevisionOverview((prev) => [...prev, created]);
+                      setRevCreateForm({
+                        rev_code_name: "",
+                        rev_code_acronym: "",
+                        rev_description: "",
+                        percentage: "",
+                      });
+                    } catch (err) {
+                      setRevSaveError(err instanceof Error ? err.message : "Create failed");
+                    } finally {
+                      setRevSaving(false);
+                    }
+                  }}
+                >
+                  {revSaving ? "Saving…" : "Add"}
+                </button>
+              </div>
+            </div>
+
+            <div className="table rev-table">
+              <div className="table-head rev-head">
+                <span>ID</span>
+                <span>Name</span>
+                <span>Acronym</span>
+                <span>Description</span>
+                <span>Percent</span>
+                <span>Actions</span>
+              </div>
+              <div className="table-body">
+                {revisionOverview.map((rev) => (
+                  <div className="table-row rev-row" key={rev.rev_code_id}>
+                    <span>{rev.rev_code_id}</span>
+                    {revEditingId === rev.rev_code_id ? (
+                      <>
+                        <input
+                          className="input"
+                          value={revForm.rev_code_name}
+                          onChange={(e) =>
+                            setRevForm((f) => ({ ...f, rev_code_name: e.target.value }))
+                          }
+                        />
+                        <input
+                          className="input"
+                          value={revForm.rev_code_acronym}
+                          onChange={(e) =>
+                            setRevForm((f) => ({ ...f, rev_code_acronym: e.target.value }))
+                          }
+                        />
+                        <input
+                          className="input"
+                          value={revForm.rev_description}
+                          onChange={(e) =>
+                            setRevForm((f) => ({ ...f, rev_description: e.target.value }))
+                          }
+                        />
+                        <input
+                          className="input"
+                          type="number"
+                          value={revForm.percentage}
+                          onChange={(e) =>
+                            setRevForm((f) => ({
+                              ...f,
+                              percentage: e.target.value === "" ? "" : Number(e.target.value),
+                            }))
+                          }
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <span>{rev.rev_code_name}</span>
+                        <span className="tag">{rev.rev_code_acronym}</span>
+                        <span>{rev.rev_description}</span>
+                        <span className="tag">
+                          {rev.percentage === null || rev.percentage === undefined
+                            ? "—"
+                            : `${rev.percentage}%`}
+                        </span>
+                      </>
+                    )}
+                    <span className="actions">
+                      {revEditingId === rev.rev_code_id ? (
+                        <>
+                          <button
+                            className="btn"
+                            disabled={revSaving}
+                            onClick={async () => {
+                              setRevSaveError("");
+                              setRevSaving(true);
+                              try {
+                                const res = await fetch(
+                                  `${API_BASE}/api/v1/documents/revision_overview/update`,
+                                  {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      rev_code_id: rev.rev_code_id,
+                                      rev_code_name: revForm.rev_code_name,
+                                      rev_code_acronym: revForm.rev_code_acronym,
+                                      rev_description: revForm.rev_description,
+                                      percentage:
+                                        revForm.percentage === "" ? null : Number(revForm.percentage),
+                                    }),
+                                  },
+                                );
+                                if (!res.ok) {
+                                  const detail = await res.json().catch(() => ({}));
+                                  throw new Error(detail.detail || `Save failed (${res.status})`);
+                                }
+                                const updated = await res.json();
+                                setRevisionOverview((prev) =>
+                                  prev.map((it) => (it.rev_code_id === rev.rev_code_id ? updated : it)),
+                                );
+                                setRevEditingId(null);
+                              } catch (err) {
+                                setRevSaveError(err instanceof Error ? err.message : "Save failed");
+                              } finally {
+                                setRevSaving(false);
+                              }
+                            }}
+                          >
+                            {revSaving ? "Saving…" : "Save"}
+                          </button>
+                          <button
+                            className="btn btn-ghost"
+                            disabled={revSaving}
+                            onClick={() => {
+                              setRevEditingId(null);
+                              setRevSaveError("");
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="btn"
+                            onClick={() => {
+                              setRevEditingId(rev.rev_code_id);
+                              setRevForm({
+                                rev_code_name: rev.rev_code_name,
+                                rev_code_acronym: rev.rev_code_acronym,
+                                rev_description: rev.rev_description,
+                                percentage:
+                                  rev.percentage === null || rev.percentage === undefined
+                                    ? ""
+                                    : rev.percentage,
+                              });
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-ghost"
+                            disabled={revSaving}
+                            onClick={async () => {
+                              setRevSaveError("");
+                              setRevSaving(true);
+                              try {
+                                const res = await fetch(
+                                  `${API_BASE}/api/v1/documents/revision_overview/delete`,
+                                  {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ rev_code_id: rev.rev_code_id }),
+                                  },
+                                );
+                                if (!res.ok) {
+                                  const detail = await res.json().catch(() => ({}));
+                                  throw new Error(detail.detail || `Delete failed (${res.status})`);
+                                }
+                                setRevisionOverview((prev) =>
+                                  prev.filter((it) => it.rev_code_id !== rev.rev_code_id),
+                                );
+                              } catch (err) {
+                                setRevSaveError(err instanceof Error ? err.message : "Delete failed");
+                              } finally {
+                                setRevSaving(false);
+                              }
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                ))}
+                {revisionOverviewLoading && (
+                  <div className="table-row muted">
+                    <span colSpan={6}>Fetching…</span>
+                  </div>
+                )}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Doc revision milestones</h2>
+          <span className="status">
+            {milestonesLoading ? "Loading…" : milestonesError ? "Error" : "Ready"}
+          </span>
+        </div>
+
+        {milestonesError && <div className="alert alert-error">{milestonesError}</div>}
+        {milestoneSaveError && <div className="alert alert-error">{milestoneSaveError}</div>}
+        {!milestonesError && milestones.length === 0 && !milestonesLoading && (
+          <div className="alert">No milestones available</div>
+        )}
+
+        <div className="panel subpanel">
+          <h3>Add milestone</h3>
+          <div className="create-row">
+            <input
+              className="input"
+              placeholder="Milestone name"
+              value={milestoneCreateForm.milestone_name}
+              onChange={(e) =>
+                setMilestoneCreateForm((f) => ({ ...f, milestone_name: e.target.value }))
+              }
+            />
+            <input
+              className="input"
+              type="number"
+              placeholder="Progress (%)"
+              value={milestoneCreateForm.progress}
+              onChange={(e) =>
+                setMilestoneCreateForm((f) => ({
+                  ...f,
+                  progress: e.target.value === "" ? "" : Number(e.target.value),
+                }))
+              }
+            />
+            <button
+              className="btn"
+              disabled={milestoneSaving || !milestoneCreateForm.milestone_name}
+              onClick={async () => {
+                setMilestoneSaveError("");
+                setMilestoneSaving(true);
+                try {
+                  const res = await fetch(`${API_BASE}/api/v1/documents/doc_rev_milestones/insert`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      milestone_name: milestoneCreateForm.milestone_name,
+                      progress:
+                        milestoneCreateForm.progress === "" ? null : Number(milestoneCreateForm.progress),
+                    }),
+                  });
+                  if (!res.ok) {
+                    const detail = await res.json().catch(() => ({}));
+                    throw new Error(detail.detail || `Create failed (${res.status})`);
+                  }
+                  const created = await res.json();
+                  setMilestones((prev) => [...prev, created]);
+                  setMilestoneCreateForm({ milestone_name: "", progress: "" });
+                } catch (err) {
+                  setMilestoneSaveError(err instanceof Error ? err.message : "Create failed");
+                } finally {
+                  setMilestoneSaving(false);
+                }
+              }}
+            >
+              {milestoneSaving ? "Saving…" : "Add"}
+            </button>
+          </div>
+        </div>
+
+        <div className="table">
+          <div className="table-head">
+            <span>ID</span>
+            <span>Name</span>
+            <span>Progress</span>
+            <span>Actions</span>
+          </div>
+          <div className="table-body">
+            {milestones.map((milestone) => (
+              <div className="table-row" key={milestone.milestone_id}>
+                <span>{milestone.milestone_id}</span>
+                {milestoneEditingId === milestone.milestone_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={milestoneForm.milestone_name}
+                      onChange={(e) =>
+                        setMilestoneForm((f) => ({ ...f, milestone_name: e.target.value }))
+                      }
+                    />
+                    <input
+                      className="input"
+                      type="number"
+                      value={milestoneForm.progress}
+                      onChange={(e) =>
+                        setMilestoneForm((f) => ({
+                          ...f,
+                          progress: e.target.value === "" ? "" : Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </>
+                ) : (
+                  <>
+                    <span>{milestone.milestone_name}</span>
+                    <span className="tag">
+                      {milestone.progress === null || milestone.progress === undefined
+                        ? "—"
+                        : `${milestone.progress}%`}
+                    </span>
+                  </>
+                )}
+                <span className="actions">
+                  {milestoneEditingId === milestone.milestone_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={milestoneSaving}
+                        onClick={async () => {
+                          setMilestoneSaveError("");
+                          setMilestoneSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/documents/doc_rev_milestones/update`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  milestone_id: milestone.milestone_id,
+                                  milestone_name: milestoneForm.milestone_name,
+                                  progress:
+                                    milestoneForm.progress === "" ? null : Number(milestoneForm.progress),
+                                }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setMilestones((prev) =>
+                              prev.map((it) =>
+                                it.milestone_id === milestone.milestone_id ? updated : it,
+                              ),
+                            );
+                            setMilestoneEditingId(null);
+                          } catch (err) {
+                            setMilestoneSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setMilestoneSaving(false);
+                          }
+                        }}
+                      >
+                        {milestoneSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={milestoneSaving}
+                        onClick={() => {
+                          setMilestoneEditingId(null);
+                          setMilestoneSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setMilestoneEditingId(milestone.milestone_id);
+                          setMilestoneForm({
+                            milestone_name: milestone.milestone_name,
+                            progress:
+                              milestone.progress === null || milestone.progress === undefined
+                                ? ""
+                                : milestone.progress,
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={milestoneSaving}
+                        onClick={async () => {
+                          setMilestoneSaveError("");
+                          setMilestoneSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/documents/doc_rev_milestones/delete`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ milestone_id: milestone.milestone_id }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setMilestones((prev) =>
+                              prev.filter((it) => it.milestone_id !== milestone.milestone_id),
+                            );
+                          } catch (err) {
+                            setMilestoneSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setMilestoneSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+            {milestonesLoading && (
+              <div className="table-row muted">
+                <span colSpan={4}>Fetching…</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Doc types</h2>
+              <span className="status">
+                {docTypesLoading ? "Loading…" : docTypesError ? "Error" : "Ready"}
+              </span>
+            </div>
+
+            {docTypesError && <div className="alert alert-error">{docTypesError}</div>}
+            {docTypeSaveError && <div className="alert alert-error">{docTypeSaveError}</div>}
+            {!docTypesError && docTypes.length === 0 && !docTypesLoading && (
+              <div className="alert">No doc types available</div>
+            )}
+
+            <div className="panel subpanel">
+              <h3>Add doc type</h3>
+              <div className="create-row">
+                <input
+                  className="input"
+                  placeholder="Doc type name"
+                  value={docTypeCreateForm.doc_type_name}
+                  onChange={(e) =>
+                    setDocTypeCreateForm((f) => ({ ...f, doc_type_name: e.target.value }))
+                  }
+                />
+                <input
+                  className="input"
+                  placeholder="Acronym"
+                  value={docTypeCreateForm.doc_type_acronym}
+                  onChange={(e) =>
+                    setDocTypeCreateForm((f) => ({ ...f, doc_type_acronym: e.target.value }))
+                  }
+                />
+                <select
+                  className="input"
+                  value={docTypeCreateForm.ref_discipline_id}
+                  onChange={(e) =>
+                    setDocTypeCreateForm((f) => ({ ...f, ref_discipline_id: e.target.value }))
+                  }
+                >
+                  <option value="">Select discipline</option>
+                  {disciplines.map((disc) => (
+                    <option key={disc.discipline_id} value={disc.discipline_id}>
+                      {disc.discipline_name} ({disc.discipline_acronym})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="btn"
+                  disabled={
+                    docTypeSaving ||
+                    !docTypeCreateForm.doc_type_name ||
+                    !docTypeCreateForm.doc_type_acronym ||
+                    !docTypeCreateForm.ref_discipline_id
+                  }
+                  onClick={async () => {
+                    setDocTypeSaveError("");
+                    setDocTypeSaving(true);
+                    try {
+                      const res = await fetch(`${API_BASE}/api/v1/documents/doc_types/insert`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          doc_type_name: docTypeCreateForm.doc_type_name,
+                          doc_type_acronym: docTypeCreateForm.doc_type_acronym,
+                          ref_discipline_id: Number(docTypeCreateForm.ref_discipline_id),
+                        }),
+                      });
+                      if (!res.ok) {
+                        const detail = await res.json().catch(() => ({}));
+                        throw new Error(detail.detail || `Create failed (${res.status})`);
+                      }
+                      const created = await res.json();
+                      setDocTypes((prev) => [...prev, created]);
+                      setDocTypeCreateForm({
+                        doc_type_name: "",
+                        doc_type_acronym: "",
+                        ref_discipline_id: "",
+                      });
+                    } catch (err) {
+                      setDocTypeSaveError(err instanceof Error ? err.message : "Create failed");
+                    } finally {
+                      setDocTypeSaving(false);
+                    }
+                  }}
+                >
+                  {docTypeSaving ? "Saving…" : "Add"}
+                </button>
+              </div>
+            </div>
+
+            <div className="table">
+              <div className="table-head">
+                <span>ID</span>
+                <span>Name</span>
+                <span>Acronym</span>
+                <span>Discipline</span>
+                <span>Actions</span>
+              </div>
+              <div className="table-body">
+                {docTypes.map((dt) => (
+                  <div className="table-row" key={dt.type_id}>
+                <span>{dt.type_id}</span>
+                {docTypeEditingId === dt.type_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={docTypeForm.doc_type_name}
+                      onChange={(e) =>
+                        setDocTypeForm((f) => ({ ...f, doc_type_name: e.target.value }))
+                      }
+                    />
+                    <input
+                      className="input"
+                      value={docTypeForm.doc_type_acronym}
+                      onChange={(e) =>
+                        setDocTypeForm((f) => ({ ...f, doc_type_acronym: e.target.value }))
+                      }
+                    />
+                    <select
+                      className="input"
+                      value={docTypeForm.ref_discipline_id}
+                      onChange={(e) =>
+                        setDocTypeForm((f) => ({ ...f, ref_discipline_id: e.target.value }))
+                      }
+                    >
+                      <option value="">Select discipline</option>
+                      {disciplines.map((disc) => (
+                        <option key={disc.discipline_id} value={disc.discipline_id}>
+                          {disc.discipline_name} ({disc.discipline_acronym})
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                ) : (
+                  <>
+                    <span>{dt.doc_type_name}</span>
+                    <span className="tag">{dt.doc_type_acronym}</span>
+                    <span>
+                      {dt.discipline_name
+                        ? `${dt.discipline_name}${
+                            dt.discipline_acronym ? ` (${dt.discipline_acronym})` : ""
+                          }`
+                        : `Discipline ${dt.ref_discipline_id}`}
+                    </span>
+                  </>
+                )}
+                <span className="actions">
+                  {docTypeEditingId === dt.type_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={
+                          docTypeSaving ||
+                          !docTypeForm.doc_type_name ||
+                          !docTypeForm.doc_type_acronym ||
+                          !docTypeForm.ref_discipline_id
+                        }
+                        onClick={async () => {
+                          setDocTypeSaveError("");
+                          setDocTypeSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/documents/doc_types/update`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                type_id: dt.type_id,
+                                doc_type_name: docTypeForm.doc_type_name,
+                                doc_type_acronym: docTypeForm.doc_type_acronym,
+                                ref_discipline_id: Number(docTypeForm.ref_discipline_id),
+                              }),
+                            });
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setDocTypes((prev) =>
+                              prev.map((it) => (it.type_id === dt.type_id ? updated : it)),
+                            );
+                            setDocTypeEditingId(null);
+                          } catch (err) {
+                            setDocTypeSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setDocTypeSaving(false);
+                          }
+                        }}
+                      >
+                        {docTypeSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={docTypeSaving}
+                        onClick={() => {
+                          setDocTypeEditingId(null);
+                          setDocTypeSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setDocTypeEditingId(dt.type_id);
+                          setDocTypeForm({
+                            doc_type_name: dt.doc_type_name,
+                            doc_type_acronym: dt.doc_type_acronym,
+                            ref_discipline_id: dt.ref_discipline_id
+                              ? String(dt.ref_discipline_id)
+                              : "",
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={docTypeSaving}
+                        onClick={async () => {
+                          setDocTypeSaveError("");
+                          setDocTypeSaving(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/documents/doc_types/delete`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ type_id: dt.type_id }),
+                            });
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setDocTypes((prev) => prev.filter((it) => it.type_id !== dt.type_id));
+                          } catch (err) {
+                            setDocTypeSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setDocTypeSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+                {docTypesLoading && (
+                  <div className="table-row muted">
+                    <span colSpan={5}>Fetching…</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </section>
         </>
       ) : (

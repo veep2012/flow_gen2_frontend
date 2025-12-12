@@ -1,18 +1,21 @@
 import os
 from typing import Iterable
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, aliased, sessionmaker
 
 from db.models import (
     Area,
     Discipline,
     DocRevMilestone,
     DocRevStatus,
+    DocRevision,
+    DocType,
+    Doc,
     Jobpack,
     Permission,
     Person,
@@ -156,6 +159,64 @@ class JobpackDelete(BaseModel):
     jobpack_id: int
 
 
+class DocTypeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    type_id: int
+    doc_type_name: str
+    ref_discipline_id: int
+    doc_type_acronym: str
+    discipline_name: str | None = None
+    discipline_acronym: str | None = None
+
+
+class DocTypeCreate(BaseModel):
+    doc_type_name: str
+    ref_discipline_id: int
+    doc_type_acronym: str
+
+
+class DocTypeUpdate(BaseModel):
+    type_id: int
+    doc_type_name: str | None = None
+    ref_discipline_id: int | None = None
+    doc_type_acronym: str | None = None
+
+
+class DocTypeDelete(BaseModel):
+    type_id: int
+
+
+class DocOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    doc_id: int
+    doc_name_unique: str
+    doc_name_uq: str | None = None
+    title: str
+    project_id: int | None = None
+    project_name: str | None = None
+    jobpack_id: int | None = None
+    jobpack_name: str | None = None
+    type_id: int
+    doc_type_name: str | None = None
+    doc_type_acronym: str | None = None
+    area_id: int
+    area_name: str | None = None
+    area_acronym: str | None = None
+    unit_id: int
+    unit_name: str | None = None
+    rev_actual_id: int | None = None
+    rev_current_id: int | None = None
+    rev_seq_num: int | None = None
+    discipline_id: int | None = None
+    discipline_name: str | None = None
+    discipline_acronym: str | None = None
+    rev_code_name: str | None = None
+    rev_code_acronym: str | None = None
+    percentage: int | None = None
+
+
 class RoleOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -278,6 +339,8 @@ class UserOut(BaseModel):
     person_id: int
     user_acronym: str
     role_id: int
+    person_name: str | None = None
+    role_name: str | None = None
 
 
 class UserUpdate(BaseModel):
@@ -304,6 +367,10 @@ class PermissionOut(BaseModel):
     user_id: int
     project_id: int | None = None
     discipline_id: int | None = None
+    user_acronym: str | None = None
+    person_name: str | None = None
+    project_name: str | None = None
+    discipline_name: str | None = None
 
 
 class PermissionCreate(BaseModel):
@@ -359,6 +426,46 @@ def read_root() -> dict[str, str]:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+def _build_user_out(user: User) -> UserOut:
+    return UserOut(
+        user_id=user.user_id,
+        person_id=user.person_id,
+        user_acronym=user.user_acronym,
+        role_id=user.role_id,
+        person_name=user.person.person_name if user.person else None,
+        role_name=user.role.role_name if user.role else None,
+    )
+
+
+def _build_permission_out(permission: Permission) -> PermissionOut:
+    user = permission.user
+    person = user.person if user else None
+    project = permission.project
+    discipline = permission.discipline
+    return PermissionOut(
+        permission_id=permission.permission_id,
+        user_id=permission.user_id,
+        project_id=permission.project_id,
+        discipline_id=permission.discipline_id,
+        user_acronym=user.user_acronym if user else None,
+        person_name=person.person_name if person else None,
+        project_name=project.project_name if project else None,
+        discipline_name=discipline.discipline_name if discipline else None,
+    )
+
+
+def _build_doc_type_out(doc_type: DocType, discipline: Discipline | None = None) -> DocTypeOut:
+    discipline = discipline or doc_type.discipline
+    return DocTypeOut(
+        type_id=doc_type.type_id,
+        doc_type_name=doc_type.doc_type_name,
+        ref_discipline_id=doc_type.ref_discipline_id,
+        doc_type_acronym=doc_type.doc_type_acronym,
+        discipline_name=discipline.discipline_name if discipline else None,
+        discipline_acronym=discipline.discipline_acronym if discipline else None,
+    )
 
 
 @app.get("/api/v1/lookups/areas", response_model=list[AreaOut])
@@ -633,6 +740,138 @@ def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> Non
     db.commit()
 
 
+@app.get("/api/v1/documents/doc_types", response_model=list[DocTypeOut])
+def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
+    doc_types = (
+        db.query(DocType, Discipline)
+        .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
+        .order_by(DocType.doc_type_name)
+        .all()
+    )
+    if not doc_types:
+        raise HTTPException(status_code=404, detail="No doc types found")
+    return [_build_doc_type_out(dt, disc) for dt, disc in doc_types]
+
+
+@app.post("/api/v1/documents/doc_types/insert", response_model=DocTypeOut, status_code=201)
+def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> DocType:
+    discipline = db.get(Discipline, payload.ref_discipline_id)
+    if not discipline:
+        raise HTTPException(status_code=404, detail="Discipline not found")
+
+    doc_type = DocType(
+        doc_type_name=payload.doc_type_name,
+        ref_discipline_id=payload.ref_discipline_id,
+        doc_type_acronym=payload.doc_type_acronym,
+    )
+    db.add(doc_type)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Doc type already exists")
+
+    db.refresh(doc_type)
+    return _build_doc_type_out(doc_type)
+
+
+@app.post("/api/v1/documents/doc_types/update", response_model=DocTypeOut)
+def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> DocType:
+    if (
+        payload.doc_type_name is None
+        and payload.doc_type_acronym is None
+        and payload.ref_discipline_id is None
+    ):
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    doc_type = db.get(DocType, payload.type_id)
+    if not doc_type:
+        raise HTTPException(status_code=404, detail="Doc type not found")
+
+    if payload.ref_discipline_id is not None:
+        discipline = db.get(Discipline, payload.ref_discipline_id)
+        if not discipline:
+            raise HTTPException(status_code=404, detail="Discipline not found")
+        doc_type.ref_discipline_id = payload.ref_discipline_id
+
+    if payload.doc_type_name is not None:
+        doc_type.doc_type_name = payload.doc_type_name
+    if payload.doc_type_acronym is not None:
+        doc_type.doc_type_acronym = payload.doc_type_acronym
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Doc type already exists")
+
+    db.refresh(doc_type)
+    return _build_doc_type_out(doc_type)
+
+
+@app.post("/api/v1/documents/doc_types/delete", status_code=204)
+def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> None:
+    doc_type = db.get(DocType, payload.type_id)
+    if not doc_type:
+        raise HTTPException(status_code=404, detail="Doc type not found")
+    db.delete(doc_type)
+    db.commit()
+
+
+@app.get("/api/v1/documents/docs", response_model=list[DocOut])
+def list_documents_for_project(
+    project_id: int = Query(..., description="Project ID to filter documents by"),
+    db: Session = Depends(get_db),
+) -> list[Doc]:
+    rev_current = aliased(DocRevision)
+    docs = (
+        db.query(Doc, DocType, Discipline, Project, Jobpack, Area, Unit, rev_current, RevisionOverview)
+        .join(DocType, Doc.type_id == DocType.type_id)
+        .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
+        .outerjoin(Project, Doc.project_id == Project.project_id)
+        .outerjoin(Jobpack, Doc.jobpack_id == Jobpack.jobpack_id)
+        .join(Area, Doc.area_id == Area.area_id)
+        .join(Unit, Doc.unit_id == Unit.unit_id)
+        .outerjoin(rev_current, Doc.rev_current_id == rev_current.rev_id)
+        .outerjoin(RevisionOverview, rev_current.rev_code_id == RevisionOverview.rev_code_id)
+        .filter(Doc.project_id == project_id)
+        .order_by(Doc.doc_name_unique)
+        .all()
+    )
+    if not docs:
+        raise HTTPException(status_code=404, detail="No documents found for project")
+    return [
+        DocOut(
+            doc_id=doc.doc_id,
+            doc_name_unique=doc.doc_name_unique,
+            doc_name_uq=doc.doc_name_unique,
+            title=doc.title,
+            project_id=doc.project_id,
+            project_name=project.project_name if project else None,
+            jobpack_id=doc.jobpack_id,
+            jobpack_name=jobpack.jobpack_name if jobpack else None,
+            type_id=doc.type_id,
+            doc_type_name=doc_type.doc_type_name,
+            doc_type_acronym=doc_type.doc_type_acronym,
+            area_id=doc.area_id,
+            area_name=area.area_name,
+            area_acronym=area.area_acronym,
+            unit_id=doc.unit_id,
+            unit_name=unit.unit_name,
+            rev_actual_id=doc.rev_actual_id,
+            rev_current_id=doc.rev_current_id,
+            rev_seq_num=rev_current_row.seq_num if rev_current_row else None,
+            discipline_id=discipline.discipline_id,
+            discipline_name=discipline.discipline_name,
+            discipline_acronym=discipline.discipline_acronym,
+            rev_code_name=revision_overview.rev_code_name if revision_overview else None,
+            rev_code_acronym=revision_overview.rev_code_acronym if revision_overview else None,
+            percentage=revision_overview.percentage if revision_overview else None,
+        )
+        for doc, doc_type, discipline, project, jobpack, area, unit, rev_current_row, revision_overview in docs
+    ]
+
+
 @app.get("/api/v1/people/roles", response_model=list[RoleOut])
 def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     roles = db.query(Role).order_by(Role.role_name).all()
@@ -684,7 +923,7 @@ def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
-@app.get("/api/v1/lookups/doc_rev_milestones", response_model=list[DocRevMilestoneOut])
+@app.get("/api/v1/documents/doc_rev_milestones", response_model=list[DocRevMilestoneOut])
 def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilestone]:
     milestones = db.query(DocRevMilestone).order_by(DocRevMilestone.milestone_name).all()
     if not milestones:
@@ -693,7 +932,7 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
 
 
 @app.post(
-    "/api/v1/lookups/doc_rev_milestones/update",
+    "/api/v1/documents/doc_rev_milestones/update",
     response_model=DocRevMilestoneOut,
 )
 def update_doc_rev_milestone(
@@ -722,7 +961,7 @@ def update_doc_rev_milestone(
 
 
 @app.post(
-    "/api/v1/lookups/doc_rev_milestones/insert",
+    "/api/v1/documents/doc_rev_milestones/insert",
     response_model=DocRevMilestoneOut,
     status_code=201,
 )
@@ -740,7 +979,7 @@ def insert_doc_rev_milestone(
     return milestone
 
 
-@app.post("/api/v1/lookups/doc_rev_milestones/delete", status_code=204)
+@app.post("/api/v1/documents/doc_rev_milestones/delete", status_code=204)
 def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depends(get_db)) -> None:
     milestone = db.get(DocRevMilestone, payload.milestone_id)
     if not milestone:
@@ -749,7 +988,7 @@ def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depen
     db.commit()
 
 
-@app.get("/api/v1/lookups/revision_overview", response_model=list[RevisionOverviewOut])
+@app.get("/api/v1/documents/revision_overview", response_model=list[RevisionOverviewOut])
 def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOverview]:
     revisions = db.query(RevisionOverview).order_by(RevisionOverview.rev_code_name).all()
     if not revisions:
@@ -757,7 +996,7 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     return revisions
 
 
-@app.post("/api/v1/lookups/revision_overview/update", response_model=RevisionOverviewOut)
+@app.post("/api/v1/documents/revision_overview/update", response_model=RevisionOverviewOut)
 def update_revision_overview(
     payload: RevisionOverviewUpdate, db: Session = Depends(get_db)
 ) -> RevisionOverview:
@@ -793,7 +1032,7 @@ def update_revision_overview(
 
 
 @app.post(
-    "/api/v1/lookups/revision_overview/insert",
+    "/api/v1/documents/revision_overview/insert",
     response_model=RevisionOverviewOut,
     status_code=201,
 )
@@ -816,7 +1055,7 @@ def insert_revision_overview(
     return revision
 
 
-@app.post("/api/v1/lookups/revision_overview/delete", status_code=204)
+@app.post("/api/v1/documents/revision_overview/delete", status_code=204)
 def delete_revision_overview(
     payload: RevisionOverviewDelete, db: Session = Depends(get_db)
 ) -> None:
@@ -943,10 +1182,16 @@ def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
 
 @app.get("/api/v1/people/users", response_model=list[UserOut])
 def list_users(db: Session = Depends(get_db)) -> list[User]:
-    users = db.query(User).order_by(User.user_acronym).all()
+    users = (
+        db.query(User)
+        .join(Person, User.person_id == Person.person_id)
+        .join(Role, User.role_id == Role.role_id)
+        .order_by(User.user_acronym)
+        .all()
+    )
     if not users:
         raise HTTPException(status_code=404, detail="No users found")
-    return users
+    return [_build_user_out(user) for user in users]
 
 
 @app.post("/api/v1/people/users/update", response_model=UserOut)
@@ -978,7 +1223,7 @@ def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
         raise HTTPException(status_code=400, detail="Failed to update user")
 
     db.refresh(user)
-    return user
+    return _build_user_out(user)
 
 
 @app.post("/api/v1/people/users/insert", response_model=UserOut, status_code=201)
@@ -999,7 +1244,7 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
         db.rollback()
         raise HTTPException(status_code=400, detail="Failed to create user")
     db.refresh(user)
-    return user
+    return _build_user_out(user)
 
 
 @app.post("/api/v1/people/users/delete", status_code=204)
@@ -1032,7 +1277,7 @@ def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
     permissions = db.query(Permission).order_by(Permission.user_id).all()
     if not permissions:
         raise HTTPException(status_code=404, detail="No permissions found")
-    return permissions
+    return [_build_permission_out(p) for p in permissions]
 
 
 @app.post("/api/v1/people/permissions/insert", response_model=PermissionOut, status_code=201)
@@ -1064,7 +1309,7 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
         db.rollback()
         raise HTTPException(status_code=400, detail="Failed to create permission")
     db.refresh(permission)
-    return permission
+    return _build_permission_out(permission)
 
 
 @app.post("/api/v1/people/permissions/update", response_model=PermissionOut)
@@ -1112,7 +1357,7 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
         raise HTTPException(status_code=400, detail="Failed to update permission")
 
     db.refresh(existing)
-    return existing
+    return _build_permission_out(existing)
 
 
 @app.post("/api/v1/people/permissions/delete", status_code=204)
