@@ -1,264 +1,403 @@
+# Flow API Interfaces
 
-### Insert discipline
-- `POST /api/v1/lookups/disciplines/insert`
+Current FastAPI surface (version 0.1.0). All endpoints are JSON, live under the backend root (no global prefix), and are CORS-open for any origin. Default database URL is `postgresql+psycopg://flow_user:flow_pass@postgres:5432/flow_db`; override via `DATABASE_URL`.
+
+## Health and root
+- `GET /` — Returns `{"message": "Flow backend is running"}`.
+- `GET /health` — Returns `{"status": "ok"}`.
+
+# Lookups
+
+## Areas
+Shape (single item):
+```json
+{ "area_id": 1, "area_name": "Newfoundland", "area_acronym": "NFLD" }
+```
+### List
+- `GET /api/v1/lookups/areas` — 200 sorted by `area_name`; 404 if empty.
+- Example response:
+```json
+[ { "area_id": 1, "area_name": "Newfoundland", "area_acronym": "NFLD" } ]
+```
+### Insert
+- `POST /api/v1/lookups/areas/insert` — 201; 400 on uniqueness.
+- Body:
+```json
+{ "area_name": "Newfoundland", "area_acronym": "NFLD" }
+```
+- Response:
+```json
+{ "area_id": 1, "area_name": "Newfoundland", "area_acronym": "NFLD" }
+```
+### Update
+- `POST /api/v1/lookups/areas/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- Body (at least one optional field):
+```json
+{ "area_id": 1, "area_name": "Updated Name", "area_acronym": "UPD" }
+```
+### Delete
+- `POST /api/v1/lookups/areas/delete` — 204; 404 if not found.
+- Body:
+```json
+{ "area_id": 1 }
+```
+
+## Disciplines
+Shape (single item):
+```json
+{ "discipline_id": 2, "discipline_name": "Piping", "discipline_acronym": "PIP" }
+```
+### List
+- `GET /api/v1/lookups/disciplines` — 200 sorted by `discipline_name`; 404 if empty.
+- Example response:
+```json
+[ { "discipline_id": 2, "discipline_name": "Piping", "discipline_acronym": "PIP" } ]
+```
+### Insert
+- `POST /api/v1/lookups/disciplines/insert` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "discipline_name": "Structural", "discipline_acronym": "STR" }
 ```
-- Success: `201` with created discipline.
-- Errors: `400` on uniqueness conflicts.
-
-### Update discipline
-- `POST /api/v1/lookups/disciplines/update`
-- Body (at least one optional field required):
+### Update
+- `POST /api/v1/lookups/disciplines/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- Body:
 ```json
 { "discipline_id": 2, "discipline_name": "Piping", "discipline_acronym": "PIP" }
 ```
-- Success: `200` with updated discipline.
-- Errors: `400` if no fields or uniqueness conflict; `404` if `discipline_id` not found.
-
-### Delete discipline
-- `POST /api/v1/lookups/disciplines/delete`
+### Delete
+- `POST /api/v1/lookups/disciplines/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "discipline_id": 2 }
 ```
-- Success: `204` with empty body.
-- Errors: `404` if `discipline_id` not found.
 
-## Project lookups
-Project objects include `project_id` and `project_name`.
-
-### List projects
-- `GET /api/v1/lookups/projects`
-- Success: `200` sorted by `project_name`.
-- Errors: `404` if none exist.
-
-### Insert project
-- `POST /api/v1/lookups/projects/insert`
+## Projects
+Shape (single item):
+```json
+{ "project_id": 3, "project_name": "Delta Expansion" }
+```
+### List
+- `GET /api/v1/lookups/projects` — 200 sorted by `project_name`; 404 if empty.
+- Example response:
+```json
+[ { "project_id": 3, "project_name": "Delta Expansion" } ]
+```
+### Insert
+- `POST /api/v1/lookups/projects/insert` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "project_name": "Delta Expansion" }
 ```
-- Success: `201` with created project.
-- Errors: `400` on uniqueness conflicts.
-
-### Update project
-- `POST /api/v1/lookups/projects/update`
+### Update
+- `POST /api/v1/lookups/projects/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
 - Body:
 ```json
 { "project_id": 3, "project_name": "Updated Project" }
 ```
-- Success: `200` with updated project.
-- Errors: `400` if missing fields or uniqueness conflict; `404` if `project_id` not found.
-
-### Delete project
-- `POST /api/v1/lookups/projects/delete`
+### Delete
+- `POST /api/v1/lookups/projects/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "project_id": 3 }
 ```
-- Success: `204` with empty body.
-- Errors: `404` if `project_id` not found.
 
-## Unit lookups
-Unit objects include `unit_id` and `unit_name`.
-
-### List units
-- `GET /api/v1/lookups/units`
-- Success: `200` sorted by `unit_name`.
-- Errors: `404` if none exist.
-
-### Insert unit
-- `POST /api/v1/lookups/units/insert`
+## Units
+Shape (single item):
+```json
+{ "unit_id": 2, "unit_name": "North Wing" }
+```
+### List
+- `GET /api/v1/lookups/units` — 200 sorted by `unit_name`; 404 if empty.
+- Example response:
+```json
+[ { "unit_id": 2, "unit_name": "North Wing" } ]
+```
+### Insert
+- `POST /api/v1/lookups/units/insert` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "unit_name": "North Wing" }
 ```
-- Success: `201` with created unit.
-- Errors: `400` on uniqueness conflicts.
-
-### Update unit
-- `POST /api/v1/lookups/units/update`
+### Update
+- `POST /api/v1/lookups/units/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
 - Body:
 ```json
 { "unit_id": 2, "unit_name": "Main Floor" }
 ```
-- Success: `200` with updated unit.
-- Errors: `400` if missing fields or uniqueness conflict; `404` if `unit_id` not found.
-
-### Delete unit
-- `POST /api/v1/lookups/units/delete`
+### Delete
+- `POST /api/v1/lookups/units/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "unit_id": 2 }
 ```
-- Success: `204` with empty body.
-- Errors: `404` if `unit_id` not found.
 
-## Jobpack lookups
-Jobpacks include `jobpack_id` and `jobpack_name`.
-
-### List jobpacks
-- `GET /api/v1/lookups/jobpacks`
-- Success: `200` sorted by `jobpack_name`.
-- Errors: `404` if none exist.
-
-### Insert jobpack
-- `POST /api/v1/lookups/jobpacks/insert`
+## Jobpacks
+Shape (single item):
+```json
+{ "jobpack_id": 5, "jobpack_name": "JP-01" }
+```
+### List
+- `GET /api/v1/lookups/jobpacks` — 200 sorted by `jobpack_name`; 404 if empty.
+- Example response:
+```json
+[ { "jobpack_id": 5, "jobpack_name": "JP-01" } ]
+```
+### Insert
+- `POST /api/v1/lookups/jobpacks/insert` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "jobpack_name": "JP-01" }
 ```
-- Success: `201` with created jobpack.
-- Errors: `400` on uniqueness conflicts.
-
-### Update jobpack
-- `POST /api/v1/lookups/jobpacks/update`
+### Update
+- `POST /api/v1/lookups/jobpacks/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
 - Body:
 ```json
 { "jobpack_id": 5, "jobpack_name": "JP-01B" }
 ```
-- Success: `200` with updated jobpack.
-- Errors: `400` if missing fields or uniqueness conflict; `404` if `jobpack_id` not found.
-
-### Delete jobpack
-- `POST /api/v1/lookups/jobpacks/delete`
+### Delete
+- `POST /api/v1/lookups/jobpacks/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "jobpack_id": 5 }
 ```
-- Success: `204` with empty body.
-- Errors: `404` if `jobpack_id` not found.
 
-## Role lookups
-Roles include auto-generated `role_id` and `role_name`.
+## Doc revision milestones
+Shape (single item):
+```json
+{ "milestone_id": 4, "milestone_name": "IFC", "progress": 90 }
+```
+### List
+- `GET /api/v1/lookups/doc_rev_milestones` — 200 sorted by `milestone_name`; 404 if empty.
+- Example response:
+```json
+[ { "milestone_id": 4, "milestone_name": "IFC", "progress": 90 } ]
+```
+### Insert
+- `POST /api/v1/lookups/doc_rev_milestones/insert` — 201; 400 on uniqueness.
+- Body:
+```json
+{ "milestone_name": "Issued for Construction", "progress": 80 }
+```
+### Update
+- `POST /api/v1/lookups/doc_rev_milestones/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- Body:
+```json
+{ "milestone_id": 4, "milestone_name": "IFC", "progress": 90 }
+```
+### Delete
+- `POST /api/v1/lookups/doc_rev_milestones/delete` — 204; 404 if not found.
+- Body:
+```json
+{ "milestone_id": 4 }
+```
 
-### List roles
-- `GET /api/v1/people/roles`
-- Success: `200` sorted by `role_name`.
-- Errors: `404` if none exist.
+## Revision overview
+Shape (single item):
+```json
+{
+  "rev_code_id": 5,
+  "rev_code_name": "IFC",
+  "rev_code_acronym": "E",
+  "rev_description": "Issued for Construction",
+  "percentage": 90
+}
+```
+### List
+- `GET /api/v1/lookups/revision_overview` — 200 sorted by `rev_code_name`; 404 if empty.
+- Example response:
+```json
+[ { "rev_code_id": 5, "rev_code_name": "IFC", "rev_code_acronym": "E", "rev_description": "Issued for Construction", "percentage": 90 } ]
+```
+### Insert
+- `POST /api/v1/lookups/revision_overview/insert` — 201; 400 on uniqueness.
+- Body:
+```json
+{
+  "rev_code_name": "IFC",
+  "rev_code_acronym": "E",
+  "rev_description": "Issued for Construction",
+  "percentage": 90
+}
+```
+### Update
+- `POST /api/v1/lookups/revision_overview/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- Body:
+```json
+{
+  "rev_code_id": 5,
+  "rev_code_name": "AFC",
+  "rev_code_acronym": "C",
+  "rev_description": "Approved for Construction",
+  "percentage": 100
+}
+```
+### Delete
+- `POST /api/v1/lookups/revision_overview/delete` — 204; 404 if not found.
+- Body:
+```json
+{ "rev_code_id": 5 }
+```
 
-### Insert role
-- `POST /api/v1/people/roles/insert`
+## Doc revision statuses
+Shape (single item):
+```json
+{ "rev_status_id": 2, "rev_status_name": "In review" }
+```
+### List
+- `GET /api/v1/lookups/doc_rev_statuses` — 200 sorted by `rev_status_name`; 404 if empty.
+- Example response:
+```json
+[ { "rev_status_id": 2, "rev_status_name": "In review" } ]
+```
+### Insert
+- `POST /api/v1/lookups/doc_rev_statuses/insert` — 201; 400 on uniqueness.
+- Body:
+```json
+{ "rev_status_name": "In review" }
+```
+### Update
+- `POST /api/v1/lookups/doc_rev_statuses/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+- Body:
+```json
+{ "rev_status_id": 2, "rev_status_name": "In progress" }
+```
+### Delete
+- `POST /api/v1/lookups/doc_rev_statuses/delete` — 204; 404 if not found.
+- Body:
+```json
+{ "rev_status_id": 2 }
+```
+
+# Persons/users/permissions
+
+## Roles
+Shape (single item):
+```json
+{ "role_id": 10, "role_name": "Coordinator" }
+```
+### List
+- `GET /api/v1/people/roles` — 200 sorted by `role_name`; 404 if empty.
+- Example response:
+```json
+[ { "role_id": 10, "role_name": "Coordinator" } ]
+```
+### Insert
+- `POST /api/v1/people/roles/insert` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "role_name": "Coordinator" }
 ```
-- Success: `201` with created role.
-- Errors: `400` on name conflicts.
-
-### Update role
-- `POST /api/v1/people/roles/update`
+### Update
+- `POST /api/v1/people/roles/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
 - Body:
 ```json
 { "role_id": 10, "role_name": "Lead Coordinator" }
 ```
-- Success: `200` with updated role.
-- Errors: `400` if missing fields or uniqueness conflict; `404` if `role_id` not found.
-
-### Delete role
-- `POST /api/v1/people/roles/delete`
+### Delete
+- `POST /api/v1/people/roles/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "role_id": 10 }
 ```
-- Success: `204` with empty body.
-- Errors: `404` if `role_id` not found.
 
-## People directory
-Person objects include `person_id`, `person_name`, and optional `photo_s3_uid`.
-
-### List persons
-- `GET /api/v1/people/persons`
-- Success: `200` sorted by `person_name`.
-- Errors: `404` if none exist.
-
-### Insert person
-- `POST /api/v1/people/persons/insert`
+## People
+Shape (single item):
+```json
+{ "person_id": 12, "person_name": "Ada Lovelace", "photo_s3_uid": "s3-key-123" }
+```
+### List
+- `GET /api/v1/people/persons` — 200 sorted by `person_name`; 404 if empty.
+- Example response:
+```json
+[ { "person_id": 12, "person_name": "Ada Lovelace", "photo_s3_uid": "s3-key-123" } ]
+```
+### Insert
+- `POST /api/v1/people/persons/insert` — 201; 400 on insert failure.
 - Body:
 ```json
 { "person_name": "Ada Lovelace", "photo_s3_uid": "s3-key-123" }
 ```
-- `photo_s3_uid` is optional (null if omitted).
-- Success: `201` with created person.
-- Errors: `400` on insert failure.
-
-### Update person
-- `POST /api/v1/people/persons/update`
-- Body (at least one optional field required):
+### Update
+- `POST /api/v1/people/persons/update` — 200; 400 if no fields; 404 if not found.
+- Body:
 ```json
 { "person_id": 12, "person_name": "Grace Hopper", "photo_s3_uid": null }
 ```
-- Success: `200` with updated person.
-- Errors: `400` if no fields provided; `404` if `person_id` not found.
-
-### Delete person
-- `POST /api/v1/people/persons/delete`
+### Delete
+- `POST /api/v1/people/persons/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "person_id": 12 }
 ```
-- Success: `204` with empty body.
-- Errors: `404` if `person_id` not found.
 
 ## Users
-Users map a person to a role with an acronym. Shape: `user_id`, `person_id`, `user_acronym`, `role_id`.
-
-### List users
-- `GET /api/v1/people/users`
-- Success: `200` sorted by `user_acronym`.
-- Errors: `404` if none exist.
-
-### Insert user
-- `POST /api/v1/people/users/insert`
+Shape (single item):
+```json
+{
+  "user_id": 7,
+  "person_id": 12,
+  "user_acronym": "ALV",
+  "role_id": 3,
+  "person_name": "Ada Lovelace",
+  "role_name": "Coordinator"
+}
+```
+### List
+- `GET /api/v1/people/users` — 200 sorted by `user_acronym`; 404 if empty.
+- Example response:
+```json
+[ { "user_id": 7, "person_id": 12, "user_acronym": "ALV", "role_id": 3, "person_name": "Ada Lovelace", "role_name": "Coordinator" } ]
+```
+### Insert
+- `POST /api/v1/people/users/insert` — 201; 400 on insert failure; 404 if person/role missing.
 - Body:
 ```json
 { "person_id": 12, "user_acronym": "ALV", "role_id": 3 }
 ```
-- `person_id` must reference an existing person; `role_id` must reference an existing role.
-- Success: `201` with created user.
-- Errors: `400` on insert failure; `404` if `person_id` or `role_id` not found.
-
-### Update user
-- `POST /api/v1/people/users/update`
-- Body (at least one optional field required):
+### Update
+- `POST /api/v1/people/users/update` — 200; 400 if no fields/update fails; 404 if user/person/role missing.
+- Body:
 ```json
 { "user_id": 7, "person_id": 12, "user_acronym": "ALV2", "role_id": 4 }
 ```
-- Success: `200` with updated user.
-- Errors: `400` if no fields provided or update fails; `404` if `user_id`, `person_id`, or `role_id` not found.
-
-### Delete user
-- `POST /api/v1/people/users/delete`
+### Delete
+- `POST /api/v1/people/users/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "user_id": 7 }
 ```
-- Success: `204` with empty body.
-- Errors: `404` if `user_id` not found.
 
 ## Permissions
-Permissions tie a user to a project and/or discipline. At least one of `project_id` or `discipline_id` must be provided.
-
-### List permissions
-- `GET /api/v1/people/permissions`
-- Success: `200` sorted by `user_id`.
-- Errors: `404` if none exist.
-
-### Insert permission
-- `POST /api/v1/people/permissions/insert`
-- Body:
+Shape (single item):
+```json
+{
+  "permission_id": 42,
+  "user_id": 7,
+  "project_id": 3,
+  "discipline_id": 2,
+  "user_acronym": "ALV",
+  "person_name": "Ada Lovelace",
+  "project_name": "Delta Expansion",
+  "discipline_name": "Piping"
+}
+```
+At least one of `project_id` or `discipline_id` is required.
+### List
+- `GET /api/v1/people/permissions` — 200 sorted by `user_id`; 404 if empty.
+- Example response:
+```json
+[ { "permission_id": 42, "user_id": 7, "project_id": 3, "discipline_id": 2, "user_acronym": "ALV", "person_name": "Ada Lovelace", "project_name": "Delta Expansion", "discipline_name": "Piping" } ]
+```
+### Insert
+- `POST /api/v1/people/permissions/insert` — 201; 400 if duplicate or scope missing; 404 if user/project/discipline missing.
+- Body (at least one scope):
 ```json
 { "user_id": 7, "project_id": 3, "discipline_id": 2 }
 ```
-- `project_id` and `discipline_id` are optional individually, but at least one must be present.
-- Success: `201` with created permission.
-- Errors: `400` if permission already exists or scope missing; `404` if `user_id`, `project_id`, or `discipline_id` (when provided) are not found.
-
-### Update permission
-- `POST /api/v1/people/permissions/update`
-- Body (current scope plus new scope, at least one new field required):
+### Update
+- `POST /api/v1/people/permissions/update` — 200; 400 if no new scope/duplicate; 404 if missing references or permission.
+- Body (permission_id or current scope plus new scope):
 ```json
 {
   "permission_id": 42,
@@ -269,207 +408,94 @@ Permissions tie a user to a project and/or discipline. At least one of `project_
   "new_discipline_id": null
 }
 ```
-- `permission_id` is preferred; otherwise `project_id`/`discipline_id` identify the existing permission. `new_*` set the target scope; omit a `new_*` to keep the current value, or pass `null` to clear it.
-- Success: `200` with updated permission.
-- Errors: `400` if no new scope provided or duplicate; `404` if the current permission or referenced project/discipline is not found.
-
-### Delete permission
-- `POST /api/v1/people/permissions/delete`
-- Body:
+### Delete
+- `POST /api/v1/people/permissions/delete` — 204; 400 if scope missing; 404 if not found.
+- Body (permission_id or scope):
 ```json
 { "permission_id": 42, "user_id": 7, "project_id": 3, "discipline_id": 2 }
 ```
-- Success: `204` with empty body.
-- Errors: `400` if scope missing; `404` if the permission does not exist.
 
-## Doc revision milestone lookups
-Milestones include `milestone_id`, `milestone_name`, and optional integer `progress`.
+# Docs
 
-### List milestones
-- `GET /api/v1/lookups/doc_rev_milestones`
-- Success: `200` sorted by `milestone_name`.
-- Errors: `404` if none exist.
-
-### Insert milestone
-- `POST /api/v1/lookups/doc_rev_milestones/insert`
+## Doc types
+Shape (single item):
+```json
+{
+  "type_id": 7,
+  "doc_type_name": "Piping Iso",
+  "ref_discipline_id": 2,
+  "doc_type_acronym": "ISO",
+  "discipline_name": "Piping",
+  "discipline_acronym": "PIP"
+}
+```
+### List
+- `GET /api/v1/documents/doc_types` — 200 sorted by `doc_type_name`; includes discipline info; 404 if empty.
+- Example response:
+```json
+[ { "type_id": 7, "doc_type_name": "Piping Iso", "ref_discipline_id": 2, "doc_type_acronym": "ISO", "discipline_name": "Piping", "discipline_acronym": "PIP" } ]
+```
+### Insert
+- `POST /api/v1/documents/doc_types/insert` — 201; 400 on uniqueness; 404 if discipline missing.
 - Body:
 ```json
-{ "milestone_name": "Issued for Construction", "progress": 80 }
+{ "doc_type_name": "Piping Iso", "ref_discipline_id": 2, "doc_type_acronym": "ISO" }
 ```
-- `progress` is optional (null if omitted).
-- Success: `201` with created milestone.
-- Errors: `400` on uniqueness conflicts.
-
-### Update milestone
-- `POST /api/v1/lookups/doc_rev_milestones/update`
-- Body (at least one optional field required):
-```json
-{ "milestone_id": 4, "milestone_name": "IFC", "progress": 90 }
-```
-- Success: `200` with updated milestone.
-- Errors: `400` if no fields or uniqueness conflict; `404` if `milestone_id` not found.
-
-### Delete milestone
-- `POST /api/v1/lookups/doc_rev_milestones/delete`
-- Body:
-```json
-{ "milestone_id": 4 }
-```
-- Success: `204` with empty body.
-- Errors: `404` if `milestone_id` not found.
-
-## Revision overview lookups
-Revision overview entries include `rev_code_id`, `rev_code_name`, `rev_code_acronym`, `rev_description`, and optional `percentage`.
-
-### List revision overview
-- `GET /api/v1/lookups/revision_overview`
-- Success: `200` sorted by `rev_code_name`.
-- Errors: `404` if none exist.
-
-### Insert revision overview entry
-- `POST /api/v1/lookups/revision_overview/insert`
+### Update
+- `POST /api/v1/documents/doc_types/update` — 200; 400 if no fields/uniqueness; 404 if doc type or discipline missing.
 - Body:
 ```json
 {
-  "rev_code_name": "IFC",
-  "rev_code_acronym": "E",
-  "rev_description": "Issued for Construction",
-  "percentage": 90
+  "type_id": 7,
+  "doc_type_name": "Piping Iso Updated",
+  "ref_discipline_id": 3,
+  "doc_type_acronym": "ISO-U"
 }
 ```
-- Success: `201` with created entry.
-- Errors: `400` on uniqueness conflicts.
-
-### Update revision overview entry
-- `POST /api/v1/lookups/revision_overview/update`
-- Body (any field optional but at least one required):
-```json
-{
-  "rev_code_id": 5,
-  "rev_code_name": "AFC",
-  "rev_code_acronym": "C",
-  "rev_description": "Approved for Construction",
-  "percentage": 100
-}
-```
-- Success: `200` with updated entry.
-- Errors: `400` if no fields or uniqueness conflict; `404` if `rev_code_id` not found.
-
-### Delete revision overview entry
-- `POST /api/v1/lookups/revision_overview/delete`
+### Delete
+- `POST /api/v1/documents/doc_types/delete` — 204; 404 if not found.
 - Body:
 ```json
-{ "rev_code_id": 5 }
+{ "type_id": 7 }
 ```
-- Success: `204` with empty body.
-- Errors: `404` if `rev_code_id` not found.
 
-## Doc revision status lookups
-Statuses include `rev_status_id` and `rev_status_name`.
-
-### List doc revision statuses
-- `GET /api/v1/lookups/doc_rev_statuses`
-- Success: `200` sorted by `rev_status_name`.
-- Errors: `404` if none exist.
-
-### Insert doc revision status
-- `POST /api/v1/lookups/doc_rev_statuses/insert`
-- Body:
+## Documents
+Shape (single item) includes doc, linked names, and discipline/progress pointers:
+`doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `discipline_id`/`discipline_name`/`discipline_acronym`.
+- `GET /api/v1/documents/docs?project_id=` — 200 ordered by `doc_name_unique`; 404 if none for the project. Requires `project_id` query param.
+- Example response:
 ```json
-{ "rev_status_name": "In review" }
+[
+  {
+    "doc_id": 11,
+    "doc_name_unique": "PRJ-ISO-001",
+    "doc_name_uq": "PRJ-ISO-001",
+    "title": "Piping Iso 001",
+    "project_id": 3,
+    "project_name": "Delta Expansion",
+    "jobpack_id": 5,
+    "jobpack_name": "JP-01",
+    "type_id": 7,
+    "doc_type_name": "Piping Iso",
+    "doc_type_acronym": "ISO",
+    "area_id": 1,
+    "area_name": "Newfoundland",
+    "area_acronym": "NFLD",
+    "unit_id": 2,
+    "unit_name": "North Wing",
+    "rev_actual_id": null,
+    "rev_current_id": null,
+    "discipline_id": 2,
+    "discipline_name": "Piping",
+    "discipline_acronym": "PIP"
+  }
+]
 ```
-- Success: `201` with created status.
-- Errors: `400` on uniqueness conflicts.
-
-### Update doc revision status
-- `POST /api/v1/lookups/doc_rev_statuses/update`
-- Body:
-```json
-{ "rev_status_id": 2, "rev_status_name": "In progress" }
-```
-- Success: `200` with updated status.
-- Errors: `400` if missing fields or uniqueness conflict; `404` if `rev_status_id` not found.
-
-### Delete doc revision status
-- `POST /api/v1/lookups/doc_rev_statuses/delete`
-- Body:
-```json
-{ "rev_status_id": 2 }
-```
-- Success: `204` with empty body.
-- Errors: `404` if `rev_status_id` not found.
 
 ## Error responses
-- `400` — Validation failed (e.g., missing update fields, unique constraint violations).
+- `400` — Validation failed (missing required fields, duplicate/uniqueness, duplicate permissions, etc.).
 - `404` — Resource not found or empty table.
 - All errors follow FastAPI's standard shape:
 ```json
 { "detail": "Reason for failure" }
 ```
-# Flow API Interfaces
-
-Current FastAPI surface (version 0.1.0). All endpoints are JSON, live under the backend root (no global prefix), and are CORS-open for any origin. Default database URL is `postgresql+psycopg://flow_user:flow_pass@postgres:5432/flow_db`; override via `DATABASE_URL`.
-
-## Health and root
-- `GET /` — Returns `{"message": "Flow backend is running"}`.
-- `GET /health` — Returns `{"status": "ok"}`. Useful for readiness checks.
-
-## Area lookups
-All area records share the shape:
-```json
-{
-  "area_id": 1,
-  "area_name": "Newfoundland",
-  "area_acronym": "NFLD"
-}
-```
-
-### List areas
-- `GET /api/v1/lookups/areas`
-- Success: `200` with array of area objects sorted by `area_name`.
-- Errors: `404` if the table is empty.
-- Example:
-```bash
-curl -s http://localhost:8000/api/v1/lookups/areas
-```
-
-### Insert area
-- `POST /api/v1/lookups/areas/insert`
-- Body:
-```json
-{ "area_name": "Newfoundland", "area_acronym": "NFLD" }
-```
-- Success: `201` with the created area.
-- Errors: `400` if `area_name` or `area_acronym` already exists.
-- Example:
-```bash
-curl -X POST http://localhost:8000/api/v1/lookups/areas/insert \
-  -H "Content-Type: application/json" \
-  -d '{ "area_name": "Newfoundland", "area_acronym": "NFLD" }'
-```
-
-### Update area
-- `POST /api/v1/lookups/areas/update`
-- Body (at least one optional field required):
-```json
-{ "area_id": 1, "area_name": "Updated Name", "area_acronym": "UPD" }
-```
-- Success: `200` with the updated area.
-- Errors: `400` if no fields provided or uniqueness is violated; `404` if `area_id` is not found.
-
-### Delete area
-- `POST /api/v1/lookups/areas/delete`
-- Body:
-```json
-{ "area_id": 1 }
-```
-- Success: `204` with empty body.
-- Errors: `404` if `area_id` is not found.
-
-## Discipline lookups
-Discipline objects mirror areas, with `discipline_id`, `discipline_name`, and `discipline_acronym`.
-
-### List disciplines
-- `GET /api/v1/lookups/disciplines`
-- Success: `200` with array sorted by `discipline_name`.
-- Errors: `404` if none exist.
