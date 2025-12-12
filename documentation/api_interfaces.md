@@ -461,7 +461,7 @@ Shape (single item):
 
 ## Documents
 Shape (single item) includes doc, linked names, and discipline/progress pointers:
-`doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `discipline_id`/`discipline_name`/`discipline_acronym`.
+`doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `rev_seq_num`, `discipline_id`/`discipline_name`/`discipline_acronym`, `rev_code_name`, `rev_code_acronym`, `percentage`.
 - `GET /api/v1/documents/docs?project_id=` — 200 ordered by `doc_name_unique`; 404 if none for the project. Requires `project_id` query param.
 - Example response:
 ```json
@@ -485,9 +485,13 @@ Shape (single item) includes doc, linked names, and discipline/progress pointers
     "unit_name": "North Wing",
     "rev_actual_id": null,
     "rev_current_id": null,
+    "rev_seq_num": 2,
     "discipline_id": 2,
     "discipline_name": "Piping",
-    "discipline_acronym": "PIP"
+    "discipline_acronym": "PIP",
+    "rev_code_name": "IFC",
+    "rev_code_acronym": "E",
+    "percentage": 90
   }
 ]
 ```

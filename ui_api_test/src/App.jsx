@@ -2413,6 +2413,9 @@ export default function App() {
                 <span>Area</span>
                 <span>Unit</span>
                 <span>Current rev</span>
+                <span>Rev seq</span>
+                <span>Rev code</span>
+                <span>Rev %</span>
               </div>
               <div className="table-body">
                 {docs.map((doc) => (
@@ -2458,18 +2461,29 @@ export default function App() {
                         ? `${doc.area_name}${doc.area_acronym ? ` (${doc.area_acronym})` : ""}`
                         : areaById[doc.area_id] || `Area ${doc.area_id}`}
                     </span>
-                    <span>
-                      {doc.unit_name ? doc.unit_name : unitById[doc.unit_id] || `Unit ${doc.unit_id}`}
-                    </span>
-                    <span>{doc.rev_current_id ?? "—"}</span>
-                  </div>
-                ))}
-                {docsLoading && (
-                  <div className="table-row muted">
-                    <span colSpan={7}>Fetching…</span>
-                  </div>
-                )}
-              </div>
+                  <span>
+                    {doc.unit_name ? doc.unit_name : unitById[doc.unit_id] || `Unit ${doc.unit_id}`}
+                  </span>
+                  <span>{doc.rev_current_id ?? "—"}</span>
+                  <span>{doc.rev_seq_num ?? "—"}</span>
+                  <span>
+                    {doc.rev_code_acronym
+                      ? `${doc.rev_code_acronym}${doc.rev_code_name ? ` (${doc.rev_code_name})` : ""}`
+                      : doc.rev_code_name || "—"}
+                  </span>
+                  <span className="tag">
+                    {doc.percentage === null || doc.percentage === undefined
+                      ? "—"
+                      : `${doc.percentage}%`}
+                  </span>
+                </div>
+              ))}
+              {docsLoading && (
+                <div className="table-row muted">
+                    <span colSpan={10}>Fetching…</span>
+                </div>
+              )}
+            </div>
             </div>
           </section>
 

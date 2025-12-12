@@ -6,13 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, aliased, sessionmaker
 
 from db.models import (
     Area,
     Discipline,
     DocRevMilestone,
     DocRevStatus,
+    DocRevision,
     DocType,
     Doc,
     Jobpack,
@@ -207,9 +208,13 @@ class DocOut(BaseModel):
     unit_name: str | None = None
     rev_actual_id: int | None = None
     rev_current_id: int | None = None
+    rev_seq_num: int | None = None
     discipline_id: int | None = None
     discipline_name: str | None = None
     discipline_acronym: str | None = None
+    rev_code_name: str | None = None
+    rev_code_acronym: str | None = None
+    percentage: int | None = None
 
 
 class RoleOut(BaseModel):
@@ -818,14 +823,17 @@ def list_documents_for_project(
     project_id: int = Query(..., description="Project ID to filter documents by"),
     db: Session = Depends(get_db),
 ) -> list[Doc]:
+    rev_current = aliased(DocRevision)
     docs = (
-        db.query(Doc, DocType, Discipline, Project, Jobpack, Area, Unit)
+        db.query(Doc, DocType, Discipline, Project, Jobpack, Area, Unit, rev_current, RevisionOverview)
         .join(DocType, Doc.type_id == DocType.type_id)
         .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
         .outerjoin(Project, Doc.project_id == Project.project_id)
         .outerjoin(Jobpack, Doc.jobpack_id == Jobpack.jobpack_id)
         .join(Area, Doc.area_id == Area.area_id)
         .join(Unit, Doc.unit_id == Unit.unit_id)
+        .outerjoin(rev_current, Doc.rev_current_id == rev_current.rev_id)
+        .outerjoin(RevisionOverview, rev_current.rev_code_id == RevisionOverview.rev_code_id)
         .filter(Doc.project_id == project_id)
         .order_by(Doc.doc_name_unique)
         .all()
@@ -852,11 +860,15 @@ def list_documents_for_project(
             unit_name=unit.unit_name,
             rev_actual_id=doc.rev_actual_id,
             rev_current_id=doc.rev_current_id,
+            rev_seq_num=rev_current_row.seq_num if rev_current_row else None,
             discipline_id=discipline.discipline_id,
             discipline_name=discipline.discipline_name,
             discipline_acronym=discipline.discipline_acronym,
+            rev_code_name=revision_overview.rev_code_name if revision_overview else None,
+            rev_code_acronym=revision_overview.rev_code_acronym if revision_overview else None,
+            percentage=revision_overview.percentage if revision_overview else None,
         )
-        for doc, doc_type, discipline, project, jobpack, area, unit in docs
+        for doc, doc_type, discipline, project, jobpack, area, unit, rev_current_row, revision_overview in docs
     ]
 
 
