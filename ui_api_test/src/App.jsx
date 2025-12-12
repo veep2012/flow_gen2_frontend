@@ -281,7 +281,7 @@ function useRevisionOverview() {
   const fetchRevisionOverview = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/v1/lookups/revision_overview`);
+      const res = await fetch(`${API_BASE}/api/v1/documents/revision_overview`);
       if (!res.ok) {
         throw new Error(`API error ${res.status}`);
       }
@@ -967,282 +967,6 @@ export default function App() {
             {loading && (
               <div className="table-row muted">
                 <span colSpan={4}>Fetching…</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Revision overview</h2>
-          <span className="status">
-            {revisionOverviewLoading ? "Loading…" : revisionOverviewError ? "Error" : "Ready"}
-          </span>
-        </div>
-
-        {revisionOverviewError && <div className="alert alert-error">{revisionOverviewError}</div>}
-        {revSaveError && <div className="alert alert-error">{revSaveError}</div>}
-        {!revisionOverviewError && revisionOverview.length === 0 && !revisionOverviewLoading && (
-          <div className="alert">No revision codes available</div>
-        )}
-
-        <div className="panel subpanel">
-          <h3>Add revision code</h3>
-          <div className="create-row rev-create">
-            <input
-              className="input"
-              placeholder="Code name"
-              value={revCreateForm.rev_code_name}
-              onChange={(e) => setRevCreateForm((f) => ({ ...f, rev_code_name: e.target.value }))}
-            />
-            <input
-              className="input"
-              placeholder="Acronym"
-              value={revCreateForm.rev_code_acronym}
-              onChange={(e) =>
-                setRevCreateForm((f) => ({ ...f, rev_code_acronym: e.target.value }))
-              }
-            />
-            <input
-              className="input"
-              placeholder="Description"
-              value={revCreateForm.rev_description}
-              onChange={(e) =>
-                setRevCreateForm((f) => ({ ...f, rev_description: e.target.value }))
-              }
-            />
-            <input
-              className="input"
-              type="number"
-              placeholder="Percent"
-              value={revCreateForm.percentage}
-              onChange={(e) =>
-                setRevCreateForm((f) => ({
-                  ...f,
-                  percentage: e.target.value === "" ? "" : Number(e.target.value),
-                }))
-              }
-            />
-            <button
-              className="btn"
-              disabled={
-                revSaving ||
-                !revCreateForm.rev_code_name ||
-                !revCreateForm.rev_code_acronym ||
-                !revCreateForm.rev_description
-              }
-              onClick={async () => {
-                setRevSaveError("");
-                setRevSaving(true);
-                try {
-                  const res = await fetch(`${API_BASE}/api/v1/lookups/revision_overview/insert`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      rev_code_name: revCreateForm.rev_code_name,
-                      rev_code_acronym: revCreateForm.rev_code_acronym,
-                      rev_description: revCreateForm.rev_description,
-                      percentage:
-                        revCreateForm.percentage === "" ? null : Number(revCreateForm.percentage),
-                    }),
-                  });
-                  if (!res.ok) {
-                    const detail = await res.json().catch(() => ({}));
-                    throw new Error(detail.detail || `Create failed (${res.status})`);
-                  }
-                  const created = await res.json();
-                  setRevisionOverview((prev) => [...prev, created]);
-                  setRevCreateForm({
-                    rev_code_name: "",
-                    rev_code_acronym: "",
-                    rev_description: "",
-                    percentage: "",
-                  });
-                } catch (err) {
-                  setRevSaveError(err instanceof Error ? err.message : "Create failed");
-                } finally {
-                  setRevSaving(false);
-                }
-              }}
-            >
-              {revSaving ? "Saving…" : "Add"}
-            </button>
-          </div>
-        </div>
-
-        <div className="table rev-table">
-          <div className="table-head rev-head">
-            <span>ID</span>
-            <span>Name</span>
-            <span>Acronym</span>
-            <span>Description</span>
-            <span>Percent</span>
-            <span>Actions</span>
-          </div>
-          <div className="table-body">
-            {revisionOverview.map((rev) => (
-              <div className="table-row rev-row" key={rev.rev_code_id}>
-                <span>{rev.rev_code_id}</span>
-                {revEditingId === rev.rev_code_id ? (
-                  <>
-                    <input
-                      className="input"
-                      value={revForm.rev_code_name}
-                      onChange={(e) =>
-                        setRevForm((f) => ({ ...f, rev_code_name: e.target.value }))
-                      }
-                    />
-                    <input
-                      className="input"
-                      value={revForm.rev_code_acronym}
-                      onChange={(e) =>
-                        setRevForm((f) => ({ ...f, rev_code_acronym: e.target.value }))
-                      }
-                    />
-                    <input
-                      className="input"
-                      value={revForm.rev_description}
-                      onChange={(e) =>
-                        setRevForm((f) => ({ ...f, rev_description: e.target.value }))
-                      }
-                    />
-                    <input
-                      className="input"
-                      type="number"
-                      value={revForm.percentage}
-                      onChange={(e) =>
-                        setRevForm((f) => ({
-                          ...f,
-                          percentage: e.target.value === "" ? "" : Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </>
-                ) : (
-                  <>
-                    <span>{rev.rev_code_name}</span>
-                    <span className="tag">{rev.rev_code_acronym}</span>
-                    <span>{rev.rev_description}</span>
-                    <span className="tag">
-                      {rev.percentage === null || rev.percentage === undefined
-                        ? "—"
-                        : `${rev.percentage}%`}
-                    </span>
-                  </>
-                )}
-                <span className="actions">
-                  {revEditingId === rev.rev_code_id ? (
-                    <>
-                      <button
-                        className="btn"
-                        disabled={revSaving}
-                        onClick={async () => {
-                          setRevSaveError("");
-                          setRevSaving(true);
-                          try {
-                            const res = await fetch(
-                              `${API_BASE}/api/v1/lookups/revision_overview/update`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  rev_code_id: rev.rev_code_id,
-                                  rev_code_name: revForm.rev_code_name,
-                                  rev_code_acronym: revForm.rev_code_acronym,
-                                  rev_description: revForm.rev_description,
-                                  percentage:
-                                    revForm.percentage === "" ? null : Number(revForm.percentage),
-                                }),
-                              },
-                            );
-                            if (!res.ok) {
-                              const detail = await res.json().catch(() => ({}));
-                              throw new Error(detail.detail || `Save failed (${res.status})`);
-                            }
-                            const updated = await res.json();
-                            setRevisionOverview((prev) =>
-                              prev.map((it) => (it.rev_code_id === rev.rev_code_id ? updated : it)),
-                            );
-                            setRevEditingId(null);
-                          } catch (err) {
-                            setRevSaveError(err instanceof Error ? err.message : "Save failed");
-                          } finally {
-                            setRevSaving(false);
-                          }
-                        }}
-                      >
-                        {revSaving ? "Saving…" : "Save"}
-                      </button>
-                      <button
-                        className="btn btn-ghost"
-                        disabled={revSaving}
-                        onClick={() => {
-                          setRevEditingId(null);
-                          setRevSaveError("");
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        className="btn"
-                        onClick={() => {
-                          setRevEditingId(rev.rev_code_id);
-                          setRevForm({
-                            rev_code_name: rev.rev_code_name,
-                            rev_code_acronym: rev.rev_code_acronym,
-                            rev_description: rev.rev_description,
-                            percentage:
-                              rev.percentage === null || rev.percentage === undefined
-                                ? ""
-                                : rev.percentage,
-                          });
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-ghost"
-                        disabled={revSaving}
-                        onClick={async () => {
-                          setRevSaveError("");
-                          setRevSaving(true);
-                          try {
-                            const res = await fetch(
-                              `${API_BASE}/api/v1/lookups/revision_overview/delete`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ rev_code_id: rev.rev_code_id }),
-                              },
-                            );
-                            if (!res.ok) {
-                              const detail = await res.json().catch(() => ({}));
-                              throw new Error(detail.detail || `Delete failed (${res.status})`);
-                            }
-                            setRevisionOverview((prev) =>
-                              prev.filter((it) => it.rev_code_id !== rev.rev_code_id),
-                            );
-                          } catch (err) {
-                            setRevSaveError(err instanceof Error ? err.message : "Delete failed");
-                          } finally {
-                            setRevSaving(false);
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </span>
-              </div>
-            ))}
-            {revisionOverviewLoading && (
-              <div className="table-row muted">
-                <span colSpan={6}>Fetching…</span>
               </div>
             )}
           </div>
@@ -2743,6 +2467,282 @@ export default function App() {
                 {docsLoading && (
                   <div className="table-row muted">
                     <span colSpan={7}>Fetching…</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Revision overview</h2>
+              <span className="status">
+                {revisionOverviewLoading ? "Loading…" : revisionOverviewError ? "Error" : "Ready"}
+              </span>
+            </div>
+
+            {revisionOverviewError && <div className="alert alert-error">{revisionOverviewError}</div>}
+            {revSaveError && <div className="alert alert-error">{revSaveError}</div>}
+            {!revisionOverviewError && revisionOverview.length === 0 && !revisionOverviewLoading && (
+              <div className="alert">No revision codes available</div>
+            )}
+
+            <div className="panel subpanel">
+              <h3>Add revision code</h3>
+              <div className="create-row rev-create">
+                <input
+                  className="input"
+                  placeholder="Code name"
+                  value={revCreateForm.rev_code_name}
+                  onChange={(e) => setRevCreateForm((f) => ({ ...f, rev_code_name: e.target.value }))}
+                />
+                <input
+                  className="input"
+                  placeholder="Acronym"
+                  value={revCreateForm.rev_code_acronym}
+                  onChange={(e) =>
+                    setRevCreateForm((f) => ({ ...f, rev_code_acronym: e.target.value }))
+                  }
+                />
+                <input
+                  className="input"
+                  placeholder="Description"
+                  value={revCreateForm.rev_description}
+                  onChange={(e) =>
+                    setRevCreateForm((f) => ({ ...f, rev_description: e.target.value }))
+                  }
+                />
+                <input
+                  className="input"
+                  type="number"
+                  placeholder="Percent"
+                  value={revCreateForm.percentage}
+                  onChange={(e) =>
+                    setRevCreateForm((f) => ({
+                      ...f,
+                      percentage: e.target.value === "" ? "" : Number(e.target.value),
+                    }))
+                  }
+                />
+                <button
+                  className="btn"
+                  disabled={
+                    revSaving ||
+                    !revCreateForm.rev_code_name ||
+                    !revCreateForm.rev_code_acronym ||
+                    !revCreateForm.rev_description
+                  }
+                  onClick={async () => {
+                    setRevSaveError("");
+                    setRevSaving(true);
+                    try {
+                      const res = await fetch(`${API_BASE}/api/v1/documents/revision_overview/insert`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          rev_code_name: revCreateForm.rev_code_name,
+                          rev_code_acronym: revCreateForm.rev_code_acronym,
+                          rev_description: revCreateForm.rev_description,
+                          percentage:
+                            revCreateForm.percentage === "" ? null : Number(revCreateForm.percentage),
+                        }),
+                      });
+                      if (!res.ok) {
+                        const detail = await res.json().catch(() => ({}));
+                        throw new Error(detail.detail || `Create failed (${res.status})`);
+                      }
+                      const created = await res.json();
+                      setRevisionOverview((prev) => [...prev, created]);
+                      setRevCreateForm({
+                        rev_code_name: "",
+                        rev_code_acronym: "",
+                        rev_description: "",
+                        percentage: "",
+                      });
+                    } catch (err) {
+                      setRevSaveError(err instanceof Error ? err.message : "Create failed");
+                    } finally {
+                      setRevSaving(false);
+                    }
+                  }}
+                >
+                  {revSaving ? "Saving…" : "Add"}
+                </button>
+              </div>
+            </div>
+
+            <div className="table rev-table">
+              <div className="table-head rev-head">
+                <span>ID</span>
+                <span>Name</span>
+                <span>Acronym</span>
+                <span>Description</span>
+                <span>Percent</span>
+                <span>Actions</span>
+              </div>
+              <div className="table-body">
+                {revisionOverview.map((rev) => (
+                  <div className="table-row rev-row" key={rev.rev_code_id}>
+                    <span>{rev.rev_code_id}</span>
+                    {revEditingId === rev.rev_code_id ? (
+                      <>
+                        <input
+                          className="input"
+                          value={revForm.rev_code_name}
+                          onChange={(e) =>
+                            setRevForm((f) => ({ ...f, rev_code_name: e.target.value }))
+                          }
+                        />
+                        <input
+                          className="input"
+                          value={revForm.rev_code_acronym}
+                          onChange={(e) =>
+                            setRevForm((f) => ({ ...f, rev_code_acronym: e.target.value }))
+                          }
+                        />
+                        <input
+                          className="input"
+                          value={revForm.rev_description}
+                          onChange={(e) =>
+                            setRevForm((f) => ({ ...f, rev_description: e.target.value }))
+                          }
+                        />
+                        <input
+                          className="input"
+                          type="number"
+                          value={revForm.percentage}
+                          onChange={(e) =>
+                            setRevForm((f) => ({
+                              ...f,
+                              percentage: e.target.value === "" ? "" : Number(e.target.value),
+                            }))
+                          }
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <span>{rev.rev_code_name}</span>
+                        <span className="tag">{rev.rev_code_acronym}</span>
+                        <span>{rev.rev_description}</span>
+                        <span className="tag">
+                          {rev.percentage === null || rev.percentage === undefined
+                            ? "—"
+                            : `${rev.percentage}%`}
+                        </span>
+                      </>
+                    )}
+                    <span className="actions">
+                      {revEditingId === rev.rev_code_id ? (
+                        <>
+                          <button
+                            className="btn"
+                            disabled={revSaving}
+                            onClick={async () => {
+                              setRevSaveError("");
+                              setRevSaving(true);
+                              try {
+                                const res = await fetch(
+                                  `${API_BASE}/api/v1/documents/revision_overview/update`,
+                                  {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      rev_code_id: rev.rev_code_id,
+                                      rev_code_name: revForm.rev_code_name,
+                                      rev_code_acronym: revForm.rev_code_acronym,
+                                      rev_description: revForm.rev_description,
+                                      percentage:
+                                        revForm.percentage === "" ? null : Number(revForm.percentage),
+                                    }),
+                                  },
+                                );
+                                if (!res.ok) {
+                                  const detail = await res.json().catch(() => ({}));
+                                  throw new Error(detail.detail || `Save failed (${res.status})`);
+                                }
+                                const updated = await res.json();
+                                setRevisionOverview((prev) =>
+                                  prev.map((it) => (it.rev_code_id === rev.rev_code_id ? updated : it)),
+                                );
+                                setRevEditingId(null);
+                              } catch (err) {
+                                setRevSaveError(err instanceof Error ? err.message : "Save failed");
+                              } finally {
+                                setRevSaving(false);
+                              }
+                            }}
+                          >
+                            {revSaving ? "Saving…" : "Save"}
+                          </button>
+                          <button
+                            className="btn btn-ghost"
+                            disabled={revSaving}
+                            onClick={() => {
+                              setRevEditingId(null);
+                              setRevSaveError("");
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="btn"
+                            onClick={() => {
+                              setRevEditingId(rev.rev_code_id);
+                              setRevForm({
+                                rev_code_name: rev.rev_code_name,
+                                rev_code_acronym: rev.rev_code_acronym,
+                                rev_description: rev.rev_description,
+                                percentage:
+                                  rev.percentage === null || rev.percentage === undefined
+                                    ? ""
+                                    : rev.percentage,
+                              });
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-ghost"
+                            disabled={revSaving}
+                            onClick={async () => {
+                              setRevSaveError("");
+                              setRevSaving(true);
+                              try {
+                                const res = await fetch(
+                                  `${API_BASE}/api/v1/documents/revision_overview/delete`,
+                                  {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ rev_code_id: rev.rev_code_id }),
+                                  },
+                                );
+                                if (!res.ok) {
+                                  const detail = await res.json().catch(() => ({}));
+                                  throw new Error(detail.detail || `Delete failed (${res.status})`);
+                                }
+                                setRevisionOverview((prev) =>
+                                  prev.filter((it) => it.rev_code_id !== rev.rev_code_id),
+                                );
+                              } catch (err) {
+                                setRevSaveError(err instanceof Error ? err.message : "Delete failed");
+                              } finally {
+                                setRevSaving(false);
+                              }
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                ))}
+                {revisionOverviewLoading && (
+                  <div className="table-row muted">
+                    <span colSpan={6}>Fetching…</span>
                   </div>
                 )}
               </div>

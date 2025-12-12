@@ -204,13 +204,13 @@ Shape (single item):
 }
 ```
 ### List
-- `GET /api/v1/lookups/revision_overview` — 200 sorted by `rev_code_name`; 404 if empty.
+- `GET /api/v1/documents/revision_overview` — 200 sorted by `rev_code_name`; 404 if empty.
 - Example response:
 ```json
 [ { "rev_code_id": 5, "rev_code_name": "IFC", "rev_code_acronym": "E", "rev_description": "Issued for Construction", "percentage": 90 } ]
 ```
 ### Insert
-- `POST /api/v1/lookups/revision_overview/insert` — 201; 400 on uniqueness.
+- `POST /api/v1/documents/revision_overview/insert` — 201; 400 on uniqueness.
 - Body:
 ```json
 {
@@ -221,7 +221,7 @@ Shape (single item):
 }
 ```
 ### Update
-- `POST /api/v1/lookups/revision_overview/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- `POST /api/v1/documents/revision_overview/update` — 200; 400 if no fields/uniqueness; 404 if not found.
 - Body:
 ```json
 {
@@ -233,7 +233,7 @@ Shape (single item):
 }
 ```
 ### Delete
-- `POST /api/v1/lookups/revision_overview/delete` — 204; 404 if not found.
+- `POST /api/v1/documents/revision_overview/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "rev_code_id": 5 }

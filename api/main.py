@@ -976,7 +976,7 @@ def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depen
     db.commit()
 
 
-@app.get("/api/v1/lookups/revision_overview", response_model=list[RevisionOverviewOut])
+@app.get("/api/v1/documents/revision_overview", response_model=list[RevisionOverviewOut])
 def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOverview]:
     revisions = db.query(RevisionOverview).order_by(RevisionOverview.rev_code_name).all()
     if not revisions:
@@ -984,7 +984,7 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     return revisions
 
 
-@app.post("/api/v1/lookups/revision_overview/update", response_model=RevisionOverviewOut)
+@app.post("/api/v1/documents/revision_overview/update", response_model=RevisionOverviewOut)
 def update_revision_overview(
     payload: RevisionOverviewUpdate, db: Session = Depends(get_db)
 ) -> RevisionOverview:
@@ -1020,7 +1020,7 @@ def update_revision_overview(
 
 
 @app.post(
-    "/api/v1/lookups/revision_overview/insert",
+    "/api/v1/documents/revision_overview/insert",
     response_model=RevisionOverviewOut,
     status_code=201,
 )
@@ -1043,7 +1043,7 @@ def insert_revision_overview(
     return revision
 
 
-@app.post("/api/v1/lookups/revision_overview/delete", status_code=204)
+@app.post("/api/v1/documents/revision_overview/delete", status_code=204)
 def delete_revision_overview(
     payload: RevisionOverviewDelete, db: Session = Depends(get_db)
 ) -> None:
