@@ -168,25 +168,25 @@ Shape (single item):
 { "milestone_id": 4, "milestone_name": "IFC", "progress": 90 }
 ```
 ### List
-- `GET /api/v1/lookups/doc_rev_milestones` — 200 sorted by `milestone_name`; 404 if empty.
+- `GET /api/v1/documents/doc_rev_milestones` — 200 sorted by `milestone_name`; 404 if empty.
 - Example response:
 ```json
 [ { "milestone_id": 4, "milestone_name": "IFC", "progress": 90 } ]
 ```
 ### Insert
-- `POST /api/v1/lookups/doc_rev_milestones/insert` — 201; 400 on uniqueness.
+- `POST /api/v1/documents/doc_rev_milestones/insert` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "milestone_name": "Issued for Construction", "progress": 80 }
 ```
 ### Update
-- `POST /api/v1/lookups/doc_rev_milestones/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- `POST /api/v1/documents/doc_rev_milestones/update` — 200; 400 if no fields/uniqueness; 404 if not found.
 - Body:
 ```json
 { "milestone_id": 4, "milestone_name": "IFC", "progress": 90 }
 ```
 ### Delete
-- `POST /api/v1/lookups/doc_rev_milestones/delete` — 204; 404 if not found.
+- `POST /api/v1/documents/doc_rev_milestones/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "milestone_id": 4 }

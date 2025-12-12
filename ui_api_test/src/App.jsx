@@ -253,7 +253,7 @@ function useMilestones() {
   const fetchMilestones = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/v1/lookups/doc_rev_milestones`);
+      const res = await fetch(`${API_BASE}/api/v1/documents/doc_rev_milestones`);
       if (!res.ok) {
         throw new Error(`API error ${res.status}`);
       }
@@ -1535,236 +1535,6 @@ export default function App() {
 
       <section className="panel">
         <div className="panel-header">
-          <h2>Doc revision milestones</h2>
-          <span className="status">
-            {milestonesLoading ? "Loading…" : milestonesError ? "Error" : "Ready"}
-          </span>
-        </div>
-
-        {milestonesError && <div className="alert alert-error">{milestonesError}</div>}
-        {milestoneSaveError && <div className="alert alert-error">{milestoneSaveError}</div>}
-        {!milestonesError && milestones.length === 0 && !milestonesLoading && (
-          <div className="alert">No milestones available</div>
-        )}
-
-        <div className="panel subpanel">
-          <h3>Add milestone</h3>
-          <div className="create-row">
-            <input
-              className="input"
-              placeholder="Milestone name"
-              value={milestoneCreateForm.milestone_name}
-              onChange={(e) =>
-                setMilestoneCreateForm((f) => ({ ...f, milestone_name: e.target.value }))
-              }
-            />
-            <input
-              className="input"
-              type="number"
-              placeholder="Progress (%)"
-              value={milestoneCreateForm.progress}
-              onChange={(e) =>
-                setMilestoneCreateForm((f) => ({
-                  ...f,
-                  progress: e.target.value === "" ? "" : Number(e.target.value),
-                }))
-              }
-            />
-            <button
-              className="btn"
-              disabled={milestoneSaving || !milestoneCreateForm.milestone_name}
-              onClick={async () => {
-                setMilestoneSaveError("");
-                setMilestoneSaving(true);
-                try {
-                  const res = await fetch(`${API_BASE}/api/v1/lookups/doc_rev_milestones/insert`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      milestone_name: milestoneCreateForm.milestone_name,
-                      progress:
-                        milestoneCreateForm.progress === "" ? null : Number(milestoneCreateForm.progress),
-                    }),
-                  });
-                  if (!res.ok) {
-                    const detail = await res.json().catch(() => ({}));
-                    throw new Error(detail.detail || `Create failed (${res.status})`);
-                  }
-                  const created = await res.json();
-                  setMilestones((prev) => [...prev, created]);
-                  setMilestoneCreateForm({ milestone_name: "", progress: "" });
-                } catch (err) {
-                  setMilestoneSaveError(err instanceof Error ? err.message : "Create failed");
-                } finally {
-                  setMilestoneSaving(false);
-                }
-              }}
-            >
-              {milestoneSaving ? "Saving…" : "Add"}
-            </button>
-          </div>
-        </div>
-
-        <div className="table">
-          <div className="table-head">
-            <span>ID</span>
-            <span>Name</span>
-            <span>Progress</span>
-            <span>Actions</span>
-          </div>
-          <div className="table-body">
-            {milestones.map((milestone) => (
-              <div className="table-row" key={milestone.milestone_id}>
-                <span>{milestone.milestone_id}</span>
-                {milestoneEditingId === milestone.milestone_id ? (
-                  <>
-                    <input
-                      className="input"
-                      value={milestoneForm.milestone_name}
-                      onChange={(e) =>
-                        setMilestoneForm((f) => ({ ...f, milestone_name: e.target.value }))
-                      }
-                    />
-                    <input
-                      className="input"
-                      type="number"
-                      value={milestoneForm.progress}
-                      onChange={(e) =>
-                        setMilestoneForm((f) => ({
-                          ...f,
-                          progress: e.target.value === "" ? "" : Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </>
-                ) : (
-                  <>
-                    <span>{milestone.milestone_name}</span>
-                    <span className="tag">
-                      {milestone.progress === null || milestone.progress === undefined
-                        ? "—"
-                        : `${milestone.progress}%`}
-                    </span>
-                  </>
-                )}
-                <span className="actions">
-                  {milestoneEditingId === milestone.milestone_id ? (
-                    <>
-                      <button
-                        className="btn"
-                        disabled={milestoneSaving}
-                        onClick={async () => {
-                          setMilestoneSaveError("");
-                          setMilestoneSaving(true);
-                          try {
-                            const res = await fetch(
-                              `${API_BASE}/api/v1/lookups/doc_rev_milestones/update`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  milestone_id: milestone.milestone_id,
-                                  milestone_name: milestoneForm.milestone_name,
-                                  progress:
-                                    milestoneForm.progress === "" ? null : Number(milestoneForm.progress),
-                                }),
-                              },
-                            );
-                            if (!res.ok) {
-                              const detail = await res.json().catch(() => ({}));
-                              throw new Error(detail.detail || `Save failed (${res.status})`);
-                            }
-                            const updated = await res.json();
-                            setMilestones((prev) =>
-                              prev.map((it) =>
-                                it.milestone_id === milestone.milestone_id ? updated : it,
-                              ),
-                            );
-                            setMilestoneEditingId(null);
-                          } catch (err) {
-                            setMilestoneSaveError(err instanceof Error ? err.message : "Save failed");
-                          } finally {
-                            setMilestoneSaving(false);
-                          }
-                        }}
-                      >
-                        {milestoneSaving ? "Saving…" : "Save"}
-                      </button>
-                      <button
-                        className="btn btn-ghost"
-                        disabled={milestoneSaving}
-                        onClick={() => {
-                          setMilestoneEditingId(null);
-                          setMilestoneSaveError("");
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        className="btn"
-                        onClick={() => {
-                          setMilestoneEditingId(milestone.milestone_id);
-                          setMilestoneForm({
-                            milestone_name: milestone.milestone_name,
-                            progress:
-                              milestone.progress === null || milestone.progress === undefined
-                                ? ""
-                                : milestone.progress,
-                          });
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-ghost"
-                        disabled={milestoneSaving}
-                        onClick={async () => {
-                          setMilestoneSaveError("");
-                          setMilestoneSaving(true);
-                          try {
-                            const res = await fetch(
-                              `${API_BASE}/api/v1/lookups/doc_rev_milestones/delete`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ milestone_id: milestone.milestone_id }),
-                              },
-                            );
-                            if (!res.ok) {
-                              const detail = await res.json().catch(() => ({}));
-                              throw new Error(detail.detail || `Delete failed (${res.status})`);
-                            }
-                            setMilestones((prev) =>
-                              prev.filter((it) => it.milestone_id !== milestone.milestone_id),
-                            );
-                          } catch (err) {
-                            setMilestoneSaveError(err instanceof Error ? err.message : "Delete failed");
-                          } finally {
-                            setMilestoneSaving(false);
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </span>
-              </div>
-            ))}
-            {milestonesLoading && (
-              <div className="table-row muted">
-                <span colSpan={4}>Fetching…</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
           <h2>Projects</h2>
           <span className="status">
             {projectsLoading ? "Loading…" : projectsError ? "Error" : "Ready"}
@@ -2759,13 +2529,243 @@ export default function App() {
                     <span colSpan={6}>Fetching…</span>
                   </div>
                 )}
-              </div>
-            </div>
-          </section>
+          </div>
+        </div>
+      </section>
 
-          <section className="panel">
-            <div className="panel-header">
-              <h2>Doc types</h2>
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Doc revision milestones</h2>
+          <span className="status">
+            {milestonesLoading ? "Loading…" : milestonesError ? "Error" : "Ready"}
+          </span>
+        </div>
+
+        {milestonesError && <div className="alert alert-error">{milestonesError}</div>}
+        {milestoneSaveError && <div className="alert alert-error">{milestoneSaveError}</div>}
+        {!milestonesError && milestones.length === 0 && !milestonesLoading && (
+          <div className="alert">No milestones available</div>
+        )}
+
+        <div className="panel subpanel">
+          <h3>Add milestone</h3>
+          <div className="create-row">
+            <input
+              className="input"
+              placeholder="Milestone name"
+              value={milestoneCreateForm.milestone_name}
+              onChange={(e) =>
+                setMilestoneCreateForm((f) => ({ ...f, milestone_name: e.target.value }))
+              }
+            />
+            <input
+              className="input"
+              type="number"
+              placeholder="Progress (%)"
+              value={milestoneCreateForm.progress}
+              onChange={(e) =>
+                setMilestoneCreateForm((f) => ({
+                  ...f,
+                  progress: e.target.value === "" ? "" : Number(e.target.value),
+                }))
+              }
+            />
+            <button
+              className="btn"
+              disabled={milestoneSaving || !milestoneCreateForm.milestone_name}
+              onClick={async () => {
+                setMilestoneSaveError("");
+                setMilestoneSaving(true);
+                try {
+                  const res = await fetch(`${API_BASE}/api/v1/documents/doc_rev_milestones/insert`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      milestone_name: milestoneCreateForm.milestone_name,
+                      progress:
+                        milestoneCreateForm.progress === "" ? null : Number(milestoneCreateForm.progress),
+                    }),
+                  });
+                  if (!res.ok) {
+                    const detail = await res.json().catch(() => ({}));
+                    throw new Error(detail.detail || `Create failed (${res.status})`);
+                  }
+                  const created = await res.json();
+                  setMilestones((prev) => [...prev, created]);
+                  setMilestoneCreateForm({ milestone_name: "", progress: "" });
+                } catch (err) {
+                  setMilestoneSaveError(err instanceof Error ? err.message : "Create failed");
+                } finally {
+                  setMilestoneSaving(false);
+                }
+              }}
+            >
+              {milestoneSaving ? "Saving…" : "Add"}
+            </button>
+          </div>
+        </div>
+
+        <div className="table">
+          <div className="table-head">
+            <span>ID</span>
+            <span>Name</span>
+            <span>Progress</span>
+            <span>Actions</span>
+          </div>
+          <div className="table-body">
+            {milestones.map((milestone) => (
+              <div className="table-row" key={milestone.milestone_id}>
+                <span>{milestone.milestone_id}</span>
+                {milestoneEditingId === milestone.milestone_id ? (
+                  <>
+                    <input
+                      className="input"
+                      value={milestoneForm.milestone_name}
+                      onChange={(e) =>
+                        setMilestoneForm((f) => ({ ...f, milestone_name: e.target.value }))
+                      }
+                    />
+                    <input
+                      className="input"
+                      type="number"
+                      value={milestoneForm.progress}
+                      onChange={(e) =>
+                        setMilestoneForm((f) => ({
+                          ...f,
+                          progress: e.target.value === "" ? "" : Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </>
+                ) : (
+                  <>
+                    <span>{milestone.milestone_name}</span>
+                    <span className="tag">
+                      {milestone.progress === null || milestone.progress === undefined
+                        ? "—"
+                        : `${milestone.progress}%`}
+                    </span>
+                  </>
+                )}
+                <span className="actions">
+                  {milestoneEditingId === milestone.milestone_id ? (
+                    <>
+                      <button
+                        className="btn"
+                        disabled={milestoneSaving}
+                        onClick={async () => {
+                          setMilestoneSaveError("");
+                          setMilestoneSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/documents/doc_rev_milestones/update`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  milestone_id: milestone.milestone_id,
+                                  milestone_name: milestoneForm.milestone_name,
+                                  progress:
+                                    milestoneForm.progress === "" ? null : Number(milestoneForm.progress),
+                                }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Save failed (${res.status})`);
+                            }
+                            const updated = await res.json();
+                            setMilestones((prev) =>
+                              prev.map((it) =>
+                                it.milestone_id === milestone.milestone_id ? updated : it,
+                              ),
+                            );
+                            setMilestoneEditingId(null);
+                          } catch (err) {
+                            setMilestoneSaveError(err instanceof Error ? err.message : "Save failed");
+                          } finally {
+                            setMilestoneSaving(false);
+                          }
+                        }}
+                      >
+                        {milestoneSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={milestoneSaving}
+                        onClick={() => {
+                          setMilestoneEditingId(null);
+                          setMilestoneSaveError("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setMilestoneEditingId(milestone.milestone_id);
+                          setMilestoneForm({
+                            milestone_name: milestone.milestone_name,
+                            progress:
+                              milestone.progress === null || milestone.progress === undefined
+                                ? ""
+                                : milestone.progress,
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        disabled={milestoneSaving}
+                        onClick={async () => {
+                          setMilestoneSaveError("");
+                          setMilestoneSaving(true);
+                          try {
+                            const res = await fetch(
+                              `${API_BASE}/api/v1/documents/doc_rev_milestones/delete`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ milestone_id: milestone.milestone_id }),
+                              },
+                            );
+                            if (!res.ok) {
+                              const detail = await res.json().catch(() => ({}));
+                              throw new Error(detail.detail || `Delete failed (${res.status})`);
+                            }
+                            setMilestones((prev) =>
+                              prev.filter((it) => it.milestone_id !== milestone.milestone_id),
+                            );
+                          } catch (err) {
+                            setMilestoneSaveError(err instanceof Error ? err.message : "Delete failed");
+                          } finally {
+                            setMilestoneSaving(false);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+            {milestonesLoading && (
+              <div className="table-row muted">
+                <span colSpan={4}>Fetching…</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Doc types</h2>
               <span className="status">
                 {docTypesLoading ? "Loading…" : docTypesError ? "Error" : "Ready"}
               </span>

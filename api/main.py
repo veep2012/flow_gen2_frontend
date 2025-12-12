@@ -923,7 +923,7 @@ def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
-@app.get("/api/v1/lookups/doc_rev_milestones", response_model=list[DocRevMilestoneOut])
+@app.get("/api/v1/documents/doc_rev_milestones", response_model=list[DocRevMilestoneOut])
 def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilestone]:
     milestones = db.query(DocRevMilestone).order_by(DocRevMilestone.milestone_name).all()
     if not milestones:
@@ -932,7 +932,7 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
 
 
 @app.post(
-    "/api/v1/lookups/doc_rev_milestones/update",
+    "/api/v1/documents/doc_rev_milestones/update",
     response_model=DocRevMilestoneOut,
 )
 def update_doc_rev_milestone(
@@ -961,7 +961,7 @@ def update_doc_rev_milestone(
 
 
 @app.post(
-    "/api/v1/lookups/doc_rev_milestones/insert",
+    "/api/v1/documents/doc_rev_milestones/insert",
     response_model=DocRevMilestoneOut,
     status_code=201,
 )
@@ -979,7 +979,7 @@ def insert_doc_rev_milestone(
     return milestone
 
 
-@app.post("/api/v1/lookups/doc_rev_milestones/delete", status_code=204)
+@app.post("/api/v1/documents/doc_rev_milestones/delete", status_code=204)
 def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depends(get_db)) -> None:
     milestone = db.get(DocRevMilestone, payload.milestone_id)
     if not milestone:
