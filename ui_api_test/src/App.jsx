@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { documentGridColumns, mapDocumentRow } from "./grids/documents";
 
 const API_BASE = (() => {
   const configured = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
@@ -206,7 +207,7 @@ function useDocsByProject() {
         throw new Error(`API error ${res.status}`);
       }
       const data = await res.json();
-      setDocs(data);
+      setDocs(data.map(mapDocumentRow));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -2174,86 +2175,33 @@ export default function App() {
 
             <div className="table docs-table">
               <div className="table-head">
-                <span>ID</span>
-                <span>Name</span>
-                <span>Title</span>
-                <span>Type</span>
-                <span>Discipline</span>
-                <span>Jobpack</span>
-                <span>Area</span>
-                <span>Unit</span>
-                <span>Current rev</span>
-                <span>Rev seq</span>
-                <span>Rev code</span>
-                <span>Rev %</span>
+                {documentGridColumns.map((col) => (
+                  <span key={col.id}>{col.label}</span>
+                ))}
               </div>
               <div className="table-body">
                 {docs.map((doc) => (
                   <div className="table-row" key={doc.doc_id}>
-                    <span>{doc.doc_id}</span>
-                    <span className="tag">{doc.doc_name_uq || doc.doc_name_unique}</span>
-                    <span>{doc.title}</span>
-                    <span>
-                      {doc.doc_type_name
-                        ? `${doc.doc_type_name}${
-                            doc.discipline_acronym ? ` (${doc.discipline_acronym})` : ""
-                          }`
-                        : docTypeById[doc.type_id]
-                          ? `${docTypeById[doc.type_id].doc_type_name}${
-                              docTypeById[doc.type_id].discipline_acronym
-                                ? ` (${docTypeById[doc.type_id].discipline_acronym})`
-                                : ""
-                            }`
-                          : `Type ${doc.type_id}`}
-                    </span>
-                    <span>
-                      {doc.discipline_name
-                        ? `${doc.discipline_name}${
-                            doc.discipline_acronym ? ` (${doc.discipline_acronym})` : ""
-                          }`
-                        : docTypeById[doc.type_id]
-                          ? `${docTypeById[doc.type_id].discipline_name || "Discipline"}${
-                              docTypeById[doc.type_id].discipline_acronym
-                                ? ` (${docTypeById[doc.type_id].discipline_acronym})`
-                                : ""
-                            }`
-                          : "—"}
-                    </span>
-                    <span>
-                      {doc.jobpack_name
-                        ? doc.jobpack_name
-                        : doc.jobpack_id
-                          ? jobpackById[doc.jobpack_id] || `Jobpack ${doc.jobpack_id}`
-                          : "—"}
-                    </span>
-                    <span>
-                      {doc.area_name
-                        ? `${doc.area_name}${doc.area_acronym ? ` (${doc.area_acronym})` : ""}`
-                        : areaById[doc.area_id] || `Area ${doc.area_id}`}
-                    </span>
-                  <span>
-                    {doc.unit_name ? doc.unit_name : unitById[doc.unit_id] || `Unit ${doc.unit_id}`}
-                  </span>
-                  <span>{doc.rev_current_id ?? "—"}</span>
-                  <span>{doc.rev_seq_num ?? "—"}</span>
-                  <span>
-                    {doc.rev_code_acronym
-                      ? `${doc.rev_code_acronym}${doc.rev_code_name ? ` (${doc.rev_code_name})` : ""}`
-                      : doc.rev_code_name || "—"}
-                  </span>
-                  <span className="tag">
-                    {doc.percentage === null || doc.percentage === undefined
-                      ? "—"
-                      : `${doc.percentage}%`}
-                  </span>
-                </div>
-              ))}
-              {docsLoading && (
-                <div className="table-row muted">
-                    <span colSpan={10}>Fetching…</span>
-                </div>
-              )}
-            </div>
+                    {documentGridColumns.map((col) => {
+                      const raw = doc[col.field];
+                      const content =
+                        raw === null || raw === undefined || raw === "" ? "—" : raw;
+                      const className =
+                        col.id === "doc_name" || col.id === "rev_percent" ? "tag" : undefined;
+                      return (
+                        <span key={col.id} className={className}>
+                          {content}
+                        </span>
+                      );
+                    })}
+                  </div>
+                ))}
+                {docsLoading && (
+                  <div className="table-row muted">
+                    <span colSpan={documentGridColumns.length}>Fetching…</span>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
