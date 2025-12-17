@@ -31,6 +31,24 @@ function App() {
     );
   }, [filters, documents]);
 
+  const renderCell = (doc, col) => {
+    if (col.id === "rev_percent") {
+      const raw =
+        Number.isFinite(doc.percentage) && doc.percentage >= 0
+          ? doc.percentage
+          : Number.parseFloat(doc.rev_percent_display);
+      const value = Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : null;
+      if (value === null) return doc.rev_percent_display || "—";
+      return (
+        <div className="progress" aria-label={`Revision percent ${value}%`}>
+          <div className="progress__fill" style={{ width: `${value}%` }} />
+          <div className="progress__label">{`${Math.round(value)}%`}</div>
+        </div>
+      );
+    }
+    return doc[col.key];
+  };
+
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
@@ -197,6 +215,35 @@ function App() {
           color: #c53030;
           background: #fff5f5;
         }
+        .progress {
+          width: 120px;
+          background: #e5e7eb;
+          border-radius: 999px;
+          height: 20px;
+          position: relative;
+          overflow: hidden;
+          border: 1px solid #e2e8f0;
+        }
+        .progress__fill {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          background: linear-gradient(90deg, #2f80ed, #4ea1ff);
+          border-radius: 999px;
+          transition: width 180ms ease;
+        }
+        .progress__label {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          font-weight: 600;
+          color: #fff;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+        }
         .card {
           background: #fff;
           border: 1px solid #e2e8f0;
@@ -336,7 +383,7 @@ function App() {
               filteredDocuments.map((doc) => (
                 <tr key={doc.doc_id || doc.doc_name || doc.id}>
                   {visibleColumns.map((col) => (
-                    <td key={col.key}>{doc[col.key]}</td>
+                    <td key={col.key}>{renderCell(doc, col)}</td>
                   ))}
                 </tr>
               ))
