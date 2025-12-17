@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const columns = [
   { key: "documentNumber", label: "Document number" },
@@ -179,6 +179,9 @@ function App() {
   const [filters, setFilters] = useState(
     () => Object.fromEntries(columns.map((col) => [col.key, ""])),
   );
+  const [project, setProject] = useState("");
+  const [projects, setProjects] = useState([]);
+  const [projectsError, setProjectsError] = useState(null);
 
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) =>
@@ -193,6 +196,68 @@ function App() {
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
+
+  useEffect(() => {
+    const extractProjects = (data) => {
+      const candidates = [
+        data,
+        data?.items,
+        data?.results,
+        data?.projects,
+        data?.data,
+      ].find(Array.isArray);
+
+      const source = candidates ?? [];
+      return source.map((item) => {
+        if (typeof item === "string" || typeof item === "number") {
+          return { id: String(item), label: String(item) };
+        }
+        const id =
+          item?.id ??
+          item?.project_id ??
+          item?.value ??
+          item?.code ??
+          item?.name ??
+          item?.number;
+        const label =
+          item?.name ??
+          item?.project_name ??
+          item?.label ??
+          item?.title ??
+          item?.code ??
+          item?.id ??
+          item?.project_id ??
+          item?.number ??
+          id;
+        return { id: String(id ?? ""), label: String(label ?? "") };
+      });
+    };
+
+    let active = true;
+    fetch("/api/v1/lookups/projects")
+      .then((res) => {
+        if (res.status === 404) {
+          return [];
+        }
+        if (!res.ok) {
+          throw new Error(`Failed to load projects (${res.status})`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!active) return;
+        const normalized = extractProjects(data).filter((p) => p.id && p.label);
+        setProjects(normalized);
+        setProjectsError(normalized.length === 0 ? "No projects found" : null);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setProjectsError(err.message || "Unable to load projects");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <main className="page">
@@ -210,6 +275,27 @@ function App() {
         }
         .page {
           padding: 24px;
+        }
+        .toolbar {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 16px;
+          color: #52606d;
+          font-size: 14px;
+        }
+        .toolbar select {
+          border: 1px solid #d9e2ec;
+          border-radius: 8px;
+          padding: 8px 10px;
+          font-size: 14px;
+          color: #1f2933;
+          background: #fff;
+          min-width: 180px;
+        }
+        .toolbar .status {
+          font-size: 12px;
+          color: #c53030;
         }
         .card {
           background: #fff;
@@ -285,6 +371,22 @@ function App() {
         }
       `}
       </style>
+      <div className="toolbar">
+        <span>Projects</span>
+        <select
+          value={project}
+          onChange={(e) => setProject(e.target.value)}
+          aria-label="Select project"
+        >
+          <option value="">Project number</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+        {projectsError ? <span className="status">{projectsError}</span> : null}
+      </div>
       <div className="card">
         <div className="meta">
           <h1>Document register</h1>
