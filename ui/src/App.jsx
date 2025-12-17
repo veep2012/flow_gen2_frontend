@@ -1,16 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { documentGridColumns, mapDocumentRow } from "./grids/documents";
 
-const columns = [
-  { key: "documentNumber", label: "Document number" },
-  { key: "fileNumber", label: "Saved to file nr" },
-  { key: "title", label: "Title" },
-  { key: "jobPack", label: "Job pack name" },
-  { key: "discipline", label: "Discipline" },
-  { key: "disciplineAcronym", label: "Discipline acronym" },
-  { key: "docType", label: "Doc type" },
-];
+const columns = documentGridColumns.map(({ id, label, field, hidden }) => ({
+  key: field,
+  id,
+  label,
+  hidden: Boolean(hidden),
+}));
 
-const createEmptyFilters = () => Object.fromEntries(columns.map((col) => [col.key, ""]));
+const visibleColumns = columns.filter((col) => !col.hidden);
+
+const createEmptyFilters = () => Object.fromEntries(visibleColumns.map((col) => [col.key, ""]));
 
 function App() {
   const [filters, setFilters] = useState(createEmptyFilters);
@@ -23,7 +23,7 @@ function App() {
 
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) =>
-      columns.every((col) => {
+      visibleColumns.every((col) => {
         const value = String(doc[col.key] ?? "").toLowerCase();
         const filterValue = filters[col.key].trim().toLowerCase();
         return value.includes(filterValue);
@@ -124,17 +124,14 @@ function App() {
       .then((data) => {
         const normalized = Array.isArray(data) ? data : [];
         const mapped = normalized.map((doc, index) => {
-          const id = doc.doc_id ?? doc.doc_name_unique ?? doc.doc_name_uq ?? `row-${index}`;
-          return {
-            id,
-            documentNumber: doc.doc_name_unique ?? doc.doc_name_uq ?? "",
-            fileNumber: doc.doc_name_uq ?? "",
-            title: doc.title ?? "",
-            jobPack: doc.jobpack_name ?? "",
-            discipline: doc.discipline_name ?? "",
-            disciplineAcronym: doc.discipline_acronym ?? "",
-            docType: doc.doc_type_name ?? "",
-          };
+          const row = mapDocumentRow(doc);
+          if (!row.doc_id && row.doc_name_unique) {
+            row.doc_id = row.doc_name_unique;
+          }
+          if (!row.doc_id) {
+            row.doc_id = `row-${index}`;
+          }
+          return row;
         });
         setDocuments(mapped);
         setDocumentsError(mapped.length === 0 ? "No documents found for project" : null);
@@ -298,7 +295,7 @@ function App() {
         <table className="table">
           <thead>
             <tr>
-              {columns.map((col) => (
+              {visibleColumns.map((col) => (
                 <th key={col.key}>
                   <div>{col.label}</div>
                   <input
@@ -313,32 +310,32 @@ function App() {
           <tbody>
             {documentsLoading ? (
               <tr>
-                <td className="status-row" colSpan={columns.length}>
+                <td className="status-row" colSpan={visibleColumns.length}>
                   Loading documents…
                 </td>
               </tr>
             ) : documentsError ? (
               <tr>
-                <td className="status-row error" colSpan={columns.length}>
+                <td className="status-row error" colSpan={visibleColumns.length}>
                   {documentsError}
                 </td>
               </tr>
             ) : !project ? (
               <tr>
-                <td className="status-row" colSpan={columns.length}>
+                <td className="status-row" colSpan={visibleColumns.length}>
                   Select a project to load documents.
                 </td>
               </tr>
             ) : filteredDocuments.length === 0 ? (
               <tr>
-                <td className="status-row" colSpan={columns.length}>
+                <td className="status-row" colSpan={visibleColumns.length}>
                   No documents match your filters.
                 </td>
               </tr>
             ) : (
               filteredDocuments.map((doc) => (
-                <tr key={doc.id || doc.documentNumber}>
-                  {columns.map((col) => (
+                <tr key={doc.doc_id || doc.doc_name || doc.id}>
+                  {visibleColumns.map((col) => (
                     <td key={col.key}>{doc[col.key]}</td>
                   ))}
                 </tr>
