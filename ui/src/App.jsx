@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { documentGridColumns, mapDocumentRow } from "./grids/documents";
+import React from "react";
+import { documentGridColumns } from "./grids/documents";
+import { useFetchDocuments } from "./hooks/useFetchDocuments";
 
 const columns = documentGridColumns.map(({ id, label, field, hidden }) => ({
   key: field,
@@ -10,26 +11,19 @@ const columns = documentGridColumns.map(({ id, label, field, hidden }) => ({
 
 const visibleColumns = columns.filter((col) => !col.hidden);
 
-const createEmptyFilters = () => Object.fromEntries(visibleColumns.map((col) => [col.key, ""]));
-
 function App() {
-  const [filters, setFilters] = useState(createEmptyFilters);
-  const [project, setProject] = useState("");
-  const [projects, setProjects] = useState([]);
-  const [projectsError, setProjectsError] = useState(null);
-  const [documents, setDocuments] = useState([]);
-  const [documentsError, setDocumentsError] = useState(null);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
-
-  const filteredDocuments = useMemo(() => {
-    return documents.filter((doc) =>
-      visibleColumns.every((col) => {
-        const value = String(doc[col.key] ?? "").toLowerCase();
-        const filterValue = filters[col.key].trim().toLowerCase();
-        return value.includes(filterValue);
-      }),
-    );
-  }, [filters, documents]);
+  const apiBase = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/+$/, "");
+  const {
+    project,
+    setProject,
+    projects,
+    projectsError,
+    filters,
+    handleFilterChange,
+    filteredDocuments,
+    documentsError,
+    documentsLoading,
+  } = useFetchDocuments({ apiBase, visibleColumns });
 
   const renderCell = (doc, col) => {
     if (col.id === "rev_percent") {
@@ -48,123 +42,6 @@ function App() {
     }
     return doc[col.key];
   };
-
-  const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-  };
-
-  useEffect(() => {
-    const extractProjects = (data) => {
-      const candidates = [
-        data,
-        data?.items,
-        data?.results,
-        data?.projects,
-        data?.data,
-      ].find(Array.isArray);
-
-      const source = candidates ?? [];
-      return source.map((item) => {
-        if (typeof item === "string" || typeof item === "number") {
-          return { id: String(item), label: String(item) };
-        }
-        const id =
-          item?.id ??
-          item?.project_id ??
-          item?.value ??
-          item?.code ??
-          item?.name ??
-          item?.number;
-        const label =
-          item?.name ??
-          item?.project_name ??
-          item?.label ??
-          item?.title ??
-          item?.code ??
-          item?.id ??
-          item?.project_id ??
-          item?.number ??
-          id;
-        return { id: String(id ?? ""), label: String(label ?? "") };
-      });
-    };
-
-    let active = true;
-    fetch("/api/v1/lookups/projects")
-      .then((res) => {
-        if (res.status === 404) {
-          return [];
-        }
-        if (!res.ok) {
-          throw new Error(`Failed to load projects (${res.status})`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        if (!active) return;
-        const normalized = extractProjects(data).filter((p) => p.id && p.label);
-        setProjects(normalized);
-        setProjectsError(normalized.length === 0 ? "No projects found" : null);
-      })
-      .catch((err) => {
-        if (!active) return;
-        setProjectsError(err.message || "Unable to load projects");
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!project) {
-      setDocuments([]);
-      setDocumentsError(null);
-      return;
-    }
-
-    const controller = new AbortController();
-    const { signal } = controller;
-    setDocuments([]);
-    setFilters(createEmptyFilters());
-    setDocumentsLoading(true);
-    setDocumentsError(null);
-
-    fetch(`/api/v1/documents/docs?project_id=${encodeURIComponent(project)}`, { signal })
-      .then((res) => {
-        if (res.status === 404) {
-          return [];
-        }
-        if (!res.ok) {
-          throw new Error(`Failed to load documents (${res.status})`);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        const normalized = Array.isArray(data) ? data : [];
-        const mapped = normalized.map((doc, index) => {
-          const row = mapDocumentRow(doc);
-          if (!row.doc_id && row.doc_name_unique) {
-            row.doc_id = row.doc_name_unique;
-          }
-          if (!row.doc_id) {
-            row.doc_id = `row-${index}`;
-          }
-          return row;
-        });
-        setDocuments(mapped);
-        setDocumentsError(mapped.length === 0 ? "No documents found for project" : null);
-      })
-      .catch((err) => {
-        if (signal.aborted) return;
-        setDocumentsError(err.message || "Unable to load documents");
-      })
-      .finally(() => {
-        if (signal.aborted) return;
-        setDocumentsLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [project]);
 
   return (
     <main className="page">
@@ -243,6 +120,20 @@ function App() {
           font-weight: 600;
           color: #fff;
           text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+        }
+        .spinner {
+          width: 22px;
+          height: 22px;
+          border: 3px solid #e2e8f0;
+          border-top-color: #2f80ed;
+          border-radius: 50%;
+          display: inline-block;
+          animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
         }
         .card {
           background: #fff;
@@ -358,7 +249,7 @@ function App() {
             {documentsLoading ? (
               <tr>
                 <td className="status-row" colSpan={visibleColumns.length}>
-                  Loading documents…
+                  <span className="spinner" aria-label="Loading documents" />
                 </td>
               </tr>
             ) : documentsError ? (

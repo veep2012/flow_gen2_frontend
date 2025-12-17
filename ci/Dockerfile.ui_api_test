@@ -5,8 +5,7 @@ WORKDIR /app
 COPY ui_api_test/package.json ui_api_test/vite.config.js ui_api_test/index.html /app/
 COPY ui_api_test/src /app/src
 
-RUN npm install
-RUN npm run build
+RUN npm install && npm run build
 
 EXPOSE 5557
 
