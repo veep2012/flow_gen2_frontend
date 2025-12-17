@@ -10,178 +10,16 @@ const columns = [
   { key: "docType", label: "Doc type" },
 ];
 
-const documents = [
-  {
-    documentNumber: "VEM-ME-DRW-0001",
-    fileNumber: "FILE-2024-001",
-    title: "P&ID Main Process Flow",
-    jobPack: "Process Engineering Package",
-    discipline: "Mechanical",
-    disciplineAcronym: "MECH",
-    docType: "Drawing",
-  },
-  {
-    documentNumber: "VEM-EL-SPEC-0045",
-    fileNumber: "FILE-2024-002",
-    title: "Electrical Load Analysis",
-    jobPack: "Electrical Design Package",
-    discipline: "Electrical",
-    disciplineAcronym: "ELEC",
-    docType: "Specification",
-  },
-  {
-    documentNumber: "VEM-IN-DRW-0123",
-    fileNumber: "FILE-2024-003",
-    title: "Instrument Hook-up Diagrams",
-    jobPack: "Instrumentation Package",
-    discipline: "Instrumentation",
-    disciplineAcronym: "INST",
-    docType: "Drawing",
-  },
-  {
-    documentNumber: "VEM-ST-CALC-0067",
-    fileNumber: "FILE-2024-004",
-    title: "Structural Load Calculations",
-    jobPack: "Structural Engineering Package",
-    discipline: "Structural",
-    disciplineAcronym: "STRU",
-    docType: "Calculation",
-  },
-  {
-    documentNumber: "VEM-PI-RPT-0089",
-    fileNumber: "FILE-2024-005",
-    title: "Piping Stress Analysis Report",
-    jobPack: "Piping Design Package",
-    discipline: "Piping",
-    disciplineAcronym: "PIPE",
-    docType: "Report",
-  },
-  {
-    documentNumber: "VEM-CV-DRW-0234",
-    fileNumber: "FILE-2024-006",
-    title: "Civil Foundation Layout",
-    jobPack: "Civil Engineering Package",
-    discipline: "Civil",
-    disciplineAcronym: "CIVL",
-    docType: "Drawing",
-  },
-  {
-    documentNumber: "VEM-AR-DRW-0156",
-    fileNumber: "FILE-2024-007",
-    title: "Architectural Floor Plans",
-    jobPack: "Architecture Package",
-    discipline: "Architecture",
-    disciplineAcronym: "ARCH",
-    docType: "Drawing",
-  },
-  {
-    documentNumber: "VEM-PR-SPEC-0078",
-    fileNumber: "FILE-2024-008",
-    title: "Process Equipment Datasheet",
-    jobPack: "Process Engineering Package",
-    discipline: "Process",
-    disciplineAcronym: "PROC",
-    docType: "Specification",
-  },
-  {
-    documentNumber: "VEM-ME-CALC-0199",
-    fileNumber: "FILE-2024-009",
-    title: "HVAC Heat Load Calculation",
-    jobPack: "Mechanical HVAC Package",
-    discipline: "Mechanical",
-    disciplineAcronym: "MECH",
-    docType: "Calculation",
-  },
-  {
-    documentNumber: "VEM-EL-DRW-0267",
-    fileNumber: "FILE-2024-010",
-    title: "Single Line Diagram MV Switchgear",
-    jobPack: "Electrical Power Package",
-    discipline: "Electrical",
-    disciplineAcronym: "ELEC",
-    docType: "Drawing",
-  },
-  {
-    documentNumber: "VEM-ME-DRW-0302",
-    fileNumber: "FILE-2024-011",
-    title: "Equipment Layout Plan",
-    jobPack: "Mechanical Equipment Package",
-    discipline: "Mechanical",
-    disciplineAcronym: "MECH",
-    docType: "Drawing",
-  },
-  {
-    documentNumber: "VEM-IN-SPEC-0145",
-    fileNumber: "FILE-2024-012",
-    title: "Control Valve Specification",
-    jobPack: "Instrumentation Package",
-    discipline: "Instrumentation",
-    disciplineAcronym: "INST",
-    docType: "Specification",
-  },
-  {
-    documentNumber: "VEM-PI-DRW-0278",
-    fileNumber: "FILE-2024-013",
-    title: "Piping Isometric Drawings",
-    jobPack: "Piping Design Package",
-    discipline: "Piping",
-    disciplineAcronym: "PIPE",
-    docType: "Drawing",
-  },
-  {
-    documentNumber: "VEM-ST-DRW-0189",
-    fileNumber: "FILE-2024-014",
-    title: "Steel Structure General Arrangement",
-    jobPack: "Structural Engineering Package",
-    discipline: "Structural",
-    disciplineAcronym: "STRU",
-    docType: "Drawing",
-  },
-  {
-    documentNumber: "VEM-EL-CALC-0321",
-    fileNumber: "FILE-2024-015",
-    title: "Cable Sizing Calculation",
-    jobPack: "Electrical Power Package",
-    discipline: "Electrical",
-    disciplineAcronym: "ELEC",
-    docType: "Calculation",
-  },
-  {
-    documentNumber: "VEM-CV-SPEC-0234",
-    fileNumber: "FILE-2024-016",
-    title: "Concrete Mix Design Specification",
-    jobPack: "Civil Engineering Package",
-    discipline: "Civil",
-    disciplineAcronym: "CIVL",
-    docType: "Specification",
-  },
-  {
-    documentNumber: "VEM-AR-SPEC-0167",
-    fileNumber: "FILE-2024-017",
-    title: "Interior Finishes Specification",
-    jobPack: "Architecture Package",
-    discipline: "Architecture",
-    disciplineAcronym: "ARCH",
-    docType: "Specification",
-  },
-  {
-    documentNumber: "VEM-PR-RPT-0201",
-    fileNumber: "FILE-2024-018",
-    title: "Process Safety Analysis Report",
-    jobPack: "Process Engineering Package",
-    discipline: "Process",
-    disciplineAcronym: "PROC",
-    docType: "Report",
-  },
-];
+const createEmptyFilters = () => Object.fromEntries(columns.map((col) => [col.key, ""]));
 
 function App() {
-  const [filters, setFilters] = useState(
-    () => Object.fromEntries(columns.map((col) => [col.key, ""])),
-  );
+  const [filters, setFilters] = useState(createEmptyFilters);
   const [project, setProject] = useState("");
   const [projects, setProjects] = useState([]);
   const [projectsError, setProjectsError] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [documentsError, setDocumentsError] = useState(null);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
 
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) =>
@@ -191,7 +29,7 @@ function App() {
         return value.includes(filterValue);
       }),
     );
-  }, [filters]);
+  }, [filters, documents]);
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -259,6 +97,60 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!project) {
+      setDocuments([]);
+      setDocumentsError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const { signal } = controller;
+    setDocuments([]);
+    setFilters(createEmptyFilters());
+    setDocumentsLoading(true);
+    setDocumentsError(null);
+
+    fetch(`/api/v1/documents/docs?project_id=${encodeURIComponent(project)}`, { signal })
+      .then((res) => {
+        if (res.status === 404) {
+          return [];
+        }
+        if (!res.ok) {
+          throw new Error(`Failed to load documents (${res.status})`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        const normalized = Array.isArray(data) ? data : [];
+        const mapped = normalized.map((doc, index) => {
+          const id = doc.doc_id ?? doc.doc_name_unique ?? doc.doc_name_uq ?? `row-${index}`;
+          return {
+            id,
+            documentNumber: doc.doc_name_unique ?? doc.doc_name_uq ?? "",
+            fileNumber: doc.doc_name_uq ?? "",
+            title: doc.title ?? "",
+            jobPack: doc.jobpack_name ?? "",
+            discipline: doc.discipline_name ?? "",
+            disciplineAcronym: doc.discipline_acronym ?? "",
+            docType: doc.doc_type_name ?? "",
+          };
+        });
+        setDocuments(mapped);
+        setDocumentsError(mapped.length === 0 ? "No documents found for project" : null);
+      })
+      .catch((err) => {
+        if (signal.aborted) return;
+        setDocumentsError(err.message || "Unable to load documents");
+      })
+      .finally(() => {
+        if (signal.aborted) return;
+        setDocumentsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [project]);
+
   return (
     <main className="page">
       <style>
@@ -296,6 +188,17 @@ function App() {
         .toolbar .status {
           font-size: 12px;
           color: #c53030;
+        }
+        .status-row {
+          text-align: left;
+          padding: 12px;
+          color: #52606d;
+          font-size: 14px;
+          background: #f8fafc;
+        }
+        .status-row.error {
+          color: #c53030;
+          background: #fff5f5;
         }
         .card {
           background: #fff;
@@ -408,13 +311,39 @@ function App() {
             </tr>
           </thead>
           <tbody>
-            {filteredDocuments.map((doc) => (
-              <tr key={doc.documentNumber}>
-                {columns.map((col) => (
-                  <td key={col.key}>{doc[col.key]}</td>
-                ))}
+            {documentsLoading ? (
+              <tr>
+                <td className="status-row" colSpan={columns.length}>
+                  Loading documents…
+                </td>
               </tr>
-            ))}
+            ) : documentsError ? (
+              <tr>
+                <td className="status-row error" colSpan={columns.length}>
+                  {documentsError}
+                </td>
+              </tr>
+            ) : !project ? (
+              <tr>
+                <td className="status-row" colSpan={columns.length}>
+                  Select a project to load documents.
+                </td>
+              </tr>
+            ) : filteredDocuments.length === 0 ? (
+              <tr>
+                <td className="status-row" colSpan={columns.length}>
+                  No documents match your filters.
+                </td>
+              </tr>
+            ) : (
+              filteredDocuments.map((doc) => (
+                <tr key={doc.id || doc.documentNumber}>
+                  {columns.map((col) => (
+                    <td key={col.key}>{doc[col.key]}</td>
+                  ))}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
