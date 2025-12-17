@@ -5,8 +5,8 @@ WORKDIR /app
 COPY ui_api_test/package.json ui_api_test/vite.config.js ui_api_test/index.html /app/
 COPY ui_api_test/src /app/src
 
-RUN npm install
+RUN npm install && npm run build
 
 EXPOSE 5557
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5557"]
+CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "5557"]
