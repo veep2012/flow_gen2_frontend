@@ -41,6 +41,8 @@ services:
       dockerfile: ci/Dockerfile.ui
     expose:
       - "5558"
+    depends_on:
+      - api
     restart: unless-stopped
 
   ui_api_test:
