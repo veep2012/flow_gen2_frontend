@@ -198,7 +198,7 @@ function useDocsByProject() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_BASE}/api/v1/documents/docs?project_id=${projectId}`);
+      const res = await fetch(`${API_BASE}/api/v1/documents/list?project_id=${projectId}`);
       if (res.status === 404) {
         setDocs([]);
         return;

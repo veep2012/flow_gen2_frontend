@@ -818,7 +818,7 @@ def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> No
     db.commit()
 
 
-@app.get("/api/v1/documents/docs", response_model=list[DocOut])
+@app.get("/api/v1/documents/list", response_model=list[DocOut])
 def list_documents_for_project(
     project_id: int = Query(..., description="Project ID to filter documents by"),
     db: Session = Depends(get_db),
