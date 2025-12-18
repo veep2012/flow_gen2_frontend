@@ -217,6 +217,21 @@ class DocOut(BaseModel):
     percentage: int | None = None
 
 
+class DocUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    doc_id: int
+    doc_name_unique: str | None = None
+    title: str | None = None
+    project_id: int | None = None
+    jobpack_id: int | None = None
+    type_id: int | None = None
+    area_id: int | None = None
+    unit_id: int | None = None
+    rev_actual_id: int | None = None
+    rev_current_id: int | None = None
+
+
 class RoleOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -870,6 +885,193 @@ def list_documents_for_project(
         )
         for doc, doc_type, discipline, project, jobpack, area, unit, rev_current_row, revision_overview in docs
     ]
+
+
+@app.post("/api/v1/documents/update", response_model=DocOut)
+def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut:
+    updates = payload.model_dump(exclude_unset=True)
+    updates.pop("doc_id", None)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    doc = db.get(Doc, payload.doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    def require_not_null(field_name: str, value: object) -> None:
+        if value is None:
+            raise HTTPException(status_code=400, detail=f"{field_name} cannot be null")
+
+    if "doc_name_unique" in updates:
+        require_not_null("doc_name_unique", payload.doc_name_unique)
+        doc.doc_name_unique = payload.doc_name_unique
+
+    if "title" in updates:
+        require_not_null("title", payload.title)
+        doc.title = payload.title
+
+    project: Project | None = doc.project
+    if "project_id" in updates:
+        project_id = payload.project_id
+        if project_id is not None:
+            project = db.get(Project, project_id)
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
+        else:
+            project = None
+        doc.project_id = project_id
+        doc.project = project
+
+    jobpack: Jobpack | None = doc.jobpack
+    if "jobpack_id" in updates:
+        jobpack_id = payload.jobpack_id
+        if jobpack_id is not None:
+            jobpack = db.get(Jobpack, jobpack_id)
+            if not jobpack:
+                raise HTTPException(status_code=404, detail="Jobpack not found")
+        else:
+            jobpack = None
+        doc.jobpack_id = jobpack_id
+        doc.jobpack = jobpack
+
+    doc_type: DocType | None = doc.doc_type
+    discipline: Discipline | None = doc_type.discipline if doc_type else None
+    if "type_id" in updates:
+        type_id = payload.type_id
+        require_not_null("type_id", type_id)
+        doc_type = db.get(DocType, type_id)
+        if not doc_type:
+            raise HTTPException(status_code=404, detail="Doc type not found")
+        discipline = doc_type.discipline
+        doc.type_id = type_id
+        doc.doc_type = doc_type
+
+    area: Area | None = doc.area
+    if "area_id" in updates:
+        area_id = payload.area_id
+        require_not_null("area_id", area_id)
+        area = db.get(Area, area_id)
+        if not area:
+            raise HTTPException(status_code=404, detail="Area not found")
+        doc.area_id = area_id
+        doc.area = area
+
+    unit: Unit | None = doc.unit
+    if "unit_id" in updates:
+        unit_id = payload.unit_id
+        require_not_null("unit_id", unit_id)
+        unit = db.get(Unit, unit_id)
+        if not unit:
+            raise HTTPException(status_code=404, detail="Unit not found")
+        doc.unit_id = unit_id
+        doc.unit = unit
+
+    if "rev_actual_id" in updates:
+        rev_actual_id = payload.rev_actual_id
+        if rev_actual_id is None:
+            doc.rev_actual_id = None
+            doc.actual_revision = None
+        else:
+            rev_actual = db.get(DocRevision, rev_actual_id)
+            if not rev_actual:
+                raise HTTPException(status_code=404, detail="Actual revision not found")
+            if rev_actual.doc_id != doc.doc_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Actual revision does not belong to the document",
+                )
+            doc.rev_actual_id = rev_actual_id
+            doc.actual_revision = rev_actual
+
+    if "rev_current_id" in updates:
+        rev_current_id = payload.rev_current_id
+        if rev_current_id is None:
+            doc.rev_current_id = None
+            doc.current_revision = None
+        else:
+            rev_current_row = db.get(DocRevision, rev_current_id)
+            if not rev_current_row:
+                raise HTTPException(status_code=404, detail="Current revision not found")
+            if rev_current_row.doc_id != doc.doc_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Current revision does not belong to the document",
+                )
+            doc.rev_current_id = rev_current_id
+            doc.current_revision = rev_current_row
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Document name must be unique")
+
+    rev_current_alias = aliased(DocRevision)
+    row = (
+        db.query(
+            Doc,
+            DocType,
+            Discipline,
+            Project,
+            Jobpack,
+            Area,
+            Unit,
+            rev_current_alias,
+            RevisionOverview,
+        )
+        .join(DocType, Doc.type_id == DocType.type_id)
+        .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
+        .outerjoin(Project, Doc.project_id == Project.project_id)
+        .outerjoin(Jobpack, Doc.jobpack_id == Jobpack.jobpack_id)
+        .join(Area, Doc.area_id == Area.area_id)
+        .join(Unit, Doc.unit_id == Unit.unit_id)
+        .outerjoin(rev_current_alias, Doc.rev_current_id == rev_current_alias.rev_id)
+        .outerjoin(RevisionOverview, rev_current_alias.rev_code_id == RevisionOverview.rev_code_id)
+        .filter(Doc.doc_id == doc.doc_id)
+        .one_or_none()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Document not found after update")
+
+    (
+        doc_row,
+        doc_type,
+        discipline,
+        project,
+        jobpack,
+        area,
+        unit,
+        rev_current_row,
+        revision_overview,
+    ) = row
+
+    return DocOut(
+        doc_id=doc_row.doc_id,
+        doc_name_unique=doc_row.doc_name_unique,
+        doc_name_uq=doc_row.doc_name_unique,
+        title=doc_row.title,
+        project_id=doc_row.project_id,
+        project_name=project.project_name if project else None,
+        jobpack_id=doc_row.jobpack_id,
+        jobpack_name=jobpack.jobpack_name if jobpack else None,
+        type_id=doc_row.type_id,
+        doc_type_name=doc_type.doc_type_name if doc_type else None,
+        doc_type_acronym=doc_type.doc_type_acronym if doc_type else None,
+        area_id=doc_row.area_id,
+        area_name=area.area_name if area else None,
+        area_acronym=area.area_acronym if area else None,
+        unit_id=doc_row.unit_id,
+        unit_name=unit.unit_name if unit else None,
+        rev_actual_id=doc_row.rev_actual_id,
+        rev_current_id=doc_row.rev_current_id,
+        rev_seq_num=rev_current_row.seq_num if rev_current_row else None,
+        discipline_id=discipline.discipline_id if discipline else None,
+        discipline_name=discipline.discipline_name if discipline else None,
+        discipline_acronym=discipline.discipline_acronym if discipline else None,
+        rev_code_name=revision_overview.rev_code_name if revision_overview else None,
+        rev_code_acronym=revision_overview.rev_code_acronym if revision_overview else None,
+        percentage=revision_overview.percentage if revision_overview else None,
+    )
 
 
 @app.get("/api/v1/people/roles", response_model=list[RoleOut])
