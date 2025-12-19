@@ -3,6 +3,18 @@ COMPOSE_ENGINE ?= $(ENGINE)-compose
 COMPOSE_FILE ?= ci/docker-compose.yml
 COMPOSE_PROJECT_NAME ?= flow_gen2
 DEFAULT_GOAL := help
+OS := $(shell uname -s 2>/dev/null || echo Windows_NT)
+
+# Cross-platform helpers
+ifeq ($(OS),Windows_NT)
+ACTIVATE_VENV := .venv\Scripts\activate
+LOCAL_API_CMD := powershell -NoProfile -Command "Get-Content .env | ForEach-Object { if ($$_ -match '^(\\w+?)=(.*)$$') { $$env:$${matches[1]} = $${matches[2]} } }; $$env:PYTHONPATH='api'; . .\\$(ACTIVATE_VENV); uvicorn api.main:app --host 0.0.0.0 --port 5556 --reload"
+LOCAL_UI_CMD := powershell -NoProfile -Command "cd ui; $$env:VITE_API_BASE_URL='http://localhost:5556/api/v1'; npm run dev"
+else
+ACTIVATE_VENV := .venv/bin/activate
+LOCAL_API_CMD := set -a && [ -f .env ] && source .env && set +a; . $(ACTIVATE_VENV) && PYTHONPATH=api uvicorn api.main:app --host 0.0.0.0 --port 5556 --reload
+LOCAL_UI_CMD := cd ui && VITE_API_BASE_URL=http://localhost:5556/api/v1 npm run dev
+endif
 
 .PHONY: help db-reset app-up app-down rebuild completely-rebuild status local-postgres-up local-postgres-down local-venv local-api-up local-api-down local-npm local-ui-up local-ui-down local-up local-down
 
@@ -41,10 +53,10 @@ local-postgres-down:
 	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) --profile local stop postgres_local
 
 local-venv:
-	python3 -m venv .venv && . .venv/bin/activate && pip install --upgrade pip && pip install -r api/requirements.txt
+	python3 -m venv .venv && . $(ACTIVATE_VENV) && pip install --upgrade pip && pip install -r api/requirements.txt
 
 local-api-up:
-	set -a && [ -f .env ] && source .env && set +a; . .venv/bin/activate && PYTHONPATH=api uvicorn api.main:app --host 0.0.0.0 --port 5556 --reload &
+	$(LOCAL_API_CMD) &
 
 local-api-down:
 	pkill -f "uvicorn api.main:app --host 0.0.0.0 --port 5556" || true
@@ -53,7 +65,7 @@ local-npm:
 	cd ui && npm install
 
 local-ui-up:
-	cd ui && VITE_API_BASE_URL=http://localhost:5556/api/v1 npm run dev &
+	$(LOCAL_UI_CMD) &
 
 local-ui-down:
 	pkill -f "vite --host 0.0.0.0 --port 5558" || true
