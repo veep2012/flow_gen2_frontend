@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Iterable
 
@@ -6,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, aliased, sessionmaker
+from sqlalchemy.orm import Session, aliased, joinedload, sessionmaker
 
 from db.models import (
     Area,
@@ -27,13 +28,33 @@ from db.models import (
 )
 
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg://flow_user:flow_pass@postgres:5432/flow_db",
-)
+def _build_database_url() -> str:
+    explicit = os.getenv("DATABASE_URL")
+    if explicit:
+        return os.path.expandvars(explicit)
+
+    user = os.getenv("POSTGRES_USER", "flow_user")
+    password = os.getenv("POSTGRES_PASSWORD", "flow_pass")
+    host = os.getenv("POSTGRES_HOST", "postgres")
+    port = os.getenv("POSTGRES_PORT", "5432")
+    db_name = os.getenv("POSTGRES_DB", "flow_db")
+    return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{db_name}"
+
+
+DATABASE_URL = _build_database_url()
 
 engine = create_engine(DATABASE_URL, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+logger = logging.getLogger(__name__)
+DEBUG_MODE = os.getenv("DEBUG", "").lower() in {"1", "true", "yes", "on", "debug"}
+
+
+def _handle_integrity_error(detail: str, err: IntegrityError, context: str | None = None) -> None:
+    ctx = f" during {context}" if context else ""
+    logger.exception("IntegrityError%s: %s", ctx, err)
+    message = detail if not DEBUG_MODE else f"{detail} ({err})"
+    raise HTTPException(status_code=400, detail=message)
 
 
 app = FastAPI(title="Flow Backend", version="0.1.0")
@@ -215,6 +236,21 @@ class DocOut(BaseModel):
     rev_code_name: str | None = None
     rev_code_acronym: str | None = None
     percentage: int | None = None
+
+
+class DocUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    doc_id: int
+    doc_name_unique: str | None = None
+    title: str | None = None
+    project_id: int | None = None
+    jobpack_id: int | None = None
+    type_id: int | None = None
+    area_id: int | None = None
+    unit_id: int | None = None
+    rev_actual_id: int | None = None
+    rev_current_id: int | None = None
 
 
 class RoleOut(BaseModel):
@@ -492,9 +528,9 @@ def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Area name or acronym already exists")
+        _handle_integrity_error("Area name or acronym already exists", err, "update_area")
 
     db.refresh(area)
     return area
@@ -506,9 +542,9 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
     db.add(area)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Area name or acronym already exists")
+        _handle_integrity_error("Area name or acronym already exists", err, "insert_area")
     db.refresh(area)
     return area
 
@@ -546,11 +582,12 @@ def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) 
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Discipline name or acronym already exists",
+        _handle_integrity_error(
+            "Discipline name or acronym already exists",
+            err,
+            "update_discipline",
         )
 
     db.refresh(discipline)
@@ -566,11 +603,12 @@ def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) 
     db.add(discipline)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Discipline name or acronym already exists",
+        _handle_integrity_error(
+            "Discipline name or acronym already exists",
+            err,
+            "insert_discipline",
         )
     db.refresh(discipline)
     return discipline
@@ -607,9 +645,9 @@ def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Pro
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Project name already exists")
+        _handle_integrity_error("Project name already exists", err, "update_project")
 
     db.refresh(project)
     return project
@@ -621,9 +659,9 @@ def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
     db.add(project)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Project name already exists")
+        _handle_integrity_error("Project name already exists", err, "insert_project")
     db.refresh(project)
     return project
 
@@ -659,9 +697,9 @@ def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Unit name already exists")
+        _handle_integrity_error("Unit name already exists", err, "update_unit")
 
     db.refresh(unit)
     return unit
@@ -673,9 +711,9 @@ def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
     db.add(unit)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Unit name already exists")
+        _handle_integrity_error("Unit name already exists", err, "insert_unit")
     db.refresh(unit)
     return unit
 
@@ -710,9 +748,9 @@ def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Job
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Jobpack name already exists")
+        _handle_integrity_error("Jobpack name already exists", err, "update_jobpack")
 
     db.refresh(jobpack)
     return jobpack
@@ -724,9 +762,9 @@ def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Job
     db.add(jobpack)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Jobpack name already exists")
+        _handle_integrity_error("Jobpack name already exists", err, "insert_jobpack")
     db.refresh(jobpack)
     return jobpack
 
@@ -767,9 +805,9 @@ def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> Do
     db.add(doc_type)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Doc type already exists")
+        _handle_integrity_error("Doc type already exists", err, "insert_doc_type")
 
     db.refresh(doc_type)
     return _build_doc_type_out(doc_type)
@@ -801,9 +839,9 @@ def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> Do
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Doc type already exists")
+        _handle_integrity_error("Doc type already exists", err, "update_doc_type")
 
     db.refresh(doc_type)
     return _build_doc_type_out(doc_type)
@@ -818,7 +856,7 @@ def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> No
     db.commit()
 
 
-@app.get("/api/v1/documents/docs", response_model=list[DocOut])
+@app.get("/api/v1/documents/list", response_model=list[DocOut])
 def list_documents_for_project(
     project_id: int = Query(..., description="Project ID to filter documents by"),
     db: Session = Depends(get_db),
@@ -830,8 +868,8 @@ def list_documents_for_project(
         .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
         .outerjoin(Project, Doc.project_id == Project.project_id)
         .outerjoin(Jobpack, Doc.jobpack_id == Jobpack.jobpack_id)
-        .join(Area, Doc.area_id == Area.area_id)
-        .join(Unit, Doc.unit_id == Unit.unit_id)
+        .outerjoin(Area, Doc.area_id == Area.area_id)
+        .outerjoin(Unit, Doc.unit_id == Unit.unit_id)
         .outerjoin(rev_current, Doc.rev_current_id == rev_current.rev_id)
         .outerjoin(RevisionOverview, rev_current.rev_code_id == RevisionOverview.rev_code_id)
         .filter(Doc.project_id == project_id)
@@ -872,6 +910,179 @@ def list_documents_for_project(
     ]
 
 
+@app.post("/api/v1/documents/update", response_model=DocOut)
+def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut:
+    updates = payload.model_dump(exclude_unset=True)
+    updates.pop("doc_id", None)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    doc = db.get(Doc, payload.doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    def require_not_null(field_name: str, value: object) -> None:
+        if value is None:
+            raise HTTPException(status_code=400, detail=f"{field_name} cannot be null")
+
+    if "doc_name_unique" in updates:
+        require_not_null("doc_name_unique", payload.doc_name_unique)
+        doc.doc_name_unique = payload.doc_name_unique
+
+    if "title" in updates:
+        require_not_null("title", payload.title)
+        doc.title = payload.title
+
+    project: Project | None = doc.project
+    if "project_id" in updates:
+        project_id = payload.project_id
+        if project_id is not None:
+            project = db.get(Project, project_id)
+            if not project:
+                raise HTTPException(status_code=404, detail="Project not found")
+        else:
+            project = None
+        doc.project_id = project_id
+        doc.project = project
+
+    jobpack: Jobpack | None = doc.jobpack
+    if "jobpack_id" in updates:
+        jobpack_id = payload.jobpack_id
+        if jobpack_id is not None:
+            jobpack = db.get(Jobpack, jobpack_id)
+            if not jobpack:
+                raise HTTPException(status_code=404, detail="Jobpack not found")
+        else:
+            jobpack = None
+        doc.jobpack_id = jobpack_id
+        doc.jobpack = jobpack
+
+    doc_type: DocType | None = doc.doc_type
+    discipline: Discipline | None = doc_type.discipline if doc_type else None
+    if "type_id" in updates:
+        type_id = payload.type_id
+        require_not_null("type_id", type_id)
+        doc_type = db.get(DocType, type_id)
+        if not doc_type:
+            raise HTTPException(status_code=404, detail="Doc type not found")
+        discipline = doc_type.discipline
+        doc.type_id = type_id
+        doc.doc_type = doc_type
+
+    area: Area | None = doc.area
+    if "area_id" in updates:
+        area_id = payload.area_id
+        require_not_null("area_id", area_id)
+        area = db.get(Area, area_id)
+        if not area:
+            raise HTTPException(status_code=404, detail="Area not found")
+        doc.area_id = area_id
+        doc.area = area
+
+    unit: Unit | None = doc.unit
+    if "unit_id" in updates:
+        unit_id = payload.unit_id
+        require_not_null("unit_id", unit_id)
+        unit = db.get(Unit, unit_id)
+        if not unit:
+            raise HTTPException(status_code=404, detail="Unit not found")
+        doc.unit_id = unit_id
+        doc.unit = unit
+
+    if "rev_actual_id" in updates:
+        rev_actual_id = payload.rev_actual_id
+        if rev_actual_id is None:
+            doc.rev_actual_id = None
+            doc.actual_revision = None
+        else:
+            rev_actual = db.get(DocRevision, rev_actual_id)
+            if not rev_actual:
+                raise HTTPException(status_code=404, detail="Actual revision not found")
+            if rev_actual.doc_id != doc.doc_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Actual revision does not belong to the document",
+                )
+            doc.rev_actual_id = rev_actual_id
+            doc.actual_revision = rev_actual
+
+    if "rev_current_id" in updates:
+        rev_current_id = payload.rev_current_id
+        if rev_current_id is None:
+            doc.rev_current_id = None
+            doc.current_revision = None
+        else:
+            rev_current_row = db.get(DocRevision, rev_current_id)
+            if not rev_current_row:
+                raise HTTPException(status_code=404, detail="Current revision not found")
+            if rev_current_row.doc_id != doc.doc_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Current revision does not belong to the document",
+                )
+            doc.rev_current_id = rev_current_id
+            doc.current_revision = rev_current_row
+
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Document name must be unique", err, "update_document")
+
+    doc_row = (
+        db.query(Doc)
+        .options(
+            joinedload(Doc.doc_type).joinedload(DocType.discipline),
+            joinedload(Doc.project),
+            joinedload(Doc.jobpack),
+            joinedload(Doc.area),
+            joinedload(Doc.unit),
+            joinedload(Doc.current_revision).joinedload(DocRevision.revision_overview),
+        )
+        .filter(Doc.doc_id == doc.doc_id)
+        .one_or_none()
+    )
+    if not doc_row:
+        raise HTTPException(status_code=404, detail="Document not found after update")
+
+    doc_type = doc_row.doc_type
+    discipline = doc_type.discipline if doc_type else None
+    project = doc_row.project
+    jobpack = doc_row.jobpack
+    area = doc_row.area
+    unit = doc_row.unit
+    rev_current_row = doc_row.current_revision
+    revision_overview = rev_current_row.revision_overview if rev_current_row else None
+
+    return DocOut(
+        doc_id=doc_row.doc_id,
+        doc_name_unique=doc_row.doc_name_unique,
+        doc_name_uq=doc_row.doc_name_unique,
+        title=doc_row.title,
+        project_id=doc_row.project_id,
+        project_name=project.project_name if project else None,
+        jobpack_id=doc_row.jobpack_id,
+        jobpack_name=jobpack.jobpack_name if jobpack else None,
+        type_id=doc_row.type_id,
+        doc_type_name=doc_type.doc_type_name if doc_type else None,
+        doc_type_acronym=doc_type.doc_type_acronym if doc_type else None,
+        area_id=doc_row.area_id,
+        area_name=area.area_name if area else None,
+        area_acronym=area.area_acronym if area else None,
+        unit_id=doc_row.unit_id,
+        unit_name=unit.unit_name if unit else None,
+        rev_actual_id=doc_row.rev_actual_id,
+        rev_current_id=doc_row.rev_current_id,
+        rev_seq_num=rev_current_row.seq_num if rev_current_row else None,
+        discipline_id=discipline.discipline_id if discipline else None,
+        discipline_name=discipline.discipline_name if discipline else None,
+        discipline_acronym=discipline.discipline_acronym if discipline else None,
+        rev_code_name=revision_overview.rev_code_name if revision_overview else None,
+        rev_code_acronym=revision_overview.rev_code_acronym if revision_overview else None,
+        percentage=revision_overview.percentage if revision_overview else None,
+    )
+
+
 @app.get("/api/v1/people/roles", response_model=list[RoleOut])
 def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     roles = db.query(Role).order_by(Role.role_name).all()
@@ -893,9 +1104,9 @@ def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Role name already exists")
+        _handle_integrity_error("Role name already exists", err, "update_role")
 
     db.refresh(role)
     return role
@@ -907,9 +1118,9 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     db.add(role)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Role name already exists")
+        _handle_integrity_error("Role name already exists", err, "insert_role")
     db.refresh(role)
     return role
 
@@ -952,9 +1163,9 @@ def update_doc_rev_milestone(
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Milestone name already exists")
+        _handle_integrity_error("Milestone name already exists", err, "update_doc_rev_milestone")
 
     db.refresh(milestone)
     return milestone
@@ -972,9 +1183,9 @@ def insert_doc_rev_milestone(
     db.add(milestone)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Milestone name already exists")
+        _handle_integrity_error("Milestone name already exists", err, "insert_doc_rev_milestone")
     db.refresh(milestone)
     return milestone
 
@@ -1023,9 +1234,9 @@ def update_revision_overview(
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Revision overview entry already exists")
+        _handle_integrity_error("Revision overview entry already exists", err, "update_revision_overview")
 
     db.refresh(revision)
     return revision
@@ -1048,9 +1259,9 @@ def insert_revision_overview(
     db.add(revision)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Revision overview entry already exists")
+        _handle_integrity_error("Revision overview entry already exists", err, "insert_revision_overview")
     db.refresh(revision)
     return revision
 
@@ -1090,9 +1301,9 @@ def update_doc_rev_status(
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Doc revision status already exists")
+        _handle_integrity_error("Doc revision status already exists", err, "update_doc_rev_status")
 
     db.refresh(status)
     return status
@@ -1110,9 +1321,9 @@ def insert_doc_rev_status(
     db.add(status)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Doc revision status already exists")
+        _handle_integrity_error("Doc revision status already exists", err, "insert_doc_rev_status")
     db.refresh(status)
     return status
 
@@ -1150,9 +1361,9 @@ def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Perso
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Failed to update person")
+        _handle_integrity_error("Failed to update person", err, "update_person")
 
     db.refresh(person)
     return person
@@ -1164,9 +1375,9 @@ def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Perso
     db.add(person)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Failed to create person")
+        _handle_integrity_error("Failed to create person", err, "insert_person")
     db.refresh(person)
     return person
 
@@ -1218,9 +1429,9 @@ def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Failed to update user")
+        _handle_integrity_error("Failed to update user", err, "update_user")
 
     db.refresh(user)
     return _build_user_out(user)
@@ -1240,9 +1451,9 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     db.add(user)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Failed to create user")
+        _handle_integrity_error("Failed to create user", err, "insert_user")
     db.refresh(user)
     return _build_user_out(user)
 
@@ -1305,9 +1516,9 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
     db.add(permission)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Failed to create permission")
+        _handle_integrity_error("Failed to create permission", err, "insert_permission")
     db.refresh(permission)
     return _build_permission_out(permission)
 
@@ -1352,9 +1563,9 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Failed to update permission")
+        _handle_integrity_error("Failed to update permission", err, "update_permission")
 
     db.refresh(existing)
     return _build_permission_out(existing)

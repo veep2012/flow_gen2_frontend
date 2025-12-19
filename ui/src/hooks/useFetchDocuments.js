@@ -2,10 +2,24 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { mapDocumentRow } from "../grids/documents";
 
 export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
-  const normalizedBase = useMemo(
-    () => (apiBase || "/api/v1").replace(/\/+$/, ""),
-    [apiBase],
-  );
+  const normalizedBase = useMemo(() => {
+    const fallback = "/api/v1";
+    const raw = (apiBase || fallback).toString().trim();
+    if (!raw) return fallback;
+    const hasProtocol = /^https?:\/\//i.test(raw);
+    const prepared = hasProtocol || raw.startsWith("/") ? raw : `http://${raw}`;
+    const trimmed = prepared.replace(/\/+$/, "");
+    try {
+      // Validate the URL; allow relative paths by resolving against current origin
+      // This prevents fetch from throwing "string did not match the expected pattern".
+      // eslint-disable-next-line no-new
+      new URL(trimmed, window.location.origin);
+      return trimmed;
+    } catch (_err) {
+      console.warn("Invalid VITE_API_BASE_URL, falling back to default /api/v1");
+      return fallback;
+    }
+  }, [apiBase]);
 
   const createEmptyFilters = useCallback(
     () => Object.fromEntries(visibleColumns.map((col) => [col.key, ""])),
@@ -118,7 +132,7 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
     setDocumentsLoading(true);
     setDocumentsError(null);
 
-    fetch(`${normalizedBase}/documents/docs?project_id=${encodeURIComponent(project)}`, { signal })
+    fetch(`${normalizedBase}/documents/list?project_id=${encodeURIComponent(project)}`, { signal })
       .then((res) => {
         if (res.status === 404) {
           return [];
