@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, aliased, sessionmaker
+from sqlalchemy.orm import Session, aliased, joinedload, sessionmaker
 
 from db.models import (
     Area,
@@ -855,8 +855,8 @@ def list_documents_for_project(
         .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
         .outerjoin(Project, Doc.project_id == Project.project_id)
         .outerjoin(Jobpack, Doc.jobpack_id == Jobpack.jobpack_id)
-        .join(Area, Doc.area_id == Area.area_id)
-        .join(Unit, Doc.unit_id == Unit.unit_id)
+        .outerjoin(Area, Doc.area_id == Area.area_id)
+        .outerjoin(Unit, Doc.unit_id == Unit.unit_id)
         .outerjoin(rev_current, Doc.rev_current_id == rev_current.rev_id)
         .outerjoin(RevisionOverview, rev_current.rev_code_id == RevisionOverview.rev_code_id)
         .filter(Doc.project_id == project_id)
@@ -1016,44 +1016,30 @@ def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut
         db.rollback()
         raise HTTPException(status_code=400, detail="Document name must be unique")
 
-    rev_current_alias = aliased(DocRevision)
-    row = (
-        db.query(
-            Doc,
-            DocType,
-            Discipline,
-            Project,
-            Jobpack,
-            Area,
-            Unit,
-            rev_current_alias,
-            RevisionOverview,
+    doc_row = (
+        db.query(Doc)
+        .options(
+            joinedload(Doc.doc_type).joinedload(DocType.discipline),
+            joinedload(Doc.project),
+            joinedload(Doc.jobpack),
+            joinedload(Doc.area),
+            joinedload(Doc.unit),
+            joinedload(Doc.current_revision).joinedload(DocRevision.revision_overview),
         )
-        .join(DocType, Doc.type_id == DocType.type_id)
-        .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
-        .outerjoin(Project, Doc.project_id == Project.project_id)
-        .outerjoin(Jobpack, Doc.jobpack_id == Jobpack.jobpack_id)
-        .join(Area, Doc.area_id == Area.area_id)
-        .join(Unit, Doc.unit_id == Unit.unit_id)
-        .outerjoin(rev_current_alias, Doc.rev_current_id == rev_current_alias.rev_id)
-        .outerjoin(RevisionOverview, rev_current_alias.rev_code_id == RevisionOverview.rev_code_id)
         .filter(Doc.doc_id == doc.doc_id)
         .one_or_none()
     )
-    if not row:
+    if not doc_row:
         raise HTTPException(status_code=404, detail="Document not found after update")
 
-    (
-        doc_row,
-        doc_type,
-        discipline,
-        project,
-        jobpack,
-        area,
-        unit,
-        rev_current_row,
-        revision_overview,
-    ) = row
+    doc_type = doc_row.doc_type
+    discipline = doc_type.discipline if doc_type else None
+    project = doc_row.project
+    jobpack = doc_row.jobpack
+    area = doc_row.area
+    unit = doc_row.unit
+    rev_current_row = doc_row.current_revision
+    revision_overview = rev_current_row.revision_overview if rev_current_row else None
 
     return DocOut(
         doc_id=doc_row.doc_id,

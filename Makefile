@@ -7,13 +7,19 @@ OS := $(shell uname -s 2>/dev/null || echo Windows_NT)
 
 # Cross-platform helpers
 ifeq ($(OS),Windows_NT)
-ACTIVATE_VENV := .venv\Scripts\activate
-LOCAL_API_CMD := powershell -NoProfile -Command "Get-Content .env | ForEach-Object { if ($$_ -match '^(\\w+?)=(.*)$$') { $$env:$${matches[1]} = $${matches[2]} } }; $$env:PYTHONPATH='api'; . .\\$(ACTIVATE_VENV); uvicorn api.main:app --host 0.0.0.0 --port 5556 --reload"
-LOCAL_UI_CMD := powershell -NoProfile -Command "cd ui; $$env:VITE_API_BASE_URL='http://localhost:5556/api/v1'; npm run dev"
+ACTIVATE_VENV := .venv\Scripts\Activate.ps1
+VENV_PY := .venv\Scripts\python.exe
+LOCAL_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api.ps1
+LOCAL_UI_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-ui.ps1
+KILL_UVICORN := powershell -NoProfile -Command "Get-Process -Name python -ErrorAction SilentlyContinue | Where-Object { $$_ -and $$_ .Path -like '*\\\.venv\\Scripts\\python.exe' -and $$_ .StartInfo.Arguments -like '*uvicorn*api.main:app*' } | Stop-Process -Force"
+KILL_VITE := powershell -NoProfile -Command "Get-Process -Name node -ErrorAction SilentlyContinue | Where-Object { $$_ -and ($$_ .StartInfo.Arguments -like '*vite*5558*' -or $$_ .Path -like '*\\node_modules\\vite*') } | Stop-Process -Force"
 else
 ACTIVATE_VENV := .venv/bin/activate
-LOCAL_API_CMD := set -a && [ -f .env ] && source .env && set +a; . $(ACTIVATE_VENV) && PYTHONPATH=api uvicorn api.main:app --host 0.0.0.0 --port 5556 --reload
-LOCAL_UI_CMD := cd ui && VITE_API_BASE_URL=http://localhost:5556/api/v1 npm run dev
+VENV_PY := .venv/bin/python
+LOCAL_API_CMD := bash scripts/local-api.sh
+LOCAL_UI_CMD := bash scripts/local-ui.sh
+KILL_UVICORN := pkill -f "uvicorn api.main:app --host 0.0.0.0 --port 5556" || true
+KILL_VITE := pkill -f "vite --host 0.0.0.0 --port 5558" || true
 endif
 
 .PHONY: help db-reset app-up app-down rebuild completely-rebuild status local-postgres-up local-postgres-down local-venv local-api-up local-api-down local-npm local-ui-up local-ui-down local-up local-down
@@ -52,14 +58,21 @@ local-postgres-up:
 local-postgres-down:
 	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) --profile local stop postgres_local
 
+ifeq ($(OS),Windows_NT)
+local-venv:
+	python -m venv .venv
+	$(VENV_PY) -m pip install --upgrade pip
+	$(VENV_PY) -m pip install -r api/requirements.txt
+else
 local-venv:
 	python3 -m venv .venv && . $(ACTIVATE_VENV) && pip install --upgrade pip && pip install -r api/requirements.txt
+endif
 
 local-api-up:
 	$(LOCAL_API_CMD) &
 
 local-api-down:
-	pkill -f "uvicorn api.main:app --host 0.0.0.0 --port 5556" || true
+	$(KILL_UVICORN)
 
 local-npm:
 	cd ui && npm install
@@ -68,7 +81,7 @@ local-ui-up:
 	$(LOCAL_UI_CMD) &
 
 local-ui-down:
-	pkill -f "vite --host 0.0.0.0 --port 5558" || true
+	$(KILL_VITE)
 
 local-up: local-postgres-up
 	$(MAKE) local-api-up
