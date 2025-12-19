@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Iterable
 
@@ -44,6 +45,16 @@ DATABASE_URL = _build_database_url()
 
 engine = create_engine(DATABASE_URL, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+logger = logging.getLogger(__name__)
+DEBUG_MODE = os.getenv("DEBUG", "").lower() in {"1", "true", "yes", "on", "debug"}
+
+
+def _handle_integrity_error(detail: str, err: IntegrityError, context: str | None = None) -> None:
+    ctx = f" during {context}" if context else ""
+    logger.exception("IntegrityError%s", ctx, exc_info=err)
+    message = detail if not DEBUG_MODE else f"{detail} ({err})"
+    raise HTTPException(status_code=400, detail=message)
 
 
 app = FastAPI(title="Flow Backend", version="0.1.0")
@@ -517,9 +528,9 @@ def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Area name or acronym already exists")
+        _handle_integrity_error("Area name or acronym already exists", err, "update_area")
 
     db.refresh(area)
     return area
@@ -531,9 +542,9 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
     db.add(area)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Area name or acronym already exists")
+        _handle_integrity_error("Area name or acronym already exists", err, "insert_area")
     db.refresh(area)
     return area
 
@@ -571,11 +582,12 @@ def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) 
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Discipline name or acronym already exists",
+        _handle_integrity_error(
+            "Discipline name or acronym already exists",
+            err,
+            "update_discipline",
         )
 
     db.refresh(discipline)
@@ -591,11 +603,12 @@ def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) 
     db.add(discipline)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Discipline name or acronym already exists",
+        _handle_integrity_error(
+            "Discipline name or acronym already exists",
+            err,
+            "insert_discipline",
         )
     db.refresh(discipline)
     return discipline
@@ -632,9 +645,9 @@ def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Pro
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Project name already exists")
+        _handle_integrity_error("Project name already exists", err, "update_project")
 
     db.refresh(project)
     return project
@@ -646,9 +659,9 @@ def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
     db.add(project)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Project name already exists")
+        _handle_integrity_error("Project name already exists", err, "insert_project")
     db.refresh(project)
     return project
 
@@ -684,9 +697,9 @@ def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Unit name already exists")
+        _handle_integrity_error("Unit name already exists", err, "update_unit")
 
     db.refresh(unit)
     return unit
@@ -698,9 +711,9 @@ def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
     db.add(unit)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Unit name already exists")
+        _handle_integrity_error("Unit name already exists", err, "insert_unit")
     db.refresh(unit)
     return unit
 
@@ -735,9 +748,9 @@ def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Job
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Jobpack name already exists")
+        _handle_integrity_error("Jobpack name already exists", err, "update_jobpack")
 
     db.refresh(jobpack)
     return jobpack
@@ -749,9 +762,9 @@ def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Job
     db.add(jobpack)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Jobpack name already exists")
+        _handle_integrity_error("Jobpack name already exists", err, "insert_jobpack")
     db.refresh(jobpack)
     return jobpack
 
@@ -792,9 +805,9 @@ def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> Do
     db.add(doc_type)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Doc type already exists")
+        _handle_integrity_error("Doc type already exists", err, "insert_doc_type")
 
     db.refresh(doc_type)
     return _build_doc_type_out(doc_type)
@@ -826,9 +839,9 @@ def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> Do
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Doc type already exists")
+        _handle_integrity_error("Doc type already exists", err, "update_doc_type")
 
     db.refresh(doc_type)
     return _build_doc_type_out(doc_type)
@@ -1012,9 +1025,9 @@ def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Document name must be unique")
+        _handle_integrity_error("Document name must be unique", err, "update_document")
 
     doc_row = (
         db.query(Doc)
@@ -1091,9 +1104,9 @@ def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Role name already exists")
+        _handle_integrity_error("Role name already exists", err, "update_role")
 
     db.refresh(role)
     return role
@@ -1105,9 +1118,9 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     db.add(role)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Role name already exists")
+        _handle_integrity_error("Role name already exists", err, "insert_role")
     db.refresh(role)
     return role
 
@@ -1150,9 +1163,9 @@ def update_doc_rev_milestone(
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Milestone name already exists")
+        _handle_integrity_error("Milestone name already exists", err, "update_doc_rev_milestone")
 
     db.refresh(milestone)
     return milestone
@@ -1170,9 +1183,9 @@ def insert_doc_rev_milestone(
     db.add(milestone)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Milestone name already exists")
+        _handle_integrity_error("Milestone name already exists", err, "insert_doc_rev_milestone")
     db.refresh(milestone)
     return milestone
 
@@ -1221,9 +1234,9 @@ def update_revision_overview(
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Revision overview entry already exists")
+        _handle_integrity_error("Revision overview entry already exists", err, "update_revision_overview")
 
     db.refresh(revision)
     return revision
@@ -1246,9 +1259,9 @@ def insert_revision_overview(
     db.add(revision)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Revision overview entry already exists")
+        _handle_integrity_error("Revision overview entry already exists", err, "insert_revision_overview")
     db.refresh(revision)
     return revision
 
@@ -1288,9 +1301,9 @@ def update_doc_rev_status(
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Doc revision status already exists")
+        _handle_integrity_error("Doc revision status already exists", err, "update_doc_rev_status")
 
     db.refresh(status)
     return status
@@ -1308,9 +1321,9 @@ def insert_doc_rev_status(
     db.add(status)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Doc revision status already exists")
+        _handle_integrity_error("Doc revision status already exists", err, "insert_doc_rev_status")
     db.refresh(status)
     return status
 
@@ -1348,9 +1361,9 @@ def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Perso
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Failed to update person")
+        _handle_integrity_error("Failed to update person", err, "update_person")
 
     db.refresh(person)
     return person
@@ -1362,9 +1375,9 @@ def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Perso
     db.add(person)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Failed to create person")
+        _handle_integrity_error("Failed to create person", err, "insert_person")
     db.refresh(person)
     return person
 
@@ -1416,9 +1429,9 @@ def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Failed to update user")
+        _handle_integrity_error("Failed to update user", err, "update_user")
 
     db.refresh(user)
     return _build_user_out(user)
@@ -1438,9 +1451,9 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     db.add(user)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Failed to create user")
+        _handle_integrity_error("Failed to create user", err, "insert_user")
     db.refresh(user)
     return _build_user_out(user)
 
@@ -1503,9 +1516,9 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
     db.add(permission)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Failed to create permission")
+        _handle_integrity_error("Failed to create permission", err, "insert_permission")
     db.refresh(permission)
     return _build_permission_out(permission)
 
@@ -1550,9 +1563,9 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
 
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Failed to update permission")
+        _handle_integrity_error("Failed to update permission", err, "update_permission")
 
     db.refresh(existing)
     return _build_permission_out(existing)

@@ -6,4 +6,6 @@ __pycache__
 .venv
 env
 venv
+ui/node_modules
+ui_api_test/node_modules
 ci/flow_pg_data
