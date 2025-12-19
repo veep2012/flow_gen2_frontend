@@ -34,6 +34,12 @@ flowchart TD
 - Open PRs from feature branches into `dev`; approvals required: Aleksei plus at least one additional developer.
 - After approval, merge into `dev`; only Aleksei promotes `dev` to `main` for PROD/investor-ready code.
 
+## Backend env notes
+- `DATABASE_URL` supports shell-style `${VAR}` expansion. Typical pattern:  
+  `DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}`
+- If `DATABASE_URL` is unset, the app builds it from `POSTGRES_USER/PASSWORD/HOST/PORT/DB` env vars.
+- Set `DEBUG=1` locally if you want API error details to include DB messages; keep it off in shared/dev/prod environments.
+
 ## Git How-To (feature work)
 - Clone a specific feature branch locally (without full clone):  
   ```bash
