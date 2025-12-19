@@ -6,5 +6,7 @@ __pycache__/
 *.pyc
 ui_api_test/node_modules
 ui_api_test/dist
+ui/node_modules/
+.venv/
 ci/.last_commit
 ci/nginx/.htpasswd

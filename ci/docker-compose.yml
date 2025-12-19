@@ -1,5 +1,5 @@
 services:
-  postgres:
+  postgres: &postgres_base
     image: postgres:16-alpine
     container_name: flow_gen2_postgres
     environment:
@@ -18,6 +18,14 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+  postgres_local:
+    <<: *postgres_base
+    container_name: flow_gen2_postgres_local
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    profiles:
+      - local
 
   api:
     container_name: flow_gen2_api

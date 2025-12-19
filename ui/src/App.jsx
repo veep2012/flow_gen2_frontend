@@ -11,8 +11,25 @@ const columns = documentGridColumns.map(({ id, label, field, hidden }) => ({
 
 const visibleColumns = columns.filter((col) => !col.hidden);
 
+const normalizeApiBase = (raw) => {
+  const fallback = "/api/v1";
+  const value = (raw || fallback).toString().trim();
+  if (!value) return fallback;
+  const hasProtocol = /^https?:\/\//i.test(value);
+  const prepared = hasProtocol || value.startsWith("/") ? value : `http://${value}`;
+  const trimmed = prepared.replace(/\/+$/, "");
+  try {
+    // Validate; allow relative paths.
+    new URL(trimmed, window.location.origin);
+    return trimmed;
+  } catch (_err) {
+    console.warn("Invalid VITE_API_BASE_URL, falling back to default /api/v1");
+    return fallback;
+  }
+};
+
 function App() {
-  const apiBase = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/+$/, "");
+  const apiBase = normalizeApiBase(import.meta.env.VITE_API_BASE_URL);
   const {
     project,
     setProject,

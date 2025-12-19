@@ -2,14 +2,26 @@ import { useEffect, useMemo, useState } from "react";
 import { documentGridColumns, mapDocumentRow } from "./grids/documents";
 
 const API_BASE = (() => {
-  const configured = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
-  if (configured) return configured;
+  const fallback = "http://localhost:5556";
+  const raw = import.meta.env.VITE_API_BASE_URL?.toString().trim();
+  if (raw) {
+    const hasProtocol = /^https?:\/\//i.test(raw);
+    const prepared = hasProtocol || raw.startsWith("/") ? raw : `http://${raw}`;
+    const trimmed = prepared.replace(/\/+$/, "");
+    try {
+      // validate while allowing relative paths
+      new URL(trimmed, typeof window !== "undefined" ? window.location.origin : fallback);
+      return trimmed;
+    } catch (_err) {
+      console.warn("Invalid VITE_API_BASE_URL for ui_api_test, falling back to window/fallback");
+    }
+  }
   if (typeof window !== "undefined") {
     const { protocol, hostname, port } = window.location;
     const portPart = port ? `:${port}` : "";
     return `${protocol}//${hostname}${portPart}`;
   }
-  return "http://localhost:5556";
+  return fallback;
 })();
 
 function useAreas() {
