@@ -52,7 +52,7 @@ DEBUG_MODE = os.getenv("DEBUG", "").lower() in {"1", "true", "yes", "on", "debug
 
 def _handle_integrity_error(detail: str, err: IntegrityError, context: str | None = None) -> None:
     ctx = f" during {context}" if context else ""
-    logger.exception("IntegrityError%s", ctx, exc_info=err)
+    logger.exception("IntegrityError%s: %s", ctx, err)
     message = detail if not DEBUG_MODE else f"{detail} ({err})"
     raise HTTPException(status_code=400, detail=message)
 

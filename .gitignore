@@ -8,5 +8,7 @@ ui_api_test/node_modules
 ui_api_test/dist
 ui/node_modules/
 .venv/
+ui/.local/
+/.local/
 ci/.last_commit
 ci/nginx/.htpasswd

@@ -5,21 +5,24 @@ COMPOSE_PROJECT_NAME ?= flow_gen2
 DEFAULT_GOAL := help
 OS := $(shell uname -s 2>/dev/null || echo Windows_NT)
 
-# Cross-platform helpers
+# Cross-platform helpers and PID files
+PID_DIR := .local
+API_PID_FILE := $(PID_DIR)/uvicorn.pid
+UI_PID_FILE := $(PID_DIR)/vite.pid
 ifeq ($(OS),Windows_NT)
 ACTIVATE_VENV := .venv\Scripts\Activate.ps1
 VENV_PY := .venv\Scripts\python.exe
-LOCAL_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api.ps1
-LOCAL_UI_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-ui.ps1
-KILL_UVICORN := powershell -NoProfile -Command "Get-Process -Name python -ErrorAction SilentlyContinue | Where-Object { $$_ -and $$_ .Path -like '*\\\.venv\\Scripts\\python.exe' -and $$_ .StartInfo.Arguments -like '*uvicorn*api.main:app*' } | Stop-Process -Force"
-KILL_VITE := powershell -NoProfile -Command "Get-Process -Name node -ErrorAction SilentlyContinue | Where-Object { $$_ -and ($$_ .StartInfo.Arguments -like '*vite*5558*' -or $$_ .Path -like '*\\node_modules\\vite*') } | Stop-Process -Force"
+LOCAL_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api.ps1 -PidFile "$(API_PID_FILE)"
+LOCAL_UI_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-ui.ps1 -PidFile "$(UI_PID_FILE)"
+STOP_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api-stop.ps1 -PidFile "$(API_PID_FILE)"
+STOP_UI_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-ui-stop.ps1 -PidFile "$(UI_PID_FILE)"
 else
 ACTIVATE_VENV := .venv/bin/activate
 VENV_PY := .venv/bin/python
-LOCAL_API_CMD := bash scripts/local-api.sh
-LOCAL_UI_CMD := bash scripts/local-ui.sh
-KILL_UVICORN := pkill -f "uvicorn api.main:app --host 0.0.0.0 --port 5556" || true
-KILL_VITE := pkill -f "vite --host 0.0.0.0 --port 5558" || true
+LOCAL_API_CMD := PID_FILE="$(API_PID_FILE)" bash scripts/local-api.sh
+LOCAL_UI_CMD := PID_FILE="$(UI_PID_FILE)" bash scripts/local-ui.sh
+STOP_API_CMD := PID_FILE="$(API_PID_FILE)" bash scripts/local-api-stop.sh
+STOP_UI_CMD := PID_FILE="$(UI_PID_FILE)" bash scripts/local-ui-stop.sh
 endif
 
 .PHONY: help db-reset app-up app-down rebuild completely-rebuild status local-postgres-up local-postgres-down local-venv local-api-up local-api-down local-npm local-ui-up local-ui-down local-up local-down
@@ -69,19 +72,19 @@ local-venv:
 endif
 
 local-api-up:
-	$(LOCAL_API_CMD) &
+	$(LOCAL_API_CMD)
 
 local-api-down:
-	$(KILL_UVICORN)
+	$(STOP_API_CMD)
 
 local-npm:
 	cd ui && npm install
 
 local-ui-up:
-	$(LOCAL_UI_CMD) &
+	$(LOCAL_UI_CMD)
 
 local-ui-down:
-	$(KILL_VITE)
+	$(STOP_UI_CMD)
 
 local-up: local-postgres-up
 	$(MAKE) local-api-up
