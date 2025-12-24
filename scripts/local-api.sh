@@ -1,27 +1,70 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PID_FILE="${PID_FILE:-${ROOT}/.local/uvicorn.pid}"
-cd "$ROOT"
+PID_FILE="${PID_FILE:-.local/uvicorn.pid}"
+LOG_FILE="${LOG_FILE:-.local/uvicorn.log}"
 
-if [ -f .env ]; then
+mkdir -p "$(dirname "$PID_FILE")"
+
+if [[ -f "$PID_FILE" ]]; then
+  if kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+    echo "API already running (pid $(cat "$PID_FILE"))."
+    exit 0
+  fi
+  rm -f "$PID_FILE"
+fi
+
+PRESET_DATABASE_URL="${DATABASE_URL:-}"
+PRESET_API_HOST="${API_HOST:-}"
+PRESET_API_PORT="${API_PORT:-}"
+
+if [[ -f ".env" ]]; then
   set -a
   # shellcheck disable=SC1091
-  source .env
+  . ./.env
   set +a
 fi
 
-if [ ! -d ".venv" ]; then
-  echo ".venv not found; run 'make local-venv' first." >&2
+if [[ -n "$PRESET_DATABASE_URL" ]]; then
+  export DATABASE_URL="$PRESET_DATABASE_URL"
+fi
+if [[ -n "$PRESET_API_HOST" ]]; then
+  export API_HOST="$PRESET_API_HOST"
+fi
+if [[ -n "$PRESET_API_PORT" ]]; then
+  export API_PORT="$PRESET_API_PORT"
+fi
+
+API_HOST="${API_HOST:-0.0.0.0}"
+API_PORT="${API_PORT:-5556}"
+API_WAIT_TIMEOUT="${API_WAIT_TIMEOUT:-30}"
+
+if [[ -d ".venv" ]]; then
+  # shellcheck disable=SC1091
+  . .venv/bin/activate
+  export PYTHONPATH=api
+elif ! command -v uvicorn >/dev/null 2>&1; then
+  echo "uvicorn not found; run 'make local-venv' first." >&2
   exit 1
 fi
 
-# shellcheck disable=SC1091
-source .venv/bin/activate
-export PYTHONPATH=api
+nohup uvicorn api.main:app --reload --host "$API_HOST" --port "$API_PORT" >"$LOG_FILE" 2>&1 &
+echo $! >"$PID_FILE"
+echo "API started (pid $(cat "$PID_FILE")), log: $LOG_FILE"
 
-mkdir -p "$(dirname "$PID_FILE")"
-uvicorn api.main:app --host 0.0.0.0 --port 5556 --reload &
-echo $! > "$PID_FILE"
-disown
+HOST_FOR_CHECK="${API_HOST}"
+if [[ "$HOST_FOR_CHECK" == "0.0.0.0" ]]; then
+  HOST_FOR_CHECK="127.0.0.1"
+fi
+HEALTH_URL="http://${HOST_FOR_CHECK}:${API_PORT}/health"
+deadline=$((SECONDS + API_WAIT_TIMEOUT))
+while [[ $SECONDS -lt $deadline ]]; do
+  if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
+    echo "API ready: $HEALTH_URL"
+    exit 0
+  fi
+  sleep 0.5
+done
+echo "API not ready after ${API_WAIT_TIMEOUT}s: $HEALTH_URL"
+tail -n 50 "$LOG_FILE" || true
+exit 1

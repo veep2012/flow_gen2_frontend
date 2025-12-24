@@ -1,108 +1,140 @@
-ENGINE ?= podman
-COMPOSE_ENGINE ?= $(ENGINE)-compose
+CONTAINER_ENGINE ?= podman
 COMPOSE_FILE ?= ci/docker-compose.yml
-COMPOSE_PROJECT_NAME ?= flow_gen2
-PYTHON_BIN ?= /opt/homebrew/opt/python@3.11/bin/python3.11
-DEFAULT_GOAL := help
-OS := $(shell uname -s 2>/dev/null || echo Windows_NT)
+NO_CACHE ?=
+DB_CONTAINER_NAME ?= flow-gen2-postgres
+DB_IMAGE ?= postgres:18.1
+DB_VOLUME ?= flow_gen2_postgres-data
+DB_PORT ?= 5432
+DB_PORT_FLAG := $(if $(DB_PORT),-p $(DB_PORT):5432,)
+POSTGRES_USER ?= flow_user
+POSTGRES_PASSWORD ?= flow_pass
+POSTGRES_DB ?= flow_db
 
-# Cross-platform helpers and PID files
 PID_DIR := .local
 API_PID_FILE := $(PID_DIR)/uvicorn.pid
 UI_PID_FILE := $(PID_DIR)/vite.pid
+PYTHON_BIN ?= /opt/homebrew/opt/python@3.11/bin/python3.11
+LOCAL_API_PORT ?= 5556
+API_WAIT_TIMEOUT ?= 30
+
+OS := $(shell uname -s 2>/dev/null || echo Windows_NT)
 ifeq ($(OS),Windows_NT)
 PYTHON_BIN ?= python
 ACTIVATE_VENV := .venv\Scripts\Activate.ps1
 VENV_PY := .venv\Scripts\python.exe
-LOCAL_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api.ps1 -PidFile "$(API_PID_FILE)"
+LOCAL_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api.ps1
 LOCAL_UI_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-ui.ps1 -PidFile "$(UI_PID_FILE)"
 STOP_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api-stop.ps1 -PidFile "$(API_PID_FILE)"
 STOP_UI_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-ui-stop.ps1 -PidFile "$(UI_PID_FILE)"
 else
 ACTIVATE_VENV := .venv/bin/activate
 VENV_PY := .venv/bin/python
-LOCAL_API_CMD := PID_FILE="$(API_PID_FILE)" bash scripts/local-api.sh
+LOCAL_API_CMD := bash scripts/local-api.sh
 LOCAL_UI_CMD := PID_FILE="$(UI_PID_FILE)" bash scripts/local-ui.sh
-STOP_API_CMD := PID_FILE="$(API_PID_FILE)" bash scripts/local-api-stop.sh
+STOP_API_CMD := bash scripts/local-api-stop.sh
 STOP_UI_CMD := PID_FILE="$(UI_PID_FILE)" bash scripts/local-ui-stop.sh
 endif
 
-.PHONY: help db-reset app-up app-down rebuild completely-rebuild status local-postgres-up local-postgres-down local-venv local-api-up local-api-down local-npm local-ui-up local-ui-down local-up local-down
+.DEFAULT_GOAL := help
 
-help:
-	@echo "Available targets:"
-	@echo "  app-up         Start API, UI test, and nginx proxy containers (no rebuild)"
-	@echo "  app-down       Stop containers"
-	@echo "  local-postgres-up   Start Postgres with host port mapping"
-	@echo "  local-postgres-down Stop Postgres started locally"
-	@echo "  local-venv     Create a local Python venv (.venv) with dependencies"
-	@echo "  local-api-up   Run API locally (uvicorn) using local virtual env"
-	@echo "  local-api-down Stop local uvicorn (by port 5556)"
-	@echo "  local-npm      Install UI dependencies in ./ui"
-	@echo "  local-ui-up    Start UI locally (vite dev) on port 5558"
-	@echo "  local-ui-down  Stop local UI dev server"
-	@echo "  local-up       Start local Postgres, API, and UI (dev mode)"
-	@echo "  local-down     Stop local UI, API, and Postgres"
-	@echo "  db-reset       Stop and remove containers and volumes"
-	@echo "  rebuild        Rebuild all services without dropping volumes"
-	@echo "  completely-rebuild Rebuild all services and drop volumes"
-	@echo "  status         Show running containers for this project"
+.PHONY: help
+help: ## Show available targets
+	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
+	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-api-up local-api-down local-ui-up local-ui-down db-up db-down up down build rebuild completely-rebuild logs help; do \
+		grep -E "^$${target} " .local/.make-help.tmp || true; \
+	done
+	@rm -f .local/.make-help.tmp
 
-db-reset:
-	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) down -v
+.PHONY: build
+build: ## Build services with compose
+	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) build $(if $(NO_CACHE),--no-cache,)
 
-app-up:
-	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d api ui_api_test nginx
+.PHONY: up
+up: ## Start services with compose
+	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) up -d
 
-app-down:
-	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) down
+.PHONY: down
+down: ## Stop services with compose
+	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) down
 
-local-postgres-up:
-	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) --profile local up -d postgres_local
+.PHONY: completely-rebuild
+completely-rebuild: ## Drop containers and volumes, then rebuild services
+	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) kill --all || true
+	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) down -v --remove-orphans --timeout 0 || true
+	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) build
 
-local-postgres-down:
-	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) --profile local stop postgres_local
+.PHONY: rebuild
+rebuild: ## Stop containers, remove them (keep volumes), then rebuild services
+	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) kill --all || true
+	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) down --remove-orphans --timeout 0 || true
+	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) build
 
+.PHONY: logs
+logs: ## Tail logs from compose services
+	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) logs -f
+
+.PHONY: db-up
+db-up: ## Start standalone Postgres with podman (no port exposed unless DB_PORT is set)
+	$(CONTAINER_ENGINE) run -d --name $(DB_CONTAINER_NAME) \
+		--env POSTGRES_USER=$(POSTGRES_USER) \
+		--env POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
+		--env POSTGRES_DB=$(POSTGRES_DB) \
+		$(DB_PORT_FLAG) \
+		-v $(CURDIR)/ci/init/flow_init.sql:/docker-entrypoint-initdb.d/00_flow_init.sql:ro \
+		-v $(CURDIR)/ci/init/flow_seed.sql:/docker-entrypoint-initdb.d/01_flow_seed.sql:ro \
+		-v $(DB_VOLUME):/var/lib/postgresql \
+		$(DB_IMAGE)
+
+.PHONY: db-down
+db-down: ## Stop and remove standalone Postgres container started by db-up
+	-$(CONTAINER_ENGINE) stop $(DB_CONTAINER_NAME)
+	-$(CONTAINER_ENGINE) rm $(DB_CONTAINER_NAME)
+
+.PHONY: local-postgres-up
+local-postgres-up: ## Start local Postgres with host port mapping
+	$(MAKE) db-up
+
+.PHONY: local-postgres-down
+local-postgres-down: ## Stop local Postgres started by local-postgres-up
+	$(MAKE) db-down
+
+.PHONY: local-venv
+local-venv: ## Create a local Python venv with dependencies
 ifeq ($(OS),Windows_NT)
-local-venv:
 	$(PYTHON_BIN) -m venv .venv
 	$(VENV_PY) -m pip install --upgrade pip
 	$(VENV_PY) -m pip install -r api/requirements.txt
 else
-local-venv:
 	$(PYTHON_BIN) -m venv .venv && . $(ACTIVATE_VENV) && pip install --upgrade pip && pip install -r api/requirements.txt
 endif
 
-local-api-up:
-	$(LOCAL_API_CMD)
+.PHONY: local-api-up
+local-api-up: ## Run API locally (uvicorn)
+	PID_FILE="$(API_PID_FILE)" LOG_FILE="$(PID_DIR)/uvicorn.log" $(LOCAL_API_CMD)
 
-local-api-down:
-	$(STOP_API_CMD)
+.PHONY: local-api-down
+local-api-down: ## Stop local uvicorn using PID file
+	PID_FILE="$(API_PID_FILE)" $(STOP_API_CMD)
 
-local-npm:
+.PHONY: local-npm
+local-npm: ## Install UI dependencies in ./ui
 	cd ui && npm install
 
-local-ui-up:
+.PHONY: local-ui-up
+local-ui-up: ## Start UI locally (vite dev)
 	$(LOCAL_UI_CMD)
 
-local-ui-down:
+.PHONY: local-ui-down
+local-ui-down: ## Stop local UI dev server using PID file
 	$(STOP_UI_CMD)
 
-local-up: local-postgres-up
+.PHONY: local-up
+local-up: local-postgres-up ## Start local Postgres, API, and UI
 	$(MAKE) local-api-up
 	$(MAKE) local-ui-up
 
-local-down:
+.PHONY: local-down
+local-down: ## Stop local UI, API, and Postgres
 	$(MAKE) local-ui-down
 	$(MAKE) local-api-down
 	$(MAKE) local-postgres-down
-
-rebuild:
-	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d --build
-
-completely-rebuild:
-	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) down -v
-	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) up -d --build
-
-status:
-	$(COMPOSE_ENGINE) -p $(COMPOSE_PROJECT_NAME) -f $(COMPOSE_FILE) ps
