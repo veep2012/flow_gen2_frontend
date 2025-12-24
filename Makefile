@@ -2,6 +2,7 @@ ENGINE ?= podman
 COMPOSE_ENGINE ?= $(ENGINE)-compose
 COMPOSE_FILE ?= ci/docker-compose.yml
 COMPOSE_PROJECT_NAME ?= flow_gen2
+PYTHON_BIN ?= /opt/homebrew/opt/python@3.11/bin/python3.11
 DEFAULT_GOAL := help
 OS := $(shell uname -s 2>/dev/null || echo Windows_NT)
 
@@ -10,6 +11,7 @@ PID_DIR := .local
 API_PID_FILE := $(PID_DIR)/uvicorn.pid
 UI_PID_FILE := $(PID_DIR)/vite.pid
 ifeq ($(OS),Windows_NT)
+PYTHON_BIN ?= python
 ACTIVATE_VENV := .venv\Scripts\Activate.ps1
 VENV_PY := .venv\Scripts\python.exe
 LOCAL_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api.ps1 -PidFile "$(API_PID_FILE)"
@@ -63,12 +65,12 @@ local-postgres-down:
 
 ifeq ($(OS),Windows_NT)
 local-venv:
-	python -m venv .venv
+	$(PYTHON_BIN) -m venv .venv
 	$(VENV_PY) -m pip install --upgrade pip
 	$(VENV_PY) -m pip install -r api/requirements.txt
 else
 local-venv:
-	python3 -m venv .venv && . $(ACTIVATE_VENV) && pip install --upgrade pip && pip install -r api/requirements.txt
+	$(PYTHON_BIN) -m venv .venv && . $(ACTIVATE_VENV) && pip install --upgrade pip && pip install -r api/requirements.txt
 endif
 
 local-api-up:
