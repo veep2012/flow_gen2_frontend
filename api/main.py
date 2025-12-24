@@ -213,7 +213,6 @@ class DocOut(BaseModel):
 
     doc_id: int
     doc_name_unique: str
-    doc_name_uq: str | None = None
     title: str
     project_id: int | None = None
     project_name: str | None = None
@@ -882,7 +881,6 @@ def list_documents_for_project(
         DocOut(
             doc_id=doc.doc_id,
             doc_name_unique=doc.doc_name_unique,
-            doc_name_uq=doc.doc_name_unique,
             title=doc.title,
             project_id=doc.project_id,
             project_name=project.project_name if project else None,
@@ -1057,7 +1055,6 @@ def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut
     return DocOut(
         doc_id=doc_row.doc_id,
         doc_name_unique=doc_row.doc_name_unique,
-        doc_name_uq=doc_row.doc_name_unique,
         title=doc_row.title,
         project_id=doc_row.project_id,
         project_name=project.project_name if project else None,
