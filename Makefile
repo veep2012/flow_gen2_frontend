@@ -10,6 +10,12 @@ DB_PORT_FLAG := $(if $(DB_PORT),-p $(DB_PORT):5432,)
 POSTGRES_USER ?= flow_user
 POSTGRES_PASSWORD ?= flow_pass
 POSTGRES_DB ?= flow_db
+TEST_DB_CONTAINER_NAME ?= flow_gen2_postgres_test
+TEST_DB_PORT ?= 5433
+TEST_DB_PORT_FLAG := $(if $(TEST_DB_PORT),-p $(TEST_DB_PORT):5432,)
+TEST_DB_NAME ?= flow_db_test
+TEST_DB_USER ?= postgres
+TEST_DB_PASSWORD ?= postgres
 
 PID_DIR := .local
 API_PID_FILE := $(PID_DIR)/uvicorn.pid
@@ -48,7 +54,7 @@ endif
 .PHONY: help
 help: ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
-	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down up down build rebuild completely-rebuild logs help test; do \
+	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down up down build rebuild completely-rebuild logs help test; do \
 		grep -E "^$${target} " .local/.make-help.tmp || true; \
 	done
 	@rm -f .local/.make-help.tmp
@@ -101,6 +107,28 @@ db-up: ## Start standalone Postgres with podman (no port exposed unless DB_PORT 
 db-down: ## Stop and remove standalone Postgres container started by db-up
 	-$(CONTAINER_ENGINE) stop $(DB_CONTAINER_NAME)
 	-$(CONTAINER_ENGINE) rm $(DB_CONTAINER_NAME)
+
+.PHONY: test-db-up
+test-db-up: ## Start temporary Postgres for tests (no volume)
+	$(CONTAINER_ENGINE) run -d --name $(TEST_DB_CONTAINER_NAME) \
+		--env POSTGRES_USER=$(TEST_DB_USER) \
+		--env POSTGRES_PASSWORD=$(TEST_DB_PASSWORD) \
+		--env POSTGRES_DB=$(TEST_DB_NAME) \
+		$(TEST_DB_PORT_FLAG) \
+		$(DB_IMAGE)
+	@ready=; \
+	for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if $(CONTAINER_ENGINE) exec $(TEST_DB_CONTAINER_NAME) pg_isready -U $(TEST_DB_USER) -d $(TEST_DB_NAME) >/dev/null 2>&1; then \
+			ready=1; break; \
+		fi; \
+		sleep 1; \
+	done; \
+	if [ -z "$$ready" ]; then echo "Test DB not ready"; exit 1; fi
+
+.PHONY: test-db-down
+test-db-down: ## Stop and remove temporary test Postgres container
+	-$(CONTAINER_ENGINE) stop $(TEST_DB_CONTAINER_NAME)
+	-$(CONTAINER_ENGINE) rm $(TEST_DB_CONTAINER_NAME)
 
 .PHONY: local-postgres-up
 local-postgres-up: ## Start local Postgres with host port mapping
