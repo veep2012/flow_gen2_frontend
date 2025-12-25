@@ -57,14 +57,12 @@ if [[ "$HOST_FOR_CHECK" == "0.0.0.0" ]]; then
   HOST_FOR_CHECK="127.0.0.1"
 fi
 HEALTH_URL="http://${HOST_FOR_CHECK}:${API_PORT}/health"
-deadline=$((SECONDS + API_WAIT_TIMEOUT))
-while [[ $SECONDS -lt $deadline ]]; do
-  if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
-    echo "API ready: $HEALTH_URL"
-    exit 0
-  fi
-  sleep 0.5
-done
-echo "API not ready after ${API_WAIT_TIMEOUT}s: $HEALTH_URL"
-tail -n 50 "$LOG_FILE" || true
-exit 1
+export API_BASE="http://${HOST_FOR_CHECK}:${API_PORT}"
+# Reuse the same health-check logic as Makefile-driven workflows.
+python "$(dirname "$0")/wait-for-api.py"
+status=$?
+if [[ $status -ne 0 ]]; then
+  echo "API not ready after ${API_WAIT_TIMEOUT}s: $HEALTH_URL"
+  tail -n 50 "$LOG_FILE" || true
+fi
+exit $status
