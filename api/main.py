@@ -9,42 +9,23 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased, joinedload, sessionmaker
 
-try:
-    from api.db.models import (
-        Area,
-        Discipline,
-        DocRevMilestone,
-        DocRevStatus,
-        DocRevision,
-        DocType,
-        Doc,
-        Jobpack,
-        Permission,
-        Person,
-        Project,
-        RevisionOverview,
-        Role,
-        Unit,
-        User,
-    )
-except ModuleNotFoundError:
-    from db.models import (
-        Area,
-        Discipline,
-        DocRevMilestone,
-        DocRevStatus,
-        DocRevision,
-        DocType,
-        Doc,
-        Jobpack,
-        Permission,
-        Person,
-        Project,
-        RevisionOverview,
-        Role,
-        Unit,
-        User,
-    )
+from api.db.models import (
+    Area,
+    Discipline,
+    Doc,
+    DocRevision,
+    DocRevMilestone,
+    DocRevStatus,
+    DocType,
+    Jobpack,
+    Permission,
+    Person,
+    Project,
+    RevisionOverview,
+    Role,
+    Unit,
+    User,
+)
 
 
 def _build_database_url() -> str:
@@ -81,7 +62,8 @@ app = FastAPI(title="Flow Backend", version="0.1.0")
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "*")
 allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
 
-# Wildcard cannot be used with credentials. Disable credentials when "*" is present to stay spec-compliant.
+# Wildcard cannot be used with credentials. Disable credentials when "*" is present
+# to stay spec-compliant.
 allow_credentials = "*" not in allowed_origins
 
 app.add_middleware(
@@ -447,7 +429,9 @@ class PermissionDelete(BaseModel):
         if self.permission_id is None and self.project_id is None and self.discipline_id is None:
             raise HTTPException(
                 status_code=400,
-                detail="Provide permission_id or project_id/discipline_id to identify the permission",
+                detail=(
+                    "Provide permission_id or project_id/discipline_id to identify the permission"
+                ),
             )
 
 
@@ -461,7 +445,9 @@ class PermissionUpdate(BaseModel):
 
     def validate_current(self) -> None:
         if self.project_id is None and self.discipline_id is None:
-            raise HTTPException(status_code=400, detail="Provide current project_id or discipline_id")
+            raise HTTPException(
+                status_code=400, detail="Provide current project_id or discipline_id"
+            )
 
 
 def get_db() -> Iterable[Session]:
@@ -881,7 +867,9 @@ def list_documents_for_project(
 ) -> list[Doc]:
     rev_current = aliased(DocRevision)
     docs = (
-        db.query(Doc, DocType, Discipline, Project, Jobpack, Area, Unit, rev_current, RevisionOverview)
+        db.query(
+            Doc, DocType, Discipline, Project, Jobpack, Area, Unit, rev_current, RevisionOverview
+        )
         .join(DocType, Doc.type_id == DocType.type_id)
         .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
         .outerjoin(Project, Doc.project_id == Project.project_id)
@@ -923,7 +911,17 @@ def list_documents_for_project(
             rev_code_acronym=revision_overview.rev_code_acronym if revision_overview else None,
             percentage=revision_overview.percentage if revision_overview else None,
         )
-        for doc, doc_type, discipline, project, jobpack, area, unit, rev_current_row, revision_overview in docs
+        for (
+            doc,
+            doc_type,
+            discipline,
+            project,
+            jobpack,
+            area,
+            unit,
+            rev_current_row,
+            revision_overview,
+        ) in docs
     ]
 
 
@@ -1252,7 +1250,9 @@ def update_revision_overview(
         db.commit()
     except IntegrityError as err:
         db.rollback()
-        _handle_integrity_error("Revision overview entry already exists", err, "update_revision_overview")
+        _handle_integrity_error(
+            "Revision overview entry already exists", err, "update_revision_overview"
+        )
 
     db.refresh(revision)
     return revision
@@ -1277,7 +1277,9 @@ def insert_revision_overview(
         db.commit()
     except IntegrityError as err:
         db.rollback()
-        _handle_integrity_error("Revision overview entry already exists", err, "insert_revision_overview")
+        _handle_integrity_error(
+            "Revision overview entry already exists", err, "insert_revision_overview"
+        )
     db.refresh(revision)
     return revision
 
@@ -1463,7 +1465,9 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
 
-    user = User(person_id=payload.person_id, user_acronym=payload.user_acronym, role_id=payload.role_id)
+    user = User(
+        person_id=payload.person_id, user_acronym=payload.user_acronym, role_id=payload.role_id
+    )
     db.add(user)
     try:
         db.commit()
