@@ -1,0 +1,43 @@
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+exclude = '''
+/(
+  \.venv
+  |\.local
+  |node_modules
+  |ui
+  |ui_alt
+  |ui_api_test
+  |documentation
+  |ci
+  |tests/.seed_db
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip_glob = [
+  "ui/**",
+  "ui_alt/**",
+  "ui_api_test/**",
+  "documentation/**",
+  "ci/**",
+  "tests/.seed_db/**",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+  "ui",
+  "ui_alt",
+  "ui_api_test",
+  "documentation",
+  "ci",
+  "tests/.seed_db",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
