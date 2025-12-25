@@ -1,7 +1,7 @@
 services:
   postgres: &postgres_base
     image: postgres:18.1
-    container_name: flow_gen2_postgres
+    container_name: flow_gen2_postgres_compose
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-flow_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flow_pass}
@@ -9,7 +9,7 @@ services:
     expose:
       - ${POSTGRES_PORT:-5432}
     volumes:
-      - flow_pg_data:/var/lib/postgresql
+      - flow_gen2_compose_pg_data:/var/lib/postgresql
       - ./init/flow_init.sql:/docker-entrypoint-initdb.d/00_flow_init.sql:ro
       - ./init/flow_seed.sql:/docker-entrypoint-initdb.d/01_flow_seed.sql:ro
     healthcheck:
@@ -85,4 +85,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  flow_pg_data:
+  flow_gen2_compose_pg_data:

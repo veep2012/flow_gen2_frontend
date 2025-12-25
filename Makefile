@@ -1,9 +1,10 @@
 CONTAINER_ENGINE ?= podman
 COMPOSE_FILE ?= ci/docker-compose.yml
+COMPOSE_PROJECT_NAME ?= flow_gen2
 NO_CACHE ?=
-DB_CONTAINER_NAME ?= flow-gen2-postgres
+DB_CONTAINER_NAME ?= flow_gen2_postgres_local
 DB_IMAGE ?= postgres:18.1
-DB_VOLUME ?= flow_gen2_postgres-data
+DB_VOLUME ?= flow_gen2_local_pg_data
 DB_PORT ?= 5432
 DB_PORT_FLAG := $(if $(DB_PORT),-p $(DB_PORT):5432,)
 POSTGRES_USER ?= flow_user
@@ -54,31 +55,31 @@ help: ## Show available targets
 
 .PHONY: build
 build: ## Build services with compose
-	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) build $(if $(NO_CACHE),--no-cache,)
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) build $(if $(NO_CACHE),--no-cache,)
 
 .PHONY: up
 up: ## Start services with compose
-	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) up -d
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) up -d
 
 .PHONY: down
 down: ## Stop services with compose
-	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) down
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) down
 
 .PHONY: completely-rebuild
 completely-rebuild: ## Drop containers and volumes, then rebuild services
-	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) kill --all || true
-	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) down -v --remove-orphans --timeout 0 || true
-	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) build
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) kill --all || true
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) down -v --remove-orphans --timeout 0 || true
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) build
 
 .PHONY: rebuild
 rebuild: ## Stop containers, remove them (keep volumes), then rebuild services
-	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) kill --all || true
-	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) down --remove-orphans --timeout 0 || true
-	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) build
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) kill --all || true
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) down --remove-orphans --timeout 0 || true
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) build
 
 .PHONY: logs
 logs: ## Tail logs from compose services
-	$(CONTAINER_ENGINE)-compose --env-file /dev/null -f $(COMPOSE_FILE) logs -f
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) logs -f
 
 .PHONY: db-up
 db-up: ## Start standalone Postgres with podman (no port exposed unless DB_PORT is set)
