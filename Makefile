@@ -66,8 +66,19 @@ help: ## Show available targets
 .PHONY: test
 test: ## Run unit tests
 	$(MAKE) test-db-up
-	pytest; \
+	DATABASE_URL=postgresql+psycopg://$(TEST_DB_USER):$(TEST_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
+		API_PORT=4175 \
+		PID_FILE="$(PID_DIR)/uvicorn-test.pid" \
+		LOG_FILE="$(PID_DIR)/uvicorn-test.log" \
+		$(LOCAL_API_CMD)
+	API_BASE=http://localhost:4175 API_PREFIX= API_WAIT_TIMEOUT=$(API_WAIT_TIMEOUT) $(PYTHON_BIN) scripts/wait-for-api.py
+	pytest -m "not api_smoke"; \
 	status=$$?; \
+	if [ $$status -eq 0 ]; then \
+		API_BASE=http://localhost:4175 API_PREFIX=/api/v1 pytest -m api_smoke; \
+		status=$$?; \
+	fi; \
+	PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
 	$(MAKE) test-db-down; \
 	exit $$status
 
