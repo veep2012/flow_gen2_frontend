@@ -4,6 +4,7 @@
 __pycache__/
 **/__pycache__/
 *.pyc
+tests/.seed_db/
 ui_api_test/node_modules
 ui_api_test/dist
 ui/node_modules/
