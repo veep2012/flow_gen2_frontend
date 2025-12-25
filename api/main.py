@@ -9,23 +9,42 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased, joinedload, sessionmaker
 
-from db.models import (
-    Area,
-    Discipline,
-    DocRevMilestone,
-    DocRevStatus,
-    DocRevision,
-    DocType,
-    Doc,
-    Jobpack,
-    Permission,
-    Person,
-    Project,
-    RevisionOverview,
-    Role,
-    Unit,
-    User,
-)
+try:
+    from api.db.models import (
+        Area,
+        Discipline,
+        DocRevMilestone,
+        DocRevStatus,
+        DocRevision,
+        DocType,
+        Doc,
+        Jobpack,
+        Permission,
+        Person,
+        Project,
+        RevisionOverview,
+        Role,
+        Unit,
+        User,
+    )
+except ModuleNotFoundError:
+    from db.models import (
+        Area,
+        Discipline,
+        DocRevMilestone,
+        DocRevStatus,
+        DocRevision,
+        DocType,
+        Doc,
+        Jobpack,
+        Permission,
+        Person,
+        Project,
+        RevisionOverview,
+        Role,
+        Unit,
+        User,
+    )
 
 
 def _build_database_url() -> str:

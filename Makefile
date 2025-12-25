@@ -48,10 +48,14 @@ endif
 .PHONY: help
 help: ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
-	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down up down build rebuild completely-rebuild logs help; do \
+	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down up down build rebuild completely-rebuild logs help test; do \
 		grep -E "^$${target} " .local/.make-help.tmp || true; \
 	done
 	@rm -f .local/.make-help.tmp
+
+.PHONY: test
+test: ## Run unit tests
+	pytest
 
 .PHONY: build
 build: ## Build services with compose
