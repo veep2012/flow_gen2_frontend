@@ -17,9 +17,7 @@ TEST_DB_HOST ?= localhost
 TEST_DB_NAME ?= flow_db_test
 TEST_DB_USER ?= postgres
 TEST_DB_PASSWORD ?= postgres
-TEST_DB_DUMP ?= $(CURDIR)/tests/.seed_db/seed.dmp
-PG_RESTORE ?= pg_restore
-PG_RESTORE_ARGS ?= --clean --if-exists --no-owner
+PG_PSQL ?= psql
 
 PID_DIR := .local
 API_PID_FILE := $(PID_DIR)/uvicorn.pid
@@ -143,8 +141,9 @@ test-db-up: ## Start temporary Postgres for tests (no volume)
 		sleep 1; \
 	done; \
 	if [ -z "$$ready" ]; then echo "Test DB not ready"; exit 1; fi
-	@command -v $(PG_RESTORE) >/dev/null 2>&1 || { echo "$(PG_RESTORE) not found. Set PG_RESTORE or install libpq."; exit 1; }
-	PGPASSWORD=$(TEST_DB_PASSWORD) $(PG_RESTORE) -h $(TEST_DB_HOST) -p $(TEST_DB_PORT) -U $(TEST_DB_USER) -d $(TEST_DB_NAME) $(PG_RESTORE_ARGS) $(TEST_DB_DUMP)
+	@command -v $(PG_PSQL) >/dev/null 2>&1 || { echo "$(PG_PSQL) not found. Set PG_PSQL or install libpq."; exit 1; }
+	PGPASSWORD=$(TEST_DB_PASSWORD) $(PG_PSQL) -h $(TEST_DB_HOST) -p $(TEST_DB_PORT) -U $(TEST_DB_USER) -d $(TEST_DB_NAME) -v ON_ERROR_STOP=1 -f $(CURDIR)/ci/init/flow_init.sql
+	PGPASSWORD=$(TEST_DB_PASSWORD) $(PG_PSQL) -h $(TEST_DB_HOST) -p $(TEST_DB_PORT) -U $(TEST_DB_USER) -d $(TEST_DB_NAME) -v ON_ERROR_STOP=1 -f $(CURDIR)/ci/init/flow_seed.sql
 
 .PHONY: test-db-down
 test-db-down: ## Stop and remove temporary test Postgres container
