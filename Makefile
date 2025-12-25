@@ -65,7 +65,11 @@ help: ## Show available targets
 
 .PHONY: test
 test: ## Run unit tests
-	pytest
+	$(MAKE) test-db-up
+	pytest; \
+	status=$$?; \
+	$(MAKE) test-db-down; \
+	exit $$status
 
 .PHONY: build
 build: ## Build services with compose
