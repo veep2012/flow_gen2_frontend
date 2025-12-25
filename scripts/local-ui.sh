@@ -3,6 +3,7 @@ set -euo pipefail
 
 PID_FILE="${PID_FILE:-.local/vite.pid}"
 LOG_FILE="${LOG_FILE:-.local/vite.log}"
+PROJECT_PATH="${PROJECT_PATH:-ui}"
 
 mkdir -p "$(dirname "$PID_FILE")"
 
@@ -25,6 +26,6 @@ UI_HOST="${UI_HOST:-0.0.0.0}"
 UI_PORT="${UI_PORT:-5558}"
 export VITE_API_BASE_URL="${VITE_API_BASE_URL:-http://localhost:5556}"
 
-nohup npm --prefix ui run dev -- --host "$UI_HOST" --port "$UI_PORT" >"$LOG_FILE" 2>&1 &
+nohup npm --prefix "$PROJECT_PATH" run dev -- --host "$UI_HOST" --port "$UI_PORT" >"$LOG_FILE" 2>&1 &
 echo $! >"$PID_FILE"
 echo "UI started (pid $(cat "$PID_FILE")), log: $LOG_FILE"
