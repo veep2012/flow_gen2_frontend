@@ -1,9 +1,8 @@
-FROM node:18-alpine
+FROM node:20.19-alpine
 
 WORKDIR /app
 
 COPY ui/package.json ui/vite.config.js ui/index.html /app/
-COPY ui/public /app/public
 COPY ui/src /app/src
 
 RUN npm install && npm run build

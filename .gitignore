@@ -4,11 +4,14 @@
 __pycache__/
 **/__pycache__/
 *.pyc
+tests/.seed_db/
 ui_api_test/node_modules
 ui_api_test/dist
 ui/node_modules/
+ui_alt/node_modules/
 .venv/
 ui/.local/
+ui_alt/.local/
 /.local/
 ci/.last_commit
 ci/nginx/.htpasswd

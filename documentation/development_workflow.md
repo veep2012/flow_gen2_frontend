@@ -40,6 +40,40 @@ flowchart TD
 - If `DATABASE_URL` is unset, the app builds it from `POSTGRES_USER/PASSWORD/HOST/PORT/DB` env vars.
 - Set `DEBUG=1` locally if you want API error details to include DB messages; keep it off in shared/dev/prod environments.
 
+## Local dev setup
+- Create a Python venv and install dev dependencies:
+  ```bash
+  make local-venv
+  pip install -r requirements-dev.txt
+  ```
+- Install frontend deps:
+  ```bash
+  npm --prefix ui install
+  npm --prefix ui_alt install
+  ```
+- Run tests:
+  ```bash
+  make test
+  ```
+
+## Lint/format
+- Python:
+  ```bash
+  black api tests
+  isort api tests
+  ruff check api tests
+  ```
+
+## Pre-commit
+- Install hooks:
+  ```bash
+  pre-commit install
+  ```
+- Run all hooks manually:
+  ```bash
+  pre-commit run --all-files
+  ```
+
 ## Git How-To (feature work)
 - Clone a specific feature branch locally (without full clone):  
   ```bash
