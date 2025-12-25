@@ -55,7 +55,7 @@ endif
 .PHONY: help
 help: ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
-	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down up down build rebuild completely-rebuild logs help test; do \
+	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down up down build rebuild completely-rebuild logs help test audit; do \
 		grep -E "^$${target} " .local/.make-help.tmp || true; \
 	done
 	@rm -f .local/.make-help.tmp
@@ -90,6 +90,16 @@ test: ## Run unit tests
 	PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
 	$(MAKE) test-db-down; \
 	exit $$status
+
+.PHONY: audit audit-python audit-node
+audit: audit-python audit-node ## Run dependency vulnerability audits
+
+audit-python: ## Run pip-audit against API requirements
+	$(PYTHON_BIN) -m pip_audit -r api/requirements.txt
+
+audit-node: ## Run npm audit against UI lockfiles
+	cd ui && npm audit --package-lock-only
+	cd ui_alt && npm audit --package-lock-only
 
 .PHONY: build
 build: ## Build services with compose
