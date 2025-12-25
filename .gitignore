@@ -8,7 +8,6 @@ ui_api_test/node_modules
 ui_api_test/dist
 ui/node_modules/
 ui_alt/node_modules/
-ui_alt/**
 .venv/
 ui/.local/
 ui_alt/.local/
