@@ -65,11 +65,23 @@ help: ## Show available targets
 test: ## Run unit tests
 	$(MAKE) test-db-up
 	DATABASE_URL=postgresql+psycopg://$(TEST_DB_USER):$(TEST_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
+		ENV=ci_test \
 		API_PORT=4175 \
 		PID_FILE="$(PID_DIR)/uvicorn-test.pid" \
 		LOG_FILE="$(PID_DIR)/uvicorn-test.log" \
 		$(LOCAL_API_CMD)
-	API_BASE=http://localhost:4175 API_PREFIX= API_WAIT_TIMEOUT=$(API_WAIT_TIMEOUT) $(PYTHON_BIN) scripts/wait-for-api.py
+	@ready=; \
+	for i in 1 2 3; do \
+		API_BASE=http://localhost:4175 API_PREFIX= API_WAIT_TIMEOUT=$(API_WAIT_TIMEOUT) $(PYTHON_BIN) scripts/wait-for-api.py && ready=1 && break; \
+		PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
+		DATABASE_URL=postgresql+psycopg://$(TEST_DB_USER):$(TEST_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
+			ENV=ci_test \
+			API_PORT=4175 \
+			PID_FILE="$(PID_DIR)/uvicorn-test.pid" \
+			LOG_FILE="$(PID_DIR)/uvicorn-test.log" \
+			$(LOCAL_API_CMD); \
+	done; \
+	if [ -z "$$ready" ]; then echo "API not ready; log: $(PID_DIR)/uvicorn-test.log"; exit 1; fi
 	pytest -m "not api_smoke"; \
 	status=$$?; \
 	if [ $$status -eq 0 ]; then \

@@ -5,12 +5,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true,
-    port: 5558,
+    port: 5560,
     allowedHosts: ["flow_ui"],
   },
   preview: {
     host: true,
-    port: 5558,
+    port: 5560,
     allowedHosts: ["flow_ui"],
   },
 });
