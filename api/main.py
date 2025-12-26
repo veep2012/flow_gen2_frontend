@@ -392,6 +392,10 @@ class FileUpdate(BaseModel):
     filename: str
 
 
+class FileDelete(BaseModel):
+    id: int
+
+
 class PersonOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -1074,6 +1078,25 @@ def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
 
     db.refresh(file_row)
     return file_row
+
+
+@app.post("/api/v1/files/delete", status_code=204)
+def delete_file(payload: FileDelete, db: Session = Depends(get_db)) -> None:
+    file_row = db.get(File, payload.id)
+    if not file_row:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    client, bucket = _build_minio_client()
+    try:
+        from minio.error import S3Error
+
+        client.remove_object(bucket, file_row.s3_uid)
+    except S3Error as err:
+        logger.exception("MinIO delete failed: %s", err)
+        raise HTTPException(status_code=502, detail="Failed to delete file from object storage")
+
+    db.delete(file_row)
+    db.commit()
 
 
 @app.post("/api/v1/documents/update", response_model=DocOut)
