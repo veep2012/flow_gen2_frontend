@@ -194,7 +194,7 @@ function App() {
     setEditError("");
     try {
       const response = await fetch(`${apiBase}/documents/update`, {
-        method: "POST",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });

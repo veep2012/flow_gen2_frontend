@@ -1,13 +1,21 @@
 import logging
 import os
-from typing import Iterable
+import re
+import time
+import uuid
+from email.utils import formatdate
+from typing import Callable, Iterable, TypeVar
+from urllib.parse import quote, urlparse
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request, UploadFile
+from fastapi import File as UploadFileField
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased, joinedload, sessionmaker
+from starlette.background import BackgroundTask
 
 from api.db.models import (
     Area,
@@ -17,6 +25,7 @@ from api.db.models import (
     DocRevMilestone,
     DocRevStatus,
     DocType,
+    File,
     Jobpack,
     Permission,
     Person,
@@ -42,6 +51,77 @@ def _build_database_url() -> str:
 
 
 DATABASE_URL = _build_database_url()
+
+
+def _build_minio_client() -> tuple[object, str]:
+    try:
+        from minio import Minio
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="MinIO client library not installed; install dependencies.",
+        ) from exc
+    endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
+    bucket = os.getenv("MINIO_BUCKET", "flow-default")
+    access_key = os.getenv("MINIO_ROOT_USER", "flow_minio")
+    secret_key = os.getenv("MINIO_ROOT_PASSWORD", "change_me_now")
+    secure = os.getenv("MINIO_SECURE", "").lower() in {"1", "true", "yes", "on"}
+
+    if endpoint.startswith(("http://", "https://")):
+        parsed = urlparse(endpoint)
+        endpoint = parsed.netloc
+        secure = parsed.scheme == "https"
+
+    if not endpoint:
+        raise HTTPException(status_code=500, detail="MinIO endpoint is not configured")
+
+    return Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure), bucket
+
+
+T = TypeVar("T")
+
+
+def _minio_with_retry(action: str, endpoint: str, func: Callable[[], T]) -> T:
+    retries = int(os.getenv("MINIO_RETRIES", "3"))
+    delay = float(os.getenv("MINIO_RETRY_DELAY_SEC", "1"))
+    last_err: Exception | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            return func()
+        except Exception as err:
+            last_err = err
+            if attempt < retries:
+                time.sleep(delay)
+                continue
+            logger.exception("MinIO %s failed after %s attempts: %s", action, retries, err)
+            raise HTTPException(
+                status_code=502,
+                detail=f"MinIO {action} failed; check MINIO_ENDPOINT ({endpoint})",
+            ) from last_err
+
+
+def _s3_safe_segment(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9.\-\s]", "_", value.strip()).replace("/", "_")[:128]
+
+
+def _build_file_object_key(
+    project_name: str | None,
+    doc_name_unique: str,
+    transmittal_current_revision: str,
+    unique_id: str,
+    filename: str,
+) -> str:
+    project_segment = _s3_safe_segment(project_name) if project_name else "unassigned"
+    doc_segment = _s3_safe_segment(doc_name_unique) if doc_name_unique else "doc_unknown"
+    rev_segment = _s3_safe_segment(transmittal_current_revision)
+    safe_filename = os.path.basename(filename)
+    return f"{project_segment}/{doc_segment}/{rev_segment}/{unique_id}_{safe_filename}"
+
+
+def _close_minio_response(response) -> None:
+    response.close()
+    response.release_conn()
+
 
 engine = create_engine(DATABASE_URL, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
@@ -345,6 +425,25 @@ class DocRevStatusDelete(BaseModel):
     rev_status_id: int
 
 
+class FileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    filename: str
+    s3_uid: str
+    mimetype: str
+    rev_id: int
+
+
+class FileUpdate(BaseModel):
+    id: int
+    filename: str
+
+
+class FileDelete(BaseModel):
+    id: int
+
+
 class PersonOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -516,7 +615,7 @@ def list_areas(db: Session = Depends(get_db)) -> list[Area]:
     return areas
 
 
-@app.post("/api/v1/lookups/areas/update", response_model=AreaOut)
+@app.put("/api/v1/lookups/areas/update", response_model=AreaOut)
 def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
     if payload.area_name is None and payload.area_acronym is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -553,7 +652,7 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
     return area
 
 
-@app.post("/api/v1/lookups/areas/delete", status_code=204)
+@app.delete("/api/v1/lookups/areas/delete", status_code=204)
 def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
     area = db.get(Area, payload.area_id)
     if not area:
@@ -570,7 +669,7 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
     return disciplines
 
 
-@app.post("/api/v1/lookups/disciplines/update", response_model=DisciplineOut)
+@app.put("/api/v1/lookups/disciplines/update", response_model=DisciplineOut)
 def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) -> Discipline:
     if payload.discipline_name is None and payload.discipline_acronym is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -618,7 +717,7 @@ def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) 
     return discipline
 
 
-@app.post("/api/v1/lookups/disciplines/delete", status_code=204)
+@app.delete("/api/v1/lookups/disciplines/delete", status_code=204)
 def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) -> None:
     discipline = db.get(Discipline, payload.discipline_id)
     if not discipline:
@@ -635,7 +734,7 @@ def list_projects(db: Session = Depends(get_db)) -> list[Project]:
     return projects
 
 
-@app.post("/api/v1/lookups/projects/update", response_model=ProjectOut)
+@app.put("/api/v1/lookups/projects/update", response_model=ProjectOut)
 def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Project:
     if payload.project_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -670,7 +769,7 @@ def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
     return project
 
 
-@app.post("/api/v1/lookups/projects/delete", status_code=204)
+@app.delete("/api/v1/lookups/projects/delete", status_code=204)
 def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> None:
     project = db.get(Project, payload.project_id)
     if not project:
@@ -687,7 +786,7 @@ def list_units(db: Session = Depends(get_db)) -> list[Unit]:
     return units
 
 
-@app.post("/api/v1/lookups/units/update", response_model=UnitOut)
+@app.put("/api/v1/lookups/units/update", response_model=UnitOut)
 def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
     if payload.unit_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -722,7 +821,7 @@ def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
     return unit
 
 
-@app.post("/api/v1/lookups/units/delete", status_code=204)
+@app.delete("/api/v1/lookups/units/delete", status_code=204)
 def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
     unit = db.get(Unit, payload.unit_id)
     if not unit:
@@ -739,7 +838,7 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
     return jobpacks
 
 
-@app.post("/api/v1/lookups/jobpacks/update", response_model=JobpackOut)
+@app.put("/api/v1/lookups/jobpacks/update", response_model=JobpackOut)
 def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Jobpack:
     if payload.jobpack_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -773,7 +872,7 @@ def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Job
     return jobpack
 
 
-@app.post("/api/v1/lookups/jobpacks/delete", status_code=204)
+@app.delete("/api/v1/lookups/jobpacks/delete", status_code=204)
 def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> None:
     jobpack = db.get(Jobpack, payload.jobpack_id)
     if not jobpack:
@@ -817,7 +916,7 @@ def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> Do
     return _build_doc_type_out(doc_type)
 
 
-@app.post("/api/v1/documents/doc_types/update", response_model=DocTypeOut)
+@app.put("/api/v1/documents/doc_types/update", response_model=DocTypeOut)
 def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> DocType:
     if (
         payload.doc_type_name is None
@@ -851,7 +950,7 @@ def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> Do
     return _build_doc_type_out(doc_type)
 
 
-@app.post("/api/v1/documents/doc_types/delete", status_code=204)
+@app.delete("/api/v1/documents/doc_types/delete", status_code=204)
 def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> None:
     doc_type = db.get(DocType, payload.type_id)
     if not doc_type:
@@ -925,7 +1024,224 @@ def list_documents_for_project(
     ]
 
 
-@app.post("/api/v1/documents/update", response_model=DocOut)
+@app.get("/api/v1/files/list", response_model=list[FileOut])
+def list_files_for_revision(
+    rev_id: int = Query(..., description="Revision ID to filter files by"),
+    db: Session = Depends(get_db),
+) -> list[File]:
+    files = db.query(File).filter(File.rev_id == rev_id).order_by(File.filename, File.id).all()
+    return files
+
+
+@app.post("/api/v1/files/insert", response_model=FileOut, status_code=201)
+def insert_file(
+    request: Request,
+    rev_id: int = Form(..., description="Revision ID to attach the file to"),
+    file: UploadFile = UploadFileField(...),
+    db: Session = Depends(get_db),
+) -> File:
+    revision = db.get(DocRevision, rev_id)
+    if not revision:
+        raise HTTPException(status_code=404, detail="Revision not found")
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+
+    filename = os.path.basename(file.filename)
+    if len(filename) > 90:
+        raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
+
+    content_type = file.content_type or "application/octet-stream"
+    stream = file.file
+    size = None
+    if hasattr(stream, "seekable") and stream.seekable():
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(0)
+        if size <= 0:
+            raise HTTPException(status_code=400, detail="File is empty")
+        max_size_mb = int(os.getenv("MAX_UPLOAD_SIZE_MB", "128"))
+        max_size_bytes = max_size_mb * 1024 * 1024
+        if max_size_mb > 0 and size > max_size_bytes:
+            raise HTTPException(status_code=413, detail="File exceeds upload size limit")
+
+    doc = revision.doc
+    project_name = doc.project.project_name if doc and doc.project else None
+    doc_name = doc.doc_name_unique if doc else f"doc_{revision.doc_id}"
+    object_key = _build_file_object_key(
+        project_name=project_name,
+        doc_name_unique=doc_name,
+        transmittal_current_revision=revision.transmittal_current_revision,
+        unique_id=uuid.uuid4().hex,
+        filename=filename,
+    )
+    client, bucket = _build_minio_client()
+    endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
+    if not _minio_with_retry("bucket_exists", endpoint, lambda: client.bucket_exists(bucket)):
+        _minio_with_retry("make_bucket", endpoint, lambda: client.make_bucket(bucket))
+    if size is None:
+        _minio_with_retry(
+            "put_object",
+            endpoint,
+            lambda: client.put_object(
+                bucket,
+                object_key,
+                stream,
+                length=-1,
+                part_size=10 * 1024 * 1024,
+                content_type=content_type,
+            ),
+        )
+    else:
+        _minio_with_retry(
+            "put_object",
+            endpoint,
+            lambda: client.put_object(
+                bucket, object_key, stream, length=size, content_type=content_type
+            ),
+        )
+
+    new_file = File(
+        filename=filename,
+        s3_uid=object_key,
+        mimetype=content_type,
+        rev_id=rev_id,
+    )
+    db.add(new_file)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        try:
+            _minio_with_retry(
+                "remove_object",
+                endpoint,
+                lambda: client.remove_object(bucket, object_key),
+            )
+        except HTTPException:
+            logger.exception("Failed to cleanup MinIO object after DB error")
+        _handle_integrity_error("Failed to create file record", err, "insert_file")
+
+    db.refresh(new_file)
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(
+        "File uploaded rev_id=%s file_id=%s filename=%s client=%s",
+        rev_id,
+        new_file.id,
+        filename,
+        client_host,
+    )
+    return new_file
+
+
+@app.put("/api/v1/files/update", response_model=FileOut)
+def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
+    filename = payload.filename.strip()
+    if not filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+    if len(filename) > 90:
+        raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
+
+    file_row = db.get(File, payload.id)
+    if not file_row:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_row.filename = filename
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Failed to update file", err, "update_file")
+
+    db.refresh(file_row)
+    return file_row
+
+
+@app.delete("/api/v1/files/delete", status_code=204)
+def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get_db)) -> None:
+    file_row = db.get(File, payload.id)
+    if not file_row:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    client, bucket = _build_minio_client()
+    endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
+    _minio_with_retry(
+        "remove_object",
+        endpoint,
+        lambda: client.remove_object(bucket, file_row.s3_uid),
+    )
+
+    db.delete(file_row)
+    db.commit()
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(
+        "File deleted file_id=%s s3_uid=%s client=%s",
+        payload.id,
+        file_row.s3_uid,
+        client_host,
+    )
+
+
+@app.get("/api/v1/files/download")
+def download_file(
+    request: Request,
+    file_id: int = Query(..., description="File ID to download"),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    file_row = db.get(File, file_id)
+    if not file_row:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    client, bucket = _build_minio_client()
+    endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
+    response = _minio_with_retry(
+        "get_object",
+        endpoint,
+        lambda: client.get_object(bucket, file_row.s3_uid),
+    )
+    stat = _minio_with_retry(
+        "stat_object",
+        endpoint,
+        lambda: client.stat_object(bucket, file_row.s3_uid),
+    )
+
+    safe_name = (
+        file_row.filename.replace('"', "'")
+        .replace("\r", "")
+        .replace("\n", "")
+        .encode("latin-1", "ignore")
+        .decode("latin-1")
+    )
+    quoted_name = quote(file_row.filename)
+    headers = {
+        "Content-Disposition": (
+            "attachment; filename=\"{}\"; filename*=UTF-8''{}".format(
+                safe_name,
+                quoted_name,
+            )
+        )
+    }
+    if stat.etag:
+        etag = stat.etag.strip('"')
+        headers["ETag"] = f'"{etag}"'
+    if stat.last_modified:
+        headers["Last-Modified"] = formatdate(stat.last_modified.timestamp(), usegmt=True)
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(
+        "File download file_id=%s s3_uid=%s client=%s",
+        file_row.id,
+        file_row.s3_uid,
+        client_host,
+    )
+    return StreamingResponse(
+        response,
+        media_type=file_row.mimetype or "application/octet-stream",
+        headers=headers,
+        background=BackgroundTask(_close_minio_response, response),
+    )
+
+
+@app.put("/api/v1/documents/update", response_model=DocOut)
 def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut:
     updates = payload.model_dump(exclude_unset=True)
     updates.pop("doc_id", None)
@@ -1105,7 +1421,7 @@ def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     return roles
 
 
-@app.post("/api/v1/people/roles/update", response_model=RoleOut)
+@app.put("/api/v1/people/roles/update", response_model=RoleOut)
 def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
     if payload.role_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -1139,7 +1455,7 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     return role
 
 
-@app.post("/api/v1/people/roles/delete", status_code=204)
+@app.delete("/api/v1/people/roles/delete", status_code=204)
 def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     role = db.get(Role, payload.role_id)
     if not role:
@@ -1156,7 +1472,7 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
     return milestones
 
 
-@app.post(
+@app.put(
     "/api/v1/documents/doc_rev_milestones/update",
     response_model=DocRevMilestoneOut,
 )
@@ -1204,7 +1520,7 @@ def insert_doc_rev_milestone(
     return milestone
 
 
-@app.post("/api/v1/documents/doc_rev_milestones/delete", status_code=204)
+@app.delete("/api/v1/documents/doc_rev_milestones/delete", status_code=204)
 def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depends(get_db)) -> None:
     milestone = db.get(DocRevMilestone, payload.milestone_id)
     if not milestone:
@@ -1221,7 +1537,7 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     return revisions
 
 
-@app.post("/api/v1/documents/revision_overview/update", response_model=RevisionOverviewOut)
+@app.put("/api/v1/documents/revision_overview/update", response_model=RevisionOverviewOut)
 def update_revision_overview(
     payload: RevisionOverviewUpdate, db: Session = Depends(get_db)
 ) -> RevisionOverview:
@@ -1284,7 +1600,7 @@ def insert_revision_overview(
     return revision
 
 
-@app.post("/api/v1/documents/revision_overview/delete", status_code=204)
+@app.delete("/api/v1/documents/revision_overview/delete", status_code=204)
 def delete_revision_overview(
     payload: RevisionOverviewDelete, db: Session = Depends(get_db)
 ) -> None:
@@ -1303,7 +1619,7 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
     return statuses
 
 
-@app.post("/api/v1/lookups/doc_rev_statuses/update", response_model=DocRevStatusOut)
+@app.put("/api/v1/lookups/doc_rev_statuses/update", response_model=DocRevStatusOut)
 def update_doc_rev_status(
     payload: DocRevStatusUpdate, db: Session = Depends(get_db)
 ) -> DocRevStatus:
@@ -1346,7 +1662,7 @@ def insert_doc_rev_status(
     return status
 
 
-@app.post("/api/v1/lookups/doc_rev_statuses/delete", status_code=204)
+@app.delete("/api/v1/lookups/doc_rev_statuses/delete", status_code=204)
 def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get_db)) -> None:
     status = db.get(DocRevStatus, payload.rev_status_id)
     if not status:
@@ -1363,7 +1679,7 @@ def list_persons(db: Session = Depends(get_db)) -> list[Person]:
     return persons
 
 
-@app.post("/api/v1/people/persons/update", response_model=PersonOut)
+@app.put("/api/v1/people/persons/update", response_model=PersonOut)
 def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Person:
     if payload.person_name is None and payload.photo_s3_uid is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -1400,7 +1716,7 @@ def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Perso
     return person
 
 
-@app.post("/api/v1/people/persons/delete", status_code=204)
+@app.delete("/api/v1/people/persons/delete", status_code=204)
 def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
     person = db.get(Person, payload.person_id)
     if not person:
@@ -1423,7 +1739,7 @@ def list_users(db: Session = Depends(get_db)) -> list[User]:
     return [_build_user_out(user) for user in users]
 
 
-@app.post("/api/v1/people/users/update", response_model=UserOut)
+@app.put("/api/v1/people/users/update", response_model=UserOut)
 def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
     if payload.person_id is None and payload.user_acronym is None and payload.role_id is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -1478,7 +1794,7 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     return _build_user_out(user)
 
 
-@app.post("/api/v1/people/users/delete", status_code=204)
+@app.delete("/api/v1/people/users/delete", status_code=204)
 def delete_user(payload: UserDelete, db: Session = Depends(get_db)) -> None:
     user = db.get(User, payload.user_id)
     if not user:
@@ -1543,7 +1859,7 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
     return _build_permission_out(permission)
 
 
-@app.post("/api/v1/people/permissions/update", response_model=PermissionOut)
+@app.put("/api/v1/people/permissions/update", response_model=PermissionOut)
 def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) -> Permission:
     payload.validate_current()
 
@@ -1591,7 +1907,7 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
     return _build_permission_out(existing)
 
 
-@app.post("/api/v1/people/permissions/delete", status_code=204)
+@app.delete("/api/v1/people/permissions/delete", status_code=204)
 def delete_permission(payload: PermissionDelete, db: Session = Depends(get_db)) -> None:
     payload.validate_scope()
 

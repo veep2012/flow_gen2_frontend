@@ -38,6 +38,9 @@ flowchart TD
 - `DATABASE_URL` supports shell-style `${VAR}` expansion. Typical pattern:  
   `DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}`
 - If `DATABASE_URL` is unset, the app builds it from `POSTGRES_USER/PASSWORD/HOST/PORT/DB` env vars.
+- Object storage defaults to `MINIO_ENDPOINT=minio:9000` and `MINIO_BUCKET=flow-default`. Override with `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_SECURE`.
+- Upload size limit: `MAX_UPLOAD_SIZE_MB` (default 128).
+- MinIO retry tuning: `MINIO_RETRIES`, `MINIO_RETRY_DELAY_SEC`.
 - Set `DEBUG=1` locally if you want API error details to include DB messages; keep it off in shared/dev/prod environments.
 
 ## Local dev setup
@@ -60,7 +63,6 @@ flowchart TD
 - Python:
   ```bash
   black api tests
-  isort api tests
   ruff check api tests
   ```
 

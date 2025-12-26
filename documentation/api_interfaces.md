@@ -1,6 +1,6 @@
 # Flow API Interfaces
 
-Current FastAPI surface (version 0.1.0). All endpoints are JSON, live under the backend root (no global prefix), and are CORS-open for any origin. Default database URL is `postgresql+psycopg://flow_user:flow_pass@postgres:5432/flow_db`; override via `DATABASE_URL`.
+Current FastAPI surface (version 0.1.0). All endpoints are JSON unless noted, live under the backend root (no global prefix), and are CORS-open for any origin. Default database URL is `postgresql+psycopg://flow_user:flow_pass@postgres:5432/flow_db`; override via `DATABASE_URL`. Object storage defaults to `MINIO_ENDPOINT=minio:9000` and `MINIO_BUCKET=flow-default`; override with `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_SECURE`.
 
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
@@ -30,13 +30,13 @@ Shape (single item):
 { "area_id": 1, "area_name": "Newfoundland", "area_acronym": "NFLD" }
 ```
 ### Update
-- `POST /api/v1/lookups/areas/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- `PUT /api/v1/lookups/areas/update` — 200; 400 if no fields/uniqueness; 404 if not found.
 - Body (at least one optional field):
 ```json
 { "area_id": 1, "area_name": "Updated Name", "area_acronym": "UPD" }
 ```
 ### Delete
-- `POST /api/v1/lookups/areas/delete` — 204; 404 if not found.
+- `DELETE /api/v1/lookups/areas/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "area_id": 1 }
@@ -60,13 +60,13 @@ Shape (single item):
 { "discipline_name": "Structural", "discipline_acronym": "STR" }
 ```
 ### Update
-- `POST /api/v1/lookups/disciplines/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- `PUT /api/v1/lookups/disciplines/update` — 200; 400 if no fields/uniqueness; 404 if not found.
 - Body:
 ```json
 { "discipline_id": 2, "discipline_name": "Piping", "discipline_acronym": "PIP" }
 ```
 ### Delete
-- `POST /api/v1/lookups/disciplines/delete` — 204; 404 if not found.
+- `DELETE /api/v1/lookups/disciplines/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "discipline_id": 2 }
@@ -90,13 +90,13 @@ Shape (single item):
 { "project_name": "Delta Expansion" }
 ```
 ### Update
-- `POST /api/v1/lookups/projects/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+- `PUT /api/v1/lookups/projects/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
 - Body:
 ```json
 { "project_id": 3, "project_name": "Updated Project" }
 ```
 ### Delete
-- `POST /api/v1/lookups/projects/delete` — 204; 404 if not found.
+- `DELETE /api/v1/lookups/projects/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "project_id": 3 }
@@ -120,13 +120,13 @@ Shape (single item):
 { "unit_name": "North Wing" }
 ```
 ### Update
-- `POST /api/v1/lookups/units/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+- `PUT /api/v1/lookups/units/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
 - Body:
 ```json
 { "unit_id": 2, "unit_name": "Main Floor" }
 ```
 ### Delete
-- `POST /api/v1/lookups/units/delete` — 204; 404 if not found.
+- `DELETE /api/v1/lookups/units/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "unit_id": 2 }
@@ -150,13 +150,13 @@ Shape (single item):
 { "jobpack_name": "JP-01" }
 ```
 ### Update
-- `POST /api/v1/lookups/jobpacks/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+- `PUT /api/v1/lookups/jobpacks/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
 - Body:
 ```json
 { "jobpack_id": 5, "jobpack_name": "JP-01B" }
 ```
 ### Delete
-- `POST /api/v1/lookups/jobpacks/delete` — 204; 404 if not found.
+- `DELETE /api/v1/lookups/jobpacks/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "jobpack_id": 5 }
@@ -180,13 +180,13 @@ Shape (single item):
 { "milestone_name": "Issued for Construction", "progress": 80 }
 ```
 ### Update
-- `POST /api/v1/documents/doc_rev_milestones/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- `PUT /api/v1/documents/doc_rev_milestones/update` — 200; 400 if no fields/uniqueness; 404 if not found.
 - Body:
 ```json
 { "milestone_id": 4, "milestone_name": "IFC", "progress": 90 }
 ```
 ### Delete
-- `POST /api/v1/documents/doc_rev_milestones/delete` — 204; 404 if not found.
+- `DELETE /api/v1/documents/doc_rev_milestones/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "milestone_id": 4 }
@@ -221,7 +221,7 @@ Shape (single item):
 }
 ```
 ### Update
-- `POST /api/v1/documents/revision_overview/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- `PUT /api/v1/documents/revision_overview/update` — 200; 400 if no fields/uniqueness; 404 if not found.
 - Body:
 ```json
 {
@@ -233,7 +233,7 @@ Shape (single item):
 }
 ```
 ### Delete
-- `POST /api/v1/documents/revision_overview/delete` — 204; 404 if not found.
+- `DELETE /api/v1/documents/revision_overview/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "rev_code_id": 5 }
@@ -257,13 +257,51 @@ Shape (single item):
 { "rev_status_name": "In review" }
 ```
 ### Update
-- `POST /api/v1/lookups/doc_rev_statuses/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+- `PUT /api/v1/lookups/doc_rev_statuses/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+
+# Files
+
+Shape (single item):
+```json
+{
+  "id": 12,
+  "filename": "report.pdf",
+  "s3_uid": "Project/Doc/IFC/uuid_report.pdf",
+  "mimetype": "application/pdf",
+  "rev_id": 45
+}
+```
+
+### List
+- `GET /api/v1/files/list?rev_id=45` — 200 sorted by `filename`; empty list if none.
+
+### Insert (multipart)
+- `POST /api/v1/files/insert` — 201; multipart form.
+- Form fields: `rev_id` (int), `file` (binary).
+- Response: file shape.
+
+### Update
+- `PUT /api/v1/files/update` — 200; updates filename only.
+- Body:
+```json
+{ "id": 12, "filename": "report_v2.pdf" }
+```
+
+### Delete
+- `DELETE /api/v1/files/delete` — 204; deletes MinIO object and DB row.
+- Body:
+```json
+{ "id": 12 }
+```
+
+### Download
+- `GET /api/v1/files/download?file_id=12` — streams the file with `Content-Disposition: attachment` and `ETag`/`Last-Modified`.
 - Body:
 ```json
 { "rev_status_id": 2, "rev_status_name": "In progress" }
 ```
 ### Delete
-- `POST /api/v1/lookups/doc_rev_statuses/delete` — 204; 404 if not found.
+- `DELETE /api/v1/lookups/doc_rev_statuses/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "rev_status_id": 2 }
@@ -289,13 +327,13 @@ Shape (single item):
 { "role_name": "Coordinator" }
 ```
 ### Update
-- `POST /api/v1/people/roles/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+- `PUT /api/v1/people/roles/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
 - Body:
 ```json
 { "role_id": 10, "role_name": "Lead Coordinator" }
 ```
 ### Delete
-- `POST /api/v1/people/roles/delete` — 204; 404 if not found.
+- `DELETE /api/v1/people/roles/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "role_id": 10 }
@@ -319,13 +357,13 @@ Shape (single item):
 { "person_name": "Ada Lovelace", "photo_s3_uid": "s3-key-123" }
 ```
 ### Update
-- `POST /api/v1/people/persons/update` — 200; 400 if no fields; 404 if not found.
+- `PUT /api/v1/people/persons/update` — 200; 400 if no fields; 404 if not found.
 - Body:
 ```json
 { "person_id": 12, "person_name": "Grace Hopper", "photo_s3_uid": null }
 ```
 ### Delete
-- `POST /api/v1/people/persons/delete` — 204; 404 if not found.
+- `DELETE /api/v1/people/persons/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "person_id": 12 }
@@ -356,13 +394,13 @@ Shape (single item):
 { "person_id": 12, "user_acronym": "ALV", "role_id": 3 }
 ```
 ### Update
-- `POST /api/v1/people/users/update` — 200; 400 if no fields/update fails; 404 if user/person/role missing.
+- `PUT /api/v1/people/users/update` — 200; 400 if no fields/update fails; 404 if user/person/role missing.
 - Body:
 ```json
 { "user_id": 7, "person_id": 12, "user_acronym": "ALV2", "role_id": 4 }
 ```
 ### Delete
-- `POST /api/v1/people/users/delete` — 204; 404 if not found.
+- `DELETE /api/v1/people/users/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "user_id": 7 }
@@ -396,7 +434,7 @@ At least one of `project_id` or `discipline_id` is required.
 { "user_id": 7, "project_id": 3, "discipline_id": 2 }
 ```
 ### Update
-- `POST /api/v1/people/permissions/update` — 200; 400 if no new scope/duplicate; 404 if missing references or permission.
+- `PUT /api/v1/people/permissions/update` — 200; 400 if no new scope/duplicate; 404 if missing references or permission.
 - Body (permission_id or current scope plus new scope):
 ```json
 {
@@ -409,7 +447,7 @@ At least one of `project_id` or `discipline_id` is required.
 }
 ```
 ### Delete
-- `POST /api/v1/people/permissions/delete` — 204; 400 if scope missing; 404 if not found.
+- `DELETE /api/v1/people/permissions/delete` — 204; 400 if scope missing; 404 if not found.
 - Body (permission_id or scope):
 ```json
 { "permission_id": 42, "user_id": 7, "project_id": 3, "discipline_id": 2 }
@@ -442,7 +480,7 @@ Shape (single item):
 { "doc_type_name": "Piping Iso", "ref_discipline_id": 2, "doc_type_acronym": "ISO" }
 ```
 ### Update
-- `POST /api/v1/documents/doc_types/update` — 200; 400 if no fields/uniqueness; 404 if doc type or discipline missing.
+- `PUT /api/v1/documents/doc_types/update` — 200; 400 if no fields/uniqueness; 404 if doc type or discipline missing.
 - Body:
 ```json
 {
@@ -453,7 +491,7 @@ Shape (single item):
 }
 ```
 ### Delete
-- `POST /api/v1/documents/doc_types/delete` — 204; 404 if not found.
+- `DELETE /api/v1/documents/doc_types/delete` — 204; 404 if not found.
 - Body:
 ```json
 { "type_id": 7 }
@@ -463,7 +501,7 @@ Shape (single item):
 Shape (single item) includes doc, linked names, and discipline/progress pointers:
 `doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `rev_seq_num`, `discipline_id`/`discipline_name`/`discipline_acronym`, `rev_code_name`, `rev_code_acronym`, `percentage`.
 - `GET /api/v1/documents/list?project_id=` — 200 ordered by `doc_name_unique`; 404 if none for the project. Requires `project_id` query param.
-- `POST /api/v1/documents/update` — updates a document; body includes `doc_id` plus any of: `doc_name_unique`, `title`, `project_id`, `jobpack_id`, `type_id`, `area_id`, `unit_id`, `rev_actual_id`, `rev_current_id`. Requires at least one updatable field. Validates references (project, jobpack, type, area, unit, revisions) and uniqueness of `doc_name_unique`. Returns the updated document.
+- `PUT /api/v1/documents/update` — updates a document; body includes `doc_id` plus any of: `doc_name_unique`, `title`, `project_id`, `jobpack_id`, `type_id`, `area_id`, `unit_id`, `rev_actual_id`, `rev_current_id`. Requires at least one updatable field. Validates references (project, jobpack, type, area, unit, revisions) and uniqueness of `doc_name_unique`. Returns the updated document.
 - Example response:
 ```json
 [

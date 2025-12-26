@@ -895,7 +895,7 @@ export default function App() {
                           setSaving(true);
                           try {
                             const res = await fetch(`${API_BASE}/api/v1/lookups/areas/update`, {
-                              method: "POST",
+                              method: "PUT",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 area_id: area.area_id,
@@ -954,7 +954,7 @@ export default function App() {
                           setSaving(true);
                           try {
                             const res = await fetch(`${API_BASE}/api/v1/lookups/areas/delete`, {
-                              method: "POST",
+                              method: "DELETE",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ area_id: area.area_id }),
                             });
@@ -1086,7 +1086,7 @@ export default function App() {
                             const res = await fetch(
                               `${API_BASE}/api/v1/lookups/doc_rev_statuses/update`,
                               {
-                                method: "POST",
+                                method: "PUT",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
                                   rev_status_id: status.rev_status_id,
@@ -1146,7 +1146,7 @@ export default function App() {
                             const res = await fetch(
                               `${API_BASE}/api/v1/lookups/doc_rev_statuses/delete`,
                               {
-                                method: "POST",
+                                method: "DELETE",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ rev_status_id: status.rev_status_id }),
                               },
@@ -1277,7 +1277,7 @@ export default function App() {
                           setJobpackSaving(true);
                           try {
                             const res = await fetch(`${API_BASE}/api/v1/lookups/jobpacks/update`, {
-                              method: "POST",
+                              method: "PUT",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 jobpack_id: jobpack.jobpack_id,
@@ -1334,7 +1334,7 @@ export default function App() {
                           setJobpackSaving(true);
                           try {
                             const res = await fetch(`${API_BASE}/api/v1/lookups/jobpacks/delete`, {
-                              method: "POST",
+                              method: "DELETE",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ jobpack_id: jobpack.jobpack_id }),
                             });
@@ -1459,7 +1459,7 @@ export default function App() {
                             setRoleSaving(true);
                             try {
                               const res = await fetch(`${API_BASE}/api/v1/people/roles/update`, {
-                                method: "POST",
+                                method: "PUT",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
                                   role_id: role.role_id,
@@ -1514,7 +1514,7 @@ export default function App() {
                             setRoleSaving(true);
                             try {
                               const res = await fetch(`${API_BASE}/api/v1/people/roles/delete`, {
-                                method: "POST",
+                                method: "DELETE",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ role_id: role.role_id }),
                               });
@@ -1644,7 +1644,7 @@ export default function App() {
                             const res = await fetch(
                               `${API_BASE}/api/v1/lookups/projects/update`,
                               {
-                                method: "POST",
+                                method: "PUT",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
                                   project_id: project.project_id,
@@ -1704,7 +1704,7 @@ export default function App() {
                             const res = await fetch(
                               `${API_BASE}/api/v1/lookups/projects/delete`,
                               {
-                                method: "POST",
+                                method: "DELETE",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ project_id: project.project_id }),
                               },
@@ -1831,7 +1831,7 @@ export default function App() {
                           setUnitSaving(true);
                           try {
                             const res = await fetch(`${API_BASE}/api/v1/lookups/units/update`, {
-                              method: "POST",
+                              method: "PUT",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 unit_id: unit.unit_id,
@@ -1886,7 +1886,7 @@ export default function App() {
                           setUnitSaving(true);
                           try {
                             const res = await fetch(`${API_BASE}/api/v1/lookups/units/delete`, {
-                              method: "POST",
+                              method: "DELETE",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ unit_id: unit.unit_id }),
                             });
@@ -2031,7 +2031,7 @@ export default function App() {
                             const res = await fetch(
                               `${API_BASE}/api/v1/lookups/disciplines/update`,
                               {
-                                method: "POST",
+                                method: "PUT",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
                                   discipline_id: discipline.discipline_id,
@@ -2095,7 +2095,7 @@ export default function App() {
                             const res = await fetch(
                               `${API_BASE}/api/v1/lookups/disciplines/delete`,
                               {
-                                method: "POST",
+                                method: "DELETE",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ discipline_id: discipline.discipline_id }),
                               },
@@ -2388,7 +2388,7 @@ export default function App() {
                                 const res = await fetch(
                                   `${API_BASE}/api/v1/documents/revision_overview/update`,
                                   {
-                                    method: "POST",
+                                    method: "PUT",
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({
                                       rev_code_id: rev.rev_code_id,
@@ -2458,7 +2458,7 @@ export default function App() {
                                 const res = await fetch(
                                   `${API_BASE}/api/v1/documents/revision_overview/delete`,
                                   {
-                                    method: "POST",
+                                    method: "DELETE",
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({ rev_code_id: rev.rev_code_id }),
                                   },
@@ -2620,7 +2620,7 @@ export default function App() {
                             const res = await fetch(
                               `${API_BASE}/api/v1/documents/doc_rev_milestones/update`,
                               {
-                                method: "POST",
+                                method: "PUT",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
                                   milestone_id: milestone.milestone_id,
@@ -2688,7 +2688,7 @@ export default function App() {
                             const res = await fetch(
                               `${API_BASE}/api/v1/documents/doc_rev_milestones/delete`,
                               {
-                                method: "POST",
+                                method: "DELETE",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ milestone_id: milestone.milestone_id }),
                               },
@@ -2886,7 +2886,7 @@ export default function App() {
                           setDocTypeSaving(true);
                           try {
                             const res = await fetch(`${API_BASE}/api/v1/documents/doc_types/update`, {
-                              method: "POST",
+                              method: "PUT",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 type_id: dt.type_id,
@@ -2949,7 +2949,7 @@ export default function App() {
                           setDocTypeSaving(true);
                           try {
                             const res = await fetch(`${API_BASE}/api/v1/documents/doc_types/delete`, {
-                              method: "POST",
+                              method: "DELETE",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ type_id: dt.type_id }),
                             });
@@ -3103,7 +3103,7 @@ export default function App() {
                               const res = await fetch(
                                 `${API_BASE}/api/v1/people/persons/update`,
                                 {
-                                  method: "POST",
+                                  method: "PUT",
                                   headers: { "Content-Type": "application/json" },
                                   body: JSON.stringify({
                                     person_id: person.person_id,
@@ -3173,7 +3173,7 @@ export default function App() {
                               const res = await fetch(
                                 `${API_BASE}/api/v1/people/persons/delete`,
                                 {
-                                  method: "POST",
+                                  method: "DELETE",
                                   headers: { "Content-Type": "application/json" },
                                   body: JSON.stringify({ person_id: person.person_id }),
                                 },
@@ -3358,7 +3358,7 @@ export default function App() {
                                 setUserSaving(true);
                                 try {
                                   const res = await fetch(`${API_BASE}/api/v1/people/users/update`, {
-                                    method: "POST",
+                                    method: "PUT",
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({
                                       user_id: user.user_id,
@@ -3420,7 +3420,7 @@ export default function App() {
                                 setUserSaving(true);
                                 try {
                                   const res = await fetch(`${API_BASE}/api/v1/people/users/delete`, {
-                                    method: "POST",
+                                    method: "DELETE",
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({ user_id: user.user_id }),
                                   });
@@ -3627,7 +3627,7 @@ export default function App() {
                                 setPermissionSaving(true);
                                 try {
                                   const res = await fetch(`${API_BASE}/api/v1/people/permissions/update`, {
-                                    method: "POST",
+                                    method: "PUT",
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({
                                       permission_id: perm.permission_id,
@@ -3702,7 +3702,7 @@ export default function App() {
                           setPermissionSaving(true);
                           try {
                             const res = await fetch(`${API_BASE}/api/v1/people/permissions/delete`, {
-                              method: "POST",
+                              method: "DELETE",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
                                 permission_id: perm.permission_id,
