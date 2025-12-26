@@ -295,7 +295,7 @@ Shape (single item):
 ```
 
 ### Download
-- `GET /api/v1/files/download?file_id=12` — streams the file with `Content-Disposition: attachment`.
+- `GET /api/v1/files/download?file_id=12` — streams the file with `Content-Disposition: attachment` and `ETag`/`Last-Modified`.
 - Body:
 ```json
 { "rev_status_id": 2, "rev_status_name": "In progress" }
