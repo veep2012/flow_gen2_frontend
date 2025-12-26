@@ -1,8 +1,9 @@
 import logging
 import os
 import re
+import time
 import uuid
-from typing import Iterable
+from typing import Callable, Iterable, TypeVar
 from urllib.parse import quote, urlparse
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Query, UploadFile
@@ -70,7 +71,32 @@ def _build_minio_client() -> tuple[object, str]:
         endpoint = parsed.netloc
         secure = parsed.scheme == "https"
 
+    if not endpoint:
+        raise HTTPException(status_code=500, detail="MinIO endpoint is not configured")
+
     return Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure), bucket
+
+
+T = TypeVar("T")
+
+
+def _minio_with_retry(action: str, endpoint: str, func: Callable[[], T]) -> T:
+    retries = int(os.getenv("MINIO_RETRIES", "3"))
+    delay = float(os.getenv("MINIO_RETRY_DELAY_SEC", "1"))
+    last_err: Exception | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            return func()
+        except Exception as err:
+            last_err = err
+            if attempt < retries:
+                time.sleep(delay)
+                continue
+            logger.exception("MinIO %s failed after %s attempts: %s", action, retries, err)
+            raise HTTPException(
+                status_code=502,
+                detail=f"MinIO {action} failed; check MINIO_ENDPOINT ({endpoint})",
+            ) from last_err
 
 
 def _s3_safe_segment(value: str) -> str:
@@ -1048,25 +1074,30 @@ def insert_file(
         filename=filename,
     )
     client, bucket = _build_minio_client()
-    try:
-        from minio.error import S3Error
-
-        if not client.bucket_exists(bucket):
-            client.make_bucket(bucket)
-        if size is None:
-            client.put_object(
+    endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
+    if not _minio_with_retry("bucket_exists", endpoint, lambda: client.bucket_exists(bucket)):
+        _minio_with_retry("make_bucket", endpoint, lambda: client.make_bucket(bucket))
+    if size is None:
+        _minio_with_retry(
+            "put_object",
+            endpoint,
+            lambda: client.put_object(
                 bucket,
                 object_key,
                 stream,
                 length=-1,
                 part_size=10 * 1024 * 1024,
                 content_type=content_type,
-            )
-        else:
-            client.put_object(bucket, object_key, stream, length=size, content_type=content_type)
-    except S3Error as err:
-        logger.exception("MinIO upload failed: %s", err)
-        raise HTTPException(status_code=502, detail="Failed to upload file to object storage")
+            ),
+        )
+    else:
+        _minio_with_retry(
+            "put_object",
+            endpoint,
+            lambda: client.put_object(
+                bucket, object_key, stream, length=size, content_type=content_type
+            ),
+        )
 
     new_file = File(
         filename=filename,
@@ -1080,8 +1111,12 @@ def insert_file(
     except IntegrityError as err:
         db.rollback()
         try:
-            client.remove_object(bucket, object_key)
-        except S3Error:
+            _minio_with_retry(
+                "remove_object",
+                endpoint,
+                lambda: client.remove_object(bucket, object_key),
+            )
+        except HTTPException:
             logger.exception("Failed to cleanup MinIO object after DB error")
         _handle_integrity_error("Failed to create file record", err, "insert_file")
 
@@ -1119,13 +1154,12 @@ def delete_file(payload: FileDelete, db: Session = Depends(get_db)) -> None:
         raise HTTPException(status_code=404, detail="File not found")
 
     client, bucket = _build_minio_client()
-    try:
-        from minio.error import S3Error
-
-        client.remove_object(bucket, file_row.s3_uid)
-    except S3Error as err:
-        logger.exception("MinIO delete failed: %s", err)
-        raise HTTPException(status_code=502, detail="Failed to delete file from object storage")
+    endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
+    _minio_with_retry(
+        "remove_object",
+        endpoint,
+        lambda: client.remove_object(bucket, file_row.s3_uid),
+    )
 
     db.delete(file_row)
     db.commit()
@@ -1141,13 +1175,12 @@ def download_file(
         raise HTTPException(status_code=404, detail="File not found")
 
     client, bucket = _build_minio_client()
-    try:
-        from minio.error import S3Error
-
-        response = client.get_object(bucket, file_row.s3_uid)
-    except S3Error as err:
-        logger.exception("MinIO download failed: %s", err)
-        raise HTTPException(status_code=502, detail="Failed to download file from object storage")
+    endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
+    response = _minio_with_retry(
+        "get_object",
+        endpoint,
+        lambda: client.get_object(bucket, file_row.s3_uid),
+    )
 
     safe_name = (
         file_row.filename.replace('"', "'")
