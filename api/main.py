@@ -77,6 +77,20 @@ def _s3_safe_segment(value: str) -> str:
     return value.strip().replace("/", "_")
 
 
+def _build_file_object_key(
+    project_name: str | None,
+    doc_name_unique: str,
+    transmittal_current_revision: str,
+    unique_id: str,
+    filename: str,
+) -> str:
+    project_segment = _s3_safe_segment(project_name) if project_name else "unassigned"
+    doc_segment = _s3_safe_segment(doc_name_unique) if doc_name_unique else "doc_unknown"
+    rev_segment = _s3_safe_segment(transmittal_current_revision)
+    safe_filename = os.path.basename(filename)
+    return f"{project_segment}/{doc_segment}/{rev_segment}/{unique_id}_{safe_filename}"
+
+
 def _close_minio_response(response) -> None:
     response.close()
     response.release_conn()
@@ -1026,12 +1040,15 @@ def insert_file(
         raise HTTPException(status_code=400, detail="File is empty")
 
     doc = revision.doc
-    project_name = (
-        _s3_safe_segment(doc.project.project_name) if doc and doc.project else "unassigned"
+    project_name = doc.project.project_name if doc and doc.project else None
+    doc_name = doc.doc_name_unique if doc else f"doc_{revision.doc_id}"
+    object_key = _build_file_object_key(
+        project_name=project_name,
+        doc_name_unique=doc_name,
+        transmittal_current_revision=revision.transmittal_current_revision,
+        unique_id=uuid.uuid4().hex,
+        filename=filename,
     )
-    doc_name = _s3_safe_segment(doc.doc_name_unique) if doc else f"doc_{revision.doc_id}"
-    revision_name = _s3_safe_segment(revision.transmittal_current_revision)
-    object_key = f"{project_name}/{doc_name}/{revision_name}/{uuid.uuid4().hex}_{filename}"
     client, bucket = _build_minio_client()
     try:
         from minio.error import S3Error
