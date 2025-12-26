@@ -8,10 +8,12 @@ from urllib.parse import urlparse
 from fastapi import Depends, FastAPI, Form, HTTPException, Query, UploadFile
 from fastapi import File as UploadFileField
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased, joinedload, sessionmaker
+from starlette.background import BackgroundTask
 
 from api.db.models import (
     Area,
@@ -73,6 +75,11 @@ def _build_minio_client() -> tuple[object, str]:
 
 def _s3_safe_segment(value: str) -> str:
     return value.strip().replace("/", "_")
+
+
+def _close_minio_response(response) -> None:
+    response.close()
+    response.release_conn()
 
 
 engine = create_engine(DATABASE_URL, future=True)
@@ -1097,6 +1104,33 @@ def delete_file(payload: FileDelete, db: Session = Depends(get_db)) -> None:
 
     db.delete(file_row)
     db.commit()
+
+
+@app.get("/api/v1/files/download")
+def download_file(
+    file_id: int = Query(..., description="File ID to download"),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    file_row = db.get(File, file_id)
+    if not file_row:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    client, bucket = _build_minio_client()
+    try:
+        from minio.error import S3Error
+
+        response = client.get_object(bucket, file_row.s3_uid)
+    except S3Error as err:
+        logger.exception("MinIO download failed: %s", err)
+        raise HTTPException(status_code=502, detail="Failed to download file from object storage")
+
+    headers = {"Content-Disposition": f'attachment; filename="{file_row.filename}"'}
+    return StreamingResponse(
+        response,
+        media_type=file_row.mimetype or "application/octet-stream",
+        headers=headers,
+        background=BackgroundTask(_close_minio_response, response),
+    )
 
 
 @app.post("/api/v1/documents/update", response_model=DocOut)
