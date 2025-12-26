@@ -1,4 +1,3 @@
-import io
 import logging
 import os
 import re
@@ -1025,18 +1024,18 @@ def insert_file(
         raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
 
     content_type = file.content_type or "application/octet-stream"
-    try:
-        file.file.seek(0, os.SEEK_END)
-        size = file.file.tell()
-        file.file.seek(0)
-        stream = file.file
-    except (AttributeError, OSError):
-        data = file.file.read()
-        size = len(data)
-        stream = io.BytesIO(data)
-
-    if size <= 0:
-        raise HTTPException(status_code=400, detail="File is empty")
+    stream = file.file
+    size = None
+    if hasattr(stream, "seekable") and stream.seekable():
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(0)
+        if size <= 0:
+            raise HTTPException(status_code=400, detail="File is empty")
+        max_size_mb = int(os.getenv("MAX_UPLOAD_SIZE_MB", "128"))
+        max_size_bytes = max_size_mb * 1024 * 1024
+        if max_size_mb > 0 and size > max_size_bytes:
+            raise HTTPException(status_code=413, detail="File exceeds upload size limit")
 
     doc = revision.doc
     project_name = doc.project.project_name if doc and doc.project else None
@@ -1054,7 +1053,17 @@ def insert_file(
 
         if not client.bucket_exists(bucket):
             client.make_bucket(bucket)
-        client.put_object(bucket, object_key, stream, length=size, content_type=content_type)
+        if size is None:
+            client.put_object(
+                bucket,
+                object_key,
+                stream,
+                length=-1,
+                part_size=10 * 1024 * 1024,
+                content_type=content_type,
+            )
+        else:
+            client.put_object(bucket, object_key, stream, length=size, content_type=content_type)
     except S3Error as err:
         logger.exception("MinIO upload failed: %s", err)
         raise HTTPException(status_code=502, detail="Failed to upload file to object storage")
