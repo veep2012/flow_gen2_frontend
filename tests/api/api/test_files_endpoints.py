@@ -100,10 +100,5 @@ def test_files_crud_and_download():
         assert deleted["status"] == 204
 
         listed_after = _request(client, "GET", "/files/list", params={"rev_id": rev_id})
-        if listed_after["status"] == 404:
-            assert listed_after["payload"] is None or listed_after["payload"] == {
-                "detail": "No files found for revision"
-            }
-        else:
-            assert 200 <= listed_after["status"] < 300
-            assert all(item.get("id") != file_id for item in listed_after["payload"])
+        assert 200 <= listed_after["status"] < 300
+        assert all(item.get("id") != file_id for item in listed_after["payload"])

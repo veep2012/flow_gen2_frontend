@@ -3,7 +3,7 @@ import logging
 import os
 import uuid
 from typing import Iterable
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Query, UploadFile
 from fastapi import File as UploadFileField
@@ -1003,8 +1003,6 @@ def list_files_for_revision(
     db: Session = Depends(get_db),
 ) -> list[File]:
     files = db.query(File).filter(File.rev_id == rev_id).order_by(File.filename, File.id).all()
-    if not files:
-        raise HTTPException(status_code=404, detail="No files found for revision")
     return files
 
 
@@ -1141,7 +1139,22 @@ def download_file(
         logger.exception("MinIO download failed: %s", err)
         raise HTTPException(status_code=502, detail="Failed to download file from object storage")
 
-    headers = {"Content-Disposition": f'attachment; filename="{file_row.filename}"'}
+    safe_name = (
+        file_row.filename.replace('"', "'")
+        .replace("\r", "")
+        .replace("\n", "")
+        .encode("latin-1", "ignore")
+        .decode("latin-1")
+    )
+    quoted_name = quote(file_row.filename)
+    headers = {
+        "Content-Disposition": (
+            "attachment; filename=\"{}\"; filename*=UTF-8''{}".format(
+                safe_name,
+                quoted_name,
+            )
+        )
+    }
     return StreamingResponse(
         response,
         media_type=file_row.mimetype or "application/octet-stream",
