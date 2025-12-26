@@ -1,6 +1,7 @@
 import os
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 import pytest
@@ -102,3 +103,83 @@ def test_files_crud_and_download():
         listed_after = _request(client, "GET", "/files/list", params={"rev_id": rev_id})
         assert 200 <= listed_after["status"] < 300
         assert all(item.get("id") != file_id for item in listed_after["payload"])
+
+
+@pytest.mark.api_smoke
+def test_files_insert_empty_file_rejected():
+    with httpx.Client(timeout=10) as client:
+        result = _request(
+            client,
+            "POST",
+            "/files/insert",
+            files={"file": ("empty.txt", b"", "text/plain")},
+            data={"rev_id": "1"},
+        )
+        assert result["status"] == 400
+
+
+@pytest.mark.api_smoke
+def test_files_insert_long_filename_rejected():
+    long_name = "a" * 91 + ".txt"
+    with httpx.Client(timeout=10) as client:
+        result = _request(
+            client,
+            "POST",
+            "/files/insert",
+            files={"file": (long_name, b"content", "text/plain")},
+            data={"rev_id": "1"},
+        )
+        assert result["status"] == 400
+
+
+@pytest.mark.api_smoke
+def test_files_insert_nonexistent_revision():
+    with httpx.Client(timeout=10) as client:
+        result = _request(
+            client,
+            "POST",
+            "/files/insert",
+            files={"file": ("file.txt", b"content", "text/plain")},
+            data={"rev_id": "999999"},
+        )
+        assert result["status"] == 404
+
+
+@pytest.mark.api_smoke
+def test_files_concurrent_uploads_same_revision():
+    suffix = uuid.uuid4().hex[:6]
+    with httpx.Client(timeout=10) as client:
+        docs = _request(client, "GET", "/documents/list", params={"project_id": 1})
+        if docs["status"] == 404:
+            pytest.skip("No documents available for files test")
+        assert 200 <= docs["status"] < 300
+        rev_id = None
+        for doc in docs["payload"]:
+            if not isinstance(doc, dict):
+                continue
+            rev_id = doc.get("rev_current_id") or doc.get("rev_actual_id")
+            if rev_id is not None:
+                break
+        if rev_id is None:
+            pytest.skip("No revision id available for files test")
+
+        def _upload(idx: int) -> int:
+            result = _request(
+                client,
+                "POST",
+                "/files/insert",
+                files={
+                    "file": (
+                        f"file-{suffix}-{idx}.txt",
+                        f"content-{suffix}-{idx}".encode(),
+                        "text/plain",
+                    )
+                },
+                data={"rev_id": str(rev_id)},
+            )
+            return result["status"]
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            statuses = list(executor.map(_upload, [1, 2]))
+
+        assert all(status == 201 for status in statuses)

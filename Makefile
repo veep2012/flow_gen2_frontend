@@ -243,6 +243,14 @@ test-minio-up: ## Start temporary MinIO for tests with host port mapping
 		$(TEST_MINIO_PORT_FLAG) \
 		$(TEST_MINIO_CONSOLE_PORT_FLAG) \
 		$(MINIO_IMAGE) server /data --console-address ":9001"
+	@ready=; \
+	for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if curl -fsS http://localhost:$(TEST_MINIO_PORT)/minio/health/ready >/dev/null 2>&1; then \
+			ready=1; break; \
+		fi; \
+		sleep 1; \
+	done; \
+	if [ -z "$$ready" ]; then echo "Test MinIO not ready"; exit 1; fi
 	$(MAKE) test-minio-init
 
 .PHONY: test-minio-init
