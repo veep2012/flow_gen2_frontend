@@ -1,6 +1,6 @@
 # Flow API Interfaces
 
-Current FastAPI surface (version 0.1.0). All endpoints are JSON, live under the backend root (no global prefix), and are CORS-open for any origin. Default database URL is `postgresql+psycopg://flow_user:flow_pass@postgres:5432/flow_db`; override via `DATABASE_URL`.
+Current FastAPI surface (version 0.1.0). All endpoints are JSON unless noted, live under the backend root (no global prefix), and are CORS-open for any origin. Default database URL is `postgresql+psycopg://flow_user:flow_pass@postgres:5432/flow_db`; override via `DATABASE_URL`. Object storage defaults to `MINIO_ENDPOINT=minio:9000` and `MINIO_BUCKET=flow-default`; override with `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_SECURE`.
 
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
@@ -258,6 +258,44 @@ Shape (single item):
 ```
 ### Update
 - `POST /api/v1/lookups/doc_rev_statuses/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+
+# Files
+
+Shape (single item):
+```json
+{
+  "id": 12,
+  "filename": "report.pdf",
+  "s3_uid": "Project/Doc/IFC/uuid_report.pdf",
+  "mimetype": "application/pdf",
+  "rev_id": 45
+}
+```
+
+### List
+- `GET /api/v1/files/list?rev_id=45` — 200 sorted by `filename`; 404 if empty.
+
+### Insert (multipart)
+- `POST /api/v1/files/insert` — 201; multipart form.
+- Form fields: `rev_id` (int), `file` (binary).
+- Response: file shape.
+
+### Update
+- `POST /api/v1/files/update` — 200; updates filename only.
+- Body:
+```json
+{ "id": 12, "filename": "report_v2.pdf" }
+```
+
+### Delete
+- `POST /api/v1/files/delete` — 204; deletes MinIO object and DB row.
+- Body:
+```json
+{ "id": 12 }
+```
+
+### Download
+- `GET /api/v1/files/download?file_id=12` — streams the file with `Content-Disposition: attachment`.
 - Body:
 ```json
 { "rev_status_id": 2, "rev_status_name": "In progress" }

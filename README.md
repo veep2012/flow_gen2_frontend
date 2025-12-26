@@ -26,6 +26,10 @@
 - `make local-ui-alt-start`
 - `make local-ui-alt-stop`
 
+### Run MinIO (object storage)
+- `make local-minio-up`
+- `make local-minio-down`
+
 ### Ports used by local services (defaults)
 - API: `5556`
 - UI: `5558`
@@ -33,3 +37,5 @@
 - Postgres (local): `5432`
 - Postgres (tests): `5433`
 - API tests: `4175`
+- MinIO: `9000`
+- MinIO console: `9001`
