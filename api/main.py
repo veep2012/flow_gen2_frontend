@@ -1,8 +1,12 @@
+import io
 import logging
 import os
+import uuid
 from typing import Iterable
+from urllib.parse import urlparse
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Form, HTTPException, Query, UploadFile
+from fastapi import File as UploadFileField
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import create_engine
@@ -43,6 +47,33 @@ def _build_database_url() -> str:
 
 
 DATABASE_URL = _build_database_url()
+
+
+def _build_minio_client() -> tuple[object, str]:
+    try:
+        from minio import Minio
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="MinIO client library not installed; install dependencies.",
+        ) from exc
+    endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
+    bucket = os.getenv("MINIO_BUCKET", "flow-default")
+    access_key = os.getenv("MINIO_ROOT_USER", "flow_minio")
+    secret_key = os.getenv("MINIO_ROOT_PASSWORD", "change_me_now")
+    secure = os.getenv("MINIO_SECURE", "").lower() in {"1", "true", "yes", "on"}
+
+    if endpoint.startswith(("http://", "https://")):
+        parsed = urlparse(endpoint)
+        endpoint = parsed.netloc
+        secure = parsed.scheme == "https"
+
+    return Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure), bucket
+
+
+def _s3_safe_segment(value: str) -> str:
+    return value.strip().replace("/", "_")
+
 
 engine = create_engine(DATABASE_URL, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
@@ -945,6 +976,76 @@ def list_files_for_revision(
     if not files:
         raise HTTPException(status_code=404, detail="No files found for revision")
     return files
+
+
+@app.post("/api/v1/files/insert", response_model=FileOut, status_code=201)
+def insert_file(
+    rev_id: int = Form(..., description="Revision ID to attach the file to"),
+    file: UploadFile = UploadFileField(...),
+    db: Session = Depends(get_db),
+) -> File:
+    revision = db.get(DocRevision, rev_id)
+    if not revision:
+        raise HTTPException(status_code=404, detail="Revision not found")
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+
+    filename = os.path.basename(file.filename)
+    if len(filename) > 90:
+        raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
+
+    content_type = file.content_type or "application/octet-stream"
+    try:
+        file.file.seek(0, os.SEEK_END)
+        size = file.file.tell()
+        file.file.seek(0)
+        stream = file.file
+    except (AttributeError, OSError):
+        data = file.file.read()
+        size = len(data)
+        stream = io.BytesIO(data)
+
+    if size <= 0:
+        raise HTTPException(status_code=400, detail="File is empty")
+
+    doc = revision.doc
+    project_name = (
+        _s3_safe_segment(doc.project.project_name) if doc and doc.project else "unassigned"
+    )
+    doc_name = _s3_safe_segment(doc.doc_name_unique) if doc else f"doc_{revision.doc_id}"
+    revision_name = _s3_safe_segment(revision.transmittal_current_revision)
+    object_key = f"{project_name}/{doc_name}/{revision_name}/{uuid.uuid4().hex}_{filename}"
+    client, bucket = _build_minio_client()
+    try:
+        from minio.error import S3Error
+
+        if not client.bucket_exists(bucket):
+            client.make_bucket(bucket)
+        client.put_object(bucket, object_key, stream, length=size, content_type=content_type)
+    except S3Error as err:
+        logger.exception("MinIO upload failed: %s", err)
+        raise HTTPException(status_code=502, detail="Failed to upload file to object storage")
+
+    new_file = File(
+        filename=filename,
+        s3_uid=object_key,
+        mimetype=content_type,
+        rev_id=rev_id,
+    )
+    db.add(new_file)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        try:
+            client.remove_object(bucket, object_key)
+        except S3Error:
+            logger.exception("Failed to cleanup MinIO object after DB error")
+        _handle_integrity_error("Failed to create file record", err, "insert_file")
+
+    db.refresh(new_file)
+    return new_file
 
 
 @app.post("/api/v1/documents/update", response_model=DocOut)
