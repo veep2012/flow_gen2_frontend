@@ -19,11 +19,62 @@ services:
       retries: 5
     restart: unless-stopped
 
+  minio: &minio_base
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-09-07T16-13-09Z}
+    container_name: flow_gen2_minio_compose
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-flow_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change_me_now}
+    command: server /data --console-address ":9001"
+    expose:
+      - "9000"
+      - "9001"
+    volumes:
+      - flow_gen2_compose_minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  minio_init:
+    image: ${MINIO_MC_IMAGE:-minio/mc:latest}
+    container_name: flow_gen2_minio_init
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-flow_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change_me_now}
+      MINIO_BUCKET: ${MINIO_BUCKET:-flow-default}
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      for i in 1 2 3 4 5 6 7 8 9 10; do
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} >/dev/null 2>&1 &&
+      mc mb --ignore-existing local/$${MINIO_BUCKET} >/dev/null 2>&1 && exit 0;
+      sleep 1;
+      done;
+      exit 1
+      "
+    restart: "no"
+
   postgres_local:
     <<: *postgres_base
     container_name: flow_gen2_postgres_local
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
+    profiles:
+      - local
+
+  minio_local:
+    <<: *minio_base
+    container_name: flow_gen2_minio_local
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - flow_gen2_local_minio_data:/data
     profiles:
       - local
 
@@ -86,3 +137,5 @@ services:
 
 volumes:
   flow_gen2_compose_pg_data:
+  flow_gen2_compose_minio_data:
+  flow_gen2_local_minio_data:

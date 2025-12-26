@@ -10,6 +10,18 @@ DB_PORT_FLAG := $(if $(DB_PORT),-p $(DB_PORT):5432,)
 POSTGRES_USER ?= flow_user
 POSTGRES_PASSWORD ?= flow_pass
 POSTGRES_DB ?= flow_db
+MINIO_CONTAINER_NAME ?= flow_gen2_minio_local
+MINIO_IMAGE ?= minio/minio:RELEASE.2025-09-07T16-13-09Z
+MINIO_VOLUME ?= flow_gen2_local_minio_data
+MINIO_PORT ?= 9000
+MINIO_CONSOLE_PORT ?= 9001
+MINIO_PORT_FLAG := $(if $(MINIO_PORT),-p $(MINIO_PORT):9000,)
+MINIO_CONSOLE_PORT_FLAG := $(if $(MINIO_CONSOLE_PORT),-p $(MINIO_CONSOLE_PORT):9001,)
+MINIO_ROOT_USER ?= flow_minio
+MINIO_ROOT_PASSWORD ?= change_me_now
+MINIO_BUCKET ?= flow-default
+MINIO_ENDPOINT ?= http://host.containers.internal:$(MINIO_PORT)
+MINIO_MC_IMAGE ?= minio/mc:latest
 TEST_DB_CONTAINER_NAME ?= flow_gen2_postgres_test
 TEST_DB_PORT ?= 5433
 TEST_DB_PORT_FLAG := $(if $(TEST_DB_PORT),-p $(TEST_DB_PORT):5432,)
@@ -55,7 +67,7 @@ endif
 .PHONY: help
 help: ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
-	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down up down build rebuild completely-rebuild logs help test audit; do \
+	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down minio-up minio-down up down build rebuild completely-rebuild logs help test audit; do \
 		grep -E "^$${target} " .local/.make-help.tmp || true; \
 	done
 	@rm -f .local/.make-help.tmp
@@ -146,6 +158,38 @@ db-down: ## Stop and remove standalone Postgres container started by db-up
 	-$(CONTAINER_ENGINE) stop $(DB_CONTAINER_NAME)
 	-$(CONTAINER_ENGINE) rm $(DB_CONTAINER_NAME)
 
+.PHONY: minio-up
+minio-up: ## Start standalone MinIO with podman (no ports exposed unless MINIO_PORT is set)
+	$(CONTAINER_ENGINE) run -d --name $(MINIO_CONTAINER_NAME) \
+		--env MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
+		--env MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
+		$(MINIO_PORT_FLAG) \
+		$(MINIO_CONSOLE_PORT_FLAG) \
+		-v $(MINIO_VOLUME):/data \
+		$(MINIO_IMAGE) server /data --console-address ":9001"
+	$(MAKE) minio-init
+
+.PHONY: minio-init
+minio-init: ## Ensure MinIO default bucket exists (ignore if already present)
+	$(CONTAINER_ENGINE) run --rm \
+		--env MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
+		--env MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
+		--env MINIO_BUCKET=$(MINIO_BUCKET) \
+		--env MINIO_ENDPOINT=$(MINIO_ENDPOINT) \
+		--entrypoint /bin/sh \
+		$(MINIO_MC_IMAGE) -c '\
+			for i in 1 2 3 4 5 6 7 8 9 10; do \
+				mc alias set local "$$MINIO_ENDPOINT" "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 && \
+				mc mb --ignore-existing local/"$$MINIO_BUCKET" >/dev/null 2>&1 && exit 0; \
+				sleep 1; \
+			done; \
+			exit 1'
+
+.PHONY: minio-down
+minio-down: ## Stop and remove standalone MinIO container started by minio-up
+	-$(CONTAINER_ENGINE) stop $(MINIO_CONTAINER_NAME)
+	-$(CONTAINER_ENGINE) rm $(MINIO_CONTAINER_NAME)
+
 .PHONY: test-db-up
 test-db-up: ## Start temporary Postgres for tests (no volume)
 	$(CONTAINER_ENGINE) run -d --name $(TEST_DB_CONTAINER_NAME) \
@@ -181,6 +225,14 @@ local-postgres-up: ## Start local Postgres with host port mapping
 .PHONY: local-postgres-down
 local-postgres-down: ## Stop local Postgres started by local-postgres-up
 	$(MAKE) db-down
+
+.PHONY: local-minio-up
+local-minio-up: ## Start local MinIO with host port mapping
+	$(MAKE) minio-up
+
+.PHONY: local-minio-down
+local-minio-down: ## Stop local MinIO started by local-minio-up
+	$(MAKE) minio-down
 
 .PHONY: local-venv
 local-venv: ## Create a local Python venv with dependencies
@@ -222,12 +274,13 @@ local-ui-alt-stop: ## Stop UI alt dev server using PID file
 	$(STOP_UI_ALT_CMD)
 
 .PHONY: local-up
-local-up: local-postgres-up ## Start local Postgres, API, and UI
+local-up: local-postgres-up local-minio-up ## Start local Postgres, MinIO, API, and UI
 	$(MAKE) local-api-up
 	$(MAKE) local-ui-up
 
 .PHONY: local-down
-local-down: ## Stop local UI, API, and Postgres
+local-down: ## Stop local UI, API, MinIO, and Postgres
 	$(MAKE) local-ui-down
 	$(MAKE) local-api-down
+	$(MAKE) local-minio-down
 	$(MAKE) local-postgres-down
