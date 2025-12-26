@@ -22,6 +22,13 @@ MINIO_ROOT_PASSWORD ?= change_me_now
 MINIO_BUCKET ?= flow-default
 MINIO_ENDPOINT ?= http://host.containers.internal:$(MINIO_PORT)
 MINIO_MC_IMAGE ?= minio/mc:latest
+TEST_MINIO_CONTAINER_NAME ?= flow_gen2_minio_test
+TEST_MINIO_BUCKET ?= flow-test
+TEST_MINIO_PORT ?= 9002
+TEST_MINIO_CONSOLE_PORT ?= 9003
+TEST_MINIO_PORT_FLAG := $(if $(TEST_MINIO_PORT),-p $(TEST_MINIO_PORT):9000,)
+TEST_MINIO_CONSOLE_PORT_FLAG := $(if $(TEST_MINIO_CONSOLE_PORT),-p $(TEST_MINIO_CONSOLE_PORT):9001,)
+TEST_MINIO_ENDPOINT ?= http://host.containers.internal:$(TEST_MINIO_PORT)
 TEST_DB_CONTAINER_NAME ?= flow_gen2_postgres_test
 TEST_DB_PORT ?= 5433
 TEST_DB_PORT_FLAG := $(if $(TEST_DB_PORT),-p $(TEST_DB_PORT):5432,)
@@ -67,7 +74,7 @@ endif
 .PHONY: help
 help: ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
-	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down minio-up minio-down up down build rebuild completely-rebuild logs help test audit; do \
+	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down minio-up minio-down up down build rebuild completely-rebuild logs help test audit; do \
 		grep -E "^$${target} " .local/.make-help.tmp || true; \
 	done
 	@rm -f .local/.make-help.tmp
@@ -75,7 +82,12 @@ help: ## Show available targets
 .PHONY: test
 test: ## Run unit tests
 	$(MAKE) test-db-up
+	$(MAKE) test-minio-up
 	DATABASE_URL=postgresql+psycopg://$(TEST_DB_USER):$(TEST_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
+		MINIO_ENDPOINT=$(TEST_MINIO_ENDPOINT) \
+		MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
+		MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
+		MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
 		ENV=ci_test \
 		API_PORT=4175 \
 		PID_FILE="$(PID_DIR)/uvicorn-test.pid" \
@@ -86,6 +98,10 @@ test: ## Run unit tests
 		API_BASE=http://localhost:4175 API_PREFIX= API_WAIT_TIMEOUT=$(API_WAIT_TIMEOUT) $(PYTHON_BIN) scripts/wait-for-api.py && ready=1 && break; \
 		PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
 		DATABASE_URL=postgresql+psycopg://$(TEST_DB_USER):$(TEST_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
+			MINIO_ENDPOINT=$(TEST_MINIO_ENDPOINT) \
+			MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
+			MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
+			MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
 			ENV=ci_test \
 			API_PORT=4175 \
 			PID_FILE="$(PID_DIR)/uvicorn-test.pid" \
@@ -101,6 +117,7 @@ test: ## Run unit tests
 	fi; \
 	PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
 	$(MAKE) test-db-down; \
+	$(MAKE) test-minio-down; \
 	exit $$status
 
 .PHONY: audit audit-python audit-node
@@ -217,6 +234,37 @@ test-db-up: ## Start temporary Postgres for tests (no volume)
 test-db-down: ## Stop and remove temporary test Postgres container
 	-$(CONTAINER_ENGINE) stop $(TEST_DB_CONTAINER_NAME)
 	-$(CONTAINER_ENGINE) rm $(TEST_DB_CONTAINER_NAME)
+
+.PHONY: test-minio-up
+test-minio-up: ## Start temporary MinIO for tests with host port mapping
+	$(CONTAINER_ENGINE) run -d --name $(TEST_MINIO_CONTAINER_NAME) \
+		--env MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
+		--env MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
+		$(TEST_MINIO_PORT_FLAG) \
+		$(TEST_MINIO_CONSOLE_PORT_FLAG) \
+		$(MINIO_IMAGE) server /data --console-address ":9001"
+	$(MAKE) test-minio-init
+
+.PHONY: test-minio-init
+test-minio-init: ## Ensure test MinIO bucket exists (ignore if already present)
+	$(CONTAINER_ENGINE) run --rm \
+		--env MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
+		--env MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
+		--env MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
+		--env MINIO_ENDPOINT=$(TEST_MINIO_ENDPOINT) \
+		--entrypoint /bin/sh \
+		$(MINIO_MC_IMAGE) -c '\
+			for i in 1 2 3 4 5 6 7 8 9 10; do \
+				mc alias set local "$$MINIO_ENDPOINT" "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 && \
+				mc mb --ignore-existing local/"$$MINIO_BUCKET" >/dev/null 2>&1 && exit 0; \
+				sleep 1; \
+			done; \
+			exit 1'
+
+.PHONY: test-minio-down
+test-minio-down: ## Stop and remove temporary test MinIO container
+	-$(CONTAINER_ENGINE) stop $(TEST_MINIO_CONTAINER_NAME)
+	-$(CONTAINER_ENGINE) rm $(TEST_MINIO_CONTAINER_NAME)
 
 .PHONY: local-postgres-up
 local-postgres-up: ## Start local Postgres with host port mapping
