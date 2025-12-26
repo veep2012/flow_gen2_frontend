@@ -387,6 +387,11 @@ class FileOut(BaseModel):
     rev_id: int
 
 
+class FileUpdate(BaseModel):
+    id: int
+    filename: str
+
+
 class PersonOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -1046,6 +1051,29 @@ def insert_file(
 
     db.refresh(new_file)
     return new_file
+
+
+@app.post("/api/v1/files/update", response_model=FileOut)
+def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
+    filename = payload.filename.strip()
+    if not filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+    if len(filename) > 90:
+        raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
+
+    file_row = db.get(File, payload.id)
+    if not file_row:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_row.filename = filename
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Failed to update file", err, "update_file")
+
+    db.refresh(file_row)
+    return file_row
 
 
 @app.post("/api/v1/documents/update", response_model=DocOut)
