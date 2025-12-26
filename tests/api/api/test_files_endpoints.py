@@ -81,7 +81,7 @@ def test_files_crud_and_download():
 
         updated = _request(
             client,
-            "POST",
+            "PUT",
             "/files/update",
             json={"id": file_id, "filename": f"file-{suffix}-v2.txt"},
         )
@@ -96,7 +96,7 @@ def test_files_crud_and_download():
         assert 200 <= downloaded["status"] < 300
         assert downloaded["content"] == content
 
-        deleted = _request(client, "POST", "/files/delete", json={"id": file_id})
+        deleted = _request(client, "DELETE", "/files/delete", json={"id": file_id})
         assert deleted["status"] == 204
 
         listed_after = _request(client, "GET", "/files/list", params={"rev_id": rev_id})

@@ -589,7 +589,7 @@ def list_areas(db: Session = Depends(get_db)) -> list[Area]:
     return areas
 
 
-@app.post("/api/v1/lookups/areas/update", response_model=AreaOut)
+@app.put("/api/v1/lookups/areas/update", response_model=AreaOut)
 def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
     if payload.area_name is None and payload.area_acronym is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -626,7 +626,7 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
     return area
 
 
-@app.post("/api/v1/lookups/areas/delete", status_code=204)
+@app.delete("/api/v1/lookups/areas/delete", status_code=204)
 def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
     area = db.get(Area, payload.area_id)
     if not area:
@@ -643,7 +643,7 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
     return disciplines
 
 
-@app.post("/api/v1/lookups/disciplines/update", response_model=DisciplineOut)
+@app.put("/api/v1/lookups/disciplines/update", response_model=DisciplineOut)
 def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) -> Discipline:
     if payload.discipline_name is None and payload.discipline_acronym is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -691,7 +691,7 @@ def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) 
     return discipline
 
 
-@app.post("/api/v1/lookups/disciplines/delete", status_code=204)
+@app.delete("/api/v1/lookups/disciplines/delete", status_code=204)
 def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) -> None:
     discipline = db.get(Discipline, payload.discipline_id)
     if not discipline:
@@ -708,7 +708,7 @@ def list_projects(db: Session = Depends(get_db)) -> list[Project]:
     return projects
 
 
-@app.post("/api/v1/lookups/projects/update", response_model=ProjectOut)
+@app.put("/api/v1/lookups/projects/update", response_model=ProjectOut)
 def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Project:
     if payload.project_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -743,7 +743,7 @@ def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
     return project
 
 
-@app.post("/api/v1/lookups/projects/delete", status_code=204)
+@app.delete("/api/v1/lookups/projects/delete", status_code=204)
 def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> None:
     project = db.get(Project, payload.project_id)
     if not project:
@@ -760,7 +760,7 @@ def list_units(db: Session = Depends(get_db)) -> list[Unit]:
     return units
 
 
-@app.post("/api/v1/lookups/units/update", response_model=UnitOut)
+@app.put("/api/v1/lookups/units/update", response_model=UnitOut)
 def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
     if payload.unit_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -795,7 +795,7 @@ def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
     return unit
 
 
-@app.post("/api/v1/lookups/units/delete", status_code=204)
+@app.delete("/api/v1/lookups/units/delete", status_code=204)
 def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
     unit = db.get(Unit, payload.unit_id)
     if not unit:
@@ -812,7 +812,7 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
     return jobpacks
 
 
-@app.post("/api/v1/lookups/jobpacks/update", response_model=JobpackOut)
+@app.put("/api/v1/lookups/jobpacks/update", response_model=JobpackOut)
 def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Jobpack:
     if payload.jobpack_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -846,7 +846,7 @@ def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Job
     return jobpack
 
 
-@app.post("/api/v1/lookups/jobpacks/delete", status_code=204)
+@app.delete("/api/v1/lookups/jobpacks/delete", status_code=204)
 def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> None:
     jobpack = db.get(Jobpack, payload.jobpack_id)
     if not jobpack:
@@ -890,7 +890,7 @@ def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> Do
     return _build_doc_type_out(doc_type)
 
 
-@app.post("/api/v1/documents/doc_types/update", response_model=DocTypeOut)
+@app.put("/api/v1/documents/doc_types/update", response_model=DocTypeOut)
 def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> DocType:
     if (
         payload.doc_type_name is None
@@ -924,7 +924,7 @@ def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> Do
     return _build_doc_type_out(doc_type)
 
 
-@app.post("/api/v1/documents/doc_types/delete", status_code=204)
+@app.delete("/api/v1/documents/doc_types/delete", status_code=204)
 def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> None:
     doc_type = db.get(DocType, payload.type_id)
     if not doc_type:
@@ -1080,7 +1080,7 @@ def insert_file(
     return new_file
 
 
-@app.post("/api/v1/files/update", response_model=FileOut)
+@app.put("/api/v1/files/update", response_model=FileOut)
 def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
     filename = payload.filename.strip()
     if not filename:
@@ -1103,7 +1103,7 @@ def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
     return file_row
 
 
-@app.post("/api/v1/files/delete", status_code=204)
+@app.delete("/api/v1/files/delete", status_code=204)
 def delete_file(payload: FileDelete, db: Session = Depends(get_db)) -> None:
     file_row = db.get(File, payload.id)
     if not file_row:
@@ -1164,7 +1164,7 @@ def download_file(
     )
 
 
-@app.post("/api/v1/documents/update", response_model=DocOut)
+@app.put("/api/v1/documents/update", response_model=DocOut)
 def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut:
     updates = payload.model_dump(exclude_unset=True)
     updates.pop("doc_id", None)
@@ -1344,7 +1344,7 @@ def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     return roles
 
 
-@app.post("/api/v1/people/roles/update", response_model=RoleOut)
+@app.put("/api/v1/people/roles/update", response_model=RoleOut)
 def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
     if payload.role_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -1378,7 +1378,7 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     return role
 
 
-@app.post("/api/v1/people/roles/delete", status_code=204)
+@app.delete("/api/v1/people/roles/delete", status_code=204)
 def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     role = db.get(Role, payload.role_id)
     if not role:
@@ -1395,7 +1395,7 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
     return milestones
 
 
-@app.post(
+@app.put(
     "/api/v1/documents/doc_rev_milestones/update",
     response_model=DocRevMilestoneOut,
 )
@@ -1443,7 +1443,7 @@ def insert_doc_rev_milestone(
     return milestone
 
 
-@app.post("/api/v1/documents/doc_rev_milestones/delete", status_code=204)
+@app.delete("/api/v1/documents/doc_rev_milestones/delete", status_code=204)
 def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depends(get_db)) -> None:
     milestone = db.get(DocRevMilestone, payload.milestone_id)
     if not milestone:
@@ -1460,7 +1460,7 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     return revisions
 
 
-@app.post("/api/v1/documents/revision_overview/update", response_model=RevisionOverviewOut)
+@app.put("/api/v1/documents/revision_overview/update", response_model=RevisionOverviewOut)
 def update_revision_overview(
     payload: RevisionOverviewUpdate, db: Session = Depends(get_db)
 ) -> RevisionOverview:
@@ -1523,7 +1523,7 @@ def insert_revision_overview(
     return revision
 
 
-@app.post("/api/v1/documents/revision_overview/delete", status_code=204)
+@app.delete("/api/v1/documents/revision_overview/delete", status_code=204)
 def delete_revision_overview(
     payload: RevisionOverviewDelete, db: Session = Depends(get_db)
 ) -> None:
@@ -1542,7 +1542,7 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
     return statuses
 
 
-@app.post("/api/v1/lookups/doc_rev_statuses/update", response_model=DocRevStatusOut)
+@app.put("/api/v1/lookups/doc_rev_statuses/update", response_model=DocRevStatusOut)
 def update_doc_rev_status(
     payload: DocRevStatusUpdate, db: Session = Depends(get_db)
 ) -> DocRevStatus:
@@ -1585,7 +1585,7 @@ def insert_doc_rev_status(
     return status
 
 
-@app.post("/api/v1/lookups/doc_rev_statuses/delete", status_code=204)
+@app.delete("/api/v1/lookups/doc_rev_statuses/delete", status_code=204)
 def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get_db)) -> None:
     status = db.get(DocRevStatus, payload.rev_status_id)
     if not status:
@@ -1602,7 +1602,7 @@ def list_persons(db: Session = Depends(get_db)) -> list[Person]:
     return persons
 
 
-@app.post("/api/v1/people/persons/update", response_model=PersonOut)
+@app.put("/api/v1/people/persons/update", response_model=PersonOut)
 def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Person:
     if payload.person_name is None and payload.photo_s3_uid is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -1639,7 +1639,7 @@ def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Perso
     return person
 
 
-@app.post("/api/v1/people/persons/delete", status_code=204)
+@app.delete("/api/v1/people/persons/delete", status_code=204)
 def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
     person = db.get(Person, payload.person_id)
     if not person:
@@ -1662,7 +1662,7 @@ def list_users(db: Session = Depends(get_db)) -> list[User]:
     return [_build_user_out(user) for user in users]
 
 
-@app.post("/api/v1/people/users/update", response_model=UserOut)
+@app.put("/api/v1/people/users/update", response_model=UserOut)
 def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
     if payload.person_id is None and payload.user_acronym is None and payload.role_id is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -1717,7 +1717,7 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     return _build_user_out(user)
 
 
-@app.post("/api/v1/people/users/delete", status_code=204)
+@app.delete("/api/v1/people/users/delete", status_code=204)
 def delete_user(payload: UserDelete, db: Session = Depends(get_db)) -> None:
     user = db.get(User, payload.user_id)
     if not user:
@@ -1782,7 +1782,7 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
     return _build_permission_out(permission)
 
 
-@app.post("/api/v1/people/permissions/update", response_model=PermissionOut)
+@app.put("/api/v1/people/permissions/update", response_model=PermissionOut)
 def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) -> Permission:
     payload.validate_current()
 
@@ -1830,7 +1830,7 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
     return _build_permission_out(existing)
 
 
-@app.post("/api/v1/people/permissions/delete", status_code=204)
+@app.delete("/api/v1/people/permissions/delete", status_code=204)
 def delete_permission(payload: PermissionDelete, db: Session = Depends(get_db)) -> None:
     payload.validate_scope()
 
