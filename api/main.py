@@ -1,6 +1,7 @@
 import io
 import logging
 import os
+import re
 import uuid
 from typing import Iterable
 from urllib.parse import quote, urlparse
@@ -74,7 +75,7 @@ def _build_minio_client() -> tuple[object, str]:
 
 
 def _s3_safe_segment(value: str) -> str:
-    return value.strip().replace("/", "_")
+    return re.sub(r"[^A-Za-z0-9.\-\s]", "_", value.strip()).replace("/", "_")[:128]
 
 
 def _build_file_object_key(
