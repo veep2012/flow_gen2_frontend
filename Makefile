@@ -246,7 +246,6 @@ endif
 
 .PHONY: local-api-up
 local-api-up: ## Run API locally (uvicorn)
-	$(MAKE) test
 	PID_FILE="$(API_PID_FILE)" LOG_FILE="$(PID_DIR)/uvicorn.log" $(LOCAL_API_CMD)
 
 .PHONY: local-api-down
