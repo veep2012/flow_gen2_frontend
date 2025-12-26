@@ -117,7 +117,7 @@ services:
 
   nginx:
     container_name: flow_gen2_nginx
-    image: nginx:1.25-alpine
+    image: nginx:1.27-alpine
     ports:
       - "80:80"
     environment:
