@@ -3,10 +3,11 @@ import os
 import re
 import time
 import uuid
+from email.utils import formatdate
 from typing import Callable, Iterable, TypeVar
 from urllib.parse import quote, urlparse
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request, UploadFile
 from fastapi import File as UploadFileField
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -1034,6 +1035,7 @@ def list_files_for_revision(
 
 @app.post("/api/v1/files/insert", response_model=FileOut, status_code=201)
 def insert_file(
+    request: Request,
     rev_id: int = Form(..., description="Revision ID to attach the file to"),
     file: UploadFile = UploadFileField(...),
     db: Session = Depends(get_db),
@@ -1121,6 +1123,14 @@ def insert_file(
         _handle_integrity_error("Failed to create file record", err, "insert_file")
 
     db.refresh(new_file)
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(
+        "File uploaded rev_id=%s file_id=%s filename=%s client=%s",
+        rev_id,
+        new_file.id,
+        filename,
+        client_host,
+    )
     return new_file
 
 
@@ -1148,7 +1158,7 @@ def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
 
 
 @app.delete("/api/v1/files/delete", status_code=204)
-def delete_file(payload: FileDelete, db: Session = Depends(get_db)) -> None:
+def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get_db)) -> None:
     file_row = db.get(File, payload.id)
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
@@ -1163,10 +1173,18 @@ def delete_file(payload: FileDelete, db: Session = Depends(get_db)) -> None:
 
     db.delete(file_row)
     db.commit()
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(
+        "File deleted file_id=%s s3_uid=%s client=%s",
+        payload.id,
+        file_row.s3_uid,
+        client_host,
+    )
 
 
 @app.get("/api/v1/files/download")
 def download_file(
+    request: Request,
     file_id: int = Query(..., description="File ID to download"),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
@@ -1180,6 +1198,11 @@ def download_file(
         "get_object",
         endpoint,
         lambda: client.get_object(bucket, file_row.s3_uid),
+    )
+    stat = _minio_with_retry(
+        "stat_object",
+        endpoint,
+        lambda: client.stat_object(bucket, file_row.s3_uid),
     )
 
     safe_name = (
@@ -1198,6 +1221,18 @@ def download_file(
             )
         )
     }
+    if stat.etag:
+        etag = stat.etag.strip('"')
+        headers["ETag"] = f'"{etag}"'
+    if stat.last_modified:
+        headers["Last-Modified"] = formatdate(stat.last_modified.timestamp(), usegmt=True)
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(
+        "File download file_id=%s s3_uid=%s client=%s",
+        file_row.id,
+        file_row.s3_uid,
+        client_host,
+    )
     return StreamingResponse(
         response,
         media_type=file_row.mimetype or "application/octet-stream",
