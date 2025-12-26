@@ -17,6 +17,7 @@ from api.db.models import (
     DocRevMilestone,
     DocRevStatus,
     DocType,
+    File,
     Jobpack,
     Permission,
     Person,
@@ -343,6 +344,16 @@ class DocRevStatusCreate(BaseModel):
 
 class DocRevStatusDelete(BaseModel):
     rev_status_id: int
+
+
+class FileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    filename: str
+    s3_uid: str
+    mimetype: str
+    rev_id: int
 
 
 class PersonOut(BaseModel):
@@ -923,6 +934,17 @@ def list_documents_for_project(
             revision_overview,
         ) in docs
     ]
+
+
+@app.get("/api/v1/files/list", response_model=list[FileOut])
+def list_files_for_revision(
+    rev_id: int = Query(..., description="Revision ID to filter files by"),
+    db: Session = Depends(get_db),
+) -> list[File]:
+    files = db.query(File).filter(File.rev_id == rev_id).order_by(File.filename, File.id).all()
+    if not files:
+        raise HTTPException(status_code=404, detail="No files found for revision")
+    return files
 
 
 @app.post("/api/v1/documents/update", response_model=DocOut)
