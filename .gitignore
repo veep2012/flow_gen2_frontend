@@ -1,6 +1,5 @@
 .DS_Store
 **/.DS_Store
-.env
 __pycache__/
 **/__pycache__/
 *.pyc
@@ -9,6 +8,8 @@ ui_api_test/node_modules
 ui_api_test/dist
 ui/node_modules/
 ui_alt/node_modules/
+ui/.vite/
+ui_alt/.vite/
 .venv/
 ui/.local/
 ui_alt/.local/
