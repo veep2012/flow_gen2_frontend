@@ -1,5 +1,35 @@
 # Flow Gen2
 
+## Oracle Linux 9.4 setup
+
+### Install system packages
+```bash
+sudo dnf install -y git podman python3.11 npm openssh-clients
+sudo dnf module enable -y nodejs:22
+sudo dnf module install -y nodejs:22
+```
+
+### Configure SSH access
+```bash
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+# Place your private key in ~/.ssh and ensure it has the correct permissions
+chmod 600 ~/.ssh/id_ed25519
+ssh-add ~/.ssh/id_ed25519
+```
+
+### Clone the repository
+```bash
+git clone git@github.com:veep2012/flow_gen2.git -b frontend
+```
+
+### Prepare the local environment
+```bash
+make local-venv
+make local-npm
+make local-up
+```
+
 ## Local development quickstart
 
 ### Prerequisites
