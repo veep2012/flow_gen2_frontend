@@ -71,12 +71,12 @@ endif
 
 .DEFAULT_GOAL := help
 
-.PHONY: local-dir
-$(PID_DIR):
+.PHONY: ensure-pid-dir
+ensure-pid-dir:
 	@mkdir -p $(PID_DIR)
 
 .PHONY: help
-help: | $(PID_DIR) ## Show available targets
+help: | ensure-pid-dir ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
 	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down minio-up minio-down up down build rebuild completely-rebuild logs help test audit; do \
 		grep -E "^$${target} " .local/.make-help.tmp || true; \
@@ -84,7 +84,7 @@ help: | $(PID_DIR) ## Show available targets
 	@rm -f .local/.make-help.tmp
 
 .PHONY: test
-test: | $(PID_DIR) ## Run unit tests
+test: | ensure-pid-dir ## Run unit tests
 	$(MAKE) test-db-up
 	$(MAKE) test-minio-up
 	DATABASE_URL=postgresql+psycopg://$(TEST_DB_USER):$(TEST_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
@@ -305,7 +305,7 @@ else
 endif
 
 .PHONY: local-api-up
-local-api-up: | $(PID_DIR) ## Run API locally (uvicorn)
+local-api-up: | ensure-pid-dir ## Run API locally (uvicorn)
 	PID_FILE="$(API_PID_FILE)" LOG_FILE="$(PID_DIR)/uvicorn.log" $(LOCAL_API_CMD)
 
 .PHONY: local-api-down
@@ -317,7 +317,7 @@ local-npm: ## Install UI dependencies in ./ui
 	cd ui && npm install
 
 .PHONY: local-ui-up
-local-ui-up: | $(PID_DIR) ## Start UI locally (vite dev)
+local-ui-up: | ensure-pid-dir ## Start UI locally (vite dev)
 	$(LOCAL_UI_CMD)
 
 .PHONY: local-ui-down
@@ -325,7 +325,7 @@ local-ui-down: ## Stop local UI dev server using PID file
 	$(STOP_UI_CMD)
 
 .PHONY: local-ui-alt-start
-local-ui-alt-start: | $(PID_DIR) ## Start UI alt locally (vite dev on port 5560)
+local-ui-alt-start: | ensure-pid-dir ## Start UI alt locally (vite dev on port 5560)
 	$(LOCAL_UI_ALT_CMD)
 
 .PHONY: local-ui-alt-stop
