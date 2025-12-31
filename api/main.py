@@ -2332,8 +2332,8 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
     """
     List all document types.
 
-    Returns a list of all document types sorted by document type name, including
-    discipline information.
+    Returns a list of all document types sorted by document type name, including discipline
+    information.
 
     Returns:
         List of document types with id, name, acronym, and associated discipline details.
@@ -2526,8 +2526,8 @@ def list_documents_for_project(
     """
     List all documents for a specific project.
 
-    Returns a list of all documents for the specified project, including details about
-    associated types, disciplines, areas, units, and revision information.
+    Returns a list of all documents for the specified project, including details about associated
+    types, disciplines, areas, units, and revision information.
 
     Args:
         project_id: The project ID to filter documents by.
@@ -2659,8 +2659,8 @@ def insert_file(
     """
     Upload a file and attach it to a document revision.
 
-    Uploads a file to MinIO object storage and creates a database record linking
-    it to the specified document revision.
+    Uploads a file to MinIO object storage and creates a database record linking it to the specified
+    document revision.
 
     Args:
         request: Incoming request used for logging the client host.
@@ -2897,8 +2897,8 @@ def download_file(
     """
     Download a file.
 
-    Streams a file from MinIO object storage to the client with proper headers
-    for download (Content-Disposition, ETag, Last-Modified).
+    Streams a file from MinIO object storage to the client with proper headers for download
+    (Content-Disposition, ETag, Last-Modified).
 
     Args:
         request: Incoming request used for logging the client host.
@@ -2985,9 +2985,9 @@ def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut
     """
     Update an existing document.
 
-    Updates various fields of an existing document including name, title, project,
-    jobpack, type, area, unit, and revision references. Validates all foreign key
-    references and ensures document name uniqueness.
+    Updates various fields of an existing document including name, title, project, jobpack, type,
+    area, unit, and revision references. Validates all foreign key references and ensures document
+    name uniqueness.
 
     Args:
         payload: Document update data including doc_id and at least one field to update.
@@ -3542,8 +3542,8 @@ def update_revision_overview(
     """
     Update an existing revision overview entry.
 
-    Updates the name, acronym, description, and/or percentage of an existing
-    revision overview entry.
+    Updates the name, acronym, description, and/or percentage of an existing revision overview
+    entry.
 
     Args:
         payload: Revision overview update data including rev_code_id and at least
@@ -3613,8 +3613,8 @@ def insert_revision_overview(
     """
     Create a new revision overview entry.
 
-    Inserts a new revision overview entry with the specified code, acronym,
-    description, and percentage.
+    Inserts a new revision overview entry with the specified code, acronym, description, and
+    percentage.
 
     Args:
         payload: Revision overview creation data including code name, acronym,
@@ -4220,8 +4220,8 @@ def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
     """
     List all permissions.
 
-    Returns a list of all permissions sorted by user ID, including user,
-    person, project, and discipline information.
+    Returns a list of all permissions sorted by user ID, including user, person, project, and
+    discipline information.
 
     Returns:
         List of permissions with comprehensive metadata.
@@ -4257,8 +4257,8 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
     """
     Create a new permission.
 
-    Creates a new permission for a user with project and/or discipline scope.
-    At least one of project_id or discipline_id must be provided.
+    Creates a new permission for a user with project and/or discipline scope. At least one of
+    project_id or discipline_id must be provided.
 
     Args:
         payload: Permission creation data including user_id and at least one of
@@ -4399,8 +4399,8 @@ def delete_permission(payload: PermissionDelete, db: Session = Depends(get_db)) 
     """
     Delete a permission.
 
-    Removes a permission from the database. Can be identified by permission_id or
-    by user_id with project_id and/or discipline_id.
+    Removes a permission from the database. Can be identified by permission_id or by user_id with
+    project_id and/or discipline_id.
 
     Args:
         payload: Permission deletion data including permission_id or user scope.
