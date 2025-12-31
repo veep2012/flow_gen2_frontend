@@ -49,6 +49,12 @@ make local-up
 - `make local-api-up`
 - `make local-api-down`
 
+### API docs (Swagger UI / ReDoc)
+With the API running (`make local-api-up`):
+- Swagger UI: `http://localhost:5556/docs`
+- ReDoc: `http://localhost:5556/redoc`
+- OpenAPI JSON: `http://localhost:5556/openapi.json`
+
 ### Run the UI
 - `make local-ui-up`
 - `make local-ui-down`
