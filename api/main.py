@@ -2804,4 +2804,3 @@ def _custom_openapi() -> dict[str, Any]:
 
 
 app.openapi = _custom_openapi
-app.openapi_schema = None
