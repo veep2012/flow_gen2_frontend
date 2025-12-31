@@ -563,10 +563,9 @@ def get_db() -> Iterable[Session]:
 @app.get("/")
 def read_root() -> dict[str, str]:
     """
-    Description:
-        Root endpoint returning a welcome message.
+    Root endpoint returning a welcome message.
 
-        Returns a simple message indicating the Flow backend is operational.
+    Returns a simple message indicating the Flow backend is operational.
 
     Returns:
         dict[str, str]: A message confirming the Flow backend is running.
@@ -577,10 +576,9 @@ def read_root() -> dict[str, str]:
 @app.get("/health")
 def health() -> dict[str, str]:
     """
-    Description:
-        Health check endpoint.
+    Health check endpoint.
 
-        Returns the health status of the API service.
+    Returns the health status of the API service.
 
     Returns:
         dict[str, str]: A status message indicating that the API service is healthy.
@@ -631,10 +629,9 @@ def _build_doc_type_out(doc_type: DocType, discipline: Discipline | None = None)
 @app.get("/api/v1/lookups/areas", response_model=list[AreaOut])
 def list_areas(db: Session = Depends(get_db)) -> list[Area]:
     """
-    Description:
-        List all areas.
+    List all areas.
 
-        Returns a list of all areas sorted by area name.
+    Returns a list of all areas sorted by area name.
 
     Returns:
         List of areas with id, name, and acronym. If no areas exist, an empty list is returned.
@@ -646,10 +643,9 @@ def list_areas(db: Session = Depends(get_db)) -> list[Area]:
 @app.put("/api/v1/lookups/areas/update", response_model=AreaOut)
 def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
     """
-    Description:
-        Update an existing area.
+    Update an existing area.
 
-        Updates the name and/or acronym of an existing area.
+    Updates the name and/or acronym of an existing area.
 
     Args:
         payload: Area update data including area_id and at least one field to update.
@@ -686,10 +682,9 @@ def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
 @app.post("/api/v1/lookups/areas/insert", response_model=AreaOut, status_code=201)
 def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
     """
-    Description:
-        Create a new area.
+    Create a new area.
 
-        Inserts a new area with the specified name and acronym.
+    Inserts a new area with the specified name and acronym.
 
     Args:
         payload: Area creation data including name and acronym.
@@ -714,10 +709,9 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
 @app.delete("/api/v1/lookups/areas/delete", status_code=204)
 def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete an area.
+    Delete an area.
 
-        Removes an area from the database by its ID.
+    Removes an area from the database by its ID.
 
     Args:
         payload: Area deletion data including area_id.
@@ -735,10 +729,9 @@ def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
 @app.get("/api/v1/lookups/disciplines", response_model=list[DisciplineOut])
 def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
     """
-    Description:
-        List all disciplines.
+    List all disciplines.
 
-        Returns a list of all disciplines sorted by discipline name.
+    Returns a list of all disciplines sorted by discipline name.
 
     Returns:
         List of disciplines with id, name, and acronym.
@@ -755,10 +748,9 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
 @app.put("/api/v1/lookups/disciplines/update", response_model=DisciplineOut)
 def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) -> Discipline:
     """
-    Description:
-        Update an existing discipline.
+    Update an existing discipline.
 
-        Updates the name and/or acronym of an existing discipline.
+    Updates the name and/or acronym of an existing discipline.
 
     Args:
         payload: Discipline update data including discipline_id and at least one field to update.
@@ -799,10 +791,9 @@ def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) 
 @app.post("/api/v1/lookups/disciplines/insert", response_model=DisciplineOut, status_code=201)
 def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) -> Discipline:
     """
-    Description:
-        Create a new discipline.
+    Create a new discipline.
 
-        Inserts a new discipline with the specified name and acronym.
+    Inserts a new discipline with the specified name and acronym.
 
     Args:
         payload: Discipline creation data including name and acronym.
@@ -834,10 +825,9 @@ def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) 
 @app.delete("/api/v1/lookups/disciplines/delete", status_code=204)
 def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete a discipline.
+    Delete a discipline.
 
-        Removes a discipline from the database by its ID.
+    Removes a discipline from the database by its ID.
 
     Args:
         payload: Discipline deletion data including discipline_id.
@@ -855,10 +845,9 @@ def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) 
 @app.get("/api/v1/lookups/projects", response_model=list[ProjectOut])
 def list_projects(db: Session = Depends(get_db)) -> list[Project]:
     """
-    Description:
-        List all projects.
+    List all projects.
 
-        Returns a list of all projects sorted by project name.
+    Returns a list of all projects sorted by project name.
 
     Returns:
         List of projects with id and name.
@@ -875,10 +864,9 @@ def list_projects(db: Session = Depends(get_db)) -> list[Project]:
 @app.put("/api/v1/lookups/projects/update", response_model=ProjectOut)
 def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Project:
     """
-    Description:
-        Update an existing project.
+    Update an existing project.
 
-        Updates the name of an existing project.
+    Updates the name of an existing project.
 
     Args:
         payload: Project update data including project_id and new project_name.
@@ -913,10 +901,9 @@ def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Pro
 @app.post("/api/v1/lookups/projects/insert", response_model=ProjectOut, status_code=201)
 def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Project:
     """
-    Description:
-        Create a new project.
+    Create a new project.
 
-        Inserts a new project with the specified name.
+    Inserts a new project with the specified name.
 
     Args:
         payload: Project creation data including project_name.
@@ -941,10 +928,9 @@ def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
 @app.delete("/api/v1/lookups/projects/delete", status_code=204)
 def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete a project.
+    Delete a project.
 
-        Removes a project from the database by its ID.
+    Removes a project from the database by its ID.
 
     Args:
         payload: Project deletion data including project_id.
@@ -962,10 +948,9 @@ def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> Non
 @app.get("/api/v1/lookups/units", response_model=list[UnitOut])
 def list_units(db: Session = Depends(get_db)) -> list[Unit]:
     """
-    Description:
-        List all units.
+    List all units.
 
-        Returns a list of all units sorted by unit name.
+    Returns a list of all units sorted by unit name.
 
     Returns:
         List of units with id and name.
@@ -982,10 +967,9 @@ def list_units(db: Session = Depends(get_db)) -> list[Unit]:
 @app.put("/api/v1/lookups/units/update", response_model=UnitOut)
 def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
     """
-    Description:
-        Update an existing unit.
+    Update an existing unit.
 
-        Updates the name of an existing unit.
+    Updates the name of an existing unit.
 
     Args:
         payload: Unit update data including unit_id and new unit_name.
@@ -1020,10 +1004,9 @@ def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
 @app.post("/api/v1/lookups/units/insert", response_model=UnitOut, status_code=201)
 def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
     """
-    Description:
-        Create a new unit.
+    Create a new unit.
 
-        Inserts a new unit with the specified name.
+    Inserts a new unit with the specified name.
 
     Args:
         payload: Unit creation data including unit_name.
@@ -1048,10 +1031,9 @@ def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
 @app.delete("/api/v1/lookups/units/delete", status_code=204)
 def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete a unit.
+    Delete a unit.
 
-        Removes a unit from the database by its ID.
+    Removes a unit from the database by its ID.
 
     Args:
         payload: Unit deletion data including unit_id.
@@ -1069,10 +1051,9 @@ def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
 @app.get("/api/v1/lookups/jobpacks", response_model=list[JobpackOut])
 def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
     """
-    Description:
-        List all jobpacks.
+    List all jobpacks.
 
-        Returns a list of all jobpacks sorted by jobpack name.
+    Returns a list of all jobpacks sorted by jobpack name.
 
     Returns:
         List of jobpacks with id and name.
@@ -1089,10 +1070,9 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
 @app.put("/api/v1/lookups/jobpacks/update", response_model=JobpackOut)
 def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Jobpack:
     """
-    Description:
-        Update an existing jobpack.
+    Update an existing jobpack.
 
-        Updates the name of an existing jobpack.
+    Updates the name of an existing jobpack.
 
     Args:
         payload: Jobpack update data including jobpack_id and new jobpack_name.
@@ -1126,10 +1106,9 @@ def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Job
 @app.post("/api/v1/lookups/jobpacks/insert", response_model=JobpackOut, status_code=201)
 def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Jobpack:
     """
-    Description:
-        Create a new jobpack.
+    Create a new jobpack.
 
-        Inserts a new jobpack with the specified name.
+    Inserts a new jobpack with the specified name.
 
     Args:
         payload: Jobpack creation data including jobpack_name.
@@ -1154,10 +1133,9 @@ def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Job
 @app.delete("/api/v1/lookups/jobpacks/delete", status_code=204)
 def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete a jobpack.
+    Delete a jobpack.
 
-        Removes a jobpack from the database by its ID.
+    Removes a jobpack from the database by its ID.
 
     Args:
         payload: Jobpack deletion data including jobpack_id.
@@ -1175,11 +1153,10 @@ def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> Non
 @app.get("/api/v1/documents/doc_types", response_model=list[DocTypeOut])
 def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
     """
-    Description:
-        List all document types.
+    List all document types.
 
-        Returns a list of all document types sorted by document type name, including
-        discipline information.
+    Returns a list of all document types sorted by document type name, including
+    discipline information.
 
     Returns:
         List of document types with id, name, acronym, and associated discipline details.
@@ -1201,10 +1178,9 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
 @app.post("/api/v1/documents/doc_types/insert", response_model=DocTypeOut, status_code=201)
 def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> DocType:
     """
-    Description:
-        Create a new document type.
+    Create a new document type.
 
-        Inserts a new document type with the specified name, acronym, and discipline reference.
+    Inserts a new document type with the specified name, acronym, and discipline reference.
 
     Args:
         payload: Document type creation data including name, acronym, and discipline reference.
@@ -1239,10 +1215,9 @@ def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> Do
 @app.put("/api/v1/documents/doc_types/update", response_model=DocTypeOut)
 def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> DocType:
     """
-    Description:
-        Update an existing document type.
+    Update an existing document type.
 
-        Updates the name, acronym, and/or discipline reference of an existing document type.
+    Updates the name, acronym, and/or discipline reference of an existing document type.
 
     Args:
         payload: Document type update data including type_id and at least one field to update.
@@ -1289,10 +1264,9 @@ def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> Do
 @app.delete("/api/v1/documents/doc_types/delete", status_code=204)
 def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete a document type.
+    Delete a document type.
 
-        Removes a document type from the database by its ID.
+    Removes a document type from the database by its ID.
 
     Args:
         payload: Document type deletion data including type_id.
@@ -1313,11 +1287,10 @@ def list_documents_for_project(
     db: Session = Depends(get_db),
 ) -> list[Doc]:
     """
-    Description:
-        List all documents for a specific project.
+    List all documents for a specific project.
 
-        Returns a list of all documents for the specified project, including details about
-        associated types, disciplines, areas, units, and revision information.
+    Returns a list of all documents for the specified project, including details about
+    associated types, disciplines, areas, units, and revision information.
 
     Args:
         project_id: The project ID to filter documents by.
@@ -1394,10 +1367,9 @@ def list_files_for_revision(
     db: Session = Depends(get_db),
 ) -> list[File]:
     """
-    Description:
-        List all files for a specific revision.
+    List all files for a specific revision.
 
-        Returns a list of all files associated with the specified document revision.
+    Returns a list of all files associated with the specified document revision.
 
     Args:
         rev_id: The revision ID to filter files by.
@@ -1417,11 +1389,10 @@ def insert_file(
     db: Session = Depends(get_db),
 ) -> File:
     """
-    Description:
-        Upload a file and attach it to a document revision.
+    Upload a file and attach it to a document revision.
 
-        Uploads a file to MinIO object storage and creates a database record linking
-        it to the specified document revision.
+    Uploads a file to MinIO object storage and creates a database record linking
+    it to the specified document revision.
 
     Args:
         rev_id: The revision ID to attach the file to.
@@ -1532,10 +1503,9 @@ def insert_file(
 @app.put("/api/v1/files/update", response_model=FileOut)
 def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
     """
-    Description:
-        Update file metadata.
+    Update file metadata.
 
-        Updates the filename of an existing file record (does not update the actual file content).
+    Updates the filename of an existing file record (does not update the actual file content).
 
     Args:
         payload: File update data including file id and new filename.
@@ -1571,10 +1541,9 @@ def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
 @app.delete("/api/v1/files/delete", status_code=204)
 def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete a file.
+    Delete a file.
 
-        Removes a file from both the MinIO object storage and the database.
+    Removes a file from both the MinIO object storage and the database.
 
     Args:
         payload: File deletion data including file id.
@@ -1612,11 +1581,10 @@ def download_file(
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     """
-    Description:
-        Download a file.
+    Download a file.
 
-        Streams a file from MinIO object storage to the client with proper headers
-        for download (Content-Disposition, ETag, Last-Modified).
+    Streams a file from MinIO object storage to the client with proper headers
+    for download (Content-Disposition, ETag, Last-Modified).
 
     Args:
         file_id: The ID of the file to download.
@@ -1683,12 +1651,11 @@ def download_file(
 @app.put("/api/v1/documents/update", response_model=DocOut)
 def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut:
     """
-    Description:
-        Update an existing document.
+    Update an existing document.
 
-        Updates various fields of an existing document including name, title, project,
-        jobpack, type, area, unit, and revision references. Validates all foreign key
-        references and ensures document name uniqueness.
+    Updates various fields of an existing document including name, title, project,
+    jobpack, type, area, unit, and revision references. Validates all foreign key
+    references and ensures document name uniqueness.
 
     Args:
         payload: Document update data including doc_id and at least one field to update.
@@ -1874,10 +1841,9 @@ def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut
 @app.get("/api/v1/people/roles", response_model=list[RoleOut])
 def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     """
-    Description:
-        List all roles.
+    List all roles.
 
-        Returns a list of all roles sorted by role name.
+    Returns a list of all roles sorted by role name.
 
     Returns:
         List of roles with id and name.
@@ -1894,10 +1860,9 @@ def list_roles(db: Session = Depends(get_db)) -> list[Role]:
 @app.put("/api/v1/people/roles/update", response_model=RoleOut)
 def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
     """
-    Description:
-        Update an existing role.
+    Update an existing role.
 
-        Updates the name of an existing role.
+    Updates the name of an existing role.
 
     Args:
         payload: Role update data including role_id and new role_name.
@@ -1931,10 +1896,9 @@ def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
 @app.post("/api/v1/people/roles/insert", response_model=RoleOut, status_code=201)
 def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     """
-    Description:
-        Create a new role.
+    Create a new role.
 
-        Inserts a new role with the specified name.
+    Inserts a new role with the specified name.
 
     Args:
         payload: Role creation data including role_name.
@@ -1959,10 +1923,9 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
 @app.delete("/api/v1/people/roles/delete", status_code=204)
 def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete a role.
+    Delete a role.
 
-        Removes a role from the database by its ID.
+    Removes a role from the database by its ID.
 
     Args:
         payload: Role deletion data including role_id.
@@ -1980,10 +1943,9 @@ def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
 @app.get("/api/v1/documents/doc_rev_milestones", response_model=list[DocRevMilestoneOut])
 def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilestone]:
     """
-    Description:
-        List all document revision milestones.
+    List all document revision milestones.
 
-        Returns a list of all document revision milestones sorted by milestone name.
+    Returns a list of all document revision milestones sorted by milestone name.
 
     Returns:
         List of milestones with id, name, and progress percentage.
@@ -2005,10 +1967,9 @@ def update_doc_rev_milestone(
     payload: DocRevMilestoneUpdate, db: Session = Depends(get_db)
 ) -> DocRevMilestone:
     """
-    Description:
-        Update an existing document revision milestone.
+    Update an existing document revision milestone.
 
-        Updates the name and/or progress percentage of an existing milestone.
+    Updates the name and/or progress percentage of an existing milestone.
 
     Args:
         payload: Milestone update data including milestone_id and at least one field to update.
@@ -2051,10 +2012,9 @@ def insert_doc_rev_milestone(
     payload: DocRevMilestoneCreate, db: Session = Depends(get_db)
 ) -> DocRevMilestone:
     """
-    Description:
-        Create a new document revision milestone.
+    Create a new document revision milestone.
 
-        Inserts a new milestone with the specified name and optional progress percentage.
+    Inserts a new milestone with the specified name and optional progress percentage.
 
     Args:
         payload: Milestone creation data including name and optional progress.
@@ -2079,10 +2039,9 @@ def insert_doc_rev_milestone(
 @app.delete("/api/v1/documents/doc_rev_milestones/delete", status_code=204)
 def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete a document revision milestone.
+    Delete a document revision milestone.
 
-        Removes a milestone from the database by its ID.
+    Removes a milestone from the database by its ID.
 
     Args:
         payload: Milestone deletion data including milestone_id.
@@ -2100,10 +2059,9 @@ def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depen
 @app.get("/api/v1/documents/revision_overview", response_model=list[RevisionOverviewOut])
 def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOverview]:
     """
-    Description:
-        List all revision overview entries.
+    List all revision overview entries.
 
-        Returns a list of all revision overview entries sorted by revision code name.
+    Returns a list of all revision overview entries sorted by revision code name.
 
     Returns:
         List of revision codes with id, name, acronym, description, and percentage.
@@ -2122,11 +2080,10 @@ def update_revision_overview(
     payload: RevisionOverviewUpdate, db: Session = Depends(get_db)
 ) -> RevisionOverview:
     """
-    Description:
-        Update an existing revision overview entry.
+    Update an existing revision overview entry.
 
-        Updates the name, acronym, description, and/or percentage of an existing
-        revision overview entry.
+    Updates the name, acronym, description, and/or percentage of an existing
+    revision overview entry.
 
     Args:
         payload: Revision overview update data including rev_code_id and at least
@@ -2181,11 +2138,10 @@ def insert_revision_overview(
     payload: RevisionOverviewCreate, db: Session = Depends(get_db)
 ) -> RevisionOverview:
     """
-    Description:
-        Create a new revision overview entry.
+    Create a new revision overview entry.
 
-        Inserts a new revision overview entry with the specified code, acronym,
-        description, and percentage.
+    Inserts a new revision overview entry with the specified code, acronym,
+    description, and percentage.
 
     Args:
         payload: Revision overview creation data including code name, acronym,
@@ -2220,10 +2176,9 @@ def delete_revision_overview(
     payload: RevisionOverviewDelete, db: Session = Depends(get_db)
 ) -> None:
     """
-    Description:
-        Delete a revision overview entry.
+    Delete a revision overview entry.
 
-        Removes a revision overview entry from the database by its ID.
+    Removes a revision overview entry from the database by its ID.
 
     Args:
         payload: Revision overview deletion data including rev_code_id.
@@ -2241,10 +2196,9 @@ def delete_revision_overview(
 @app.get("/api/v1/lookups/doc_rev_statuses", response_model=list[DocRevStatusOut])
 def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
     """
-    Description:
-        List all document revision statuses.
+    List all document revision statuses.
 
-        Returns a list of all document revision statuses sorted by status name.
+    Returns a list of all document revision statuses sorted by status name.
 
     Returns:
         List of statuses with id and name.
@@ -2263,10 +2217,9 @@ def update_doc_rev_status(
     payload: DocRevStatusUpdate, db: Session = Depends(get_db)
 ) -> DocRevStatus:
     """
-    Description:
-        Update an existing document revision status.
+    Update an existing document revision status.
 
-        Updates the name of an existing document revision status.
+    Updates the name of an existing document revision status.
 
     Args:
         payload: Status update data including rev_status_id and new rev_status_name.
@@ -2307,10 +2260,9 @@ def insert_doc_rev_status(
     payload: DocRevStatusCreate, db: Session = Depends(get_db)
 ) -> DocRevStatus:
     """
-    Description:
-        Create a new document revision status.
+    Create a new document revision status.
 
-        Inserts a new document revision status with the specified name.
+    Inserts a new document revision status with the specified name.
 
     Args:
         payload: Status creation data including rev_status_name.
@@ -2335,10 +2287,9 @@ def insert_doc_rev_status(
 @app.delete("/api/v1/lookups/doc_rev_statuses/delete", status_code=204)
 def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete a document revision status.
+    Delete a document revision status.
 
-        Removes a document revision status from the database by its ID.
+    Removes a document revision status from the database by its ID.
 
     Args:
         payload: Status deletion data including rev_status_id.
@@ -2356,10 +2307,9 @@ def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get
 @app.get("/api/v1/people/persons", response_model=list[PersonOut])
 def list_persons(db: Session = Depends(get_db)) -> list[Person]:
     """
-    Description:
-        List all persons.
+    List all persons.
 
-        Returns a list of all persons sorted by person name.
+    Returns a list of all persons sorted by person name.
 
     Returns:
         List of persons with id, name, and photo S3 UID.
@@ -2376,10 +2326,9 @@ def list_persons(db: Session = Depends(get_db)) -> list[Person]:
 @app.put("/api/v1/people/persons/update", response_model=PersonOut)
 def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Person:
     """
-    Description:
-        Update an existing person.
+    Update an existing person.
 
-        Updates the name and/or photo S3 UID of an existing person.
+    Updates the name and/or photo S3 UID of an existing person.
 
     Args:
         payload: Person update data including person_id and at least one field to update.
@@ -2416,10 +2365,9 @@ def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Perso
 @app.post("/api/v1/people/persons/insert", response_model=PersonOut, status_code=201)
 def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Person:
     """
-    Description:
-        Create a new person.
+    Create a new person.
 
-        Inserts a new person with the specified name and optional photo S3 UID.
+    Inserts a new person with the specified name and optional photo S3 UID.
 
     Args:
         payload: Person creation data including name and optional photo S3 UID.
@@ -2444,10 +2392,9 @@ def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Perso
 @app.delete("/api/v1/people/persons/delete", status_code=204)
 def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete a person.
+    Delete a person.
 
-        Removes a person from the database by their ID.
+    Removes a person from the database by their ID.
 
     Args:
         payload: Person deletion data including person_id.
@@ -2465,10 +2412,9 @@ def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
 @app.get("/api/v1/people/users", response_model=list[UserOut])
 def list_users(db: Session = Depends(get_db)) -> list[User]:
     """
-    Description:
-        List all users.
+    List all users.
 
-        Returns a list of all users sorted by user acronym, including person and role information.
+    Returns a list of all users sorted by user acronym, including person and role information.
 
     Returns:
         List of users with id, person details, acronym, and role information.
@@ -2491,10 +2437,9 @@ def list_users(db: Session = Depends(get_db)) -> list[User]:
 @app.put("/api/v1/people/users/update", response_model=UserOut)
 def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
     """
-    Description:
-        Update an existing user.
+    Update an existing user.
 
-        Updates the person reference, acronym, and/or role of an existing user.
+    Updates the person reference, acronym, and/or role of an existing user.
 
     Args:
         payload: User update data including user_id and at least one field to update.
@@ -2539,10 +2484,9 @@ def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
 @app.post("/api/v1/people/users/insert", response_model=UserOut, status_code=201)
 def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     """
-    Description:
-        Create a new user.
+    Create a new user.
 
-        Creates a new user with the specified person reference, acronym, and role.
+    Creates a new user with the specified person reference, acronym, and role.
 
     Args:
         payload: User creation data including person_id, user_acronym, and role_id.
@@ -2578,10 +2522,9 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
 @app.delete("/api/v1/people/users/delete", status_code=204)
 def delete_user(payload: UserDelete, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete a user.
+    Delete a user.
 
-        Removes a user from the database by their ID.
+    Removes a user from the database by their ID.
 
     Args:
         payload: User deletion data including user_id.
@@ -2615,11 +2558,10 @@ def _permission_filter(query, payload) -> Session:
 @app.get("/api/v1/people/permissions", response_model=list[PermissionOut])
 def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
     """
-    Description:
-        List all permissions.
+    List all permissions.
 
-        Returns a list of all permissions sorted by user ID, including user,
-        person, project, and discipline information.
+    Returns a list of all permissions sorted by user ID, including user,
+    person, project, and discipline information.
 
     Returns:
         List of permissions with comprehensive metadata.
@@ -2636,11 +2578,10 @@ def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
 @app.post("/api/v1/people/permissions/insert", response_model=PermissionOut, status_code=201)
 def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) -> Permission:
     """
-    Description:
-        Create a new permission.
+    Create a new permission.
 
-        Creates a new permission for a user with project and/or discipline scope.
-        At least one of project_id or discipline_id must be provided.
+    Creates a new permission for a user with project and/or discipline scope.
+    At least one of project_id or discipline_id must be provided.
 
     Args:
         payload: Permission creation data including user_id and at least one of
@@ -2686,10 +2627,9 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
 @app.put("/api/v1/people/permissions/update", response_model=PermissionOut)
 def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) -> Permission:
     """
-    Description:
-        Update an existing permission.
+    Update an existing permission.
 
-        Updates the project and/or discipline scope of an existing permission.
+    Updates the project and/or discipline scope of an existing permission.
 
     Args:
         payload: Permission update data including current scope and new scope values.
@@ -2751,11 +2691,10 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
 @app.delete("/api/v1/people/permissions/delete", status_code=204)
 def delete_permission(payload: PermissionDelete, db: Session = Depends(get_db)) -> None:
     """
-    Description:
-        Delete a permission.
+    Delete a permission.
 
-        Removes a permission from the database. Can be identified by permission_id or
-        by user_id with project_id and/or discipline_id.
+    Removes a permission from the database. Can be identified by permission_id or
+    by user_id with project_id and/or discipline_id.
 
     Args:
         payload: Permission deletion data including permission_id or user scope.
