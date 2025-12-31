@@ -4333,6 +4333,14 @@ def delete_file(
     operation_id="download_file",
     tags=["files"],
     responses={
+        200: {
+            "description": "File content.",
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "format": "binary"},
+                },
+            },
+        },
         400: {
             "description": "Bad Request",
             "content": {
