@@ -4,21 +4,8 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from api.db.models import (
-    Area,
-    Discipline,
-    DocType,
-    Jobpack,
-    Project,
-    Role,
-    Unit,
-)
-from api.schemas.documents import (
-    DocTypeCreate,
-    DocTypeDelete,
-    DocTypeOut,
-    DocTypeUpdate,
-)
+from api.db.models import Area, Discipline, DocType, Jobpack, Project, Unit
+from api.schemas.documents import DocTypeCreate, DocTypeDelete, DocTypeOut, DocTypeUpdate
 from api.schemas.lookups import (
     AreaCreate,
     AreaDelete,
@@ -36,10 +23,6 @@ from api.schemas.lookups import (
     ProjectDelete,
     ProjectOut,
     ProjectUpdate,
-    RoleCreate,
-    RoleDelete,
-    RoleOut,
-    RoleUpdate,
     UnitCreate,
     UnitDelete,
     UnitOut,
@@ -47,7 +30,6 @@ from api.schemas.lookups import (
 )
 from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
-from api.utils.responses import COMMON_RESPONSES
 
 router = APIRouter(prefix="/api/v1/lookups", tags=["lookups"])
 
@@ -2158,4 +2140,3 @@ def delete_doc_type(
         raise HTTPException(status_code=404, detail="Doc type not found")
     db.delete(doc_type)
     db.commit()
-

@@ -1,8 +1,10 @@
 """Files endpoints for file upload and download operations."""
 
+import logging
 import os
 import uuid
 from email.utils import formatdate
+from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, UploadFile
 from fastapi import File as UploadFileField
@@ -11,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
-from api.db.models import Doc, DocRevision, File, Project
+from api.db.models import DocRevision, File
 from api.schemas.files import FileDelete, FileOut, FileUpdate
 from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
@@ -21,9 +23,10 @@ from api.utils.minio import (
     _close_minio_response,
     _minio_with_retry,
 )
-from api.utils.responses import COMMON_RESPONSES
 
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
+
+logger = logging.getLogger(__name__)
 
 
 @router.get(
@@ -624,5 +627,3 @@ def download_file(
         headers=headers,
         background=BackgroundTask(_close_minio_response, response),
     )
-
-

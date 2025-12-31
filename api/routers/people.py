@@ -21,7 +21,6 @@ from api.schemas.people import (
 )
 from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
-from api.utils.responses import COMMON_RESPONSES
 
 router = APIRouter(prefix="/api/v1/people", tags=["people"])
 
@@ -1205,4 +1204,3 @@ def delete_permission(
         raise HTTPException(status_code=404, detail="Permission not found")
     db.delete(permission)
     db.commit()
-

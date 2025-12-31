@@ -1,6 +1,5 @@
 """Pydantic schemas for document-related entities."""
 
-from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -57,7 +56,9 @@ class DocOut(BaseModel):
     doc_name_unique: str = Field(
         ..., description="Document unique name.", examples=["DOC-001"], min_length=1
     )
-    title: str = Field(..., description="Document title.", examples=["Document Title"], min_length=1)
+    title: str = Field(
+        ..., description="Document title.", examples=["Document Title"], min_length=1
+    )
     project_id: int | None = Field(None, description="Project ID.", examples=[1], gt=0)
     project_name: str | None = Field(
         None, description="Project name.", examples=["Project A"], min_length=1

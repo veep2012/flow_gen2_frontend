@@ -2,14 +2,14 @@
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, aliased, joinedload
 
 from api.db.models import (
     Area,
     Discipline,
     Doc,
-    DocRevMilestone,
     DocRevision,
+    DocRevMilestone,
     DocType,
     Jobpack,
     Project,
@@ -30,7 +30,6 @@ from api.schemas.documents import (
 )
 from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
-from api.utils.responses import COMMON_RESPONSES
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 
@@ -429,7 +428,6 @@ def update_document(
     )
 
 
-
 @router.get(
     "/doc_rev_milestones",
     summary="List all document revision milestones.",
@@ -771,6 +769,7 @@ def delete_doc_rev_milestone(
         raise HTTPException(status_code=404, detail="Milestone not found")
     db.delete(milestone)
     db.commit()
+
 
 @router.get(
     "/revision_overview",
@@ -1141,4 +1140,3 @@ def delete_revision_overview(
         raise HTTPException(status_code=404, detail="Revision overview entry not found")
     db.delete(revision)
     db.commit()
-

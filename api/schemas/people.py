@@ -10,7 +10,10 @@ class PersonOut(BaseModel):
     person_id: int = Field(..., description="Person ID.", examples=[1], gt=0)
     person_name: str = Field(..., description="Person name.", examples=["Person A"], min_length=1)
     photo_s3_uid: str | None = Field(
-        None, description="Photo S3 object key.", examples=["bucket/photos/person.jpg"], min_length=1
+        None,
+        description="Photo S3 object key.",
+        examples=["bucket/photos/person.jpg"],
+        min_length=1,
     )
 
 
@@ -20,14 +23,20 @@ class PersonUpdate(BaseModel):
         None, description="Person name.", examples=["Person A"], min_length=1
     )
     photo_s3_uid: str | None = Field(
-        None, description="Photo S3 object key.", examples=["bucket/photos/person.jpg"], min_length=1
+        None,
+        description="Photo S3 object key.",
+        examples=["bucket/photos/person.jpg"],
+        min_length=1,
     )
 
 
 class PersonCreate(BaseModel):
     person_name: str = Field(..., description="Person name.", examples=["Person A"], min_length=1)
     photo_s3_uid: str | None = Field(
-        None, description="Photo S3 object key.", examples=["bucket/photos/person.jpg"], min_length=1
+        None,
+        description="Photo S3 object key.",
+        examples=["bucket/photos/person.jpg"],
+        min_length=1,
     )
 
 
@@ -108,7 +117,10 @@ class PermissionDelete(BaseModel):
         if self.permission_id is None and self.project_id is None and self.discipline_id is None:
             raise HTTPException(
                 status_code=400,
-                detail="Provide permission_id or project_id/discipline_id to identify the permission",
+                detail=(
+                    "Provide permission_id or project_id/discipline_id "
+                    "to identify the permission"
+                ),
             )
 
 
