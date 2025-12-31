@@ -2,6 +2,15 @@ $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 
+$presetDatabaseUrl = $env:DATABASE_URL
+$presetApiHost = $env:API_HOST
+$presetApiPort = $env:API_PORT
+$presetMinioEndpoint = $env:MINIO_ENDPOINT
+$presetMinioBucket = $env:MINIO_BUCKET
+$presetMinioRootUser = $env:MINIO_ROOT_USER
+$presetMinioRootPassword = $env:MINIO_ROOT_PASSWORD
+$presetMinioSecure = $env:MINIO_SECURE
+
 # Load .env into process env
 $envPath = Join-Path $root ".env"
 if (Test-Path $envPath) {
@@ -12,6 +21,36 @@ if (Test-Path $envPath) {
             Set-Item -Path "Env:$name" -Value $val
         }
     }
+}
+
+if ($presetDatabaseUrl) {
+    $env:DATABASE_URL = $presetDatabaseUrl
+}
+if ($presetApiHost) {
+    $env:API_HOST = $presetApiHost
+}
+if ($presetApiPort) {
+    $env:API_PORT = $presetApiPort
+}
+if ($presetMinioEndpoint) {
+    $env:MINIO_ENDPOINT = $presetMinioEndpoint
+}
+if ($presetMinioBucket) {
+    $env:MINIO_BUCKET = $presetMinioBucket
+}
+if ($presetMinioRootUser) {
+    $env:MINIO_ROOT_USER = $presetMinioRootUser
+}
+if ($presetMinioRootPassword) {
+    $env:MINIO_ROOT_PASSWORD = $presetMinioRootPassword
+}
+if ($presetMinioSecure) {
+    $env:MINIO_SECURE = $presetMinioSecure
+}
+
+$minioEndpoint = $env:MINIO_ENDPOINT
+if ($minioEndpoint) {
+    $env:MINIO_ENDPOINT = $minioEndpoint.Replace("host.containers.internal", "localhost")
 }
 
 $venvPy = Join-Path $root ".venv\Scripts\python.exe"
