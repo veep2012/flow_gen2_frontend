@@ -1380,7 +1380,7 @@ def list_files_for_revision(
         rev_id: The revision ID to filter files by.
 
     Returns:
-        List of files with metadata.
+        List of files with metadata. If no files exist for the specified revision, an empty list is returned.
     """
     files = db.query(File).filter(File.rev_id == rev_id).order_by(File.filename, File.id).all()
     return files
