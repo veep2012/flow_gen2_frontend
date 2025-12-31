@@ -206,13 +206,15 @@ def insert_file(
         raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
 
     # Extract file extension and validate against accepted file types
+    # rsplit with maxsplit=1 handles multiple dots correctly (e.g., "file.tar.gz" -> "gz")
+    # Empty string is returned for files without extensions or ending with dots (e.g., "file...")
     file_extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if not file_extension:
         raise HTTPException(
             status_code=400,
             detail="File must have an extension. Allowed types: Word, Excel, PDF, AutoCAD."
         )
-    
+
     accepted_file = db.query(FileAccepted).filter(
         FileAccepted.file_type == file_extension
     ).first()

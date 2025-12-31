@@ -46,10 +46,10 @@ def _extract_first_id(items: list, keys: list[str]) -> int | None:
 def _get_test_revision_id(client: httpx.Client) -> int:
     """
     Helper function to get a valid revision ID for testing.
-    
+
     Returns:
         int: A valid revision ID.
-        
+
     Raises:
         pytest.skip: If no revision ID is available.
     """
@@ -74,7 +74,7 @@ def _get_test_revision_id(client: httpx.Client) -> int:
             break
     if rev_id is None:
         pytest.skip("No revision id available for files test")
-    
+
     return rev_id
 
 
