@@ -637,14 +637,9 @@ def list_areas(db: Session = Depends(get_db)) -> list[Area]:
         Returns a list of all areas sorted by area name.
 
     Returns:
-        List of areas with id, name, and acronym.
-
-    Raises:
-        HTTPException: 404 if no areas are found.
+        List of areas with id, name, and acronym. If no areas exist, an empty list is returned.
     """
     areas = db.query(Area).order_by(Area.area_name).all()
-    if not areas:
-        raise HTTPException(status_code=404, detail="No areas found")
     return areas
 
 
