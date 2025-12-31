@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
-from api.db.models import DocRevision, File
+from api.db.models import DocRevision, File, FileAccepted
 from api.schemas.files import FileDelete, FileOut, FileUpdate
 from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
@@ -204,6 +204,18 @@ def insert_file(
     filename = os.path.basename(file.filename)
     if len(filename) > 90:
         raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
+
+    # Extract file extension and validate against accepted file types
+    file_extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if file_extension:
+        accepted_file = db.query(FileAccepted).filter(
+            FileAccepted.file_type == file_extension
+        ).first()
+        if not accepted_file:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, PDF, AutoCAD."
+            )
 
     content_type = file.content_type or "application/octet-stream"
     stream = file.file

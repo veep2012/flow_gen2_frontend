@@ -119,10 +119,10 @@ class DocRevStatus(Base):
     revisions: Mapped[list["DocRevision"]] = relationship(back_populates="status")
 
 
-class FileForbidden(Base):
-    __tablename__ = "files_forbidden"
+class FileAccepted(Base):
+    __tablename__ = "files_accepted"
 
-    file_type: Mapped[str] = mapped_column(String(4), primary_key=True)
+    file_type: Mapped[str] = mapped_column(String(10), primary_key=True)
     mimetype: Mapped[str] = mapped_column(String(90), nullable=False)
 
 

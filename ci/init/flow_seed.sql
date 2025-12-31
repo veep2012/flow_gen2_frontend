@@ -71,6 +71,16 @@ INSERT INTO doc_rev_statuses (rev_status_id, rev_status_name) VALUES
 INSERT INTO roles (role_id, role_name) VALUES 
 (1,'SuperUser'),(2,'User/DCC'),(3,'Limited User');
 
+-- Accepted File Types
+INSERT INTO files_accepted (file_type, mimetype) VALUES
+('docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+('doc', 'application/msword'),
+('xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+('xls', 'application/vnd.ms-excel'),
+('pdf', 'application/pdf'),
+('dwg', 'application/acad'),
+('dxf', 'application/dxf');
+
 -- Users
 INSERT INTO users (user_id, person_id, user_acronym, role_id) VALUES 
 (1,1,'ZAML',3),(2,2,'FDQC',1),(3,3,'ASBB',2),(4,4,'KONI',1);

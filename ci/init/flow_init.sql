@@ -63,8 +63,8 @@ CREATE TABLE doc_rev_statuses (
     rev_status_name VARCHAR(45) NOT NULL UNIQUE
 );
 
-CREATE TABLE files_forbidden (
-    file_type VARCHAR(4) PRIMARY KEY,
+CREATE TABLE files_accepted (
+    file_type VARCHAR(10) PRIMARY KEY,
     mimetype VARCHAR(90) NOT NULL
 );
 
