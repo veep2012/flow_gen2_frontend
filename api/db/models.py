@@ -19,7 +19,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, foreign, mapped_column, relationship
 
-
 metadata = MetaData(schema="flow")
 
 
@@ -200,14 +199,18 @@ class DistributionList(Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("flow.projects.project_id"), nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="distribution_lists")
-    members: Mapped[list["DistributionListContent"]] = relationship(back_populates="distribution_list")
+    members: Mapped[list["DistributionListContent"]] = relationship(
+        back_populates="distribution_list"
+    )
 
 
 class DistributionListContent(Base):
     __tablename__ = "distribution_list_content"
     __table_args__ = (PrimaryKeyConstraint("dist_id", "person_id"),)
 
-    dist_id: Mapped[int] = mapped_column(ForeignKey("flow.distribution_list.dist_id"), nullable=False)
+    dist_id: Mapped[int] = mapped_column(
+        ForeignKey("flow.distribution_list.dist_id"), nullable=False
+    )
     person_id: Mapped[int] = mapped_column(ForeignKey("flow.person.person_id"), nullable=False)
 
     distribution_list: Mapped[DistributionList] = relationship(back_populates="members")
@@ -349,10 +352,14 @@ class DocRevision(Base):
     rev_status_id: Mapped[int] = mapped_column(
         ForeignKey("flow.doc_rev_statuses.rev_status_id"), nullable=False
     )
-    doc_id: Mapped[int] = mapped_column(ForeignKey("flow.doc.doc_id", ondelete="CASCADE"), nullable=False)
+    doc_id: Mapped[int] = mapped_column(
+        ForeignKey("flow.doc.doc_id", ondelete="CASCADE"), nullable=False
+    )
     seq_num: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)
     rev_modifier_id: Mapped[Optional[int]] = mapped_column(SmallInteger)
-    modified_doc_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    modified_doc_date: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
 
     doc: Mapped[Doc] = relationship(
         back_populates="revisions",
