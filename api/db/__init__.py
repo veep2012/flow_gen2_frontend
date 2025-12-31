@@ -1,6 +1,3 @@
-"""
-Description:
-    Database package exports.
-"""
+"""Database package exports."""
 
 from .models import Base  # noqa: F401

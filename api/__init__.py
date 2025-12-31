@@ -1,4 +1,1 @@
-"""
-Description:
-    FastAPI application package for Flow.
-"""
+"""FastAPI application package for Flow."""
