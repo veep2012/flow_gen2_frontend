@@ -43,13 +43,13 @@ UI_PID_FILE := $(PID_DIR)/vite.pid
 UI_ALT_PID_FILE := $(PID_DIR)/vite-alt.pid
 UI_LOG_FILE := $(PID_DIR)/vite.log
 UI_ALT_LOG_FILE := $(PID_DIR)/vite-alt.log
-PYTHON_BIN ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,/opt/homebrew/opt/python@3.11/bin/python3.11)
+PYTHON_BIN ?= /opt/homebrew/opt/python@3.11/bin/python3.11
 LOCAL_API_PORT ?= 5556
 API_WAIT_TIMEOUT ?= 30
 
 OS := $(shell uname -s 2>/dev/null || echo Windows_NT)
 ifeq ($(OS),Windows_NT)
-PYTHON_BIN ?= $(if $(wildcard .venv/Scripts/python.exe),.venv/Scripts/python.exe,python)
+PYTHON_BIN ?= python
 ACTIVATE_VENV := .venv\Scripts\Activate.ps1
 VENV_PY := .venv\Scripts\python.exe
 LOCAL_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api.ps1
