@@ -560,7 +560,11 @@ def get_db() -> Iterable[Session]:
         db.close()
 
 
-@app.get("/")
+@app.get(
+    "/",
+    summary="Root endpoint returning a welcome message.",
+    description="Returns a simple message indicating the Flow backend is operational.",
+)
 def read_root() -> dict[str, str]:
     """
     Root endpoint returning a welcome message.
@@ -573,7 +577,11 @@ def read_root() -> dict[str, str]:
     return {"message": "Flow backend is running"}
 
 
-@app.get("/health")
+@app.get(
+    "/health",
+    summary="Health check endpoint.",
+    description="Returns the health status of the API service.",
+)
 def health() -> dict[str, str]:
     """
     Health check endpoint.
@@ -626,7 +634,12 @@ def _build_doc_type_out(doc_type: DocType, discipline: Discipline | None = None)
     )
 
 
-@app.get("/api/v1/lookups/areas", response_model=list[AreaOut])
+@app.get(
+    "/api/v1/lookups/areas",
+    summary="List all areas.",
+    description="Returns a list of all areas sorted by area name.",
+    response_model=list[AreaOut],
+)
 def list_areas(db: Session = Depends(get_db)) -> list[Area]:
     """
     List all areas.
@@ -645,7 +658,12 @@ def list_areas(db: Session = Depends(get_db)) -> list[Area]:
     return areas
 
 
-@app.put("/api/v1/lookups/areas/update", response_model=AreaOut)
+@app.put(
+    "/api/v1/lookups/areas/update",
+    summary="Update an existing area.",
+    description="Updates the name and/or acronym of an existing area.",
+    response_model=AreaOut,
+)
 def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
     """
     Update an existing area.
@@ -684,7 +702,13 @@ def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
     return area
 
 
-@app.post("/api/v1/lookups/areas/insert", response_model=AreaOut, status_code=201)
+@app.post(
+    "/api/v1/lookups/areas/insert",
+    summary="Create a new area.",
+    description="Inserts a new area with the specified name and acronym.",
+    response_model=AreaOut,
+    status_code=201,
+)
 def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
     """
     Create a new area.
@@ -711,7 +735,12 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
     return area
 
 
-@app.delete("/api/v1/lookups/areas/delete", status_code=204)
+@app.delete(
+    "/api/v1/lookups/areas/delete",
+    summary="Delete an area.",
+    description="Removes an area from the database by its ID.",
+    status_code=204,
+)
 def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete an area.
@@ -731,7 +760,12 @@ def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
-@app.get("/api/v1/lookups/disciplines", response_model=list[DisciplineOut])
+@app.get(
+    "/api/v1/lookups/disciplines",
+    summary="List all disciplines.",
+    description="Returns a list of all disciplines sorted by discipline name.",
+    response_model=list[DisciplineOut],
+)
 def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
     """
     List all disciplines.
@@ -750,7 +784,12 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
     return disciplines
 
 
-@app.put("/api/v1/lookups/disciplines/update", response_model=DisciplineOut)
+@app.put(
+    "/api/v1/lookups/disciplines/update",
+    summary="Update an existing discipline.",
+    description="Updates the name and/or acronym of an existing discipline.",
+    response_model=DisciplineOut,
+)
 def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) -> Discipline:
     """
     Update an existing discipline.
@@ -793,7 +832,13 @@ def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) 
     return discipline
 
 
-@app.post("/api/v1/lookups/disciplines/insert", response_model=DisciplineOut, status_code=201)
+@app.post(
+    "/api/v1/lookups/disciplines/insert",
+    summary="Create a new discipline.",
+    description="Inserts a new discipline with the specified name and acronym.",
+    response_model=DisciplineOut,
+    status_code=201,
+)
 def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) -> Discipline:
     """
     Create a new discipline.
@@ -827,7 +872,12 @@ def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) 
     return discipline
 
 
-@app.delete("/api/v1/lookups/disciplines/delete", status_code=204)
+@app.delete(
+    "/api/v1/lookups/disciplines/delete",
+    summary="Delete a discipline.",
+    description="Removes a discipline from the database by its ID.",
+    status_code=204,
+)
 def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete a discipline.
@@ -847,7 +897,12 @@ def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) 
     db.commit()
 
 
-@app.get("/api/v1/lookups/projects", response_model=list[ProjectOut])
+@app.get(
+    "/api/v1/lookups/projects",
+    summary="List all projects.",
+    description="Returns a list of all projects sorted by project name.",
+    response_model=list[ProjectOut],
+)
 def list_projects(db: Session = Depends(get_db)) -> list[Project]:
     """
     List all projects.
@@ -866,7 +921,12 @@ def list_projects(db: Session = Depends(get_db)) -> list[Project]:
     return projects
 
 
-@app.put("/api/v1/lookups/projects/update", response_model=ProjectOut)
+@app.put(
+    "/api/v1/lookups/projects/update",
+    summary="Update an existing project.",
+    description="Updates the name of an existing project.",
+    response_model=ProjectOut,
+)
 def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Project:
     """
     Update an existing project.
@@ -903,7 +963,13 @@ def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Pro
     return project
 
 
-@app.post("/api/v1/lookups/projects/insert", response_model=ProjectOut, status_code=201)
+@app.post(
+    "/api/v1/lookups/projects/insert",
+    summary="Create a new project.",
+    description="Inserts a new project with the specified name.",
+    response_model=ProjectOut,
+    status_code=201,
+)
 def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Project:
     """
     Create a new project.
@@ -930,7 +996,12 @@ def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
     return project
 
 
-@app.delete("/api/v1/lookups/projects/delete", status_code=204)
+@app.delete(
+    "/api/v1/lookups/projects/delete",
+    summary="Delete a project.",
+    description="Removes a project from the database by its ID.",
+    status_code=204,
+)
 def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete a project.
@@ -950,7 +1021,12 @@ def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> Non
     db.commit()
 
 
-@app.get("/api/v1/lookups/units", response_model=list[UnitOut])
+@app.get(
+    "/api/v1/lookups/units",
+    summary="List all units.",
+    description="Returns a list of all units sorted by unit name.",
+    response_model=list[UnitOut],
+)
 def list_units(db: Session = Depends(get_db)) -> list[Unit]:
     """
     List all units.
@@ -969,7 +1045,12 @@ def list_units(db: Session = Depends(get_db)) -> list[Unit]:
     return units
 
 
-@app.put("/api/v1/lookups/units/update", response_model=UnitOut)
+@app.put(
+    "/api/v1/lookups/units/update",
+    summary="Update an existing unit.",
+    description="Updates the name of an existing unit.",
+    response_model=UnitOut,
+)
 def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
     """
     Update an existing unit.
@@ -1006,7 +1087,13 @@ def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
     return unit
 
 
-@app.post("/api/v1/lookups/units/insert", response_model=UnitOut, status_code=201)
+@app.post(
+    "/api/v1/lookups/units/insert",
+    summary="Create a new unit.",
+    description="Inserts a new unit with the specified name.",
+    response_model=UnitOut,
+    status_code=201,
+)
 def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
     """
     Create a new unit.
@@ -1033,7 +1120,12 @@ def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
     return unit
 
 
-@app.delete("/api/v1/lookups/units/delete", status_code=204)
+@app.delete(
+    "/api/v1/lookups/units/delete",
+    summary="Delete a unit.",
+    description="Removes a unit from the database by its ID.",
+    status_code=204,
+)
 def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete a unit.
@@ -1053,7 +1145,12 @@ def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
-@app.get("/api/v1/lookups/jobpacks", response_model=list[JobpackOut])
+@app.get(
+    "/api/v1/lookups/jobpacks",
+    summary="List all jobpacks.",
+    description="Returns a list of all jobpacks sorted by jobpack name.",
+    response_model=list[JobpackOut],
+)
 def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
     """
     List all jobpacks.
@@ -1072,7 +1169,12 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
     return jobpacks
 
 
-@app.put("/api/v1/lookups/jobpacks/update", response_model=JobpackOut)
+@app.put(
+    "/api/v1/lookups/jobpacks/update",
+    summary="Update an existing jobpack.",
+    description="Updates the name of an existing jobpack.",
+    response_model=JobpackOut,
+)
 def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Jobpack:
     """
     Update an existing jobpack.
@@ -1108,7 +1210,13 @@ def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Job
     return jobpack
 
 
-@app.post("/api/v1/lookups/jobpacks/insert", response_model=JobpackOut, status_code=201)
+@app.post(
+    "/api/v1/lookups/jobpacks/insert",
+    summary="Create a new jobpack.",
+    description="Inserts a new jobpack with the specified name.",
+    response_model=JobpackOut,
+    status_code=201,
+)
 def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Jobpack:
     """
     Create a new jobpack.
@@ -1135,7 +1243,12 @@ def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Job
     return jobpack
 
 
-@app.delete("/api/v1/lookups/jobpacks/delete", status_code=204)
+@app.delete(
+    "/api/v1/lookups/jobpacks/delete",
+    summary="Delete a jobpack.",
+    description="Removes a jobpack from the database by its ID.",
+    status_code=204,
+)
 def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete a jobpack.
@@ -1155,7 +1268,15 @@ def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> Non
     db.commit()
 
 
-@app.get("/api/v1/documents/doc_types", response_model=list[DocTypeOut])
+@app.get(
+    "/api/v1/documents/doc_types",
+    summary="List all document types.",
+    description=(
+        "Returns a list of all document types sorted by document type name, including discipline "
+        "information."
+    ),
+    response_model=list[DocTypeOut],
+)
 def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
     """
     List all document types.
@@ -1180,7 +1301,15 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
     return [_build_doc_type_out(dt, disc) for dt, disc in doc_types]
 
 
-@app.post("/api/v1/documents/doc_types/insert", response_model=DocTypeOut, status_code=201)
+@app.post(
+    "/api/v1/documents/doc_types/insert",
+    summary="Create a new document type.",
+    description=(
+        "Inserts a new document type with the specified name, acronym, and discipline reference."
+    ),
+    response_model=DocTypeOut,
+    status_code=201,
+)
 def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> DocType:
     """
     Create a new document type.
@@ -1217,7 +1346,14 @@ def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> Do
     return _build_doc_type_out(doc_type)
 
 
-@app.put("/api/v1/documents/doc_types/update", response_model=DocTypeOut)
+@app.put(
+    "/api/v1/documents/doc_types/update",
+    summary="Update an existing document type.",
+    description=(
+        "Updates the name, acronym, and/or discipline reference of an existing document type."
+    ),
+    response_model=DocTypeOut,
+)
 def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> DocType:
     """
     Update an existing document type.
@@ -1266,7 +1402,12 @@ def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> Do
     return _build_doc_type_out(doc_type)
 
 
-@app.delete("/api/v1/documents/doc_types/delete", status_code=204)
+@app.delete(
+    "/api/v1/documents/doc_types/delete",
+    summary="Delete a document type.",
+    description="Removes a document type from the database by its ID.",
+    status_code=204,
+)
 def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete a document type.
@@ -1286,7 +1427,15 @@ def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> No
     db.commit()
 
 
-@app.get("/api/v1/documents/list", response_model=list[DocOut])
+@app.get(
+    "/api/v1/documents/list",
+    summary="List all documents for a specific project.",
+    description=(
+        "Returns a list of all documents for the specified project, including details about "
+        "associated types, disciplines, areas, units, and revision information."
+    ),
+    response_model=list[DocOut],
+)
 def list_documents_for_project(
     project_id: int = Query(..., description="Project ID to filter documents by"),
     db: Session = Depends(get_db),
@@ -1366,7 +1515,12 @@ def list_documents_for_project(
     ]
 
 
-@app.get("/api/v1/files/list", response_model=list[FileOut])
+@app.get(
+    "/api/v1/files/list",
+    summary="List all files for a specific revision.",
+    description="Returns a list of all files associated with the specified document revision.",
+    response_model=list[FileOut],
+)
 def list_files_for_revision(
     rev_id: int = Query(..., description="Revision ID to filter files by"),
     db: Session = Depends(get_db),
@@ -1380,13 +1534,23 @@ def list_files_for_revision(
         rev_id: The revision ID to filter files by.
 
     Returns:
-        List of files with metadata. If no files exist for the specified revision, an empty list is returned.
+        List of files with metadata. If no files exist for the specified revision, an empty list is
+        returned.
     """
     files = db.query(File).filter(File.rev_id == rev_id).order_by(File.filename, File.id).all()
     return files
 
 
-@app.post("/api/v1/files/insert", response_model=FileOut, status_code=201)
+@app.post(
+    "/api/v1/files/insert",
+    summary="Upload a file and attach it to a document revision.",
+    description=(
+        "Uploads a file to MinIO object storage and creates a database record linking it to the "
+        "specified document revision."
+    ),
+    response_model=FileOut,
+    status_code=201,
+)
 def insert_file(
     request: Request,
     rev_id: int = Form(..., description="Revision ID to attach the file to"),
@@ -1506,7 +1670,15 @@ def insert_file(
     return new_file
 
 
-@app.put("/api/v1/files/update", response_model=FileOut)
+@app.put(
+    "/api/v1/files/update",
+    summary="Update file metadata.",
+    description=(
+        "Updates the filename of an existing file record (does not update the actual file "
+        "content)."
+    ),
+    response_model=FileOut,
+)
 def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
     """
     Update file metadata.
@@ -1544,7 +1716,12 @@ def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
     return file_row
 
 
-@app.delete("/api/v1/files/delete", status_code=204)
+@app.delete(
+    "/api/v1/files/delete",
+    summary="Delete a file.",
+    description="Removes a file from both the MinIO object storage and the database.",
+    status_code=204,
+)
 def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get_db)) -> None:
     """
     Delete a file.
@@ -1581,7 +1758,14 @@ def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get
     )
 
 
-@app.get("/api/v1/files/download")
+@app.get(
+    "/api/v1/files/download",
+    summary="Download a file.",
+    description=(
+        "Streams a file from MinIO object storage to the client with proper headers for download "
+        "(Content-Disposition, ETag, Last-Modified)."
+    ),
+)
 def download_file(
     request: Request,
     file_id: int = Query(..., description="File ID to download"),
@@ -1656,7 +1840,16 @@ def download_file(
     )
 
 
-@app.put("/api/v1/documents/update", response_model=DocOut)
+@app.put(
+    "/api/v1/documents/update",
+    summary="Update an existing document.",
+    description=(
+        "Updates various fields of an existing document including name, title, project, jobpack, "
+        "type, area, unit, and revision references. Validates all foreign key references and "
+        "ensures document name uniqueness."
+    ),
+    response_model=DocOut,
+)
 def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut:
     """
     Update an existing document.
@@ -1846,7 +2039,12 @@ def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut
     )
 
 
-@app.get("/api/v1/people/roles", response_model=list[RoleOut])
+@app.get(
+    "/api/v1/people/roles",
+    summary="List all roles.",
+    description="Returns a list of all roles sorted by role name.",
+    response_model=list[RoleOut],
+)
 def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     """
     List all roles.
@@ -1865,7 +2063,12 @@ def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     return roles
 
 
-@app.put("/api/v1/people/roles/update", response_model=RoleOut)
+@app.put(
+    "/api/v1/people/roles/update",
+    summary="Update an existing role.",
+    description="Updates the name of an existing role.",
+    response_model=RoleOut,
+)
 def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
     """
     Update an existing role.
@@ -1901,7 +2104,13 @@ def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
     return role
 
 
-@app.post("/api/v1/people/roles/insert", response_model=RoleOut, status_code=201)
+@app.post(
+    "/api/v1/people/roles/insert",
+    summary="Create a new role.",
+    description="Inserts a new role with the specified name.",
+    response_model=RoleOut,
+    status_code=201,
+)
 def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     """
     Create a new role.
@@ -1928,7 +2137,12 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     return role
 
 
-@app.delete("/api/v1/people/roles/delete", status_code=204)
+@app.delete(
+    "/api/v1/people/roles/delete",
+    summary="Delete a role.",
+    description="Removes a role from the database by its ID.",
+    status_code=204,
+)
 def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete a role.
@@ -1948,7 +2162,12 @@ def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
-@app.get("/api/v1/documents/doc_rev_milestones", response_model=list[DocRevMilestoneOut])
+@app.get(
+    "/api/v1/documents/doc_rev_milestones",
+    summary="List all document revision milestones.",
+    description="Returns a list of all document revision milestones sorted by milestone name.",
+    response_model=list[DocRevMilestoneOut],
+)
 def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilestone]:
     """
     List all document revision milestones.
@@ -1969,6 +2188,8 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
 
 @app.put(
     "/api/v1/documents/doc_rev_milestones/update",
+    summary="Update an existing document revision milestone.",
+    description="Updates the name and/or progress percentage of an existing milestone.",
     response_model=DocRevMilestoneOut,
 )
 def update_doc_rev_milestone(
@@ -2013,6 +2234,8 @@ def update_doc_rev_milestone(
 
 @app.post(
     "/api/v1/documents/doc_rev_milestones/insert",
+    summary="Create a new document revision milestone.",
+    description="Inserts a new milestone with the specified name and optional progress percentage.",
     response_model=DocRevMilestoneOut,
     status_code=201,
 )
@@ -2044,7 +2267,12 @@ def insert_doc_rev_milestone(
     return milestone
 
 
-@app.delete("/api/v1/documents/doc_rev_milestones/delete", status_code=204)
+@app.delete(
+    "/api/v1/documents/doc_rev_milestones/delete",
+    summary="Delete a document revision milestone.",
+    description="Removes a milestone from the database by its ID.",
+    status_code=204,
+)
 def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete a document revision milestone.
@@ -2064,7 +2292,12 @@ def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depen
     db.commit()
 
 
-@app.get("/api/v1/documents/revision_overview", response_model=list[RevisionOverviewOut])
+@app.get(
+    "/api/v1/documents/revision_overview",
+    summary="List all revision overview entries.",
+    description="Returns a list of all revision overview entries sorted by revision code name.",
+    response_model=list[RevisionOverviewOut],
+)
 def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOverview]:
     """
     List all revision overview entries.
@@ -2083,7 +2316,15 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     return revisions
 
 
-@app.put("/api/v1/documents/revision_overview/update", response_model=RevisionOverviewOut)
+@app.put(
+    "/api/v1/documents/revision_overview/update",
+    summary="Update an existing revision overview entry.",
+    description=(
+        "Updates the name, acronym, description, and/or percentage of an existing revision "
+        "overview entry."
+    ),
+    response_model=RevisionOverviewOut,
+)
 def update_revision_overview(
     payload: RevisionOverviewUpdate, db: Session = Depends(get_db)
 ) -> RevisionOverview:
@@ -2139,6 +2380,11 @@ def update_revision_overview(
 
 @app.post(
     "/api/v1/documents/revision_overview/insert",
+    summary="Create a new revision overview entry.",
+    description=(
+        "Inserts a new revision overview entry with the specified code, acronym, description, and "
+        "percentage."
+    ),
     response_model=RevisionOverviewOut,
     status_code=201,
 )
@@ -2179,7 +2425,12 @@ def insert_revision_overview(
     return revision
 
 
-@app.delete("/api/v1/documents/revision_overview/delete", status_code=204)
+@app.delete(
+    "/api/v1/documents/revision_overview/delete",
+    summary="Delete a revision overview entry.",
+    description="Removes a revision overview entry from the database by its ID.",
+    status_code=204,
+)
 def delete_revision_overview(
     payload: RevisionOverviewDelete, db: Session = Depends(get_db)
 ) -> None:
@@ -2201,7 +2452,12 @@ def delete_revision_overview(
     db.commit()
 
 
-@app.get("/api/v1/lookups/doc_rev_statuses", response_model=list[DocRevStatusOut])
+@app.get(
+    "/api/v1/lookups/doc_rev_statuses",
+    summary="List all document revision statuses.",
+    description="Returns a list of all document revision statuses sorted by status name.",
+    response_model=list[DocRevStatusOut],
+)
 def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
     """
     List all document revision statuses.
@@ -2220,7 +2476,12 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
     return statuses
 
 
-@app.put("/api/v1/lookups/doc_rev_statuses/update", response_model=DocRevStatusOut)
+@app.put(
+    "/api/v1/lookups/doc_rev_statuses/update",
+    summary="Update an existing document revision status.",
+    description="Updates the name of an existing document revision status.",
+    response_model=DocRevStatusOut,
+)
 def update_doc_rev_status(
     payload: DocRevStatusUpdate, db: Session = Depends(get_db)
 ) -> DocRevStatus:
@@ -2261,6 +2522,8 @@ def update_doc_rev_status(
 
 @app.post(
     "/api/v1/lookups/doc_rev_statuses/insert",
+    summary="Create a new document revision status.",
+    description="Inserts a new document revision status with the specified name.",
     response_model=DocRevStatusOut,
     status_code=201,
 )
@@ -2292,7 +2555,12 @@ def insert_doc_rev_status(
     return status
 
 
-@app.delete("/api/v1/lookups/doc_rev_statuses/delete", status_code=204)
+@app.delete(
+    "/api/v1/lookups/doc_rev_statuses/delete",
+    summary="Delete a document revision status.",
+    description="Removes a document revision status from the database by its ID.",
+    status_code=204,
+)
 def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete a document revision status.
@@ -2312,7 +2580,12 @@ def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get
     db.commit()
 
 
-@app.get("/api/v1/people/persons", response_model=list[PersonOut])
+@app.get(
+    "/api/v1/people/persons",
+    summary="List all persons.",
+    description="Returns a list of all persons sorted by person name.",
+    response_model=list[PersonOut],
+)
 def list_persons(db: Session = Depends(get_db)) -> list[Person]:
     """
     List all persons.
@@ -2331,7 +2604,12 @@ def list_persons(db: Session = Depends(get_db)) -> list[Person]:
     return persons
 
 
-@app.put("/api/v1/people/persons/update", response_model=PersonOut)
+@app.put(
+    "/api/v1/people/persons/update",
+    summary="Update an existing person.",
+    description="Updates the name and/or photo S3 UID of an existing person.",
+    response_model=PersonOut,
+)
 def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Person:
     """
     Update an existing person.
@@ -2370,7 +2648,13 @@ def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Perso
     return person
 
 
-@app.post("/api/v1/people/persons/insert", response_model=PersonOut, status_code=201)
+@app.post(
+    "/api/v1/people/persons/insert",
+    summary="Create a new person.",
+    description="Inserts a new person with the specified name and optional photo S3 UID.",
+    response_model=PersonOut,
+    status_code=201,
+)
 def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Person:
     """
     Create a new person.
@@ -2397,7 +2681,12 @@ def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Perso
     return person
 
 
-@app.delete("/api/v1/people/persons/delete", status_code=204)
+@app.delete(
+    "/api/v1/people/persons/delete",
+    summary="Delete a person.",
+    description="Removes a person from the database by their ID.",
+    status_code=204,
+)
 def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete a person.
@@ -2417,7 +2706,15 @@ def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
-@app.get("/api/v1/people/users", response_model=list[UserOut])
+@app.get(
+    "/api/v1/people/users",
+    summary="List all users.",
+    description=(
+        "Returns a list of all users sorted by user acronym, including person and role "
+        "information."
+    ),
+    response_model=list[UserOut],
+)
 def list_users(db: Session = Depends(get_db)) -> list[User]:
     """
     List all users.
@@ -2442,7 +2739,12 @@ def list_users(db: Session = Depends(get_db)) -> list[User]:
     return [_build_user_out(user) for user in users]
 
 
-@app.put("/api/v1/people/users/update", response_model=UserOut)
+@app.put(
+    "/api/v1/people/users/update",
+    summary="Update an existing user.",
+    description="Updates the person reference, acronym, and/or role of an existing user.",
+    response_model=UserOut,
+)
 def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
     """
     Update an existing user.
@@ -2489,7 +2791,13 @@ def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
     return _build_user_out(user)
 
 
-@app.post("/api/v1/people/users/insert", response_model=UserOut, status_code=201)
+@app.post(
+    "/api/v1/people/users/insert",
+    summary="Create a new user.",
+    description="Creates a new user with the specified person reference, acronym, and role.",
+    response_model=UserOut,
+    status_code=201,
+)
 def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     """
     Create a new user.
@@ -2527,7 +2835,12 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     return _build_user_out(user)
 
 
-@app.delete("/api/v1/people/users/delete", status_code=204)
+@app.delete(
+    "/api/v1/people/users/delete",
+    summary="Delete a user.",
+    description="Removes a user from the database by their ID.",
+    status_code=204,
+)
 def delete_user(payload: UserDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete a user.
@@ -2563,7 +2876,15 @@ def _permission_filter(query, payload) -> Session:
     return query
 
 
-@app.get("/api/v1/people/permissions", response_model=list[PermissionOut])
+@app.get(
+    "/api/v1/people/permissions",
+    summary="List all permissions.",
+    description=(
+        "Returns a list of all permissions sorted by user ID, including user, person, project, and "
+        "discipline information."
+    ),
+    response_model=list[PermissionOut],
+)
 def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
     """
     List all permissions.
@@ -2583,7 +2904,16 @@ def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
     return [_build_permission_out(p) for p in permissions]
 
 
-@app.post("/api/v1/people/permissions/insert", response_model=PermissionOut, status_code=201)
+@app.post(
+    "/api/v1/people/permissions/insert",
+    summary="Create a new permission.",
+    description=(
+        "Creates a new permission for a user with project and/or discipline scope. At least one of "
+        "project_id or discipline_id must be provided."
+    ),
+    response_model=PermissionOut,
+    status_code=201,
+)
 def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) -> Permission:
     """
     Create a new permission.
@@ -2632,7 +2962,12 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
     return _build_permission_out(permission)
 
 
-@app.put("/api/v1/people/permissions/update", response_model=PermissionOut)
+@app.put(
+    "/api/v1/people/permissions/update",
+    summary="Update an existing permission.",
+    description="Updates the project and/or discipline scope of an existing permission.",
+    response_model=PermissionOut,
+)
 def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) -> Permission:
     """
     Update an existing permission.
@@ -2696,7 +3031,15 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
     return _build_permission_out(existing)
 
 
-@app.delete("/api/v1/people/permissions/delete", status_code=204)
+@app.delete(
+    "/api/v1/people/permissions/delete",
+    summary="Delete a permission.",
+    description=(
+        "Removes a permission from the database. Can be identified by permission_id or by user_id "
+        "with project_id and/or discipline_id."
+    ),
+    status_code=204,
+)
 def delete_permission(payload: PermissionDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete a permission.

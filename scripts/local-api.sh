@@ -84,7 +84,11 @@ fi
 HEALTH_URL="http://${HOST_FOR_CHECK}:${API_PORT}/health"
 export API_BASE="http://${HOST_FOR_CHECK}:${API_PORT}"
 # Reuse the same health-check logic as Makefile-driven workflows.
-python "$(dirname "$0")/wait-for-api.py"
+PYTHON_CMD="python"
+if ! command -v "$PYTHON_CMD" >/dev/null 2>&1; then
+  PYTHON_CMD="python3"
+fi
+"$PYTHON_CMD" "$(dirname "$0")/wait-for-api.py"
 status=$?
 if [[ $status -ne 0 ]]; then
   echo "API not ready after ${API_WAIT_TIMEOUT}s: $HEALTH_URL"
