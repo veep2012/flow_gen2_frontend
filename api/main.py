@@ -1,3 +1,4 @@
+import inspect
 import logging
 import os
 import re
@@ -10,7 +11,9 @@ from urllib.parse import quote, urlparse
 from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request, UploadFile
 from fastapi import File as UploadFileField
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse
+from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
@@ -560,9 +563,10 @@ def get_db() -> Iterable[Session]:
 @app.get("/")
 def read_root() -> dict[str, str]:
     """
-    Root endpoint returning a welcome message.
-    
-    Returns a simple message indicating the Flow backend is operational.
+    Description:
+        Root endpoint returning a welcome message.
+
+        Returns a simple message indicating the Flow backend is operational.
     """
     return {"message": "Flow backend is running"}
 
@@ -570,9 +574,10 @@ def read_root() -> dict[str, str]:
 @app.get("/health")
 def health() -> dict[str, str]:
     """
-    Health check endpoint.
-    
-    Returns the health status of the API service.
+    Description:
+        Health check endpoint.
+
+        Returns the health status of the API service.
     """
     return {"status": "ok"}
 
@@ -620,15 +625,14 @@ def _build_doc_type_out(doc_type: DocType, discipline: Discipline | None = None)
 @app.get("/api/v1/lookups/areas", response_model=list[AreaOut])
 def list_areas(db: Session = Depends(get_db)) -> list[Area]:
     """
-    List all areas.
-    
-    Returns a list of all areas sorted by area name.
-    
+    Description:
+        List all areas.
+
+        Returns a list of all areas sorted by area name.
     Returns:
-        List of areas with id, name, and acronym.
-    
+    - List of areas with id, name, and acronym.
     Raises:
-        HTTPException: 404 if no areas are found.
+    - HTTPException: 404 if no areas are found.
     """
     areas = db.query(Area).order_by(Area.area_name).all()
     if not areas:
@@ -639,19 +643,17 @@ def list_areas(db: Session = Depends(get_db)) -> list[Area]:
 @app.put("/api/v1/lookups/areas/update", response_model=AreaOut)
 def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
     """
-    Update an existing area.
-    
-    Updates the name and/or acronym of an existing area.
-    
+    Description:
+        Update an existing area.
+
+        Updates the name and/or acronym of an existing area.
     Args:
-        payload: Area update data including area_id and at least one field to update.
-    
+    - payload: Area update data including area_id and at least one field to update.
     Returns:
-        Updated area object.
-    
+    - Updated area object.
     Raises:
-        HTTPException: 400 if no fields provided or name/acronym already exists.
-        HTTPException: 404 if area not found.
+    - HTTPException: 400 if no fields provided or name/acronym already exists.
+    - HTTPException: 404 if area not found.
     """
     if payload.area_name is None and payload.area_acronym is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -678,18 +680,16 @@ def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
 @app.post("/api/v1/lookups/areas/insert", response_model=AreaOut, status_code=201)
 def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
     """
-    Create a new area.
-    
-    Inserts a new area with the specified name and acronym.
-    
+    Description:
+        Create a new area.
+
+        Inserts a new area with the specified name and acronym.
     Args:
-        payload: Area creation data including name and acronym.
-    
+    - payload: Area creation data including name and acronym.
     Returns:
-        Newly created area object.
-    
+    - Newly created area object.
     Raises:
-        HTTPException: 400 if area name or acronym already exists.
+    - HTTPException: 400 if area name or acronym already exists.
     """
     area = Area(area_name=payload.area_name, area_acronym=payload.area_acronym)
     db.add(area)
@@ -705,15 +705,14 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
 @app.delete("/api/v1/lookups/areas/delete", status_code=204)
 def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
     """
-    Delete an area.
-    
-    Removes an area from the database by its ID.
-    
+    Description:
+        Delete an area.
+
+        Removes an area from the database by its ID.
     Args:
-        payload: Area deletion data including area_id.
-    
+    - payload: Area deletion data including area_id.
     Raises:
-        HTTPException: 404 if area not found.
+    - HTTPException: 404 if area not found.
     """
     area = db.get(Area, payload.area_id)
     if not area:
@@ -725,15 +724,14 @@ def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
 @app.get("/api/v1/lookups/disciplines", response_model=list[DisciplineOut])
 def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
     """
-    List all disciplines.
-    
-    Returns a list of all disciplines sorted by discipline name.
-    
+    Description:
+        List all disciplines.
+
+        Returns a list of all disciplines sorted by discipline name.
     Returns:
-        List of disciplines with id, name, and acronym.
-    
+    - List of disciplines with id, name, and acronym.
     Raises:
-        HTTPException: 404 if no disciplines are found.
+    - HTTPException: 404 if no disciplines are found.
     """
     disciplines = db.query(Discipline).order_by(Discipline.discipline_name).all()
     if not disciplines:
@@ -744,19 +742,17 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
 @app.put("/api/v1/lookups/disciplines/update", response_model=DisciplineOut)
 def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) -> Discipline:
     """
-    Update an existing discipline.
-    
-    Updates the name and/or acronym of an existing discipline.
-    
+    Description:
+        Update an existing discipline.
+
+        Updates the name and/or acronym of an existing discipline.
     Args:
-        payload: Discipline update data including discipline_id and at least one field to update.
-    
+    - payload: Discipline update data including discipline_id and at least one field to update.
     Returns:
-        Updated discipline object.
-    
+    - Updated discipline object.
     Raises:
-        HTTPException: 400 if no fields provided or name/acronym already exists.
-        HTTPException: 404 if discipline not found.
+    - HTTPException: 400 if no fields provided or name/acronym already exists.
+    - HTTPException: 404 if discipline not found.
     """
     if payload.discipline_name is None and payload.discipline_acronym is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -787,18 +783,16 @@ def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) 
 @app.post("/api/v1/lookups/disciplines/insert", response_model=DisciplineOut, status_code=201)
 def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) -> Discipline:
     """
-    Create a new discipline.
-    
-    Inserts a new discipline with the specified name and acronym.
-    
+    Description:
+        Create a new discipline.
+
+        Inserts a new discipline with the specified name and acronym.
     Args:
-        payload: Discipline creation data including name and acronym.
-    
+    - payload: Discipline creation data including name and acronym.
     Returns:
-        Newly created discipline object.
-    
+    - Newly created discipline object.
     Raises:
-        HTTPException: 400 if discipline name or acronym already exists.
+    - HTTPException: 400 if discipline name or acronym already exists.
     """
     discipline = Discipline(
         discipline_name=payload.discipline_name,
@@ -821,15 +815,14 @@ def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) 
 @app.delete("/api/v1/lookups/disciplines/delete", status_code=204)
 def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) -> None:
     """
-    Delete a discipline.
-    
-    Removes a discipline from the database by its ID.
-    
+    Description:
+        Delete a discipline.
+
+        Removes a discipline from the database by its ID.
     Args:
-        payload: Discipline deletion data including discipline_id.
-    
+    - payload: Discipline deletion data including discipline_id.
     Raises:
-        HTTPException: 404 if discipline not found.
+    - HTTPException: 404 if discipline not found.
     """
     discipline = db.get(Discipline, payload.discipline_id)
     if not discipline:
@@ -841,15 +834,14 @@ def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) 
 @app.get("/api/v1/lookups/projects", response_model=list[ProjectOut])
 def list_projects(db: Session = Depends(get_db)) -> list[Project]:
     """
-    List all projects.
-    
-    Returns a list of all projects sorted by project name.
-    
+    Description:
+        List all projects.
+
+        Returns a list of all projects sorted by project name.
     Returns:
-        List of projects with id and name.
-    
+    - List of projects with id and name.
     Raises:
-        HTTPException: 404 if no projects are found.
+    - HTTPException: 404 if no projects are found.
     """
     projects = db.query(Project).order_by(Project.project_name).all()
     if not projects:
@@ -860,19 +852,17 @@ def list_projects(db: Session = Depends(get_db)) -> list[Project]:
 @app.put("/api/v1/lookups/projects/update", response_model=ProjectOut)
 def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Project:
     """
-    Update an existing project.
-    
-    Updates the name of an existing project.
-    
+    Description:
+        Update an existing project.
+
+        Updates the name of an existing project.
     Args:
-        payload: Project update data including project_id and new project_name.
-    
+    - payload: Project update data including project_id and new project_name.
     Returns:
-        Updated project object.
-    
+    - Updated project object.
     Raises:
-        HTTPException: 400 if no fields provided or project name already exists.
-        HTTPException: 404 if project not found.
+    - HTTPException: 400 if no fields provided or project name already exists.
+    - HTTPException: 404 if project not found.
     """
     if payload.project_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -897,18 +887,16 @@ def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Pro
 @app.post("/api/v1/lookups/projects/insert", response_model=ProjectOut, status_code=201)
 def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Project:
     """
-    Create a new project.
-    
-    Inserts a new project with the specified name.
-    
+    Description:
+        Create a new project.
+
+        Inserts a new project with the specified name.
     Args:
-        payload: Project creation data including project_name.
-    
+    - payload: Project creation data including project_name.
     Returns:
-        Newly created project object.
-    
+    - Newly created project object.
     Raises:
-        HTTPException: 400 if project name already exists.
+    - HTTPException: 400 if project name already exists.
     """
     project = Project(project_name=payload.project_name)
     db.add(project)
@@ -924,15 +912,14 @@ def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
 @app.delete("/api/v1/lookups/projects/delete", status_code=204)
 def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> None:
     """
-    Delete a project.
-    
-    Removes a project from the database by its ID.
-    
+    Description:
+        Delete a project.
+
+        Removes a project from the database by its ID.
     Args:
-        payload: Project deletion data including project_id.
-    
+    - payload: Project deletion data including project_id.
     Raises:
-        HTTPException: 404 if project not found.
+    - HTTPException: 404 if project not found.
     """
     project = db.get(Project, payload.project_id)
     if not project:
@@ -944,15 +931,14 @@ def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> Non
 @app.get("/api/v1/lookups/units", response_model=list[UnitOut])
 def list_units(db: Session = Depends(get_db)) -> list[Unit]:
     """
-    List all units.
-    
-    Returns a list of all units sorted by unit name.
-    
+    Description:
+        List all units.
+
+        Returns a list of all units sorted by unit name.
     Returns:
-        List of units with id and name.
-    
+    - List of units with id and name.
     Raises:
-        HTTPException: 404 if no units are found.
+    - HTTPException: 404 if no units are found.
     """
     units = db.query(Unit).order_by(Unit.unit_name).all()
     if not units:
@@ -963,19 +949,17 @@ def list_units(db: Session = Depends(get_db)) -> list[Unit]:
 @app.put("/api/v1/lookups/units/update", response_model=UnitOut)
 def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
     """
-    Update an existing unit.
-    
-    Updates the name of an existing unit.
-    
+    Description:
+        Update an existing unit.
+
+        Updates the name of an existing unit.
     Args:
-        payload: Unit update data including unit_id and new unit_name.
-    
+    - payload: Unit update data including unit_id and new unit_name.
     Returns:
-        Updated unit object.
-    
+    - Updated unit object.
     Raises:
-        HTTPException: 400 if no fields provided or unit name already exists.
-        HTTPException: 404 if unit not found.
+    - HTTPException: 400 if no fields provided or unit name already exists.
+    - HTTPException: 404 if unit not found.
     """
     if payload.unit_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -1000,18 +984,16 @@ def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
 @app.post("/api/v1/lookups/units/insert", response_model=UnitOut, status_code=201)
 def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
     """
-    Create a new unit.
-    
-    Inserts a new unit with the specified name.
-    
+    Description:
+        Create a new unit.
+
+        Inserts a new unit with the specified name.
     Args:
-        payload: Unit creation data including unit_name.
-    
+    - payload: Unit creation data including unit_name.
     Returns:
-        Newly created unit object.
-    
+    - Newly created unit object.
     Raises:
-        HTTPException: 400 if unit name already exists.
+    - HTTPException: 400 if unit name already exists.
     """
     unit = Unit(unit_name=payload.unit_name)
     db.add(unit)
@@ -1027,15 +1009,14 @@ def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
 @app.delete("/api/v1/lookups/units/delete", status_code=204)
 def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
     """
-    Delete a unit.
-    
-    Removes a unit from the database by its ID.
-    
+    Description:
+        Delete a unit.
+
+        Removes a unit from the database by its ID.
     Args:
-        payload: Unit deletion data including unit_id.
-    
+    - payload: Unit deletion data including unit_id.
     Raises:
-        HTTPException: 404 if unit not found.
+    - HTTPException: 404 if unit not found.
     """
     unit = db.get(Unit, payload.unit_id)
     if not unit:
@@ -1047,15 +1028,14 @@ def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
 @app.get("/api/v1/lookups/jobpacks", response_model=list[JobpackOut])
 def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
     """
-    List all jobpacks.
-    
-    Returns a list of all jobpacks sorted by jobpack name.
-    
+    Description:
+        List all jobpacks.
+
+        Returns a list of all jobpacks sorted by jobpack name.
     Returns:
-        List of jobpacks with id and name.
-    
+    - List of jobpacks with id and name.
     Raises:
-        HTTPException: 404 if no jobpacks are found.
+    - HTTPException: 404 if no jobpacks are found.
     """
     jobpacks = db.query(Jobpack).order_by(Jobpack.jobpack_name).all()
     if not jobpacks:
@@ -1066,19 +1046,17 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
 @app.put("/api/v1/lookups/jobpacks/update", response_model=JobpackOut)
 def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Jobpack:
     """
-    Update an existing jobpack.
-    
-    Updates the name of an existing jobpack.
-    
+    Description:
+        Update an existing jobpack.
+
+        Updates the name of an existing jobpack.
     Args:
-        payload: Jobpack update data including jobpack_id and new jobpack_name.
-    
+    - payload: Jobpack update data including jobpack_id and new jobpack_name.
     Returns:
-        Updated jobpack object.
-    
+    - Updated jobpack object.
     Raises:
-        HTTPException: 400 if no fields provided or jobpack name already exists.
-        HTTPException: 404 if jobpack not found.
+    - HTTPException: 400 if no fields provided or jobpack name already exists.
+    - HTTPException: 404 if jobpack not found.
     """
     if payload.jobpack_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -1102,18 +1080,16 @@ def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Job
 @app.post("/api/v1/lookups/jobpacks/insert", response_model=JobpackOut, status_code=201)
 def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Jobpack:
     """
-    Create a new jobpack.
-    
-    Inserts a new jobpack with the specified name.
-    
+    Description:
+        Create a new jobpack.
+
+        Inserts a new jobpack with the specified name.
     Args:
-        payload: Jobpack creation data including jobpack_name.
-    
+    - payload: Jobpack creation data including jobpack_name.
     Returns:
-        Newly created jobpack object.
-    
+    - Newly created jobpack object.
     Raises:
-        HTTPException: 400 if jobpack name already exists.
+    - HTTPException: 400 if jobpack name already exists.
     """
     jobpack = Jobpack(jobpack_name=payload.jobpack_name)
     db.add(jobpack)
@@ -1129,15 +1105,14 @@ def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Job
 @app.delete("/api/v1/lookups/jobpacks/delete", status_code=204)
 def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> None:
     """
-    Delete a jobpack.
-    
-    Removes a jobpack from the database by its ID.
-    
+    Description:
+        Delete a jobpack.
+
+        Removes a jobpack from the database by its ID.
     Args:
-        payload: Jobpack deletion data including jobpack_id.
-    
+    - payload: Jobpack deletion data including jobpack_id.
     Raises:
-        HTTPException: 404 if jobpack not found.
+    - HTTPException: 404 if jobpack not found.
     """
     jobpack = db.get(Jobpack, payload.jobpack_id)
     if not jobpack:
@@ -1149,15 +1124,15 @@ def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> Non
 @app.get("/api/v1/documents/doc_types", response_model=list[DocTypeOut])
 def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
     """
-    List all document types.
-    
-    Returns a list of all document types sorted by document type name, including discipline information.
-    
+    Description:
+        List all document types.
+
+        Returns a list of all document types sorted by document type name, including
+        discipline information.
     Returns:
-        List of document types with id, name, acronym, and associated discipline details.
-    
+    - List of document types with id, name, acronym, and associated discipline details.
     Raises:
-        HTTPException: 404 if no document types are found.
+    - HTTPException: 404 if no document types are found.
     """
     doc_types = (
         db.query(DocType, Discipline)
@@ -1173,19 +1148,17 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
 @app.post("/api/v1/documents/doc_types/insert", response_model=DocTypeOut, status_code=201)
 def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> DocType:
     """
-    Create a new document type.
-    
-    Inserts a new document type with the specified name, acronym, and discipline reference.
-    
+    Description:
+        Create a new document type.
+
+        Inserts a new document type with the specified name, acronym, and discipline reference.
     Args:
-        payload: Document type creation data including name, acronym, and discipline reference.
-    
+    - payload: Document type creation data including name, acronym, and discipline reference.
     Returns:
-        Newly created document type object.
-    
+    - Newly created document type object.
     Raises:
-        HTTPException: 400 if document type already exists.
-        HTTPException: 404 if referenced discipline not found.
+    - HTTPException: 400 if document type already exists.
+    - HTTPException: 404 if referenced discipline not found.
     """
     discipline = db.get(Discipline, payload.ref_discipline_id)
     if not discipline:
@@ -1210,19 +1183,17 @@ def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> Do
 @app.put("/api/v1/documents/doc_types/update", response_model=DocTypeOut)
 def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> DocType:
     """
-    Update an existing document type.
-    
-    Updates the name, acronym, and/or discipline reference of an existing document type.
-    
+    Description:
+        Update an existing document type.
+
+        Updates the name, acronym, and/or discipline reference of an existing document type.
     Args:
-        payload: Document type update data including type_id and at least one field to update.
-    
+    - payload: Document type update data including type_id and at least one field to update.
     Returns:
-        Updated document type object.
-    
+    - Updated document type object.
     Raises:
-        HTTPException: 400 if no fields provided or document type already exists.
-        HTTPException: 404 if document type or referenced discipline not found.
+    - HTTPException: 400 if no fields provided or document type already exists.
+    - HTTPException: 404 if document type or referenced discipline not found.
     """
     if (
         payload.doc_type_name is None
@@ -1259,15 +1230,14 @@ def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> Do
 @app.delete("/api/v1/documents/doc_types/delete", status_code=204)
 def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> None:
     """
-    Delete a document type.
-    
-    Removes a document type from the database by its ID.
-    
+    Description:
+        Delete a document type.
+
+        Removes a document type from the database by its ID.
     Args:
-        payload: Document type deletion data including type_id.
-    
+    - payload: Document type deletion data including type_id.
     Raises:
-        HTTPException: 404 if document type not found.
+    - HTTPException: 404 if document type not found.
     """
     doc_type = db.get(DocType, payload.type_id)
     if not doc_type:
@@ -1282,19 +1252,17 @@ def list_documents_for_project(
     db: Session = Depends(get_db),
 ) -> list[Doc]:
     """
-    List all documents for a specific project.
-    
-    Returns a list of all documents for the specified project, including details about
-    associated types, disciplines, areas, units, and revision information.
-    
+    Description:
+        List all documents for a specific project.
+
+        Returns a list of all documents for the specified project, including details about
+        associated types, disciplines, areas, units, and revision information.
     Args:
-        project_id: The project ID to filter documents by.
-    
+    - project_id: The project ID to filter documents by.
     Returns:
-        List of documents with comprehensive metadata.
-    
+    - List of documents with comprehensive metadata.
     Raises:
-        HTTPException: 404 if no documents are found for the project.
+    - HTTPException: 404 if no documents are found for the project.
     """
     rev_current = aliased(DocRevision)
     docs = (
@@ -1362,15 +1330,14 @@ def list_files_for_revision(
     db: Session = Depends(get_db),
 ) -> list[File]:
     """
-    List all files for a specific revision.
-    
-    Returns a list of all files associated with the specified document revision.
-    
+    Description:
+        List all files for a specific revision.
+
+        Returns a list of all files associated with the specified document revision.
     Args:
-        rev_id: The revision ID to filter files by.
-    
+    - rev_id: The revision ID to filter files by.
     Returns:
-        List of files with metadata.
+    - List of files with metadata.
     """
     files = db.query(File).filter(File.rev_id == rev_id).order_by(File.filename, File.id).all()
     return files
@@ -1384,22 +1351,20 @@ def insert_file(
     db: Session = Depends(get_db),
 ) -> File:
     """
-    Upload a file and attach it to a document revision.
-    
-    Uploads a file to MinIO object storage and creates a database record linking
-    it to the specified document revision.
-    
+    Description:
+        Upload a file and attach it to a document revision.
+
+        Uploads a file to MinIO object storage and creates a database record linking
+        it to the specified document revision.
     Args:
-        rev_id: The revision ID to attach the file to.
-        file: The uploaded file (multipart form data).
-    
+    - rev_id: The revision ID to attach the file to.
+    - file: The uploaded file (multipart form data).
     Returns:
-        Newly created file record with metadata.
-    
+    - Newly created file record with metadata.
     Raises:
-        HTTPException: 400 if filename is missing, too long, or file is empty.
-        HTTPException: 404 if revision not found.
-        HTTPException: 413 if file exceeds size limit.
+    - HTTPException: 400 if filename is missing, too long, or file is empty.
+    - HTTPException: 404 if revision not found.
+    - HTTPException: 413 if file exceeds size limit.
     """
     revision = db.get(DocRevision, rev_id)
     if not revision:
@@ -1498,19 +1463,17 @@ def insert_file(
 @app.put("/api/v1/files/update", response_model=FileOut)
 def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
     """
-    Update file metadata.
-    
-    Updates the filename of an existing file record (does not update the actual file content).
-    
+    Description:
+        Update file metadata.
+
+        Updates the filename of an existing file record (does not update the actual file content).
     Args:
-        payload: File update data including file id and new filename.
-    
+    - payload: File update data including file id and new filename.
     Returns:
-        Updated file record.
-    
+    - Updated file record.
     Raises:
-        HTTPException: 400 if filename is empty or too long.
-        HTTPException: 404 if file not found.
+    - HTTPException: 400 if filename is empty or too long.
+    - HTTPException: 404 if file not found.
     """
     filename = payload.filename.strip()
     if not filename:
@@ -1536,15 +1499,14 @@ def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
 @app.delete("/api/v1/files/delete", status_code=204)
 def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get_db)) -> None:
     """
-    Delete a file.
-    
-    Removes a file from both the MinIO object storage and the database.
-    
+    Description:
+        Delete a file.
+
+        Removes a file from both the MinIO object storage and the database.
     Args:
-        payload: File deletion data including file id.
-    
+    - payload: File deletion data including file id.
     Raises:
-        HTTPException: 404 if file not found.
+    - HTTPException: 404 if file not found.
     """
     file_row = db.get(File, payload.id)
     if not file_row:
@@ -1576,19 +1538,17 @@ def download_file(
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     """
-    Download a file.
-    
-    Streams a file from MinIO object storage to the client with proper headers
-    for download (Content-Disposition, ETag, Last-Modified).
-    
+    Description:
+        Download a file.
+
+        Streams a file from MinIO object storage to the client with proper headers
+        for download (Content-Disposition, ETag, Last-Modified).
     Args:
-        file_id: The ID of the file to download.
-    
+    - file_id: The ID of the file to download.
     Returns:
-        Streaming response with the file content.
-    
+    - Streaming response with the file content.
     Raises:
-        HTTPException: 404 if file not found.
+    - HTTPException: 404 if file not found.
     """
     file_row = db.get(File, file_id)
     if not file_row:
@@ -1646,21 +1606,19 @@ def download_file(
 @app.put("/api/v1/documents/update", response_model=DocOut)
 def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut:
     """
-    Update an existing document.
-    
-    Updates various fields of an existing document including name, title, project,
-    jobpack, type, area, unit, and revision references. Validates all foreign key
-    references and ensures document name uniqueness.
-    
+    Description:
+        Update an existing document.
+
+        Updates various fields of an existing document including name, title, project,
+        jobpack, type, area, unit, and revision references. Validates all foreign key
+        references and ensures document name uniqueness.
     Args:
-        payload: Document update data including doc_id and at least one field to update.
-    
+    - payload: Document update data including doc_id and at least one field to update.
     Returns:
-        Updated document with complete metadata.
-    
+    - Updated document with complete metadata.
     Raises:
-        HTTPException: 400 if no fields provided, required field is null, or document name not unique.
-        HTTPException: 404 if document or any referenced entity not found.
+    - HTTPException: 400 if no fields provided, required field is null, or document name not unique.
+    - HTTPException: 404 if document or any referenced entity not found.
     """
     updates = payload.model_dump(exclude_unset=True)
     updates.pop("doc_id", None)
@@ -1835,15 +1793,14 @@ def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut
 @app.get("/api/v1/people/roles", response_model=list[RoleOut])
 def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     """
-    List all roles.
-    
-    Returns a list of all roles sorted by role name.
-    
+    Description:
+        List all roles.
+
+        Returns a list of all roles sorted by role name.
     Returns:
-        List of roles with id and name.
-    
+    - List of roles with id and name.
     Raises:
-        HTTPException: 404 if no roles are found.
+    - HTTPException: 404 if no roles are found.
     """
     roles = db.query(Role).order_by(Role.role_name).all()
     if not roles:
@@ -1854,19 +1811,17 @@ def list_roles(db: Session = Depends(get_db)) -> list[Role]:
 @app.put("/api/v1/people/roles/update", response_model=RoleOut)
 def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
     """
-    Update an existing role.
-    
-    Updates the name of an existing role.
-    
+    Description:
+        Update an existing role.
+
+        Updates the name of an existing role.
     Args:
-        payload: Role update data including role_id and new role_name.
-    
+    - payload: Role update data including role_id and new role_name.
     Returns:
-        Updated role object.
-    
+    - Updated role object.
     Raises:
-        HTTPException: 400 if no fields provided or role name already exists.
-        HTTPException: 404 if role not found.
+    - HTTPException: 400 if no fields provided or role name already exists.
+    - HTTPException: 404 if role not found.
     """
     if payload.role_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -1890,18 +1845,16 @@ def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
 @app.post("/api/v1/people/roles/insert", response_model=RoleOut, status_code=201)
 def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     """
-    Create a new role.
-    
-    Inserts a new role with the specified name.
-    
+    Description:
+        Create a new role.
+
+        Inserts a new role with the specified name.
     Args:
-        payload: Role creation data including role_name.
-    
+    - payload: Role creation data including role_name.
     Returns:
-        Newly created role object.
-    
+    - Newly created role object.
     Raises:
-        HTTPException: 400 if role name already exists.
+    - HTTPException: 400 if role name already exists.
     """
     role = Role(role_name=payload.role_name)
     db.add(role)
@@ -1917,15 +1870,14 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
 @app.delete("/api/v1/people/roles/delete", status_code=204)
 def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     """
-    Delete a role.
-    
-    Removes a role from the database by its ID.
-    
+    Description:
+        Delete a role.
+
+        Removes a role from the database by its ID.
     Args:
-        payload: Role deletion data including role_id.
-    
+    - payload: Role deletion data including role_id.
     Raises:
-        HTTPException: 404 if role not found.
+    - HTTPException: 404 if role not found.
     """
     role = db.get(Role, payload.role_id)
     if not role:
@@ -1937,15 +1889,14 @@ def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
 @app.get("/api/v1/documents/doc_rev_milestones", response_model=list[DocRevMilestoneOut])
 def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilestone]:
     """
-    List all document revision milestones.
-    
-    Returns a list of all document revision milestones sorted by milestone name.
-    
+    Description:
+        List all document revision milestones.
+
+        Returns a list of all document revision milestones sorted by milestone name.
     Returns:
-        List of milestones with id, name, and progress percentage.
-    
+    - List of milestones with id, name, and progress percentage.
     Raises:
-        HTTPException: 404 if no milestones are found.
+    - HTTPException: 404 if no milestones are found.
     """
     milestones = db.query(DocRevMilestone).order_by(DocRevMilestone.milestone_name).all()
     if not milestones:
@@ -1961,19 +1912,17 @@ def update_doc_rev_milestone(
     payload: DocRevMilestoneUpdate, db: Session = Depends(get_db)
 ) -> DocRevMilestone:
     """
-    Update an existing document revision milestone.
-    
-    Updates the name and/or progress percentage of an existing milestone.
-    
+    Description:
+        Update an existing document revision milestone.
+
+        Updates the name and/or progress percentage of an existing milestone.
     Args:
-        payload: Milestone update data including milestone_id and at least one field to update.
-    
+    - payload: Milestone update data including milestone_id and at least one field to update.
     Returns:
-        Updated milestone object.
-    
+    - Updated milestone object.
     Raises:
-        HTTPException: 400 if no fields provided or milestone name already exists.
-        HTTPException: 404 if milestone not found.
+    - HTTPException: 400 if no fields provided or milestone name already exists.
+    - HTTPException: 404 if milestone not found.
     """
     if payload.milestone_name is None and payload.progress is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -2006,18 +1955,16 @@ def insert_doc_rev_milestone(
     payload: DocRevMilestoneCreate, db: Session = Depends(get_db)
 ) -> DocRevMilestone:
     """
-    Create a new document revision milestone.
-    
-    Inserts a new milestone with the specified name and optional progress percentage.
-    
+    Description:
+        Create a new document revision milestone.
+
+        Inserts a new milestone with the specified name and optional progress percentage.
     Args:
-        payload: Milestone creation data including name and optional progress.
-    
+    - payload: Milestone creation data including name and optional progress.
     Returns:
-        Newly created milestone object.
-    
+    - Newly created milestone object.
     Raises:
-        HTTPException: 400 if milestone name already exists.
+    - HTTPException: 400 if milestone name already exists.
     """
     milestone = DocRevMilestone(milestone_name=payload.milestone_name, progress=payload.progress)
     db.add(milestone)
@@ -2033,15 +1980,14 @@ def insert_doc_rev_milestone(
 @app.delete("/api/v1/documents/doc_rev_milestones/delete", status_code=204)
 def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depends(get_db)) -> None:
     """
-    Delete a document revision milestone.
-    
-    Removes a milestone from the database by its ID.
-    
+    Description:
+        Delete a document revision milestone.
+
+        Removes a milestone from the database by its ID.
     Args:
-        payload: Milestone deletion data including milestone_id.
-    
+    - payload: Milestone deletion data including milestone_id.
     Raises:
-        HTTPException: 404 if milestone not found.
+    - HTTPException: 404 if milestone not found.
     """
     milestone = db.get(DocRevMilestone, payload.milestone_id)
     if not milestone:
@@ -2053,15 +1999,14 @@ def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depen
 @app.get("/api/v1/documents/revision_overview", response_model=list[RevisionOverviewOut])
 def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOverview]:
     """
-    List all revision overview entries.
-    
-    Returns a list of all revision overview entries sorted by revision code name.
-    
+    Description:
+        List all revision overview entries.
+
+        Returns a list of all revision overview entries sorted by revision code name.
     Returns:
-        List of revision codes with id, name, acronym, description, and percentage.
-    
+    - List of revision codes with id, name, acronym, description, and percentage.
     Raises:
-        HTTPException: 404 if no revision overview entries are found.
+    - HTTPException: 404 if no revision overview entries are found.
     """
     revisions = db.query(RevisionOverview).order_by(RevisionOverview.rev_code_name).all()
     if not revisions:
@@ -2074,19 +2019,18 @@ def update_revision_overview(
     payload: RevisionOverviewUpdate, db: Session = Depends(get_db)
 ) -> RevisionOverview:
     """
-    Update an existing revision overview entry.
-    
-    Updates the name, acronym, description, and/or percentage of an existing revision overview entry.
-    
+    Description:
+        Update an existing revision overview entry.
+
+        Updates the name, acronym, description, and/or percentage of an existing
+        revision overview entry.
     Args:
-        payload: Revision overview update data including rev_code_id and at least one field to update.
-    
+    - payload: Revision overview update data including rev_code_id and at least one field to update.
     Returns:
-        Updated revision overview object.
-    
+    - Updated revision overview object.
     Raises:
-        HTTPException: 400 if no fields provided or revision overview already exists.
-        HTTPException: 404 if revision overview entry not found.
+    - HTTPException: 400 if no fields provided or revision overview already exists.
+    - HTTPException: 404 if revision overview entry not found.
     """
     if (
         payload.rev_code_name is None
@@ -2130,18 +2074,18 @@ def insert_revision_overview(
     payload: RevisionOverviewCreate, db: Session = Depends(get_db)
 ) -> RevisionOverview:
     """
-    Create a new revision overview entry.
-    
-    Inserts a new revision overview entry with the specified code, acronym, description, and percentage.
-    
+    Description:
+        Create a new revision overview entry.
+
+        Inserts a new revision overview entry with the specified code, acronym,
+        description, and percentage.
     Args:
-        payload: Revision overview creation data including code name, acronym, description, and optional percentage.
-    
+    - payload: Revision overview creation data including code name, acronym,
+      description, and optional percentage.
     Returns:
-        Newly created revision overview object.
-    
+    - Newly created revision overview object.
     Raises:
-        HTTPException: 400 if revision overview entry already exists.
+    - HTTPException: 400 if revision overview entry already exists.
     """
     revision = RevisionOverview(
         rev_code_name=payload.rev_code_name,
@@ -2166,15 +2110,14 @@ def delete_revision_overview(
     payload: RevisionOverviewDelete, db: Session = Depends(get_db)
 ) -> None:
     """
-    Delete a revision overview entry.
-    
-    Removes a revision overview entry from the database by its ID.
-    
+    Description:
+        Delete a revision overview entry.
+
+        Removes a revision overview entry from the database by its ID.
     Args:
-        payload: Revision overview deletion data including rev_code_id.
-    
+    - payload: Revision overview deletion data including rev_code_id.
     Raises:
-        HTTPException: 404 if revision overview entry not found.
+    - HTTPException: 404 if revision overview entry not found.
     """
     revision = db.get(RevisionOverview, payload.rev_code_id)
     if not revision:
@@ -2186,15 +2129,14 @@ def delete_revision_overview(
 @app.get("/api/v1/lookups/doc_rev_statuses", response_model=list[DocRevStatusOut])
 def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
     """
-    List all document revision statuses.
-    
-    Returns a list of all document revision statuses sorted by status name.
-    
+    Description:
+        List all document revision statuses.
+
+        Returns a list of all document revision statuses sorted by status name.
     Returns:
-        List of statuses with id and name.
-    
+    - List of statuses with id and name.
     Raises:
-        HTTPException: 404 if no document revision statuses are found.
+    - HTTPException: 404 if no document revision statuses are found.
     """
     statuses = db.query(DocRevStatus).order_by(DocRevStatus.rev_status_name).all()
     if not statuses:
@@ -2207,19 +2149,17 @@ def update_doc_rev_status(
     payload: DocRevStatusUpdate, db: Session = Depends(get_db)
 ) -> DocRevStatus:
     """
-    Update an existing document revision status.
-    
-    Updates the name of an existing document revision status.
-    
+    Description:
+        Update an existing document revision status.
+
+        Updates the name of an existing document revision status.
     Args:
-        payload: Status update data including rev_status_id and new rev_status_name.
-    
+    - payload: Status update data including rev_status_id and new rev_status_name.
     Returns:
-        Updated status object.
-    
+    - Updated status object.
     Raises:
-        HTTPException: 400 if no fields provided or status already exists.
-        HTTPException: 404 if status not found.
+    - HTTPException: 400 if no fields provided or status already exists.
+    - HTTPException: 404 if status not found.
     """
     if payload.rev_status_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -2250,18 +2190,16 @@ def insert_doc_rev_status(
     payload: DocRevStatusCreate, db: Session = Depends(get_db)
 ) -> DocRevStatus:
     """
-    Create a new document revision status.
-    
-    Inserts a new document revision status with the specified name.
-    
+    Description:
+        Create a new document revision status.
+
+        Inserts a new document revision status with the specified name.
     Args:
-        payload: Status creation data including rev_status_name.
-    
+    - payload: Status creation data including rev_status_name.
     Returns:
-        Newly created status object.
-    
+    - Newly created status object.
     Raises:
-        HTTPException: 400 if status already exists.
+    - HTTPException: 400 if status already exists.
     """
     status = DocRevStatus(rev_status_name=payload.rev_status_name)
     db.add(status)
@@ -2277,15 +2215,14 @@ def insert_doc_rev_status(
 @app.delete("/api/v1/lookups/doc_rev_statuses/delete", status_code=204)
 def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get_db)) -> None:
     """
-    Delete a document revision status.
-    
-    Removes a document revision status from the database by its ID.
-    
+    Description:
+        Delete a document revision status.
+
+        Removes a document revision status from the database by its ID.
     Args:
-        payload: Status deletion data including rev_status_id.
-    
+    - payload: Status deletion data including rev_status_id.
     Raises:
-        HTTPException: 404 if status not found.
+    - HTTPException: 404 if status not found.
     """
     status = db.get(DocRevStatus, payload.rev_status_id)
     if not status:
@@ -2297,15 +2234,14 @@ def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get
 @app.get("/api/v1/people/persons", response_model=list[PersonOut])
 def list_persons(db: Session = Depends(get_db)) -> list[Person]:
     """
-    List all persons.
-    
-    Returns a list of all persons sorted by person name.
-    
+    Description:
+        List all persons.
+
+        Returns a list of all persons sorted by person name.
     Returns:
-        List of persons with id, name, and photo S3 UID.
-    
+    - List of persons with id, name, and photo S3 UID.
     Raises:
-        HTTPException: 404 if no persons are found.
+    - HTTPException: 404 if no persons are found.
     """
     persons = db.query(Person).order_by(Person.person_name).all()
     if not persons:
@@ -2316,19 +2252,17 @@ def list_persons(db: Session = Depends(get_db)) -> list[Person]:
 @app.put("/api/v1/people/persons/update", response_model=PersonOut)
 def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Person:
     """
-    Update an existing person.
-    
-    Updates the name and/or photo S3 UID of an existing person.
-    
+    Description:
+        Update an existing person.
+
+        Updates the name and/or photo S3 UID of an existing person.
     Args:
-        payload: Person update data including person_id and at least one field to update.
-    
+    - payload: Person update data including person_id and at least one field to update.
     Returns:
-        Updated person object.
-    
+    - Updated person object.
     Raises:
-        HTTPException: 400 if no fields provided.
-        HTTPException: 404 if person not found.
+    - HTTPException: 400 if no fields provided.
+    - HTTPException: 404 if person not found.
     """
     if payload.person_name is None and payload.photo_s3_uid is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -2355,18 +2289,16 @@ def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Perso
 @app.post("/api/v1/people/persons/insert", response_model=PersonOut, status_code=201)
 def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Person:
     """
-    Create a new person.
-    
-    Inserts a new person with the specified name and optional photo S3 UID.
-    
+    Description:
+        Create a new person.
+
+        Inserts a new person with the specified name and optional photo S3 UID.
     Args:
-        payload: Person creation data including name and optional photo S3 UID.
-    
+    - payload: Person creation data including name and optional photo S3 UID.
     Returns:
-        Newly created person object.
-    
+    - Newly created person object.
     Raises:
-        HTTPException: 400 on creation failure.
+    - HTTPException: 400 on creation failure.
     """
     person = Person(person_name=payload.person_name, photo_s3_uid=payload.photo_s3_uid)
     db.add(person)
@@ -2382,15 +2314,14 @@ def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Perso
 @app.delete("/api/v1/people/persons/delete", status_code=204)
 def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
     """
-    Delete a person.
-    
-    Removes a person from the database by their ID.
-    
+    Description:
+        Delete a person.
+
+        Removes a person from the database by their ID.
     Args:
-        payload: Person deletion data including person_id.
-    
+    - payload: Person deletion data including person_id.
     Raises:
-        HTTPException: 404 if person not found.
+    - HTTPException: 404 if person not found.
     """
     person = db.get(Person, payload.person_id)
     if not person:
@@ -2402,15 +2333,14 @@ def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
 @app.get("/api/v1/people/users", response_model=list[UserOut])
 def list_users(db: Session = Depends(get_db)) -> list[User]:
     """
-    List all users.
-    
-    Returns a list of all users sorted by user acronym, including person and role information.
-    
+    Description:
+        List all users.
+
+        Returns a list of all users sorted by user acronym, including person and role information.
     Returns:
-        List of users with id, person details, acronym, and role information.
-    
+    - List of users with id, person details, acronym, and role information.
     Raises:
-        HTTPException: 404 if no users are found.
+    - HTTPException: 404 if no users are found.
     """
     users = (
         db.query(User)
@@ -2427,19 +2357,17 @@ def list_users(db: Session = Depends(get_db)) -> list[User]:
 @app.put("/api/v1/people/users/update", response_model=UserOut)
 def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
     """
-    Update an existing user.
-    
-    Updates the person reference, acronym, and/or role of an existing user.
-    
+    Description:
+        Update an existing user.
+
+        Updates the person reference, acronym, and/or role of an existing user.
     Args:
-        payload: User update data including user_id and at least one field to update.
-    
+    - payload: User update data including user_id and at least one field to update.
     Returns:
-        Updated user object with person and role information.
-    
+    - Updated user object with person and role information.
     Raises:
-        HTTPException: 400 if no fields provided or update fails.
-        HTTPException: 404 if user, person, or role not found.
+    - HTTPException: 400 if no fields provided or update fails.
+    - HTTPException: 404 if user, person, or role not found.
     """
     if payload.person_id is None and payload.user_acronym is None and payload.role_id is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -2474,19 +2402,17 @@ def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
 @app.post("/api/v1/people/users/insert", response_model=UserOut, status_code=201)
 def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     """
-    Create a new user.
-    
-    Creates a new user with the specified person reference, acronym, and role.
-    
+    Description:
+        Create a new user.
+
+        Creates a new user with the specified person reference, acronym, and role.
     Args:
-        payload: User creation data including person_id, user_acronym, and role_id.
-    
+    - payload: User creation data including person_id, user_acronym, and role_id.
     Returns:
-        Newly created user object with person and role information.
-    
+    - Newly created user object with person and role information.
     Raises:
-        HTTPException: 400 on creation failure.
-        HTTPException: 404 if person or role not found.
+    - HTTPException: 400 on creation failure.
+    - HTTPException: 404 if person or role not found.
     """
     person = db.get(Person, payload.person_id)
     if not person:
@@ -2512,15 +2438,14 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
 @app.delete("/api/v1/people/users/delete", status_code=204)
 def delete_user(payload: UserDelete, db: Session = Depends(get_db)) -> None:
     """
-    Delete a user.
-    
-    Removes a user from the database by their ID.
-    
+    Description:
+        Delete a user.
+
+        Removes a user from the database by their ID.
     Args:
-        payload: User deletion data including user_id.
-    
+    - payload: User deletion data including user_id.
     Raises:
-        HTTPException: 404 if user not found.
+    - HTTPException: 404 if user not found.
     """
     user = db.get(User, payload.user_id)
     if not user:
@@ -2548,15 +2473,15 @@ def _permission_filter(query, payload) -> Session:
 @app.get("/api/v1/people/permissions", response_model=list[PermissionOut])
 def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
     """
-    List all permissions.
-    
-    Returns a list of all permissions sorted by user ID, including user, person, project, and discipline information.
-    
+    Description:
+        List all permissions.
+
+        Returns a list of all permissions sorted by user ID, including user,
+        person, project, and discipline information.
     Returns:
-        List of permissions with comprehensive metadata.
-    
+    - List of permissions with comprehensive metadata.
     Raises:
-        HTTPException: 404 if no permissions are found.
+    - HTTPException: 404 if no permissions are found.
     """
     permissions = db.query(Permission).order_by(Permission.user_id).all()
     if not permissions:
@@ -2567,20 +2492,19 @@ def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
 @app.post("/api/v1/people/permissions/insert", response_model=PermissionOut, status_code=201)
 def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) -> Permission:
     """
-    Create a new permission.
-    
-    Creates a new permission for a user with project and/or discipline scope.
-    At least one of project_id or discipline_id must be provided.
-    
+    Description:
+        Create a new permission.
+
+        Creates a new permission for a user with project and/or discipline scope.
+        At least one of project_id or discipline_id must be provided.
     Args:
-        payload: Permission creation data including user_id and at least one of project_id or discipline_id.
-    
+    - payload: Permission creation data including user_id and at least one of
+      project_id or discipline_id.
     Returns:
-        Newly created permission object with metadata.
-    
+    - Newly created permission object with metadata.
     Raises:
-        HTTPException: 400 if scope is missing or permission already exists.
-        HTTPException: 404 if user, project, or discipline not found.
+    - HTTPException: 400 if scope is missing or permission already exists.
+    - HTTPException: 404 if user, project, or discipline not found.
     """
     payload.validate_scope()
 
@@ -2615,19 +2539,18 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
 @app.put("/api/v1/people/permissions/update", response_model=PermissionOut)
 def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) -> Permission:
     """
-    Update an existing permission.
-    
-    Updates the project and/or discipline scope of an existing permission.
-    
+    Description:
+        Update an existing permission.
+
+        Updates the project and/or discipline scope of an existing permission.
     Args:
-        payload: Permission update data including current scope and new scope values.
-    
+    - payload: Permission update data including current scope and new scope values.
     Returns:
-        Updated permission object with metadata.
-    
+    - Updated permission object with metadata.
     Raises:
-        HTTPException: 400 if current scope missing, no new scope provided, or permission already exists.
-        HTTPException: 404 if permission, project, or discipline not found.
+    - HTTPException: 400 if current scope missing, no new scope provided, or
+      permission already exists.
+    - HTTPException: 404 if permission, project, or discipline not found.
     """
     payload.validate_current()
 
@@ -2678,17 +2601,16 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
 @app.delete("/api/v1/people/permissions/delete", status_code=204)
 def delete_permission(payload: PermissionDelete, db: Session = Depends(get_db)) -> None:
     """
-    Delete a permission.
-    
-    Removes a permission from the database. Can be identified by permission_id or
-    by user_id with project_id and/or discipline_id.
-    
+    Description:
+        Delete a permission.
+
+        Removes a permission from the database. Can be identified by permission_id or
+        by user_id with project_id and/or discipline_id.
     Args:
-        payload: Permission deletion data including permission_id or user scope.
-    
+    - payload: Permission deletion data including permission_id or user scope.
     Raises:
-        HTTPException: 400 if scope information is missing.
-        HTTPException: 404 if permission not found.
+    - HTTPException: 400 if scope information is missing.
+    - HTTPException: 404 if permission not found.
     """
     payload.validate_scope()
 
@@ -2697,3 +2619,32 @@ def delete_permission(payload: PermissionDelete, db: Session = Depends(get_db)) 
         raise HTTPException(status_code=404, detail="Permission not found")
     db.delete(permission)
     db.commit()
+
+
+def _sync_route_descriptions() -> None:
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        doc = inspect.getdoc(route.endpoint)
+        if doc:
+            route.description = doc
+
+
+def _custom_openapi() -> dict[str, object]:
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    _sync_route_descriptions()
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = _custom_openapi
+app.openapi_schema = None
