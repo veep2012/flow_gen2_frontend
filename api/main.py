@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRoute
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased, joinedload, sessionmaker
@@ -161,360 +161,1177 @@ app.add_middleware(
 class AreaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    area_id: int
-    area_name: str
-    area_acronym: str
+    area_id: int = Field(
+        ...,
+        description="Area ID.",
+        examples=[1],
+        gt=0,
+    )
+    area_name: str = Field(
+        ...,
+        description="Area name.",
+        examples=["Area A"],
+        min_length=1,
+    )
+    area_acronym: str = Field(
+        ...,
+        description="Area acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class AreaUpdate(BaseModel):
-    area_id: int
-    area_name: str | None = None
-    area_acronym: str | None = None
+    area_id: int = Field(
+        ...,
+        description="Area ID.",
+        examples=[1],
+        gt=0,
+    )
+    area_name: str | None = Field(
+        None,
+        description="Area name.",
+        examples=["Area A"],
+        min_length=1,
+    )
+    area_acronym: str | None = Field(
+        None,
+        description="Area acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class AreaCreate(BaseModel):
-    area_name: str
-    area_acronym: str
+    area_name: str = Field(
+        ...,
+        description="Area name.",
+        examples=["Area A"],
+        min_length=1,
+    )
+    area_acronym: str = Field(
+        ...,
+        description="Area acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class AreaDelete(BaseModel):
-    area_id: int
+    area_id: int = Field(
+        ...,
+        description="Area ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class DisciplineOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    discipline_id: int
-    discipline_name: str
-    discipline_acronym: str
+    discipline_id: int = Field(
+        ...,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_name: str = Field(
+        ...,
+        description="Discipline name.",
+        examples=["Discipline A"],
+        min_length=1,
+    )
+    discipline_acronym: str = Field(
+        ...,
+        description="Discipline acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class DisciplineUpdate(BaseModel):
-    discipline_id: int
-    discipline_name: str | None = None
-    discipline_acronym: str | None = None
+    discipline_id: int = Field(
+        ...,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_name: str | None = Field(
+        None,
+        description="Discipline name.",
+        examples=["Discipline A"],
+        min_length=1,
+    )
+    discipline_acronym: str | None = Field(
+        None,
+        description="Discipline acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class DisciplineCreate(BaseModel):
-    discipline_name: str
-    discipline_acronym: str
+    discipline_name: str = Field(
+        ...,
+        description="Discipline name.",
+        examples=["Discipline A"],
+        min_length=1,
+    )
+    discipline_acronym: str = Field(
+        ...,
+        description="Discipline acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class DisciplineDelete(BaseModel):
-    discipline_id: int
+    discipline_id: int = Field(
+        ...,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class ProjectOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    project_id: int
-    project_name: str
+    project_id: int = Field(
+        ...,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_name: str = Field(
+        ...,
+        description="Project name.",
+        examples=["Project A"],
+        min_length=1,
+    )
 
 
 class ProjectUpdate(BaseModel):
-    project_id: int
-    project_name: str | None = None
+    project_id: int = Field(
+        ...,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_name: str | None = Field(
+        None,
+        description="Project name.",
+        examples=["Project A"],
+        min_length=1,
+    )
 
 
 class ProjectCreate(BaseModel):
-    project_name: str
+    project_name: str = Field(
+        ...,
+        description="Project name.",
+        examples=["Project A"],
+        min_length=1,
+    )
 
 
 class ProjectDelete(BaseModel):
-    project_id: int
+    project_id: int = Field(
+        ...,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class UnitOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    unit_id: int
-    unit_name: str
+    unit_id: int = Field(
+        ...,
+        description="Unit ID.",
+        examples=[1],
+        gt=0,
+    )
+    unit_name: str = Field(
+        ...,
+        description="Unit name.",
+        examples=["Unit A"],
+        min_length=1,
+    )
 
 
 class UnitUpdate(BaseModel):
-    unit_id: int
-    unit_name: str | None = None
+    unit_id: int = Field(
+        ...,
+        description="Unit ID.",
+        examples=[1],
+        gt=0,
+    )
+    unit_name: str | None = Field(
+        None,
+        description="Unit name.",
+        examples=["Unit A"],
+        min_length=1,
+    )
 
 
 class UnitCreate(BaseModel):
-    unit_name: str
+    unit_name: str = Field(
+        ...,
+        description="Unit name.",
+        examples=["Unit A"],
+        min_length=1,
+    )
 
 
 class UnitDelete(BaseModel):
-    unit_id: int
+    unit_id: int = Field(
+        ...,
+        description="Unit ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class JobpackOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    jobpack_id: int
-    jobpack_name: str
+    jobpack_id: int = Field(
+        ...,
+        description="Jobpack ID.",
+        examples=[1],
+        gt=0,
+    )
+    jobpack_name: str = Field(
+        ...,
+        description="Jobpack name.",
+        examples=["Jobpack A"],
+        min_length=1,
+    )
 
 
 class JobpackUpdate(BaseModel):
-    jobpack_id: int
-    jobpack_name: str | None = None
+    jobpack_id: int = Field(
+        ...,
+        description="Jobpack ID.",
+        examples=[1],
+        gt=0,
+    )
+    jobpack_name: str | None = Field(
+        None,
+        description="Jobpack name.",
+        examples=["Jobpack A"],
+        min_length=1,
+    )
 
 
 class JobpackCreate(BaseModel):
-    jobpack_name: str
+    jobpack_name: str = Field(
+        ...,
+        description="Jobpack name.",
+        examples=["Jobpack A"],
+        min_length=1,
+    )
 
 
 class JobpackDelete(BaseModel):
-    jobpack_id: int
+    jobpack_id: int = Field(
+        ...,
+        description="Jobpack ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class DocTypeOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    type_id: int
-    doc_type_name: str
-    ref_discipline_id: int
-    doc_type_acronym: str
-    discipline_name: str | None = None
-    discipline_acronym: str | None = None
+    type_id: int = Field(
+        ...,
+        description="Type ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_type_name: str = Field(
+        ...,
+        description="Document type name.",
+        examples=["Doc Type A"],
+        min_length=1,
+    )
+    ref_discipline_id: int = Field(
+        ...,
+        description="Ref Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_type_acronym: str = Field(
+        ...,
+        description="Document type acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    discipline_name: str | None = Field(
+        None,
+        description="Discipline name.",
+        examples=["Discipline A"],
+        min_length=1,
+    )
+    discipline_acronym: str | None = Field(
+        None,
+        description="Discipline acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class DocTypeCreate(BaseModel):
-    doc_type_name: str
-    ref_discipline_id: int
-    doc_type_acronym: str
+    doc_type_name: str = Field(
+        ...,
+        description="Document type name.",
+        examples=["Doc Type A"],
+        min_length=1,
+    )
+    ref_discipline_id: int = Field(
+        ...,
+        description="Ref Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_type_acronym: str = Field(
+        ...,
+        description="Document type acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class DocTypeUpdate(BaseModel):
-    type_id: int
-    doc_type_name: str | None = None
-    ref_discipline_id: int | None = None
-    doc_type_acronym: str | None = None
+    type_id: int = Field(
+        ...,
+        description="Type ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_type_name: str | None = Field(
+        None,
+        description="Document type name.",
+        examples=["Doc Type A"],
+        min_length=1,
+    )
+    ref_discipline_id: int | None = Field(
+        None,
+        description="Ref Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_type_acronym: str | None = Field(
+        None,
+        description="Document type acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class DocTypeDelete(BaseModel):
-    type_id: int
+    type_id: int = Field(
+        ...,
+        description="Type ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class DocOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    doc_id: int
-    doc_name_unique: str
-    title: str
-    project_id: int | None = None
-    project_name: str | None = None
-    jobpack_id: int | None = None
-    jobpack_name: str | None = None
-    type_id: int
-    doc_type_name: str | None = None
-    doc_type_acronym: str | None = None
-    area_id: int
-    area_name: str | None = None
-    area_acronym: str | None = None
-    unit_id: int
-    unit_name: str | None = None
-    rev_actual_id: int | None = None
-    rev_current_id: int | None = None
-    rev_seq_num: int | None = None
-    discipline_id: int | None = None
-    discipline_name: str | None = None
-    discipline_acronym: str | None = None
-    rev_code_name: str | None = None
-    rev_code_acronym: str | None = None
-    percentage: int | None = None
+    doc_id: int = Field(
+        ...,
+        description="Doc ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_name_unique: str = Field(
+        ...,
+        description="Document unique name.",
+        examples=["DOC-001"],
+        min_length=1,
+    )
+    title: str = Field(
+        ...,
+        description="Document title.",
+        examples=["Document Title"],
+        min_length=1,
+    )
+    project_id: int | None = Field(
+        None,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_name: str | None = Field(
+        None,
+        description="Project name.",
+        examples=["Project A"],
+        min_length=1,
+    )
+    jobpack_id: int | None = Field(
+        None,
+        description="Jobpack ID.",
+        examples=[1],
+        gt=0,
+    )
+    jobpack_name: str | None = Field(
+        None,
+        description="Jobpack name.",
+        examples=["Jobpack A"],
+        min_length=1,
+    )
+    type_id: int = Field(
+        ...,
+        description="Type ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_type_name: str | None = Field(
+        None,
+        description="Document type name.",
+        examples=["Doc Type A"],
+        min_length=1,
+    )
+    doc_type_acronym: str | None = Field(
+        None,
+        description="Document type acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    area_id: int = Field(
+        ...,
+        description="Area ID.",
+        examples=[1],
+        gt=0,
+    )
+    area_name: str | None = Field(
+        None,
+        description="Area name.",
+        examples=["Area A"],
+        min_length=1,
+    )
+    area_acronym: str | None = Field(
+        None,
+        description="Area acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    unit_id: int = Field(
+        ...,
+        description="Unit ID.",
+        examples=[1],
+        gt=0,
+    )
+    unit_name: str | None = Field(
+        None,
+        description="Unit name.",
+        examples=["Unit A"],
+        min_length=1,
+    )
+    rev_actual_id: int | None = Field(
+        None,
+        description="Rev Actual ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_current_id: int | None = Field(
+        None,
+        description="Rev Current ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_seq_num: int | None = Field(
+        None,
+        description="Revision sequence number.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_id: int | None = Field(
+        None,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_name: str | None = Field(
+        None,
+        description="Discipline name.",
+        examples=["Discipline A"],
+        min_length=1,
+    )
+    discipline_acronym: str | None = Field(
+        None,
+        description="Discipline acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    rev_code_name: str | None = Field(
+        None,
+        description="Revision code name.",
+        examples=["Rev Code A"],
+        min_length=1,
+    )
+    rev_code_acronym: str | None = Field(
+        None,
+        description="Revision code acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    percentage: int | None = Field(
+        None,
+        description="Completion percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class DocUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    doc_id: int
-    doc_name_unique: str | None = None
-    title: str | None = None
-    project_id: int | None = None
-    jobpack_id: int | None = None
-    type_id: int | None = None
-    area_id: int | None = None
-    unit_id: int | None = None
-    rev_actual_id: int | None = None
-    rev_current_id: int | None = None
+    doc_id: int = Field(
+        ...,
+        description="Doc ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_name_unique: str | None = Field(
+        None,
+        description="Document unique name.",
+        examples=["DOC-001"],
+        min_length=1,
+    )
+    title: str | None = Field(
+        None,
+        description="Document title.",
+        examples=["Document Title"],
+        min_length=1,
+    )
+    project_id: int | None = Field(
+        None,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    jobpack_id: int | None = Field(
+        None,
+        description="Jobpack ID.",
+        examples=[1],
+        gt=0,
+    )
+    type_id: int | None = Field(
+        None,
+        description="Type ID.",
+        examples=[1],
+        gt=0,
+    )
+    area_id: int | None = Field(
+        None,
+        description="Area ID.",
+        examples=[1],
+        gt=0,
+    )
+    unit_id: int | None = Field(
+        None,
+        description="Unit ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_actual_id: int | None = Field(
+        None,
+        description="Rev Actual ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_current_id: int | None = Field(
+        None,
+        description="Rev Current ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class RoleOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    role_id: int
-    role_name: str
+    role_id: int = Field(
+        ...,
+        description="Role ID.",
+        examples=[1],
+        gt=0,
+    )
+    role_name: str = Field(
+        ...,
+        description="Role name.",
+        examples=["Role A"],
+        min_length=1,
+    )
 
 
 class RoleUpdate(BaseModel):
-    role_id: int
-    role_name: str | None = None
+    role_id: int = Field(
+        ...,
+        description="Role ID.",
+        examples=[1],
+        gt=0,
+    )
+    role_name: str | None = Field(
+        None,
+        description="Role name.",
+        examples=["Role A"],
+        min_length=1,
+    )
 
 
 class RoleCreate(BaseModel):
-    role_name: str
+    role_name: str = Field(
+        ...,
+        description="Role name.",
+        examples=["Role A"],
+        min_length=1,
+    )
 
 
 class RoleDelete(BaseModel):
-    role_id: int
+    role_id: int = Field(
+        ...,
+        description="Role ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class DocRevMilestoneOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    milestone_id: int
-    milestone_name: str
-    progress: int | None = None
+    milestone_id: int = Field(
+        ...,
+        description="Milestone ID.",
+        examples=[1],
+        gt=0,
+    )
+    milestone_name: str = Field(
+        ...,
+        description="Milestone name.",
+        examples=["Milestone A"],
+        min_length=1,
+    )
+    progress: int | None = Field(
+        None,
+        description="Progress percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class DocRevMilestoneUpdate(BaseModel):
-    milestone_id: int
-    milestone_name: str | None = None
-    progress: int | None = None
+    milestone_id: int = Field(
+        ...,
+        description="Milestone ID.",
+        examples=[1],
+        gt=0,
+    )
+    milestone_name: str | None = Field(
+        None,
+        description="Milestone name.",
+        examples=["Milestone A"],
+        min_length=1,
+    )
+    progress: int | None = Field(
+        None,
+        description="Progress percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class DocRevMilestoneCreate(BaseModel):
-    milestone_name: str
-    progress: int | None = None
+    milestone_name: str = Field(
+        ...,
+        description="Milestone name.",
+        examples=["Milestone A"],
+        min_length=1,
+    )
+    progress: int | None = Field(
+        None,
+        description="Progress percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class DocRevMilestoneDelete(BaseModel):
-    milestone_id: int
+    milestone_id: int = Field(
+        ...,
+        description="Milestone ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class RevisionOverviewOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    rev_code_id: int
-    rev_code_name: str
-    rev_code_acronym: str
-    rev_description: str
-    percentage: int | None = None
+    rev_code_id: int = Field(
+        ...,
+        description="Rev Code ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_code_name: str = Field(
+        ...,
+        description="Revision code name.",
+        examples=["Rev Code A"],
+        min_length=1,
+    )
+    rev_code_acronym: str = Field(
+        ...,
+        description="Revision code acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    rev_description: str = Field(
+        ...,
+        description="Revision description.",
+        examples=["Initial issue."],
+        min_length=1,
+    )
+    percentage: int | None = Field(
+        None,
+        description="Completion percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class RevisionOverviewUpdate(BaseModel):
-    rev_code_id: int
-    rev_code_name: str | None = None
-    rev_code_acronym: str | None = None
-    rev_description: str | None = None
-    percentage: int | None = None
+    rev_code_id: int = Field(
+        ...,
+        description="Rev Code ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_code_name: str | None = Field(
+        None,
+        description="Revision code name.",
+        examples=["Rev Code A"],
+        min_length=1,
+    )
+    rev_code_acronym: str | None = Field(
+        None,
+        description="Revision code acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    rev_description: str | None = Field(
+        None,
+        description="Revision description.",
+        examples=["Initial issue."],
+        min_length=1,
+    )
+    percentage: int | None = Field(
+        None,
+        description="Completion percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class RevisionOverviewCreate(BaseModel):
-    rev_code_name: str
-    rev_code_acronym: str
-    rev_description: str
-    percentage: int | None = None
+    rev_code_name: str = Field(
+        ...,
+        description="Revision code name.",
+        examples=["Rev Code A"],
+        min_length=1,
+    )
+    rev_code_acronym: str = Field(
+        ...,
+        description="Revision code acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    rev_description: str = Field(
+        ...,
+        description="Revision description.",
+        examples=["Initial issue."],
+        min_length=1,
+    )
+    percentage: int | None = Field(
+        None,
+        description="Completion percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class RevisionOverviewDelete(BaseModel):
-    rev_code_id: int
+    rev_code_id: int = Field(
+        ...,
+        description="Rev Code ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class DocRevStatusOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    rev_status_id: int
-    rev_status_name: str
+    rev_status_id: int = Field(
+        ...,
+        description="Rev Status ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_status_name: str = Field(
+        ...,
+        description="Revision status name.",
+        examples=["Rev Status A"],
+        min_length=1,
+    )
 
 
 class DocRevStatusUpdate(BaseModel):
-    rev_status_id: int
-    rev_status_name: str | None = None
+    rev_status_id: int = Field(
+        ...,
+        description="Rev Status ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_status_name: str | None = Field(
+        None,
+        description="Revision status name.",
+        examples=["Rev Status A"],
+        min_length=1,
+    )
 
 
 class DocRevStatusCreate(BaseModel):
-    rev_status_name: str
+    rev_status_name: str = Field(
+        ...,
+        description="Revision status name.",
+        examples=["Rev Status A"],
+        min_length=1,
+    )
 
 
 class DocRevStatusDelete(BaseModel):
-    rev_status_id: int
+    rev_status_id: int = Field(
+        ...,
+        description="Rev Status ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class FileOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    filename: str
-    s3_uid: str
-    mimetype: str
-    rev_id: int
+    id: int = Field(
+        ...,
+        description="Id.",
+        examples=[1],
+        gt=0,
+    )
+    filename: str = Field(
+        ...,
+        description="Filename.",
+        examples=["Example"],
+        min_length=1,
+    )
+    s3_uid: str = Field(
+        ...,
+        description="S3 object key.",
+        examples=["bucket/path/file.pdf"],
+        min_length=1,
+    )
+    mimetype: str = Field(
+        ...,
+        description="File MIME type.",
+        examples=["application/pdf"],
+        min_length=1,
+    )
+    rev_id: int = Field(
+        ...,
+        description="Rev ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class FileUpdate(BaseModel):
-    id: int
-    filename: str
+    id: int = Field(
+        ...,
+        description="Id.",
+        examples=[1],
+        gt=0,
+    )
+    filename: str = Field(
+        ...,
+        description="Filename.",
+        examples=["Example"],
+        min_length=1,
+    )
 
 
 class FileDelete(BaseModel):
-    id: int
+    id: int = Field(
+        ...,
+        description="Id.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class PersonOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    person_id: int
-    person_name: str
-    photo_s3_uid: str | None = None
+    person_id: int = Field(
+        ...,
+        description="Person ID.",
+        examples=[1],
+        gt=0,
+    )
+    person_name: str = Field(
+        ...,
+        description="Person name.",
+        examples=["Person A"],
+        min_length=1,
+    )
+    photo_s3_uid: str | None = Field(
+        None,
+        description="Photo S3 object key.",
+        examples=["bucket/photos/person.jpg"],
+        min_length=1,
+    )
 
 
 class PersonUpdate(BaseModel):
-    person_id: int
-    person_name: str | None = None
-    photo_s3_uid: str | None = None
+    person_id: int = Field(
+        ...,
+        description="Person ID.",
+        examples=[1],
+        gt=0,
+    )
+    person_name: str | None = Field(
+        None,
+        description="Person name.",
+        examples=["Person A"],
+        min_length=1,
+    )
+    photo_s3_uid: str | None = Field(
+        None,
+        description="Photo S3 object key.",
+        examples=["bucket/photos/person.jpg"],
+        min_length=1,
+    )
 
 
 class PersonCreate(BaseModel):
-    person_name: str
-    photo_s3_uid: str | None = None
+    person_name: str = Field(
+        ...,
+        description="Person name.",
+        examples=["Person A"],
+        min_length=1,
+    )
+    photo_s3_uid: str | None = Field(
+        None,
+        description="Photo S3 object key.",
+        examples=["bucket/photos/person.jpg"],
+        min_length=1,
+    )
 
 
 class PersonDelete(BaseModel):
-    person_id: int
+    person_id: int = Field(
+        ...,
+        description="Person ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    user_id: int
-    person_id: int
-    user_acronym: str
-    role_id: int
-    person_name: str | None = None
-    role_name: str | None = None
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
+    person_id: int = Field(
+        ...,
+        description="Person ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_acronym: str = Field(
+        ...,
+        description="User acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    role_id: int = Field(
+        ...,
+        description="Role ID.",
+        examples=[1],
+        gt=0,
+    )
+    person_name: str | None = Field(
+        None,
+        description="Person name.",
+        examples=["Person A"],
+        min_length=1,
+    )
+    role_name: str | None = Field(
+        None,
+        description="Role name.",
+        examples=["Role A"],
+        min_length=1,
+    )
 
 
 class UserUpdate(BaseModel):
-    user_id: int
-    person_id: int | None = None
-    user_acronym: str | None = None
-    role_id: int | None = None
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
+    person_id: int | None = Field(
+        None,
+        description="Person ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_acronym: str | None = Field(
+        None,
+        description="User acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    role_id: int | None = Field(
+        None,
+        description="Role ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class UserCreate(BaseModel):
-    person_id: int
-    user_acronym: str
-    role_id: int
+    person_id: int = Field(
+        ...,
+        description="Person ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_acronym: str = Field(
+        ...,
+        description="User acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    role_id: int = Field(
+        ...,
+        description="Role ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class UserDelete(BaseModel):
-    user_id: int
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class PermissionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    permission_id: int
-    user_id: int
-    project_id: int | None = None
-    discipline_id: int | None = None
-    user_acronym: str | None = None
-    person_name: str | None = None
-    project_name: str | None = None
-    discipline_name: str | None = None
+    permission_id: int = Field(
+        ...,
+        description="Permission ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_id: int | None = Field(
+        None,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_id: int | None = Field(
+        None,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_acronym: str | None = Field(
+        None,
+        description="User acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    person_name: str | None = Field(
+        None,
+        description="Person name.",
+        examples=["Person A"],
+        min_length=1,
+    )
+    project_name: str | None = Field(
+        None,
+        description="Project name.",
+        examples=["Project A"],
+        min_length=1,
+    )
+    discipline_name: str | None = Field(
+        None,
+        description="Discipline name.",
+        examples=["Discipline A"],
+        min_length=1,
+    )
 
 
 class PermissionCreate(BaseModel):
-    user_id: int
-    project_id: int | None = None
-    discipline_id: int | None = None
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_id: int | None = Field(
+        None,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_id: int | None = Field(
+        None,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
 
     def validate_scope(self) -> None:
         if self.project_id is None and self.discipline_id is None:
@@ -522,10 +1339,30 @@ class PermissionCreate(BaseModel):
 
 
 class PermissionDelete(BaseModel):
-    permission_id: int | None = None
-    user_id: int
-    project_id: int | None = None
-    discipline_id: int | None = None
+    permission_id: int | None = Field(
+        None,
+        description="Permission ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_id: int | None = Field(
+        None,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_id: int | None = Field(
+        None,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
 
     def validate_scope(self) -> None:
         if self.permission_id is None and self.project_id is None and self.discipline_id is None:
@@ -538,12 +1375,42 @@ class PermissionDelete(BaseModel):
 
 
 class PermissionUpdate(BaseModel):
-    permission_id: int | None = None
-    user_id: int
-    project_id: int | None = None
-    discipline_id: int | None = None
-    new_project_id: int | None = None
-    new_discipline_id: int | None = None
+    permission_id: int | None = Field(
+        None,
+        description="Permission ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_id: int | None = Field(
+        None,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_id: int | None = Field(
+        None,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    new_project_id: int | None = Field(
+        None,
+        description="New Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    new_discipline_id: int | None = Field(
+        None,
+        description="New Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
 
     def validate_current(self) -> None:
         if self.project_id is None and self.discipline_id is None:
@@ -564,6 +1431,12 @@ def get_db() -> Iterable[Session]:
     "/",
     summary="Root endpoint returning a welcome message.",
     description="Returns a simple message indicating the Flow backend is operational.",
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def read_root() -> dict[str, str]:
     """
@@ -581,6 +1454,12 @@ def read_root() -> dict[str, str]:
     "/health",
     summary="Health check endpoint.",
     description="Returns the health status of the API service.",
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def health() -> dict[str, str]:
     """
@@ -639,6 +1518,12 @@ def _build_doc_type_out(doc_type: DocType, discipline: Discipline | None = None)
     summary="List all areas.",
     description="Returns a list of all areas sorted by area name.",
     response_model=list[AreaOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_areas(db: Session = Depends(get_db)) -> list[Area]:
     """
@@ -663,6 +1548,12 @@ def list_areas(db: Session = Depends(get_db)) -> list[Area]:
     summary="Update an existing area.",
     description="Updates the name and/or acronym of an existing area.",
     response_model=AreaOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
     """
@@ -708,6 +1599,12 @@ def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
     description="Inserts a new area with the specified name and acronym.",
     response_model=AreaOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
     """
@@ -740,6 +1637,12 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
     summary="Delete an area.",
     description="Removes an area from the database by its ID.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
     """
@@ -765,6 +1668,12 @@ def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
     summary="List all disciplines.",
     description="Returns a list of all disciplines sorted by discipline name.",
     response_model=list[DisciplineOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
     """
@@ -789,6 +1698,12 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
     summary="Update an existing discipline.",
     description="Updates the name and/or acronym of an existing discipline.",
     response_model=DisciplineOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) -> Discipline:
     """
@@ -838,6 +1753,12 @@ def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) 
     description="Inserts a new discipline with the specified name and acronym.",
     response_model=DisciplineOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) -> Discipline:
     """
@@ -877,6 +1798,12 @@ def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) 
     summary="Delete a discipline.",
     description="Removes a discipline from the database by its ID.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) -> None:
     """
@@ -902,6 +1829,12 @@ def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) 
     summary="List all projects.",
     description="Returns a list of all projects sorted by project name.",
     response_model=list[ProjectOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_projects(db: Session = Depends(get_db)) -> list[Project]:
     """
@@ -926,6 +1859,12 @@ def list_projects(db: Session = Depends(get_db)) -> list[Project]:
     summary="Update an existing project.",
     description="Updates the name of an existing project.",
     response_model=ProjectOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Project:
     """
@@ -969,6 +1908,12 @@ def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Pro
     description="Inserts a new project with the specified name.",
     response_model=ProjectOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Project:
     """
@@ -1001,6 +1946,12 @@ def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
     summary="Delete a project.",
     description="Removes a project from the database by its ID.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> None:
     """
@@ -1026,6 +1977,12 @@ def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> Non
     summary="List all units.",
     description="Returns a list of all units sorted by unit name.",
     response_model=list[UnitOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_units(db: Session = Depends(get_db)) -> list[Unit]:
     """
@@ -1050,6 +2007,12 @@ def list_units(db: Session = Depends(get_db)) -> list[Unit]:
     summary="Update an existing unit.",
     description="Updates the name of an existing unit.",
     response_model=UnitOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
     """
@@ -1093,6 +2056,12 @@ def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
     description="Inserts a new unit with the specified name.",
     response_model=UnitOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
     """
@@ -1125,6 +2094,12 @@ def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
     summary="Delete a unit.",
     description="Removes a unit from the database by its ID.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
     """
@@ -1150,6 +2125,12 @@ def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
     summary="List all jobpacks.",
     description="Returns a list of all jobpacks sorted by jobpack name.",
     response_model=list[JobpackOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
     """
@@ -1174,6 +2155,12 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
     summary="Update an existing jobpack.",
     description="Updates the name of an existing jobpack.",
     response_model=JobpackOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Jobpack:
     """
@@ -1216,6 +2203,12 @@ def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Job
     description="Inserts a new jobpack with the specified name.",
     response_model=JobpackOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Jobpack:
     """
@@ -1248,6 +2241,12 @@ def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Job
     summary="Delete a jobpack.",
     description="Removes a jobpack from the database by its ID.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> None:
     """
@@ -1276,6 +2275,12 @@ def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> Non
         "information."
     ),
     response_model=list[DocTypeOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
     """
@@ -1309,6 +2314,12 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
     ),
     response_model=DocTypeOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> DocType:
     """
@@ -1353,6 +2364,12 @@ def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> Do
         "Updates the name, acronym, and/or discipline reference of an existing document type."
     ),
     response_model=DocTypeOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> DocType:
     """
@@ -1407,6 +2424,12 @@ def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> Do
     summary="Delete a document type.",
     description="Removes a document type from the database by its ID.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> None:
     """
@@ -1435,6 +2458,12 @@ def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> No
         "associated types, disciplines, areas, units, and revision information."
     ),
     response_model=list[DocOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_documents_for_project(
     project_id: int = Query(..., description="Project ID to filter documents by"),
@@ -1520,6 +2549,12 @@ def list_documents_for_project(
     summary="List all files for a specific revision.",
     description="Returns a list of all files associated with the specified document revision.",
     response_model=list[FileOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_files_for_revision(
     rev_id: int = Query(..., description="Revision ID to filter files by"),
@@ -1550,6 +2585,12 @@ def list_files_for_revision(
     ),
     response_model=FileOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_file(
     request: Request,
@@ -1678,6 +2719,12 @@ def insert_file(
         "content)."
     ),
     response_model=FileOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
     """
@@ -1721,6 +2768,12 @@ def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
     summary="Delete a file.",
     description="Removes a file from both the MinIO object storage and the database.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get_db)) -> None:
     """
@@ -1765,6 +2818,12 @@ def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get
         "Streams a file from MinIO object storage to the client with proper headers for download "
         "(Content-Disposition, ETag, Last-Modified)."
     ),
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def download_file(
     request: Request,
@@ -1849,6 +2908,12 @@ def download_file(
         "ensures document name uniqueness."
     ),
     response_model=DocOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut:
     """
@@ -2044,6 +3109,12 @@ def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut
     summary="List all roles.",
     description="Returns a list of all roles sorted by role name.",
     response_model=list[RoleOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     """
@@ -2068,6 +3139,12 @@ def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     summary="Update an existing role.",
     description="Updates the name of an existing role.",
     response_model=RoleOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
     """
@@ -2110,6 +3187,12 @@ def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
     description="Inserts a new role with the specified name.",
     response_model=RoleOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     """
@@ -2142,6 +3225,12 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     summary="Delete a role.",
     description="Removes a role from the database by its ID.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     """
@@ -2167,6 +3256,12 @@ def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     summary="List all document revision milestones.",
     description="Returns a list of all document revision milestones sorted by milestone name.",
     response_model=list[DocRevMilestoneOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilestone]:
     """
@@ -2191,6 +3286,12 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
     summary="Update an existing document revision milestone.",
     description="Updates the name and/or progress percentage of an existing milestone.",
     response_model=DocRevMilestoneOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_doc_rev_milestone(
     payload: DocRevMilestoneUpdate, db: Session = Depends(get_db)
@@ -2238,6 +3339,12 @@ def update_doc_rev_milestone(
     description="Inserts a new milestone with the specified name and optional progress percentage.",
     response_model=DocRevMilestoneOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_doc_rev_milestone(
     payload: DocRevMilestoneCreate, db: Session = Depends(get_db)
@@ -2272,6 +3379,12 @@ def insert_doc_rev_milestone(
     summary="Delete a document revision milestone.",
     description="Removes a milestone from the database by its ID.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depends(get_db)) -> None:
     """
@@ -2297,6 +3410,12 @@ def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depen
     summary="List all revision overview entries.",
     description="Returns a list of all revision overview entries sorted by revision code name.",
     response_model=list[RevisionOverviewOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOverview]:
     """
@@ -2324,6 +3443,12 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
         "overview entry."
     ),
     response_model=RevisionOverviewOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_revision_overview(
     payload: RevisionOverviewUpdate, db: Session = Depends(get_db)
@@ -2387,6 +3512,12 @@ def update_revision_overview(
     ),
     response_model=RevisionOverviewOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_revision_overview(
     payload: RevisionOverviewCreate, db: Session = Depends(get_db)
@@ -2430,6 +3561,12 @@ def insert_revision_overview(
     summary="Delete a revision overview entry.",
     description="Removes a revision overview entry from the database by its ID.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_revision_overview(
     payload: RevisionOverviewDelete, db: Session = Depends(get_db)
@@ -2457,6 +3594,12 @@ def delete_revision_overview(
     summary="List all document revision statuses.",
     description="Returns a list of all document revision statuses sorted by status name.",
     response_model=list[DocRevStatusOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
     """
@@ -2481,6 +3624,12 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
     summary="Update an existing document revision status.",
     description="Updates the name of an existing document revision status.",
     response_model=DocRevStatusOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_doc_rev_status(
     payload: DocRevStatusUpdate, db: Session = Depends(get_db)
@@ -2526,6 +3675,12 @@ def update_doc_rev_status(
     description="Inserts a new document revision status with the specified name.",
     response_model=DocRevStatusOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_doc_rev_status(
     payload: DocRevStatusCreate, db: Session = Depends(get_db)
@@ -2560,6 +3715,12 @@ def insert_doc_rev_status(
     summary="Delete a document revision status.",
     description="Removes a document revision status from the database by its ID.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get_db)) -> None:
     """
@@ -2585,6 +3746,12 @@ def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get
     summary="List all persons.",
     description="Returns a list of all persons sorted by person name.",
     response_model=list[PersonOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_persons(db: Session = Depends(get_db)) -> list[Person]:
     """
@@ -2609,6 +3776,12 @@ def list_persons(db: Session = Depends(get_db)) -> list[Person]:
     summary="Update an existing person.",
     description="Updates the name and/or photo S3 UID of an existing person.",
     response_model=PersonOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Person:
     """
@@ -2654,6 +3827,12 @@ def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Perso
     description="Inserts a new person with the specified name and optional photo S3 UID.",
     response_model=PersonOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Person:
     """
@@ -2686,6 +3865,12 @@ def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Perso
     summary="Delete a person.",
     description="Removes a person from the database by their ID.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
     """
@@ -2714,6 +3899,12 @@ def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
         "information."
     ),
     response_model=list[UserOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_users(db: Session = Depends(get_db)) -> list[User]:
     """
@@ -2744,6 +3935,12 @@ def list_users(db: Session = Depends(get_db)) -> list[User]:
     summary="Update an existing user.",
     description="Updates the person reference, acronym, and/or role of an existing user.",
     response_model=UserOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
     """
@@ -2797,6 +3994,12 @@ def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
     description="Creates a new user with the specified person reference, acronym, and role.",
     response_model=UserOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     """
@@ -2840,6 +4043,12 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     summary="Delete a user.",
     description="Removes a user from the database by their ID.",
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_user(payload: UserDelete, db: Session = Depends(get_db)) -> None:
     """
@@ -2884,6 +4093,12 @@ def _permission_filter(query, payload) -> Session:
         "discipline information."
     ),
     response_model=list[PermissionOut],
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
     """
@@ -2913,6 +4128,12 @@ def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
     ),
     response_model=PermissionOut,
     status_code=201,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) -> Permission:
     """
@@ -2967,6 +4188,12 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
     summary="Update an existing permission.",
     description="Updates the project and/or discipline scope of an existing permission.",
     response_model=PermissionOut,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) -> Permission:
     """
@@ -3039,6 +4266,12 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
         "with project_id and/or discipline_id."
     ),
     status_code=204,
+    responses={
+        400: {"description": "Bad Request"},
+        404: {"description": "Not Found"},
+        422: {"description": "Validation Error"},
+        500: {"description": "Internal Server Error"},
+    },
 )
 def delete_permission(payload: PermissionDelete, db: Session = Depends(get_db)) -> None:
     """
