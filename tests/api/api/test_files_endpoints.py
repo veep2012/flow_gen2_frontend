@@ -43,31 +43,46 @@ def _extract_first_id(items: list, keys: list[str]) -> int | None:
     return None
 
 
+def _get_test_revision_id(client: httpx.Client) -> int:
+    """
+    Helper function to get a valid revision ID for testing.
+    
+    Returns:
+        int: A valid revision ID.
+        
+    Raises:
+        pytest.skip: If no revision ID is available.
+    """
+    projects = _request(client, "GET", "/lookups/projects")
+    if projects["status"] == 404:
+        pytest.skip("No projects available for files test")
+    assert 200 <= projects["status"] < 300
+    project_id = _extract_first_id(projects["payload"], ["project_id"])
+    if project_id is None:
+        pytest.skip("No project_id available for files test")
+
+    docs = _request(client, "GET", "/documents/list", params={"project_id": project_id})
+    if docs["status"] == 404:
+        pytest.skip("No documents available for files test")
+    assert 200 <= docs["status"] < 300
+    rev_id = None
+    for doc in docs["payload"]:
+        if not isinstance(doc, dict):
+            continue
+        rev_id = doc.get("rev_current_id") or doc.get("rev_actual_id")
+        if rev_id is not None:
+            break
+    if rev_id is None:
+        pytest.skip("No revision id available for files test")
+    
+    return rev_id
+
+
 @pytest.mark.api_smoke
 def test_files_crud_and_download():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
-        projects = _request(client, "GET", "/lookups/projects")
-        if projects["status"] == 404:
-            pytest.skip("No projects available for files test")
-        assert 200 <= projects["status"] < 300
-        project_id = _extract_first_id(projects["payload"], ["project_id"])
-        if project_id is None:
-            pytest.skip("No project_id available for files test")
-
-        docs = _request(client, "GET", "/documents/list", params={"project_id": project_id})
-        if docs["status"] == 404:
-            pytest.skip("No documents available for files test")
-        assert 200 <= docs["status"] < 300
-        rev_id = None
-        for doc in docs["payload"]:
-            if not isinstance(doc, dict):
-                continue
-            rev_id = doc.get("rev_current_id") or doc.get("rev_actual_id")
-            if rev_id is not None:
-                break
-        if rev_id is None:
-            pytest.skip("No revision id available for files test")
+        rev_id = _get_test_revision_id(client)
 
         content = f"test-{suffix}".encode()
         upload = _request(
@@ -149,27 +164,7 @@ def test_files_insert_nonexistent_revision():
 def test_files_insert_unaccepted_file_type_rejected():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
-        projects = _request(client, "GET", "/lookups/projects")
-        if projects["status"] == 404:
-            pytest.skip("No projects available for files test")
-        assert 200 <= projects["status"] < 300
-        project_id = _extract_first_id(projects["payload"], ["project_id"])
-        if project_id is None:
-            pytest.skip("No project_id available for files test")
-
-        docs = _request(client, "GET", "/documents/list", params={"project_id": project_id})
-        if docs["status"] == 404:
-            pytest.skip("No documents available for files test")
-        assert 200 <= docs["status"] < 300
-        rev_id = None
-        for doc in docs["payload"]:
-            if not isinstance(doc, dict):
-                continue
-            rev_id = doc.get("rev_current_id") or doc.get("rev_actual_id")
-            if rev_id is not None:
-                break
-        if rev_id is None:
-            pytest.skip("No revision id available for files test")
+        rev_id = _get_test_revision_id(client)
 
         result = _request(
             client,
@@ -186,27 +181,7 @@ def test_files_insert_unaccepted_file_type_rejected():
 def test_files_insert_accepted_file_type_pdf():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
-        projects = _request(client, "GET", "/lookups/projects")
-        if projects["status"] == 404:
-            pytest.skip("No projects available for files test")
-        assert 200 <= projects["status"] < 300
-        project_id = _extract_first_id(projects["payload"], ["project_id"])
-        if project_id is None:
-            pytest.skip("No project_id available for files test")
-
-        docs = _request(client, "GET", "/documents/list", params={"project_id": project_id})
-        if docs["status"] == 404:
-            pytest.skip("No documents available for files test")
-        assert 200 <= docs["status"] < 300
-        rev_id = None
-        for doc in docs["payload"]:
-            if not isinstance(doc, dict):
-                continue
-            rev_id = doc.get("rev_current_id") or doc.get("rev_actual_id")
-            if rev_id is not None:
-                break
-        if rev_id is None:
-            pytest.skip("No revision id available for files test")
+        rev_id = _get_test_revision_id(client)
 
         content = f"test-{suffix}".encode()
         upload = _request(
@@ -221,6 +196,22 @@ def test_files_insert_accepted_file_type_pdf():
 
         # Cleanup
         _request(client, "DELETE", "/files/delete", json={"id": file_id})
+
+
+@pytest.mark.api_smoke
+def test_files_insert_no_extension_rejected():
+    with httpx.Client(timeout=10) as client:
+        rev_id = _get_test_revision_id(client)
+
+        result = _request(
+            client,
+            "POST",
+            "/files/insert",
+            files={"file": ("filename_no_extension", b"content", "application/octet-stream")},
+            data={"rev_id": str(rev_id)},
+        )
+        assert result["status"] == 400
+        assert "must have an extension" in result["payload"]["detail"].lower()
 
 
 @pytest.mark.api_smoke
