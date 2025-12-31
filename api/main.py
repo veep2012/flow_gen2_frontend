@@ -1395,6 +1395,7 @@ def insert_file(
     it to the specified document revision.
 
     Args:
+        request: Incoming request used for logging the client host.
         rev_id: The revision ID to attach the file to.
         file: The uploaded file (multipart form data).
 
@@ -1547,6 +1548,7 @@ def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get
 
     Args:
         payload: File deletion data including file id.
+        request: Incoming request used for logging the client host.
 
     Raises:
         HTTPException: 404 if file not found.
@@ -1587,6 +1589,7 @@ def download_file(
     for download (Content-Disposition, ETag, Last-Modified).
 
     Args:
+        request: Incoming request used for logging the client host.
         file_id: The ID of the file to download.
 
     Returns:
