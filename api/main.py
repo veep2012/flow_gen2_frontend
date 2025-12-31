@@ -634,7 +634,12 @@ def list_areas(db: Session = Depends(get_db)) -> list[Area]:
     Returns a list of all areas sorted by area name.
 
     Returns:
-        List of areas with id, name, and acronym. If no areas exist, an empty list is returned.
+        List of areas with id, name, and acronym.
+
+    Notes:
+        Unlike some other list endpoints, this endpoint intentionally returns an empty list
+        with HTTP 200 when no areas exist, rather than raising a 404. This behavior is
+        preserved for lookup consistency and backward compatibility.
     """
     areas = db.query(Area).order_by(Area.area_name).all()
     return areas
