@@ -8,7 +8,7 @@ from email.utils import formatdate
 from typing import Any, Callable, Iterable, TypeVar
 from urllib.parse import quote, urlparse
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request, UploadFile
+from fastapi import Body, Depends, FastAPI, Form, HTTPException, Query, Request, UploadFile
 from fastapi import File as UploadFileField
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
@@ -82,6 +82,7 @@ def _build_minio_client() -> tuple[object, str]:
 
 
 T = TypeVar("T")
+ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
 def _minio_with_retry(action: str, endpoint: str, func: Callable[[], T]) -> T:
@@ -119,6 +120,30 @@ def _build_file_object_key(
     rev_segment = _s3_safe_segment(transmittal_current_revision)
     safe_filename = os.path.basename(filename)
     return f"{project_segment}/{doc_segment}/{rev_segment}/{unique_id}_{safe_filename}"
+
+
+def _example_for(model_cls: type[ModelT]) -> dict[str, dict[str, object]]:
+    schema = model_cls.model_json_schema()
+    props = schema.get("properties", {}) if isinstance(schema, dict) else {}
+    example: dict[str, object] = {}
+    for name, prop in props.items():
+        if not isinstance(prop, dict):
+            continue
+        if prop.get("examples"):
+            example[name] = prop["examples"][0]
+        elif "example" in prop:
+            example[name] = prop["example"]
+    if not example:
+        return {}
+    return {"default": {"summary": f"{model_cls.__name__} example", "value": example}}
+
+
+def _model_out(model_cls: type[ModelT], obj: object) -> ModelT:
+    return model_cls.model_validate(obj)
+
+
+def _model_list(model_cls: type[ModelT], items: Iterable[object]) -> list[ModelT]:
+    return [model_cls.model_validate(item) for item in items]
 
 
 def _close_minio_response(response) -> None:
@@ -1531,7 +1556,7 @@ def _build_doc_type_out(doc_type: DocType, discipline: Discipline | None = None)
         500: {"description": "Internal Server Error"},
     },
 )
-def list_areas(db: Session = Depends(get_db)) -> list[Area]:
+def list_areas(db: Session = Depends(get_db)) -> list[AreaOut]:
     """
     List all areas.
 
@@ -1546,7 +1571,7 @@ def list_areas(db: Session = Depends(get_db)) -> list[Area]:
         preserved for lookup consistency and backward compatibility.
     """
     areas = db.query(Area).order_by(Area.area_name).all()
-    return areas
+    return _model_list(AreaOut, areas)
 
 
 @app.put(
@@ -1563,7 +1588,10 @@ def list_areas(db: Session = Depends(get_db)) -> list[Area]:
         500: {"description": "Internal Server Error"},
     },
 )
-def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
+def update_area(
+    payload: AreaUpdate = Body(..., examples=_example_for(AreaUpdate)),
+    db: Session = Depends(get_db),
+) -> AreaOut:
     """
     Update an existing area.
 
@@ -1598,7 +1626,7 @@ def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
         _handle_integrity_error("Area name or acronym already exists", err, "update_area")
 
     db.refresh(area)
-    return area
+    return _model_out(AreaOut, area)
 
 
 @app.post(
@@ -1616,7 +1644,10 @@ def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
         500: {"description": "Internal Server Error"},
     },
 )
-def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
+def insert_area(
+    payload: AreaCreate = Body(..., examples=_example_for(AreaCreate)),
+    db: Session = Depends(get_db),
+) -> AreaOut:
     """
     Create a new area.
 
@@ -1639,7 +1670,7 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
         db.rollback()
         _handle_integrity_error("Area name or acronym already exists", err, "insert_area")
     db.refresh(area)
-    return area
+    return _model_out(AreaOut, area)
 
 
 @app.delete(
@@ -1656,7 +1687,10 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
+def delete_area(
+    payload: AreaDelete = Body(..., examples=_example_for(AreaDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete an area.
 
@@ -1689,7 +1723,7 @@ def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
         500: {"description": "Internal Server Error"},
     },
 )
-def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
+def list_disciplines(db: Session = Depends(get_db)) -> list[DisciplineOut]:
     """
     List all disciplines.
 
@@ -1704,7 +1738,7 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
     disciplines = db.query(Discipline).order_by(Discipline.discipline_name).all()
     if not disciplines:
         raise HTTPException(status_code=404, detail="No disciplines found")
-    return disciplines
+    return _model_list(DisciplineOut, disciplines)
 
 
 @app.put(
@@ -1721,7 +1755,10 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
         500: {"description": "Internal Server Error"},
     },
 )
-def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) -> Discipline:
+def update_discipline(
+    payload: DisciplineUpdate = Body(..., examples=_example_for(DisciplineUpdate)),
+    db: Session = Depends(get_db),
+) -> DisciplineOut:
     """
     Update an existing discipline.
 
@@ -1760,7 +1797,7 @@ def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) 
         )
 
     db.refresh(discipline)
-    return discipline
+    return _model_out(DisciplineOut, discipline)
 
 
 @app.post(
@@ -1778,7 +1815,10 @@ def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) 
         500: {"description": "Internal Server Error"},
     },
 )
-def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) -> Discipline:
+def insert_discipline(
+    payload: DisciplineCreate = Body(..., examples=_example_for(DisciplineCreate)),
+    db: Session = Depends(get_db),
+) -> DisciplineOut:
     """
     Create a new discipline.
 
@@ -1808,7 +1848,7 @@ def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) 
             "insert_discipline",
         )
     db.refresh(discipline)
-    return discipline
+    return _model_out(DisciplineOut, discipline)
 
 
 @app.delete(
@@ -1825,7 +1865,10 @@ def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) 
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) -> None:
+def delete_discipline(
+    payload: DisciplineDelete = Body(..., examples=_example_for(DisciplineDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete a discipline.
 
@@ -1858,7 +1901,7 @@ def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) 
         500: {"description": "Internal Server Error"},
     },
 )
-def list_projects(db: Session = Depends(get_db)) -> list[Project]:
+def list_projects(db: Session = Depends(get_db)) -> list[ProjectOut]:
     """
     List all projects.
 
@@ -1873,7 +1916,7 @@ def list_projects(db: Session = Depends(get_db)) -> list[Project]:
     projects = db.query(Project).order_by(Project.project_name).all()
     if not projects:
         raise HTTPException(status_code=404, detail="No projects found")
-    return projects
+    return _model_list(ProjectOut, projects)
 
 
 @app.put(
@@ -1890,7 +1933,10 @@ def list_projects(db: Session = Depends(get_db)) -> list[Project]:
         500: {"description": "Internal Server Error"},
     },
 )
-def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Project:
+def update_project(
+    payload: ProjectUpdate = Body(..., examples=_example_for(ProjectUpdate)),
+    db: Session = Depends(get_db),
+) -> ProjectOut:
     """
     Update an existing project.
 
@@ -1923,7 +1969,7 @@ def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Pro
         _handle_integrity_error("Project name already exists", err, "update_project")
 
     db.refresh(project)
-    return project
+    return _model_out(ProjectOut, project)
 
 
 @app.post(
@@ -1941,7 +1987,10 @@ def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Pro
         500: {"description": "Internal Server Error"},
     },
 )
-def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Project:
+def insert_project(
+    payload: ProjectCreate = Body(..., examples=_example_for(ProjectCreate)),
+    db: Session = Depends(get_db),
+) -> ProjectOut:
     """
     Create a new project.
 
@@ -1964,7 +2013,7 @@ def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
         db.rollback()
         _handle_integrity_error("Project name already exists", err, "insert_project")
     db.refresh(project)
-    return project
+    return _model_out(ProjectOut, project)
 
 
 @app.delete(
@@ -1981,7 +2030,10 @@ def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> None:
+def delete_project(
+    payload: ProjectDelete = Body(..., examples=_example_for(ProjectDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete a project.
 
@@ -2014,7 +2066,7 @@ def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> Non
         500: {"description": "Internal Server Error"},
     },
 )
-def list_units(db: Session = Depends(get_db)) -> list[Unit]:
+def list_units(db: Session = Depends(get_db)) -> list[UnitOut]:
     """
     List all units.
 
@@ -2029,7 +2081,7 @@ def list_units(db: Session = Depends(get_db)) -> list[Unit]:
     units = db.query(Unit).order_by(Unit.unit_name).all()
     if not units:
         raise HTTPException(status_code=404, detail="No units found")
-    return units
+    return _model_list(UnitOut, units)
 
 
 @app.put(
@@ -2046,7 +2098,10 @@ def list_units(db: Session = Depends(get_db)) -> list[Unit]:
         500: {"description": "Internal Server Error"},
     },
 )
-def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
+def update_unit(
+    payload: UnitUpdate = Body(..., examples=_example_for(UnitUpdate)),
+    db: Session = Depends(get_db),
+) -> UnitOut:
     """
     Update an existing unit.
 
@@ -2079,7 +2134,7 @@ def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
         _handle_integrity_error("Unit name already exists", err, "update_unit")
 
     db.refresh(unit)
-    return unit
+    return _model_out(UnitOut, unit)
 
 
 @app.post(
@@ -2097,7 +2152,10 @@ def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
         500: {"description": "Internal Server Error"},
     },
 )
-def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
+def insert_unit(
+    payload: UnitCreate = Body(..., examples=_example_for(UnitCreate)),
+    db: Session = Depends(get_db),
+) -> UnitOut:
     """
     Create a new unit.
 
@@ -2120,7 +2178,7 @@ def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
         db.rollback()
         _handle_integrity_error("Unit name already exists", err, "insert_unit")
     db.refresh(unit)
-    return unit
+    return _model_out(UnitOut, unit)
 
 
 @app.delete(
@@ -2137,7 +2195,10 @@ def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
+def delete_unit(
+    payload: UnitDelete = Body(..., examples=_example_for(UnitDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete a unit.
 
@@ -2170,7 +2231,7 @@ def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
         500: {"description": "Internal Server Error"},
     },
 )
-def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
+def list_jobpacks(db: Session = Depends(get_db)) -> list[JobpackOut]:
     """
     List all jobpacks.
 
@@ -2185,7 +2246,7 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
     jobpacks = db.query(Jobpack).order_by(Jobpack.jobpack_name).all()
     if not jobpacks:
         raise HTTPException(status_code=404, detail="No jobpacks found")
-    return jobpacks
+    return _model_list(JobpackOut, jobpacks)
 
 
 @app.put(
@@ -2202,7 +2263,10 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
         500: {"description": "Internal Server Error"},
     },
 )
-def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Jobpack:
+def update_jobpack(
+    payload: JobpackUpdate = Body(..., examples=_example_for(JobpackUpdate)),
+    db: Session = Depends(get_db),
+) -> JobpackOut:
     """
     Update an existing jobpack.
 
@@ -2234,7 +2298,7 @@ def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Job
         _handle_integrity_error("Jobpack name already exists", err, "update_jobpack")
 
     db.refresh(jobpack)
-    return jobpack
+    return _model_out(JobpackOut, jobpack)
 
 
 @app.post(
@@ -2252,7 +2316,10 @@ def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Job
         500: {"description": "Internal Server Error"},
     },
 )
-def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Jobpack:
+def insert_jobpack(
+    payload: JobpackCreate = Body(..., examples=_example_for(JobpackCreate)),
+    db: Session = Depends(get_db),
+) -> JobpackOut:
     """
     Create a new jobpack.
 
@@ -2275,7 +2342,7 @@ def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Job
         db.rollback()
         _handle_integrity_error("Jobpack name already exists", err, "insert_jobpack")
     db.refresh(jobpack)
-    return jobpack
+    return _model_out(JobpackOut, jobpack)
 
 
 @app.delete(
@@ -2292,7 +2359,10 @@ def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Job
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> None:
+def delete_jobpack(
+    payload: JobpackDelete = Body(..., examples=_example_for(JobpackDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete a jobpack.
 
@@ -2328,7 +2398,7 @@ def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> Non
         500: {"description": "Internal Server Error"},
     },
 )
-def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
+def list_doc_types(db: Session = Depends(get_db)) -> list[DocTypeOut]:
     """
     List all document types.
 
@@ -2369,7 +2439,10 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
         500: {"description": "Internal Server Error"},
     },
 )
-def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> DocType:
+def insert_doc_type(
+    payload: DocTypeCreate = Body(..., examples=_example_for(DocTypeCreate)),
+    db: Session = Depends(get_db),
+) -> DocTypeOut:
     """
     Create a new document type.
 
@@ -2421,7 +2494,10 @@ def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> Do
         500: {"description": "Internal Server Error"},
     },
 )
-def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> DocType:
+def update_doc_type(
+    payload: DocTypeUpdate = Body(..., examples=_example_for(DocTypeUpdate)),
+    db: Session = Depends(get_db),
+) -> DocTypeOut:
     """
     Update an existing document type.
 
@@ -2483,7 +2559,10 @@ def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> Do
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> None:
+def delete_doc_type(
+    payload: DocTypeDelete = Body(..., examples=_example_for(DocTypeDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete a document type.
 
@@ -2522,7 +2601,7 @@ def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> No
 def list_documents_for_project(
     project_id: int = Query(..., description="Project ID to filter documents by"),
     db: Session = Depends(get_db),
-) -> list[Doc]:
+) -> list[DocOut]:
     """
     List all documents for a specific project.
 
@@ -2615,7 +2694,7 @@ def list_documents_for_project(
 def list_files_for_revision(
     rev_id: int = Query(..., description="Revision ID to filter files by"),
     db: Session = Depends(get_db),
-) -> list[File]:
+) -> list[FileOut]:
     """
     List all files for a specific revision.
 
@@ -2629,7 +2708,7 @@ def list_files_for_revision(
         returned.
     """
     files = db.query(File).filter(File.rev_id == rev_id).order_by(File.filename, File.id).all()
-    return files
+    return _model_list(FileOut, files)
 
 
 @app.post(
@@ -2655,7 +2734,7 @@ def insert_file(
     rev_id: int = Form(..., description="Revision ID to attach the file to"),
     file: UploadFile = UploadFileField(...),
     db: Session = Depends(get_db),
-) -> File:
+) -> FileOut:
     """
     Upload a file and attach it to a document revision.
 
@@ -2766,7 +2845,7 @@ def insert_file(
         filename,
         client_host,
     )
-    return new_file
+    return _model_out(FileOut, new_file)
 
 
 @app.put(
@@ -2786,7 +2865,10 @@ def insert_file(
         500: {"description": "Internal Server Error"},
     },
 )
-def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
+def update_file(
+    payload: FileUpdate = Body(..., examples=_example_for(FileUpdate)),
+    db: Session = Depends(get_db),
+) -> FileOut:
     """
     Update file metadata.
 
@@ -2820,7 +2902,7 @@ def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
         _handle_integrity_error("Failed to update file", err, "update_file")
 
     db.refresh(file_row)
-    return file_row
+    return _model_out(FileOut, file_row)
 
 
 @app.delete(
@@ -2837,7 +2919,11 @@ def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get_db)) -> None:
+def delete_file(
+    request: Request,
+    payload: FileDelete = Body(..., examples=_example_for(FileDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete a file.
 
@@ -2981,7 +3067,10 @@ def download_file(
         500: {"description": "Internal Server Error"},
     },
 )
-def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut:
+def update_document(
+    payload: DocUpdate = Body(..., examples=_example_for(DocUpdate)),
+    db: Session = Depends(get_db),
+) -> DocOut:
     """
     Update an existing document.
 
@@ -3184,7 +3273,7 @@ def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut
         500: {"description": "Internal Server Error"},
     },
 )
-def list_roles(db: Session = Depends(get_db)) -> list[Role]:
+def list_roles(db: Session = Depends(get_db)) -> list[RoleOut]:
     """
     List all roles.
 
@@ -3199,7 +3288,7 @@ def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     roles = db.query(Role).order_by(Role.role_name).all()
     if not roles:
         raise HTTPException(status_code=404, detail="No roles found")
-    return roles
+    return _model_list(RoleOut, roles)
 
 
 @app.put(
@@ -3216,7 +3305,10 @@ def list_roles(db: Session = Depends(get_db)) -> list[Role]:
         500: {"description": "Internal Server Error"},
     },
 )
-def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
+def update_role(
+    payload: RoleUpdate = Body(..., examples=_example_for(RoleUpdate)),
+    db: Session = Depends(get_db),
+) -> RoleOut:
     """
     Update an existing role.
 
@@ -3248,7 +3340,7 @@ def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
         _handle_integrity_error("Role name already exists", err, "update_role")
 
     db.refresh(role)
-    return role
+    return _model_out(RoleOut, role)
 
 
 @app.post(
@@ -3266,7 +3358,10 @@ def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
         500: {"description": "Internal Server Error"},
     },
 )
-def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
+def insert_role(
+    payload: RoleCreate = Body(..., examples=_example_for(RoleCreate)),
+    db: Session = Depends(get_db),
+) -> RoleOut:
     """
     Create a new role.
 
@@ -3289,7 +3384,7 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
         db.rollback()
         _handle_integrity_error("Role name already exists", err, "insert_role")
     db.refresh(role)
-    return role
+    return _model_out(RoleOut, role)
 
 
 @app.delete(
@@ -3306,7 +3401,10 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
+def delete_role(
+    payload: RoleDelete = Body(..., examples=_example_for(RoleDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete a role.
 
@@ -3339,7 +3437,7 @@ def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
         500: {"description": "Internal Server Error"},
     },
 )
-def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilestone]:
+def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilestoneOut]:
     """
     List all document revision milestones.
 
@@ -3354,7 +3452,7 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
     milestones = db.query(DocRevMilestone).order_by(DocRevMilestone.milestone_name).all()
     if not milestones:
         raise HTTPException(status_code=404, detail="No milestones found")
-    return milestones
+    return _model_list(DocRevMilestoneOut, milestones)
 
 
 @app.put(
@@ -3372,8 +3470,9 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
     },
 )
 def update_doc_rev_milestone(
-    payload: DocRevMilestoneUpdate, db: Session = Depends(get_db)
-) -> DocRevMilestone:
+    payload: DocRevMilestoneUpdate = Body(..., examples=_example_for(DocRevMilestoneUpdate)),
+    db: Session = Depends(get_db),
+) -> DocRevMilestoneOut:
     """
     Update an existing document revision milestone.
 
@@ -3408,7 +3507,7 @@ def update_doc_rev_milestone(
         _handle_integrity_error("Milestone name already exists", err, "update_doc_rev_milestone")
 
     db.refresh(milestone)
-    return milestone
+    return _model_out(DocRevMilestoneOut, milestone)
 
 
 @app.post(
@@ -3427,8 +3526,9 @@ def update_doc_rev_milestone(
     },
 )
 def insert_doc_rev_milestone(
-    payload: DocRevMilestoneCreate, db: Session = Depends(get_db)
-) -> DocRevMilestone:
+    payload: DocRevMilestoneCreate = Body(..., examples=_example_for(DocRevMilestoneCreate)),
+    db: Session = Depends(get_db),
+) -> DocRevMilestoneOut:
     """
     Create a new document revision milestone.
 
@@ -3451,7 +3551,7 @@ def insert_doc_rev_milestone(
         db.rollback()
         _handle_integrity_error("Milestone name already exists", err, "insert_doc_rev_milestone")
     db.refresh(milestone)
-    return milestone
+    return _model_out(DocRevMilestoneOut, milestone)
 
 
 @app.delete(
@@ -3468,7 +3568,10 @@ def insert_doc_rev_milestone(
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depends(get_db)) -> None:
+def delete_doc_rev_milestone(
+    payload: DocRevMilestoneDelete = Body(..., examples=_example_for(DocRevMilestoneDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete a document revision milestone.
 
@@ -3501,7 +3604,7 @@ def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depen
         500: {"description": "Internal Server Error"},
     },
 )
-def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOverview]:
+def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOverviewOut]:
     """
     List all revision overview entries.
 
@@ -3516,7 +3619,7 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     revisions = db.query(RevisionOverview).order_by(RevisionOverview.rev_code_name).all()
     if not revisions:
         raise HTTPException(status_code=404, detail="No revision overview entries found")
-    return revisions
+    return _model_list(RevisionOverviewOut, revisions)
 
 
 @app.put(
@@ -3537,8 +3640,9 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     },
 )
 def update_revision_overview(
-    payload: RevisionOverviewUpdate, db: Session = Depends(get_db)
-) -> RevisionOverview:
+    payload: RevisionOverviewUpdate = Body(..., examples=_example_for(RevisionOverviewUpdate)),
+    db: Session = Depends(get_db),
+) -> RevisionOverviewOut:
     """
     Update an existing revision overview entry.
 
@@ -3586,7 +3690,7 @@ def update_revision_overview(
         )
 
     db.refresh(revision)
-    return revision
+    return _model_out(RevisionOverviewOut, revision)
 
 
 @app.post(
@@ -3608,8 +3712,9 @@ def update_revision_overview(
     },
 )
 def insert_revision_overview(
-    payload: RevisionOverviewCreate, db: Session = Depends(get_db)
-) -> RevisionOverview:
+    payload: RevisionOverviewCreate = Body(..., examples=_example_for(RevisionOverviewCreate)),
+    db: Session = Depends(get_db),
+) -> RevisionOverviewOut:
     """
     Create a new revision overview entry.
 
@@ -3641,7 +3746,7 @@ def insert_revision_overview(
             "Revision overview entry already exists", err, "insert_revision_overview"
         )
     db.refresh(revision)
-    return revision
+    return _model_out(RevisionOverviewOut, revision)
 
 
 @app.delete(
@@ -3659,7 +3764,8 @@ def insert_revision_overview(
     },
 )
 def delete_revision_overview(
-    payload: RevisionOverviewDelete, db: Session = Depends(get_db)
+    payload: RevisionOverviewDelete = Body(..., examples=_example_for(RevisionOverviewDelete)),
+    db: Session = Depends(get_db),
 ) -> None:
     """
     Delete a revision overview entry.
@@ -3693,7 +3799,7 @@ def delete_revision_overview(
         500: {"description": "Internal Server Error"},
     },
 )
-def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
+def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatusOut]:
     """
     List all document revision statuses.
 
@@ -3708,7 +3814,7 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
     statuses = db.query(DocRevStatus).order_by(DocRevStatus.rev_status_name).all()
     if not statuses:
         raise HTTPException(status_code=404, detail="No doc revision statuses found")
-    return statuses
+    return _model_list(DocRevStatusOut, statuses)
 
 
 @app.put(
@@ -3726,8 +3832,9 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
     },
 )
 def update_doc_rev_status(
-    payload: DocRevStatusUpdate, db: Session = Depends(get_db)
-) -> DocRevStatus:
+    payload: DocRevStatusUpdate = Body(..., examples=_example_for(DocRevStatusUpdate)),
+    db: Session = Depends(get_db),
+) -> DocRevStatusOut:
     """
     Update an existing document revision status.
 
@@ -3760,7 +3867,7 @@ def update_doc_rev_status(
         _handle_integrity_error("Doc revision status already exists", err, "update_doc_rev_status")
 
     db.refresh(status)
-    return status
+    return _model_out(DocRevStatusOut, status)
 
 
 @app.post(
@@ -3779,8 +3886,9 @@ def update_doc_rev_status(
     },
 )
 def insert_doc_rev_status(
-    payload: DocRevStatusCreate, db: Session = Depends(get_db)
-) -> DocRevStatus:
+    payload: DocRevStatusCreate = Body(..., examples=_example_for(DocRevStatusCreate)),
+    db: Session = Depends(get_db),
+) -> DocRevStatusOut:
     """
     Create a new document revision status.
 
@@ -3803,7 +3911,7 @@ def insert_doc_rev_status(
         db.rollback()
         _handle_integrity_error("Doc revision status already exists", err, "insert_doc_rev_status")
     db.refresh(status)
-    return status
+    return _model_out(DocRevStatusOut, status)
 
 
 @app.delete(
@@ -3820,7 +3928,10 @@ def insert_doc_rev_status(
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get_db)) -> None:
+def delete_doc_rev_status(
+    payload: DocRevStatusDelete = Body(..., examples=_example_for(DocRevStatusDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete a document revision status.
 
@@ -3853,7 +3964,7 @@ def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get
         500: {"description": "Internal Server Error"},
     },
 )
-def list_persons(db: Session = Depends(get_db)) -> list[Person]:
+def list_persons(db: Session = Depends(get_db)) -> list[PersonOut]:
     """
     List all persons.
 
@@ -3868,7 +3979,7 @@ def list_persons(db: Session = Depends(get_db)) -> list[Person]:
     persons = db.query(Person).order_by(Person.person_name).all()
     if not persons:
         raise HTTPException(status_code=404, detail="No persons found")
-    return persons
+    return _model_list(PersonOut, persons)
 
 
 @app.put(
@@ -3885,7 +3996,10 @@ def list_persons(db: Session = Depends(get_db)) -> list[Person]:
         500: {"description": "Internal Server Error"},
     },
 )
-def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Person:
+def update_person(
+    payload: PersonUpdate = Body(..., examples=_example_for(PersonUpdate)),
+    db: Session = Depends(get_db),
+) -> PersonOut:
     """
     Update an existing person.
 
@@ -3920,7 +4034,7 @@ def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Perso
         _handle_integrity_error("Failed to update person", err, "update_person")
 
     db.refresh(person)
-    return person
+    return _model_out(PersonOut, person)
 
 
 @app.post(
@@ -3938,7 +4052,10 @@ def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Perso
         500: {"description": "Internal Server Error"},
     },
 )
-def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Person:
+def insert_person(
+    payload: PersonCreate = Body(..., examples=_example_for(PersonCreate)),
+    db: Session = Depends(get_db),
+) -> PersonOut:
     """
     Create a new person.
 
@@ -3961,7 +4078,7 @@ def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Perso
         db.rollback()
         _handle_integrity_error("Failed to create person", err, "insert_person")
     db.refresh(person)
-    return person
+    return _model_out(PersonOut, person)
 
 
 @app.delete(
@@ -3978,7 +4095,10 @@ def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Perso
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
+def delete_person(
+    payload: PersonDelete = Body(..., examples=_example_for(PersonDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete a person.
 
@@ -4014,7 +4134,7 @@ def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
         500: {"description": "Internal Server Error"},
     },
 )
-def list_users(db: Session = Depends(get_db)) -> list[User]:
+def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
     """
     List all users.
 
@@ -4052,7 +4172,10 @@ def list_users(db: Session = Depends(get_db)) -> list[User]:
         500: {"description": "Internal Server Error"},
     },
 )
-def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
+def update_user(
+    payload: UserUpdate = Body(..., examples=_example_for(UserUpdate)),
+    db: Session = Depends(get_db),
+) -> UserOut:
     """
     Update an existing user.
 
@@ -4113,7 +4236,10 @@ def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
         500: {"description": "Internal Server Error"},
     },
 )
-def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
+def insert_user(
+    payload: UserCreate = Body(..., examples=_example_for(UserCreate)),
+    db: Session = Depends(get_db),
+) -> UserOut:
     """
     Create a new user.
 
@@ -4164,7 +4290,10 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_user(payload: UserDelete, db: Session = Depends(get_db)) -> None:
+def delete_user(
+    payload: UserDelete = Body(..., examples=_example_for(UserDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete a user.
 
@@ -4183,7 +4312,10 @@ def delete_user(payload: UserDelete, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
-def _permission_filter(query, payload) -> Session:
+def _permission_filter(
+    query,
+    payload,
+) -> Session:
     if getattr(payload, "permission_id", None) is not None:
         return query.filter(Permission.permission_id == payload.permission_id)
 
@@ -4216,7 +4348,7 @@ def _permission_filter(query, payload) -> Session:
         500: {"description": "Internal Server Error"},
     },
 )
-def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
+def list_permissions(db: Session = Depends(get_db)) -> list[PermissionOut]:
     """
     List all permissions.
 
@@ -4253,7 +4385,10 @@ def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
         500: {"description": "Internal Server Error"},
     },
 )
-def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) -> Permission:
+def insert_permission(
+    payload: PermissionCreate = Body(..., examples=_example_for(PermissionCreate)),
+    db: Session = Depends(get_db),
+) -> PermissionOut:
     """
     Create a new permission.
 
@@ -4315,7 +4450,10 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
         500: {"description": "Internal Server Error"},
     },
 )
-def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) -> Permission:
+def update_permission(
+    payload: PermissionUpdate = Body(..., examples=_example_for(PermissionUpdate)),
+    db: Session = Depends(get_db),
+) -> PermissionOut:
     """
     Update an existing permission.
 
@@ -4395,7 +4533,10 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
         500: {"description": "Internal Server Error"},
     },
 )
-def delete_permission(payload: PermissionDelete, db: Session = Depends(get_db)) -> None:
+def delete_permission(
+    payload: PermissionDelete = Body(..., examples=_example_for(PermissionDelete)),
+    db: Session = Depends(get_db),
+) -> None:
     """
     Delete a permission.
 
