@@ -22,20 +22,65 @@ erDiagram
         timestamp rev_date
         smallint rev_author_id FK
         smallint rev_originator_id FK
+        string as_built
+        string superseded
+        string voided
         string transmittal_current_revision
         smallint milestone_id FK
+        timestamp planned_start_date
+        timestamp planned_finish_date
+        timestamp actual_start_date
+        timestamp actual_finish_date
+        string canceled_date
         smallint rev_status_id FK
         integer doc_id FK
         smallint seq_num
-        timestamp planned_start_date
-        timestamp planned_finish_date
+        smallint rev_modifier_id
+        timestamp modified_doc_date
     }
 
     DOC_REVISION_HISTORY {
         integer rev_id PK
         timestamp archived_at "Audit Timestamp"
+        smallint rev_code_id
+        timestamp rev_date
+        smallint rev_author_id
+        smallint rev_originator_id
+        string as_built
+        string superseded
+        string voided
         string transmittal_current_revision
-        %% Stores snapshot of previous states
+        smallint milestone_id
+        timestamp planned_start_date
+        timestamp planned_finish_date
+        timestamp actual_start_date
+        timestamp actual_finish_date
+        string canceled_date
+        smallint rev_status_id
+        integer doc_id
+        smallint seq_num
+    }
+
+    DOC_REVISION_HISTORY_VIEW {
+        integer rev_id PK
+        smallint seq_num PK
+        string source_type PK
+        smallint rev_code_id
+        timestamp rev_date
+        smallint rev_author_id
+        smallint rev_originator_id
+        string as_built
+        string superseded
+        string voided
+        string transmittal_current_revision
+        smallint milestone_id
+        timestamp planned_start_date
+        timestamp planned_finish_date
+        timestamp actual_start_date
+        timestamp actual_finish_date
+        string canceled_date
+        smallint rev_status_id
+        integer doc_id
     }
 
     FILES {
@@ -51,6 +96,24 @@ erDiagram
         integer file_id FK
         smallint user_id FK
         text s3_uid "S3 Object Key (Annotation)"
+    }
+
+    FILES_FORBIDDEN {
+        string file_type PK
+        string mimetype
+    }
+
+    LEASED_DOC_NUMS {
+        string doc_number PK
+        timestamp created_date
+    }
+
+    SQL_QUERIES {
+        smallint id PK
+        string query
+        string titles
+        string project_filtered_field
+        string discipline_filtered_field
     }
 
     %% ==========================================
@@ -77,6 +140,8 @@ erDiagram
     REVISION_OVERVIEW { 
         smallint rev_code_id PK 
         string rev_code_name 
+        string rev_code_acronym
+        string rev_description
         smallint percentage
     }
     
@@ -114,6 +179,22 @@ erDiagram
         smallint project_id FK
     }
 
+    DISTRIBUTION_LIST_CONTENT {
+        smallint dist_id PK
+        smallint person_id PK
+    }
+
+    DOC_CACHE {
+        smallint user_id PK
+        smallint project_id PK
+        string doc_name_unique PK
+        string title
+        smallint jobpack_id FK
+        smallint type_id FK
+        smallint area_id FK
+        smallint unit_id FK
+    }
+
     %% ==========================================
     %% 4. Relationships
     %% ==========================================
@@ -135,6 +216,7 @@ erDiagram
 
     %% Revision Audit
     DOC_REVISION ||--o{ DOC_REVISION_HISTORY : "archives to"
+    DOC_REVISION ||--o{ DOC_REVISION_HISTORY_VIEW : "history view"
 
     %% Revision Details
     REVISION_OVERVIEW ||--o{ DOC_REVISION : "coded as"
@@ -148,6 +230,7 @@ erDiagram
     %% Files
     DOC_REVISION ||--o{ FILES : "attachments"
     FILES ||--o{ FILES_COMMENTED : "annotated in"
+    FILES_FORBIDDEN }o--|| FILES : "mimetype blocked"
     
     %% User Management
     PERSON ||--|| USERS : "has single account"
@@ -161,9 +244,17 @@ erDiagram
 
     %% Distribution Lists
     PROJECTS ||--o{ DISTRIBUTION_LIST : "has lists"
-    DISTRIBUTION_LIST }|--|{ PERSON : "includes"
+    DISTRIBUTION_LIST ||--o{ DISTRIBUTION_LIST_CONTENT : "has members"
+    PERSON ||--o{ DISTRIBUTION_LIST_CONTENT : "included in"
+
+    %% Cache
+    USERS ||--o{ DOC_CACHE : "cached"
+    PROJECTS ||--o{ DOC_CACHE : "cached"
+    JOBPACKS ||--o{ DOC_CACHE : "cached"
+    DOC_TYPES ||--o{ DOC_CACHE : "cached"
+    AREAS ||--o{ DOC_CACHE : "cached"
+    UNITS ||--o{ DOC_CACHE : "cached"
 
 ```
-
 
 

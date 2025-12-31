@@ -1,17 +1,20 @@
+import inspect
 import logging
 import os
 import re
 import time
 import uuid
 from email.utils import formatdate
-from typing import Callable, Iterable, TypeVar
+from typing import Any, Callable, Iterable, TypeVar
 from urllib.parse import quote, urlparse
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request, UploadFile
+from fastapi import Body, Depends, FastAPI, Form, HTTPException, Query, Request, UploadFile
 from fastapi import File as UploadFileField
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict
+from fastapi.routing import APIRoute
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased, joinedload, sessionmaker
@@ -79,6 +82,7 @@ def _build_minio_client() -> tuple[object, str]:
 
 
 T = TypeVar("T")
+ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
 def _minio_with_retry(action: str, endpoint: str, func: Callable[[], T]) -> T:
@@ -116,6 +120,30 @@ def _build_file_object_key(
     rev_segment = _s3_safe_segment(transmittal_current_revision)
     safe_filename = os.path.basename(filename)
     return f"{project_segment}/{doc_segment}/{rev_segment}/{unique_id}_{safe_filename}"
+
+
+def _example_for(model_cls: type[ModelT]) -> dict[str, dict[str, object]]:
+    schema = model_cls.model_json_schema()
+    props = schema.get("properties", {}) if isinstance(schema, dict) else {}
+    example: dict[str, object] = {}
+    for name, prop in props.items():
+        if not isinstance(prop, dict):
+            continue
+        if prop.get("examples"):
+            example[name] = prop["examples"][0]
+        elif "example" in prop:
+            example[name] = prop["example"]
+    if not example:
+        return {}
+    return {"default": {"summary": f"{model_cls.__name__} example", "value": example}}
+
+
+def _model_out(model_cls: type[ModelT], obj: object) -> ModelT:
+    return model_cls.model_validate(obj)
+
+
+def _model_list(model_cls: type[ModelT], items: Iterable[object]) -> list[ModelT]:
+    return [model_cls.model_validate(item) for item in items]
 
 
 def _close_minio_response(response) -> None:
@@ -158,360 +186,1177 @@ app.add_middleware(
 class AreaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    area_id: int
-    area_name: str
-    area_acronym: str
+    area_id: int = Field(
+        ...,
+        description="Area ID.",
+        examples=[1],
+        gt=0,
+    )
+    area_name: str = Field(
+        ...,
+        description="Area name.",
+        examples=["Area A"],
+        min_length=1,
+    )
+    area_acronym: str = Field(
+        ...,
+        description="Area acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class AreaUpdate(BaseModel):
-    area_id: int
-    area_name: str | None = None
-    area_acronym: str | None = None
+    area_id: int = Field(
+        ...,
+        description="Area ID.",
+        examples=[1],
+        gt=0,
+    )
+    area_name: str | None = Field(
+        None,
+        description="Area name.",
+        examples=["Area A"],
+        min_length=1,
+    )
+    area_acronym: str | None = Field(
+        None,
+        description="Area acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class AreaCreate(BaseModel):
-    area_name: str
-    area_acronym: str
+    area_name: str = Field(
+        ...,
+        description="Area name.",
+        examples=["Area A"],
+        min_length=1,
+    )
+    area_acronym: str = Field(
+        ...,
+        description="Area acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class AreaDelete(BaseModel):
-    area_id: int
+    area_id: int = Field(
+        ...,
+        description="Area ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class DisciplineOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    discipline_id: int
-    discipline_name: str
-    discipline_acronym: str
+    discipline_id: int = Field(
+        ...,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_name: str = Field(
+        ...,
+        description="Discipline name.",
+        examples=["Discipline A"],
+        min_length=1,
+    )
+    discipline_acronym: str = Field(
+        ...,
+        description="Discipline acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class DisciplineUpdate(BaseModel):
-    discipline_id: int
-    discipline_name: str | None = None
-    discipline_acronym: str | None = None
+    discipline_id: int = Field(
+        ...,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_name: str | None = Field(
+        None,
+        description="Discipline name.",
+        examples=["Discipline A"],
+        min_length=1,
+    )
+    discipline_acronym: str | None = Field(
+        None,
+        description="Discipline acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class DisciplineCreate(BaseModel):
-    discipline_name: str
-    discipline_acronym: str
+    discipline_name: str = Field(
+        ...,
+        description="Discipline name.",
+        examples=["Discipline A"],
+        min_length=1,
+    )
+    discipline_acronym: str = Field(
+        ...,
+        description="Discipline acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class DisciplineDelete(BaseModel):
-    discipline_id: int
+    discipline_id: int = Field(
+        ...,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class ProjectOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    project_id: int
-    project_name: str
+    project_id: int = Field(
+        ...,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_name: str = Field(
+        ...,
+        description="Project name.",
+        examples=["Project A"],
+        min_length=1,
+    )
 
 
 class ProjectUpdate(BaseModel):
-    project_id: int
-    project_name: str | None = None
+    project_id: int = Field(
+        ...,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_name: str | None = Field(
+        None,
+        description="Project name.",
+        examples=["Project A"],
+        min_length=1,
+    )
 
 
 class ProjectCreate(BaseModel):
-    project_name: str
+    project_name: str = Field(
+        ...,
+        description="Project name.",
+        examples=["Project A"],
+        min_length=1,
+    )
 
 
 class ProjectDelete(BaseModel):
-    project_id: int
+    project_id: int = Field(
+        ...,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class UnitOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    unit_id: int
-    unit_name: str
+    unit_id: int = Field(
+        ...,
+        description="Unit ID.",
+        examples=[1],
+        gt=0,
+    )
+    unit_name: str = Field(
+        ...,
+        description="Unit name.",
+        examples=["Unit A"],
+        min_length=1,
+    )
 
 
 class UnitUpdate(BaseModel):
-    unit_id: int
-    unit_name: str | None = None
+    unit_id: int = Field(
+        ...,
+        description="Unit ID.",
+        examples=[1],
+        gt=0,
+    )
+    unit_name: str | None = Field(
+        None,
+        description="Unit name.",
+        examples=["Unit A"],
+        min_length=1,
+    )
 
 
 class UnitCreate(BaseModel):
-    unit_name: str
+    unit_name: str = Field(
+        ...,
+        description="Unit name.",
+        examples=["Unit A"],
+        min_length=1,
+    )
 
 
 class UnitDelete(BaseModel):
-    unit_id: int
+    unit_id: int = Field(
+        ...,
+        description="Unit ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class JobpackOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    jobpack_id: int
-    jobpack_name: str
+    jobpack_id: int = Field(
+        ...,
+        description="Jobpack ID.",
+        examples=[1],
+        gt=0,
+    )
+    jobpack_name: str = Field(
+        ...,
+        description="Jobpack name.",
+        examples=["Jobpack A"],
+        min_length=1,
+    )
 
 
 class JobpackUpdate(BaseModel):
-    jobpack_id: int
-    jobpack_name: str | None = None
+    jobpack_id: int = Field(
+        ...,
+        description="Jobpack ID.",
+        examples=[1],
+        gt=0,
+    )
+    jobpack_name: str | None = Field(
+        None,
+        description="Jobpack name.",
+        examples=["Jobpack A"],
+        min_length=1,
+    )
 
 
 class JobpackCreate(BaseModel):
-    jobpack_name: str
+    jobpack_name: str = Field(
+        ...,
+        description="Jobpack name.",
+        examples=["Jobpack A"],
+        min_length=1,
+    )
 
 
 class JobpackDelete(BaseModel):
-    jobpack_id: int
+    jobpack_id: int = Field(
+        ...,
+        description="Jobpack ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class DocTypeOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    type_id: int
-    doc_type_name: str
-    ref_discipline_id: int
-    doc_type_acronym: str
-    discipline_name: str | None = None
-    discipline_acronym: str | None = None
+    type_id: int = Field(
+        ...,
+        description="Type ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_type_name: str = Field(
+        ...,
+        description="Document type name.",
+        examples=["Doc Type A"],
+        min_length=1,
+    )
+    ref_discipline_id: int = Field(
+        ...,
+        description="Ref Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_type_acronym: str = Field(
+        ...,
+        description="Document type acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    discipline_name: str | None = Field(
+        None,
+        description="Discipline name.",
+        examples=["Discipline A"],
+        min_length=1,
+    )
+    discipline_acronym: str | None = Field(
+        None,
+        description="Discipline acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class DocTypeCreate(BaseModel):
-    doc_type_name: str
-    ref_discipline_id: int
-    doc_type_acronym: str
+    doc_type_name: str = Field(
+        ...,
+        description="Document type name.",
+        examples=["Doc Type A"],
+        min_length=1,
+    )
+    ref_discipline_id: int = Field(
+        ...,
+        description="Ref Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_type_acronym: str = Field(
+        ...,
+        description="Document type acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class DocTypeUpdate(BaseModel):
-    type_id: int
-    doc_type_name: str | None = None
-    ref_discipline_id: int | None = None
-    doc_type_acronym: str | None = None
+    type_id: int = Field(
+        ...,
+        description="Type ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_type_name: str | None = Field(
+        None,
+        description="Document type name.",
+        examples=["Doc Type A"],
+        min_length=1,
+    )
+    ref_discipline_id: int | None = Field(
+        None,
+        description="Ref Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_type_acronym: str | None = Field(
+        None,
+        description="Document type acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
 
 
 class DocTypeDelete(BaseModel):
-    type_id: int
+    type_id: int = Field(
+        ...,
+        description="Type ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class DocOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    doc_id: int
-    doc_name_unique: str
-    title: str
-    project_id: int | None = None
-    project_name: str | None = None
-    jobpack_id: int | None = None
-    jobpack_name: str | None = None
-    type_id: int
-    doc_type_name: str | None = None
-    doc_type_acronym: str | None = None
-    area_id: int
-    area_name: str | None = None
-    area_acronym: str | None = None
-    unit_id: int
-    unit_name: str | None = None
-    rev_actual_id: int | None = None
-    rev_current_id: int | None = None
-    rev_seq_num: int | None = None
-    discipline_id: int | None = None
-    discipline_name: str | None = None
-    discipline_acronym: str | None = None
-    rev_code_name: str | None = None
-    rev_code_acronym: str | None = None
-    percentage: int | None = None
+    doc_id: int = Field(
+        ...,
+        description="Doc ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_name_unique: str = Field(
+        ...,
+        description="Document unique name.",
+        examples=["DOC-001"],
+        min_length=1,
+    )
+    title: str = Field(
+        ...,
+        description="Document title.",
+        examples=["Document Title"],
+        min_length=1,
+    )
+    project_id: int | None = Field(
+        None,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_name: str | None = Field(
+        None,
+        description="Project name.",
+        examples=["Project A"],
+        min_length=1,
+    )
+    jobpack_id: int | None = Field(
+        None,
+        description="Jobpack ID.",
+        examples=[1],
+        gt=0,
+    )
+    jobpack_name: str | None = Field(
+        None,
+        description="Jobpack name.",
+        examples=["Jobpack A"],
+        min_length=1,
+    )
+    type_id: int = Field(
+        ...,
+        description="Type ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_type_name: str | None = Field(
+        None,
+        description="Document type name.",
+        examples=["Doc Type A"],
+        min_length=1,
+    )
+    doc_type_acronym: str | None = Field(
+        None,
+        description="Document type acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    area_id: int = Field(
+        ...,
+        description="Area ID.",
+        examples=[1],
+        gt=0,
+    )
+    area_name: str | None = Field(
+        None,
+        description="Area name.",
+        examples=["Area A"],
+        min_length=1,
+    )
+    area_acronym: str | None = Field(
+        None,
+        description="Area acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    unit_id: int = Field(
+        ...,
+        description="Unit ID.",
+        examples=[1],
+        gt=0,
+    )
+    unit_name: str | None = Field(
+        None,
+        description="Unit name.",
+        examples=["Unit A"],
+        min_length=1,
+    )
+    rev_actual_id: int | None = Field(
+        None,
+        description="Rev Actual ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_current_id: int | None = Field(
+        None,
+        description="Rev Current ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_seq_num: int | None = Field(
+        None,
+        description="Revision sequence number.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_id: int | None = Field(
+        None,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_name: str | None = Field(
+        None,
+        description="Discipline name.",
+        examples=["Discipline A"],
+        min_length=1,
+    )
+    discipline_acronym: str | None = Field(
+        None,
+        description="Discipline acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    rev_code_name: str | None = Field(
+        None,
+        description="Revision code name.",
+        examples=["Rev Code A"],
+        min_length=1,
+    )
+    rev_code_acronym: str | None = Field(
+        None,
+        description="Revision code acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    percentage: int | None = Field(
+        None,
+        description="Completion percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class DocUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    doc_id: int
-    doc_name_unique: str | None = None
-    title: str | None = None
-    project_id: int | None = None
-    jobpack_id: int | None = None
-    type_id: int | None = None
-    area_id: int | None = None
-    unit_id: int | None = None
-    rev_actual_id: int | None = None
-    rev_current_id: int | None = None
+    doc_id: int = Field(
+        ...,
+        description="Doc ID.",
+        examples=[1],
+        gt=0,
+    )
+    doc_name_unique: str | None = Field(
+        None,
+        description="Document unique name.",
+        examples=["DOC-001"],
+        min_length=1,
+    )
+    title: str | None = Field(
+        None,
+        description="Document title.",
+        examples=["Document Title"],
+        min_length=1,
+    )
+    project_id: int | None = Field(
+        None,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    jobpack_id: int | None = Field(
+        None,
+        description="Jobpack ID.",
+        examples=[1],
+        gt=0,
+    )
+    type_id: int | None = Field(
+        None,
+        description="Type ID.",
+        examples=[1],
+        gt=0,
+    )
+    area_id: int | None = Field(
+        None,
+        description="Area ID.",
+        examples=[1],
+        gt=0,
+    )
+    unit_id: int | None = Field(
+        None,
+        description="Unit ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_actual_id: int | None = Field(
+        None,
+        description="Rev Actual ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_current_id: int | None = Field(
+        None,
+        description="Rev Current ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class RoleOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    role_id: int
-    role_name: str
+    role_id: int = Field(
+        ...,
+        description="Role ID.",
+        examples=[1],
+        gt=0,
+    )
+    role_name: str = Field(
+        ...,
+        description="Role name.",
+        examples=["Role A"],
+        min_length=1,
+    )
 
 
 class RoleUpdate(BaseModel):
-    role_id: int
-    role_name: str | None = None
+    role_id: int = Field(
+        ...,
+        description="Role ID.",
+        examples=[1],
+        gt=0,
+    )
+    role_name: str | None = Field(
+        None,
+        description="Role name.",
+        examples=["Role A"],
+        min_length=1,
+    )
 
 
 class RoleCreate(BaseModel):
-    role_name: str
+    role_name: str = Field(
+        ...,
+        description="Role name.",
+        examples=["Role A"],
+        min_length=1,
+    )
 
 
 class RoleDelete(BaseModel):
-    role_id: int
+    role_id: int = Field(
+        ...,
+        description="Role ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class DocRevMilestoneOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    milestone_id: int
-    milestone_name: str
-    progress: int | None = None
+    milestone_id: int = Field(
+        ...,
+        description="Milestone ID.",
+        examples=[1],
+        gt=0,
+    )
+    milestone_name: str = Field(
+        ...,
+        description="Milestone name.",
+        examples=["Milestone A"],
+        min_length=1,
+    )
+    progress: int | None = Field(
+        None,
+        description="Progress percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class DocRevMilestoneUpdate(BaseModel):
-    milestone_id: int
-    milestone_name: str | None = None
-    progress: int | None = None
+    milestone_id: int = Field(
+        ...,
+        description="Milestone ID.",
+        examples=[1],
+        gt=0,
+    )
+    milestone_name: str | None = Field(
+        None,
+        description="Milestone name.",
+        examples=["Milestone A"],
+        min_length=1,
+    )
+    progress: int | None = Field(
+        None,
+        description="Progress percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class DocRevMilestoneCreate(BaseModel):
-    milestone_name: str
-    progress: int | None = None
+    milestone_name: str = Field(
+        ...,
+        description="Milestone name.",
+        examples=["Milestone A"],
+        min_length=1,
+    )
+    progress: int | None = Field(
+        None,
+        description="Progress percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class DocRevMilestoneDelete(BaseModel):
-    milestone_id: int
+    milestone_id: int = Field(
+        ...,
+        description="Milestone ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class RevisionOverviewOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    rev_code_id: int
-    rev_code_name: str
-    rev_code_acronym: str
-    rev_description: str
-    percentage: int | None = None
+    rev_code_id: int = Field(
+        ...,
+        description="Rev Code ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_code_name: str = Field(
+        ...,
+        description="Revision code name.",
+        examples=["Rev Code A"],
+        min_length=1,
+    )
+    rev_code_acronym: str = Field(
+        ...,
+        description="Revision code acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    rev_description: str = Field(
+        ...,
+        description="Revision description.",
+        examples=["Initial issue."],
+        min_length=1,
+    )
+    percentage: int | None = Field(
+        None,
+        description="Completion percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class RevisionOverviewUpdate(BaseModel):
-    rev_code_id: int
-    rev_code_name: str | None = None
-    rev_code_acronym: str | None = None
-    rev_description: str | None = None
-    percentage: int | None = None
+    rev_code_id: int = Field(
+        ...,
+        description="Rev Code ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_code_name: str | None = Field(
+        None,
+        description="Revision code name.",
+        examples=["Rev Code A"],
+        min_length=1,
+    )
+    rev_code_acronym: str | None = Field(
+        None,
+        description="Revision code acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    rev_description: str | None = Field(
+        None,
+        description="Revision description.",
+        examples=["Initial issue."],
+        min_length=1,
+    )
+    percentage: int | None = Field(
+        None,
+        description="Completion percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class RevisionOverviewCreate(BaseModel):
-    rev_code_name: str
-    rev_code_acronym: str
-    rev_description: str
-    percentage: int | None = None
+    rev_code_name: str = Field(
+        ...,
+        description="Revision code name.",
+        examples=["Rev Code A"],
+        min_length=1,
+    )
+    rev_code_acronym: str = Field(
+        ...,
+        description="Revision code acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    rev_description: str = Field(
+        ...,
+        description="Revision description.",
+        examples=["Initial issue."],
+        min_length=1,
+    )
+    percentage: int | None = Field(
+        None,
+        description="Completion percentage.",
+        examples=[50],
+        ge=0,
+        le=100,
+    )
 
 
 class RevisionOverviewDelete(BaseModel):
-    rev_code_id: int
+    rev_code_id: int = Field(
+        ...,
+        description="Rev Code ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class DocRevStatusOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    rev_status_id: int
-    rev_status_name: str
+    rev_status_id: int = Field(
+        ...,
+        description="Rev Status ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_status_name: str = Field(
+        ...,
+        description="Revision status name.",
+        examples=["Rev Status A"],
+        min_length=1,
+    )
 
 
 class DocRevStatusUpdate(BaseModel):
-    rev_status_id: int
-    rev_status_name: str | None = None
+    rev_status_id: int = Field(
+        ...,
+        description="Rev Status ID.",
+        examples=[1],
+        gt=0,
+    )
+    rev_status_name: str | None = Field(
+        None,
+        description="Revision status name.",
+        examples=["Rev Status A"],
+        min_length=1,
+    )
 
 
 class DocRevStatusCreate(BaseModel):
-    rev_status_name: str
+    rev_status_name: str = Field(
+        ...,
+        description="Revision status name.",
+        examples=["Rev Status A"],
+        min_length=1,
+    )
 
 
 class DocRevStatusDelete(BaseModel):
-    rev_status_id: int
+    rev_status_id: int = Field(
+        ...,
+        description="Rev Status ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class FileOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    filename: str
-    s3_uid: str
-    mimetype: str
-    rev_id: int
+    id: int = Field(
+        ...,
+        description="Id.",
+        examples=[1],
+        gt=0,
+    )
+    filename: str = Field(
+        ...,
+        description="Filename.",
+        examples=["Example"],
+        min_length=1,
+    )
+    s3_uid: str = Field(
+        ...,
+        description="S3 object key.",
+        examples=["bucket/path/file.pdf"],
+        min_length=1,
+    )
+    mimetype: str = Field(
+        ...,
+        description="File MIME type.",
+        examples=["application/pdf"],
+        min_length=1,
+    )
+    rev_id: int = Field(
+        ...,
+        description="Rev ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class FileUpdate(BaseModel):
-    id: int
-    filename: str
+    id: int = Field(
+        ...,
+        description="Id.",
+        examples=[1],
+        gt=0,
+    )
+    filename: str = Field(
+        ...,
+        description="Filename.",
+        examples=["Example"],
+        min_length=1,
+    )
 
 
 class FileDelete(BaseModel):
-    id: int
+    id: int = Field(
+        ...,
+        description="Id.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class PersonOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    person_id: int
-    person_name: str
-    photo_s3_uid: str | None = None
+    person_id: int = Field(
+        ...,
+        description="Person ID.",
+        examples=[1],
+        gt=0,
+    )
+    person_name: str = Field(
+        ...,
+        description="Person name.",
+        examples=["Person A"],
+        min_length=1,
+    )
+    photo_s3_uid: str | None = Field(
+        None,
+        description="Photo S3 object key.",
+        examples=["bucket/photos/person.jpg"],
+        min_length=1,
+    )
 
 
 class PersonUpdate(BaseModel):
-    person_id: int
-    person_name: str | None = None
-    photo_s3_uid: str | None = None
+    person_id: int = Field(
+        ...,
+        description="Person ID.",
+        examples=[1],
+        gt=0,
+    )
+    person_name: str | None = Field(
+        None,
+        description="Person name.",
+        examples=["Person A"],
+        min_length=1,
+    )
+    photo_s3_uid: str | None = Field(
+        None,
+        description="Photo S3 object key.",
+        examples=["bucket/photos/person.jpg"],
+        min_length=1,
+    )
 
 
 class PersonCreate(BaseModel):
-    person_name: str
-    photo_s3_uid: str | None = None
+    person_name: str = Field(
+        ...,
+        description="Person name.",
+        examples=["Person A"],
+        min_length=1,
+    )
+    photo_s3_uid: str | None = Field(
+        None,
+        description="Photo S3 object key.",
+        examples=["bucket/photos/person.jpg"],
+        min_length=1,
+    )
 
 
 class PersonDelete(BaseModel):
-    person_id: int
+    person_id: int = Field(
+        ...,
+        description="Person ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    user_id: int
-    person_id: int
-    user_acronym: str
-    role_id: int
-    person_name: str | None = None
-    role_name: str | None = None
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
+    person_id: int = Field(
+        ...,
+        description="Person ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_acronym: str = Field(
+        ...,
+        description="User acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    role_id: int = Field(
+        ...,
+        description="Role ID.",
+        examples=[1],
+        gt=0,
+    )
+    person_name: str | None = Field(
+        None,
+        description="Person name.",
+        examples=["Person A"],
+        min_length=1,
+    )
+    role_name: str | None = Field(
+        None,
+        description="Role name.",
+        examples=["Role A"],
+        min_length=1,
+    )
 
 
 class UserUpdate(BaseModel):
-    user_id: int
-    person_id: int | None = None
-    user_acronym: str | None = None
-    role_id: int | None = None
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
+    person_id: int | None = Field(
+        None,
+        description="Person ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_acronym: str | None = Field(
+        None,
+        description="User acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    role_id: int | None = Field(
+        None,
+        description="Role ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class UserCreate(BaseModel):
-    person_id: int
-    user_acronym: str
-    role_id: int
+    person_id: int = Field(
+        ...,
+        description="Person ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_acronym: str = Field(
+        ...,
+        description="User acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    role_id: int = Field(
+        ...,
+        description="Role ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class UserDelete(BaseModel):
-    user_id: int
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
 
 
 class PermissionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    permission_id: int
-    user_id: int
-    project_id: int | None = None
-    discipline_id: int | None = None
-    user_acronym: str | None = None
-    person_name: str | None = None
-    project_name: str | None = None
-    discipline_name: str | None = None
+    permission_id: int = Field(
+        ...,
+        description="Permission ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_id: int | None = Field(
+        None,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_id: int | None = Field(
+        None,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_acronym: str | None = Field(
+        None,
+        description="User acronym.",
+        examples=["ABC"],
+        min_length=1,
+    )
+    person_name: str | None = Field(
+        None,
+        description="Person name.",
+        examples=["Person A"],
+        min_length=1,
+    )
+    project_name: str | None = Field(
+        None,
+        description="Project name.",
+        examples=["Project A"],
+        min_length=1,
+    )
+    discipline_name: str | None = Field(
+        None,
+        description="Discipline name.",
+        examples=["Discipline A"],
+        min_length=1,
+    )
 
 
 class PermissionCreate(BaseModel):
-    user_id: int
-    project_id: int | None = None
-    discipline_id: int | None = None
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_id: int | None = Field(
+        None,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_id: int | None = Field(
+        None,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
 
     def validate_scope(self) -> None:
         if self.project_id is None and self.discipline_id is None:
@@ -519,10 +1364,30 @@ class PermissionCreate(BaseModel):
 
 
 class PermissionDelete(BaseModel):
-    permission_id: int | None = None
-    user_id: int
-    project_id: int | None = None
-    discipline_id: int | None = None
+    permission_id: int | None = Field(
+        None,
+        description="Permission ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_id: int | None = Field(
+        None,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_id: int | None = Field(
+        None,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
 
     def validate_scope(self) -> None:
         if self.permission_id is None and self.project_id is None and self.discipline_id is None:
@@ -535,12 +1400,42 @@ class PermissionDelete(BaseModel):
 
 
 class PermissionUpdate(BaseModel):
-    permission_id: int | None = None
-    user_id: int
-    project_id: int | None = None
-    discipline_id: int | None = None
-    new_project_id: int | None = None
-    new_discipline_id: int | None = None
+    permission_id: int | None = Field(
+        None,
+        description="Permission ID.",
+        examples=[1],
+        gt=0,
+    )
+    user_id: int = Field(
+        ...,
+        description="User ID.",
+        examples=[1],
+        gt=0,
+    )
+    project_id: int | None = Field(
+        None,
+        description="Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    discipline_id: int | None = Field(
+        None,
+        description="Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
+    new_project_id: int | None = Field(
+        None,
+        description="New Project ID.",
+        examples=[1],
+        gt=0,
+    )
+    new_discipline_id: int | None = Field(
+        None,
+        description="New Discipline ID.",
+        examples=[1],
+        gt=0,
+    )
 
     def validate_current(self) -> None:
         if self.project_id is None and self.discipline_id is None:
@@ -557,13 +1452,141 @@ def get_db() -> Iterable[Session]:
         db.close()
 
 
-@app.get("/")
+@app.get(
+    "/",
+    summary="Root endpoint returning a welcome message.",
+    description="Returns a simple message indicating the Flow backend is operational.",
+    operation_id="read_root",
+    tags=["system"],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
 def read_root() -> dict[str, str]:
+    """
+    Root endpoint returning a welcome message.
+
+    Returns a simple message indicating the Flow backend is operational.
+
+    Returns:
+        dict[str, str]: A message confirming the Flow backend is running.
+    """
     return {"message": "Flow backend is running"}
 
 
-@app.get("/health")
+@app.get(
+    "/health",
+    summary="Health check endpoint.",
+    description="Returns the health status of the API service.",
+    operation_id="health",
+    tags=["system"],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
 def health() -> dict[str, str]:
+    """
+    Health check endpoint.
+
+    Returns the health status of the API service.
+
+    Returns:
+        dict[str, str]: A status message indicating that the API service is healthy.
+    """
     return {"status": "ok"}
 
 
@@ -607,16 +1630,159 @@ def _build_doc_type_out(doc_type: DocType, discipline: Discipline | None = None)
     )
 
 
-@app.get("/api/v1/lookups/areas", response_model=list[AreaOut])
-def list_areas(db: Session = Depends(get_db)) -> list[Area]:
+@app.get(
+    "/api/v1/lookups/areas",
+    summary="List all areas.",
+    description="Returns a list of all areas sorted by area name.",
+    operation_id="list_areas",
+    tags=["lookups"],
+    response_model=list[AreaOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_areas(db: Session = Depends(get_db)) -> list[AreaOut]:
+    """
+    List all areas.
+
+    Returns a list of all areas sorted by area name.
+
+    Returns:
+        List of areas with id, name, and acronym.
+
+    Notes:
+        Unlike some other list endpoints, this endpoint intentionally returns an empty list
+        with HTTP 200 when no areas exist, rather than raising a 404. This behavior is
+        preserved for lookup consistency and backward compatibility.
+    """
     areas = db.query(Area).order_by(Area.area_name).all()
-    if not areas:
-        raise HTTPException(status_code=404, detail="No areas found")
-    return areas
+    return _model_list(AreaOut, areas)
 
 
-@app.put("/api/v1/lookups/areas/update", response_model=AreaOut)
-def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
+@app.put(
+    "/api/v1/lookups/areas/update",
+    summary="Update an existing area.",
+    description="Updates the name and/or acronym of an existing area.",
+    operation_id="update_area",
+    tags=["lookups"],
+    response_model=AreaOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_area(
+    payload: AreaUpdate = Body(..., examples=_example_for(AreaUpdate)),
+    db: Session = Depends(get_db),
+) -> AreaOut:
+    """
+    Update an existing area.
+
+    Updates the name and/or acronym of an existing area.
+
+    Args:
+        payload: Area update data including area_id and at least one field to update.
+
+    Returns:
+        Updated area object.
+
+    Raises:
+        HTTPException: 400 if no fields provided or name/acronym already exists.
+        HTTPException: 404 if area not found.
+    """
     if payload.area_name is None and payload.area_acronym is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
@@ -636,11 +1802,86 @@ def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
         _handle_integrity_error("Area name or acronym already exists", err, "update_area")
 
     db.refresh(area)
-    return area
+    return _model_out(AreaOut, area)
 
 
-@app.post("/api/v1/lookups/areas/insert", response_model=AreaOut, status_code=201)
-def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
+@app.post(
+    "/api/v1/lookups/areas/insert",
+    summary="Create a new area.",
+    description="Inserts a new area with the specified name and acronym.",
+    operation_id="insert_area",
+    tags=["lookups"],
+    response_model=AreaOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_area(
+    payload: AreaCreate = Body(..., examples=_example_for(AreaCreate)),
+    db: Session = Depends(get_db),
+) -> AreaOut:
+    """
+    Create a new area.
+
+    Inserts a new area with the specified name and acronym.
+
+    Args:
+        payload: Area creation data including name and acronym.
+
+    Returns:
+        Newly created area object.
+
+    Raises:
+        HTTPException: 400 if area name or acronym already exists.
+    """
     area = Area(area_name=payload.area_name, area_acronym=payload.area_acronym)
     db.add(area)
     try:
@@ -649,11 +1890,82 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
         db.rollback()
         _handle_integrity_error("Area name or acronym already exists", err, "insert_area")
     db.refresh(area)
-    return area
+    return _model_out(AreaOut, area)
 
 
-@app.delete("/api/v1/lookups/areas/delete", status_code=204)
-def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/lookups/areas/delete",
+    summary="Delete an area.",
+    description="Removes an area from the database by its ID.",
+    operation_id="delete_area",
+    tags=["lookups"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_area(
+    payload: AreaDelete = Body(..., examples=_example_for(AreaDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete an area.
+
+    Removes an area from the database by its ID.
+
+    Args:
+        payload: Area deletion data including area_id.
+
+    Raises:
+        HTTPException: 404 if area not found.
+    """
     area = db.get(Area, payload.area_id)
     if not area:
         raise HTTPException(status_code=404, detail="Area not found")
@@ -661,16 +1973,159 @@ def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
-@app.get("/api/v1/lookups/disciplines", response_model=list[DisciplineOut])
-def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
+@app.get(
+    "/api/v1/lookups/disciplines",
+    summary="List all disciplines.",
+    description="Returns a list of all disciplines sorted by discipline name.",
+    operation_id="list_disciplines",
+    tags=["lookups"],
+    response_model=list[DisciplineOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_disciplines(db: Session = Depends(get_db)) -> list[DisciplineOut]:
+    """
+    List all disciplines.
+
+    Returns a list of all disciplines sorted by discipline name.
+
+    Returns:
+        List of disciplines with id, name, and acronym.
+
+    Raises:
+        HTTPException: 404 if no disciplines are found.
+    """
     disciplines = db.query(Discipline).order_by(Discipline.discipline_name).all()
     if not disciplines:
         raise HTTPException(status_code=404, detail="No disciplines found")
-    return disciplines
+    return _model_list(DisciplineOut, disciplines)
 
 
-@app.put("/api/v1/lookups/disciplines/update", response_model=DisciplineOut)
-def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) -> Discipline:
+@app.put(
+    "/api/v1/lookups/disciplines/update",
+    summary="Update an existing discipline.",
+    description="Updates the name and/or acronym of an existing discipline.",
+    operation_id="update_discipline",
+    tags=["lookups"],
+    response_model=DisciplineOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_discipline(
+    payload: DisciplineUpdate = Body(..., examples=_example_for(DisciplineUpdate)),
+    db: Session = Depends(get_db),
+) -> DisciplineOut:
+    """
+    Update an existing discipline.
+
+    Updates the name and/or acronym of an existing discipline.
+
+    Args:
+        payload: Discipline update data including discipline_id and at least one field to update.
+
+    Returns:
+        Updated discipline object.
+
+    Raises:
+        HTTPException: 400 if no fields provided or name/acronym already exists.
+        HTTPException: 404 if discipline not found.
+    """
     if payload.discipline_name is None and payload.discipline_acronym is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
@@ -694,11 +2149,86 @@ def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) 
         )
 
     db.refresh(discipline)
-    return discipline
+    return _model_out(DisciplineOut, discipline)
 
 
-@app.post("/api/v1/lookups/disciplines/insert", response_model=DisciplineOut, status_code=201)
-def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) -> Discipline:
+@app.post(
+    "/api/v1/lookups/disciplines/insert",
+    summary="Create a new discipline.",
+    description="Inserts a new discipline with the specified name and acronym.",
+    operation_id="insert_discipline",
+    tags=["lookups"],
+    response_model=DisciplineOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_discipline(
+    payload: DisciplineCreate = Body(..., examples=_example_for(DisciplineCreate)),
+    db: Session = Depends(get_db),
+) -> DisciplineOut:
+    """
+    Create a new discipline.
+
+    Inserts a new discipline with the specified name and acronym.
+
+    Args:
+        payload: Discipline creation data including name and acronym.
+
+    Returns:
+        Newly created discipline object.
+
+    Raises:
+        HTTPException: 400 if discipline name or acronym already exists.
+    """
     discipline = Discipline(
         discipline_name=payload.discipline_name,
         discipline_acronym=payload.discipline_acronym,
@@ -714,11 +2244,82 @@ def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) 
             "insert_discipline",
         )
     db.refresh(discipline)
-    return discipline
+    return _model_out(DisciplineOut, discipline)
 
 
-@app.delete("/api/v1/lookups/disciplines/delete", status_code=204)
-def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/lookups/disciplines/delete",
+    summary="Delete a discipline.",
+    description="Removes a discipline from the database by its ID.",
+    operation_id="delete_discipline",
+    tags=["lookups"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_discipline(
+    payload: DisciplineDelete = Body(..., examples=_example_for(DisciplineDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a discipline.
+
+    Removes a discipline from the database by its ID.
+
+    Args:
+        payload: Discipline deletion data including discipline_id.
+
+    Raises:
+        HTTPException: 404 if discipline not found.
+    """
     discipline = db.get(Discipline, payload.discipline_id)
     if not discipline:
         raise HTTPException(status_code=404, detail="Discipline not found")
@@ -726,16 +2327,159 @@ def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) 
     db.commit()
 
 
-@app.get("/api/v1/lookups/projects", response_model=list[ProjectOut])
-def list_projects(db: Session = Depends(get_db)) -> list[Project]:
+@app.get(
+    "/api/v1/lookups/projects",
+    summary="List all projects.",
+    description="Returns a list of all projects sorted by project name.",
+    operation_id="list_projects",
+    tags=["lookups"],
+    response_model=list[ProjectOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_projects(db: Session = Depends(get_db)) -> list[ProjectOut]:
+    """
+    List all projects.
+
+    Returns a list of all projects sorted by project name.
+
+    Returns:
+        List of projects with id and name.
+
+    Raises:
+        HTTPException: 404 if no projects are found.
+    """
     projects = db.query(Project).order_by(Project.project_name).all()
     if not projects:
         raise HTTPException(status_code=404, detail="No projects found")
-    return projects
+    return _model_list(ProjectOut, projects)
 
 
-@app.put("/api/v1/lookups/projects/update", response_model=ProjectOut)
-def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Project:
+@app.put(
+    "/api/v1/lookups/projects/update",
+    summary="Update an existing project.",
+    description="Updates the name of an existing project.",
+    operation_id="update_project",
+    tags=["lookups"],
+    response_model=ProjectOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_project(
+    payload: ProjectUpdate = Body(..., examples=_example_for(ProjectUpdate)),
+    db: Session = Depends(get_db),
+) -> ProjectOut:
+    """
+    Update an existing project.
+
+    Updates the name of an existing project.
+
+    Args:
+        payload: Project update data including project_id and new project_name.
+
+    Returns:
+        Updated project object.
+
+    Raises:
+        HTTPException: 400 if no fields provided or project name already exists.
+        HTTPException: 404 if project not found.
+    """
     if payload.project_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
@@ -753,11 +2497,86 @@ def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Pro
         _handle_integrity_error("Project name already exists", err, "update_project")
 
     db.refresh(project)
-    return project
+    return _model_out(ProjectOut, project)
 
 
-@app.post("/api/v1/lookups/projects/insert", response_model=ProjectOut, status_code=201)
-def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Project:
+@app.post(
+    "/api/v1/lookups/projects/insert",
+    summary="Create a new project.",
+    description="Inserts a new project with the specified name.",
+    operation_id="insert_project",
+    tags=["lookups"],
+    response_model=ProjectOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_project(
+    payload: ProjectCreate = Body(..., examples=_example_for(ProjectCreate)),
+    db: Session = Depends(get_db),
+) -> ProjectOut:
+    """
+    Create a new project.
+
+    Inserts a new project with the specified name.
+
+    Args:
+        payload: Project creation data including project_name.
+
+    Returns:
+        Newly created project object.
+
+    Raises:
+        HTTPException: 400 if project name already exists.
+    """
     project = Project(project_name=payload.project_name)
     db.add(project)
     try:
@@ -766,11 +2585,82 @@ def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
         db.rollback()
         _handle_integrity_error("Project name already exists", err, "insert_project")
     db.refresh(project)
-    return project
+    return _model_out(ProjectOut, project)
 
 
-@app.delete("/api/v1/lookups/projects/delete", status_code=204)
-def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/lookups/projects/delete",
+    summary="Delete a project.",
+    description="Removes a project from the database by its ID.",
+    operation_id="delete_project",
+    tags=["lookups"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_project(
+    payload: ProjectDelete = Body(..., examples=_example_for(ProjectDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a project.
+
+    Removes a project from the database by its ID.
+
+    Args:
+        payload: Project deletion data including project_id.
+
+    Raises:
+        HTTPException: 404 if project not found.
+    """
     project = db.get(Project, payload.project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -778,16 +2668,159 @@ def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> Non
     db.commit()
 
 
-@app.get("/api/v1/lookups/units", response_model=list[UnitOut])
-def list_units(db: Session = Depends(get_db)) -> list[Unit]:
+@app.get(
+    "/api/v1/lookups/units",
+    summary="List all units.",
+    description="Returns a list of all units sorted by unit name.",
+    operation_id="list_units",
+    tags=["lookups"],
+    response_model=list[UnitOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_units(db: Session = Depends(get_db)) -> list[UnitOut]:
+    """
+    List all units.
+
+    Returns a list of all units sorted by unit name.
+
+    Returns:
+        List of units with id and name.
+
+    Raises:
+        HTTPException: 404 if no units are found.
+    """
     units = db.query(Unit).order_by(Unit.unit_name).all()
     if not units:
         raise HTTPException(status_code=404, detail="No units found")
-    return units
+    return _model_list(UnitOut, units)
 
 
-@app.put("/api/v1/lookups/units/update", response_model=UnitOut)
-def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
+@app.put(
+    "/api/v1/lookups/units/update",
+    summary="Update an existing unit.",
+    description="Updates the name of an existing unit.",
+    operation_id="update_unit",
+    tags=["lookups"],
+    response_model=UnitOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_unit(
+    payload: UnitUpdate = Body(..., examples=_example_for(UnitUpdate)),
+    db: Session = Depends(get_db),
+) -> UnitOut:
+    """
+    Update an existing unit.
+
+    Updates the name of an existing unit.
+
+    Args:
+        payload: Unit update data including unit_id and new unit_name.
+
+    Returns:
+        Updated unit object.
+
+    Raises:
+        HTTPException: 400 if no fields provided or unit name already exists.
+        HTTPException: 404 if unit not found.
+    """
     if payload.unit_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
@@ -805,11 +2838,86 @@ def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
         _handle_integrity_error("Unit name already exists", err, "update_unit")
 
     db.refresh(unit)
-    return unit
+    return _model_out(UnitOut, unit)
 
 
-@app.post("/api/v1/lookups/units/insert", response_model=UnitOut, status_code=201)
-def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
+@app.post(
+    "/api/v1/lookups/units/insert",
+    summary="Create a new unit.",
+    description="Inserts a new unit with the specified name.",
+    operation_id="insert_unit",
+    tags=["lookups"],
+    response_model=UnitOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_unit(
+    payload: UnitCreate = Body(..., examples=_example_for(UnitCreate)),
+    db: Session = Depends(get_db),
+) -> UnitOut:
+    """
+    Create a new unit.
+
+    Inserts a new unit with the specified name.
+
+    Args:
+        payload: Unit creation data including unit_name.
+
+    Returns:
+        Newly created unit object.
+
+    Raises:
+        HTTPException: 400 if unit name already exists.
+    """
     unit = Unit(unit_name=payload.unit_name)
     db.add(unit)
     try:
@@ -818,11 +2926,82 @@ def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
         db.rollback()
         _handle_integrity_error("Unit name already exists", err, "insert_unit")
     db.refresh(unit)
-    return unit
+    return _model_out(UnitOut, unit)
 
 
-@app.delete("/api/v1/lookups/units/delete", status_code=204)
-def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/lookups/units/delete",
+    summary="Delete a unit.",
+    description="Removes a unit from the database by its ID.",
+    operation_id="delete_unit",
+    tags=["lookups"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_unit(
+    payload: UnitDelete = Body(..., examples=_example_for(UnitDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a unit.
+
+    Removes a unit from the database by its ID.
+
+    Args:
+        payload: Unit deletion data including unit_id.
+
+    Raises:
+        HTTPException: 404 if unit not found.
+    """
     unit = db.get(Unit, payload.unit_id)
     if not unit:
         raise HTTPException(status_code=404, detail="Unit not found")
@@ -830,16 +3009,159 @@ def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
-@app.get("/api/v1/lookups/jobpacks", response_model=list[JobpackOut])
-def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
+@app.get(
+    "/api/v1/lookups/jobpacks",
+    summary="List all jobpacks.",
+    description="Returns a list of all jobpacks sorted by jobpack name.",
+    operation_id="list_jobpacks",
+    tags=["lookups"],
+    response_model=list[JobpackOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_jobpacks(db: Session = Depends(get_db)) -> list[JobpackOut]:
+    """
+    List all jobpacks.
+
+    Returns a list of all jobpacks sorted by jobpack name.
+
+    Returns:
+        List of jobpacks with id and name.
+
+    Raises:
+        HTTPException: 404 if no jobpacks are found.
+    """
     jobpacks = db.query(Jobpack).order_by(Jobpack.jobpack_name).all()
     if not jobpacks:
         raise HTTPException(status_code=404, detail="No jobpacks found")
-    return jobpacks
+    return _model_list(JobpackOut, jobpacks)
 
 
-@app.put("/api/v1/lookups/jobpacks/update", response_model=JobpackOut)
-def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Jobpack:
+@app.put(
+    "/api/v1/lookups/jobpacks/update",
+    summary="Update an existing jobpack.",
+    description="Updates the name of an existing jobpack.",
+    operation_id="update_jobpack",
+    tags=["lookups"],
+    response_model=JobpackOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_jobpack(
+    payload: JobpackUpdate = Body(..., examples=_example_for(JobpackUpdate)),
+    db: Session = Depends(get_db),
+) -> JobpackOut:
+    """
+    Update an existing jobpack.
+
+    Updates the name of an existing jobpack.
+
+    Args:
+        payload: Jobpack update data including jobpack_id and new jobpack_name.
+
+    Returns:
+        Updated jobpack object.
+
+    Raises:
+        HTTPException: 400 if no fields provided or jobpack name already exists.
+        HTTPException: 404 if jobpack not found.
+    """
     if payload.jobpack_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
@@ -856,11 +3178,86 @@ def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Job
         _handle_integrity_error("Jobpack name already exists", err, "update_jobpack")
 
     db.refresh(jobpack)
-    return jobpack
+    return _model_out(JobpackOut, jobpack)
 
 
-@app.post("/api/v1/lookups/jobpacks/insert", response_model=JobpackOut, status_code=201)
-def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Jobpack:
+@app.post(
+    "/api/v1/lookups/jobpacks/insert",
+    summary="Create a new jobpack.",
+    description="Inserts a new jobpack with the specified name.",
+    operation_id="insert_jobpack",
+    tags=["lookups"],
+    response_model=JobpackOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_jobpack(
+    payload: JobpackCreate = Body(..., examples=_example_for(JobpackCreate)),
+    db: Session = Depends(get_db),
+) -> JobpackOut:
+    """
+    Create a new jobpack.
+
+    Inserts a new jobpack with the specified name.
+
+    Args:
+        payload: Jobpack creation data including jobpack_name.
+
+    Returns:
+        Newly created jobpack object.
+
+    Raises:
+        HTTPException: 400 if jobpack name already exists.
+    """
     jobpack = Jobpack(jobpack_name=payload.jobpack_name)
     db.add(jobpack)
     try:
@@ -869,11 +3266,82 @@ def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Job
         db.rollback()
         _handle_integrity_error("Jobpack name already exists", err, "insert_jobpack")
     db.refresh(jobpack)
-    return jobpack
+    return _model_out(JobpackOut, jobpack)
 
 
-@app.delete("/api/v1/lookups/jobpacks/delete", status_code=204)
-def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/lookups/jobpacks/delete",
+    summary="Delete a jobpack.",
+    description="Removes a jobpack from the database by its ID.",
+    operation_id="delete_jobpack",
+    tags=["lookups"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_jobpack(
+    payload: JobpackDelete = Body(..., examples=_example_for(JobpackDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a jobpack.
+
+    Removes a jobpack from the database by its ID.
+
+    Args:
+        payload: Jobpack deletion data including jobpack_id.
+
+    Raises:
+        HTTPException: 404 if jobpack not found.
+    """
     jobpack = db.get(Jobpack, payload.jobpack_id)
     if not jobpack:
         raise HTTPException(status_code=404, detail="Jobpack not found")
@@ -881,8 +3349,80 @@ def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> Non
     db.commit()
 
 
-@app.get("/api/v1/documents/doc_types", response_model=list[DocTypeOut])
-def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
+@app.get(
+    "/api/v1/documents/doc_types",
+    summary="List all document types.",
+    description=(
+        "Returns a list of all document types sorted by document type name, including discipline "
+        "information."
+    ),
+    operation_id="list_doc_types",
+    tags=["documents"],
+    response_model=list[DocTypeOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_doc_types(db: Session = Depends(get_db)) -> list[DocTypeOut]:
+    """
+    List all document types.
+
+    Returns a list of all document types sorted by document type name, including discipline
+    information.
+
+    Returns:
+        List of document types with id, name, acronym, and associated discipline details.
+
+    Raises:
+        HTTPException: 404 if no document types are found.
+    """
     doc_types = (
         db.query(DocType, Discipline)
         .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
@@ -894,8 +3434,86 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
     return [_build_doc_type_out(dt, disc) for dt, disc in doc_types]
 
 
-@app.post("/api/v1/documents/doc_types/insert", response_model=DocTypeOut, status_code=201)
-def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> DocType:
+@app.post(
+    "/api/v1/documents/doc_types/insert",
+    summary="Create a new document type.",
+    description=(
+        "Inserts a new document type with the specified name, acronym, and discipline reference."
+    ),
+    operation_id="insert_doc_type",
+    tags=["documents"],
+    response_model=DocTypeOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_doc_type(
+    payload: DocTypeCreate = Body(..., examples=_example_for(DocTypeCreate)),
+    db: Session = Depends(get_db),
+) -> DocTypeOut:
+    """
+    Create a new document type.
+
+    Inserts a new document type with the specified name, acronym, and discipline reference.
+
+    Args:
+        payload: Document type creation data including name, acronym, and discipline reference.
+
+    Returns:
+        Newly created document type object.
+
+    Raises:
+        HTTPException: 400 if document type already exists.
+        HTTPException: 404 if referenced discipline not found.
+    """
     discipline = db.get(Discipline, payload.ref_discipline_id)
     if not discipline:
         raise HTTPException(status_code=404, detail="Discipline not found")
@@ -916,8 +3534,85 @@ def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> Do
     return _build_doc_type_out(doc_type)
 
 
-@app.put("/api/v1/documents/doc_types/update", response_model=DocTypeOut)
-def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> DocType:
+@app.put(
+    "/api/v1/documents/doc_types/update",
+    summary="Update an existing document type.",
+    description=(
+        "Updates the name, acronym, and/or discipline reference of an existing document type."
+    ),
+    operation_id="update_doc_type",
+    tags=["documents"],
+    response_model=DocTypeOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_doc_type(
+    payload: DocTypeUpdate = Body(..., examples=_example_for(DocTypeUpdate)),
+    db: Session = Depends(get_db),
+) -> DocTypeOut:
+    """
+    Update an existing document type.
+
+    Updates the name, acronym, and/or discipline reference of an existing document type.
+
+    Args:
+        payload: Document type update data including type_id and at least one field to update.
+
+    Returns:
+        Updated document type object.
+
+    Raises:
+        HTTPException: 400 if no fields provided or document type already exists.
+        HTTPException: 404 if document type or referenced discipline not found.
+    """
     if (
         payload.doc_type_name is None
         and payload.doc_type_acronym is None
@@ -950,8 +3645,79 @@ def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> Do
     return _build_doc_type_out(doc_type)
 
 
-@app.delete("/api/v1/documents/doc_types/delete", status_code=204)
-def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/documents/doc_types/delete",
+    summary="Delete a document type.",
+    description="Removes a document type from the database by its ID.",
+    operation_id="delete_doc_type",
+    tags=["documents"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_doc_type(
+    payload: DocTypeDelete = Body(..., examples=_example_for(DocTypeDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a document type.
+
+    Removes a document type from the database by its ID.
+
+    Args:
+        payload: Document type deletion data including type_id.
+
+    Raises:
+        HTTPException: 404 if document type not found.
+    """
     doc_type = db.get(DocType, payload.type_id)
     if not doc_type:
         raise HTTPException(status_code=404, detail="Doc type not found")
@@ -959,11 +3725,86 @@ def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> No
     db.commit()
 
 
-@app.get("/api/v1/documents/list", response_model=list[DocOut])
+@app.get(
+    "/api/v1/documents/list",
+    summary="List all documents for a specific project.",
+    description=(
+        "Returns a list of all documents for the specified project, including details about "
+        "associated types, disciplines, areas, units, and revision information."
+    ),
+    operation_id="list_documents_for_project",
+    tags=["documents"],
+    response_model=list[DocOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
 def list_documents_for_project(
     project_id: int = Query(..., description="Project ID to filter documents by"),
     db: Session = Depends(get_db),
-) -> list[Doc]:
+) -> list[DocOut]:
+    """
+    List all documents for a specific project.
+
+    Returns a list of all documents for the specified project, including details about associated
+    types, disciplines, areas, units, and revision information.
+
+    Args:
+        project_id: The project ID to filter documents by.
+
+    Returns:
+        List of documents with comprehensive metadata.
+
+    Raises:
+        HTTPException: 404 if no documents are found for the project.
+    """
     rev_current = aliased(DocRevision)
     docs = (
         db.query(
@@ -1024,22 +3865,171 @@ def list_documents_for_project(
     ]
 
 
-@app.get("/api/v1/files/list", response_model=list[FileOut])
+@app.get(
+    "/api/v1/files/list",
+    summary="List all files for a specific revision.",
+    description="Returns a list of all files associated with the specified document revision.",
+    operation_id="list_files_for_revision",
+    tags=["files"],
+    response_model=list[FileOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
 def list_files_for_revision(
     rev_id: int = Query(..., description="Revision ID to filter files by"),
     db: Session = Depends(get_db),
-) -> list[File]:
+) -> list[FileOut]:
+    """
+    List all files for a specific revision.
+
+    Returns a list of all files associated with the specified document revision.
+
+    Args:
+        rev_id: The revision ID to filter files by.
+
+    Returns:
+        List of files with metadata. If no files exist for the specified revision, an empty list is
+        returned.
+    """
     files = db.query(File).filter(File.rev_id == rev_id).order_by(File.filename, File.id).all()
-    return files
+    return _model_list(FileOut, files)
 
 
-@app.post("/api/v1/files/insert", response_model=FileOut, status_code=201)
+@app.post(
+    "/api/v1/files/insert",
+    summary="Upload a file and attach it to a document revision.",
+    description=(
+        "Uploads a file to MinIO object storage and creates a database record linking it to the "
+        "specified document revision."
+    ),
+    operation_id="insert_file",
+    tags=["files"],
+    response_model=FileOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
 def insert_file(
     request: Request,
     rev_id: int = Form(..., description="Revision ID to attach the file to"),
     file: UploadFile = UploadFileField(...),
     db: Session = Depends(get_db),
-) -> File:
+) -> FileOut:
+    """
+    Upload a file and attach it to a document revision.
+
+    Uploads a file to MinIO object storage and creates a database record linking it to the specified
+    document revision.
+
+    Args:
+        request: Incoming request used for logging the client host.
+        rev_id: The revision ID to attach the file to.
+        file: The uploaded file (multipart form data).
+
+    Returns:
+        Newly created file record with metadata.
+
+    Raises:
+        HTTPException: 400 if filename is missing, too long, or file is empty.
+        HTTPException: 404 if revision not found.
+        HTTPException: 413 if file exceeds size limit.
+    """
     revision = db.get(DocRevision, rev_id)
     if not revision:
         raise HTTPException(status_code=404, detail="Revision not found")
@@ -1131,11 +4121,89 @@ def insert_file(
         filename,
         client_host,
     )
-    return new_file
+    return _model_out(FileOut, new_file)
 
 
-@app.put("/api/v1/files/update", response_model=FileOut)
-def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
+@app.put(
+    "/api/v1/files/update",
+    summary="Update file metadata.",
+    description=(
+        "Updates the filename of an existing file record (does not update the actual file "
+        "content)."
+    ),
+    operation_id="update_file",
+    tags=["files"],
+    response_model=FileOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_file(
+    payload: FileUpdate = Body(..., examples=_example_for(FileUpdate)),
+    db: Session = Depends(get_db),
+) -> FileOut:
+    """
+    Update file metadata.
+
+    Updates the filename of an existing file record (does not update the actual file content).
+
+    Args:
+        payload: File update data including file id and new filename.
+
+    Returns:
+        Updated file record.
+
+    Raises:
+        HTTPException: 400 if filename is empty or too long.
+        HTTPException: 404 if file not found.
+    """
     filename = payload.filename.strip()
     if not filename:
         raise HTTPException(status_code=400, detail="Filename is required")
@@ -1154,11 +4222,84 @@ def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
         _handle_integrity_error("Failed to update file", err, "update_file")
 
     db.refresh(file_row)
-    return file_row
+    return _model_out(FileOut, file_row)
 
 
-@app.delete("/api/v1/files/delete", status_code=204)
-def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/files/delete",
+    summary="Delete a file.",
+    description="Removes a file from both the MinIO object storage and the database.",
+    operation_id="delete_file",
+    tags=["files"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_file(
+    request: Request,
+    payload: FileDelete = Body(..., examples=_example_for(FileDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a file.
+
+    Removes a file from both the MinIO object storage and the database.
+
+    Args:
+        payload: File deletion data including file id.
+        request: Incoming request used for logging the client host.
+
+    Raises:
+        HTTPException: 404 if file not found.
+    """
     file_row = db.get(File, payload.id)
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
@@ -1182,12 +4323,95 @@ def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get
     )
 
 
-@app.get("/api/v1/files/download")
+@app.get(
+    "/api/v1/files/download",
+    summary="Download a file.",
+    description=(
+        "Streams a file from MinIO object storage to the client with proper headers for download "
+        "(Content-Disposition, ETag, Last-Modified)."
+    ),
+    operation_id="download_file",
+    tags=["files"],
+    responses={
+        200: {
+            "description": "File content.",
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "format": "binary"},
+                },
+            },
+        },
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
 def download_file(
     request: Request,
     file_id: int = Query(..., description="File ID to download"),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
+    """
+    Download a file.
+
+    Streams a file from MinIO object storage to the client with proper headers for download
+    (Content-Disposition, ETag, Last-Modified).
+
+    Args:
+        request: Incoming request used for logging the client host.
+        file_id: The ID of the file to download.
+
+    Returns:
+        Streaming response with the file content.
+
+    Raises:
+        HTTPException: 404 if file not found.
+    """
     file_row = db.get(File, file_id)
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
@@ -1241,8 +4465,90 @@ def download_file(
     )
 
 
-@app.put("/api/v1/documents/update", response_model=DocOut)
-def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut:
+@app.put(
+    "/api/v1/documents/update",
+    summary="Update an existing document.",
+    description=(
+        "Updates various fields of an existing document including name, title, project, jobpack, "
+        "type, area, unit, and revision references. Validates all foreign key references and "
+        "ensures document name uniqueness."
+    ),
+    operation_id="update_document",
+    tags=["documents"],
+    response_model=DocOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_document(
+    payload: DocUpdate = Body(..., examples=_example_for(DocUpdate)),
+    db: Session = Depends(get_db),
+) -> DocOut:
+    """
+    Update an existing document.
+
+    Updates various fields of an existing document including name, title, project, jobpack, type,
+    area, unit, and revision references. Validates all foreign key references and ensures document
+    name uniqueness.
+
+    Args:
+        payload: Document update data including doc_id and at least one field to update.
+
+    Returns:
+        Updated document with complete metadata.
+
+    Raises:
+        HTTPException: 400 if no fields provided, required field is null, or
+        document name not unique.
+        HTTPException: 404 if document or any referenced entity not found.
+    """
     updates = payload.model_dump(exclude_unset=True)
     updates.pop("doc_id", None)
     if not updates:
@@ -1413,16 +4719,159 @@ def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut
     )
 
 
-@app.get("/api/v1/people/roles", response_model=list[RoleOut])
-def list_roles(db: Session = Depends(get_db)) -> list[Role]:
+@app.get(
+    "/api/v1/people/roles",
+    summary="List all roles.",
+    description="Returns a list of all roles sorted by role name.",
+    operation_id="list_roles",
+    tags=["people"],
+    response_model=list[RoleOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_roles(db: Session = Depends(get_db)) -> list[RoleOut]:
+    """
+    List all roles.
+
+    Returns a list of all roles sorted by role name.
+
+    Returns:
+        List of roles with id and name.
+
+    Raises:
+        HTTPException: 404 if no roles are found.
+    """
     roles = db.query(Role).order_by(Role.role_name).all()
     if not roles:
         raise HTTPException(status_code=404, detail="No roles found")
-    return roles
+    return _model_list(RoleOut, roles)
 
 
-@app.put("/api/v1/people/roles/update", response_model=RoleOut)
-def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
+@app.put(
+    "/api/v1/people/roles/update",
+    summary="Update an existing role.",
+    description="Updates the name of an existing role.",
+    operation_id="update_role",
+    tags=["people"],
+    response_model=RoleOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_role(
+    payload: RoleUpdate = Body(..., examples=_example_for(RoleUpdate)),
+    db: Session = Depends(get_db),
+) -> RoleOut:
+    """
+    Update an existing role.
+
+    Updates the name of an existing role.
+
+    Args:
+        payload: Role update data including role_id and new role_name.
+
+    Returns:
+        Updated role object.
+
+    Raises:
+        HTTPException: 400 if no fields provided or role name already exists.
+        HTTPException: 404 if role not found.
+    """
     if payload.role_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
@@ -1439,11 +4888,86 @@ def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
         _handle_integrity_error("Role name already exists", err, "update_role")
 
     db.refresh(role)
-    return role
+    return _model_out(RoleOut, role)
 
 
-@app.post("/api/v1/people/roles/insert", response_model=RoleOut, status_code=201)
-def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
+@app.post(
+    "/api/v1/people/roles/insert",
+    summary="Create a new role.",
+    description="Inserts a new role with the specified name.",
+    operation_id="insert_role",
+    tags=["people"],
+    response_model=RoleOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_role(
+    payload: RoleCreate = Body(..., examples=_example_for(RoleCreate)),
+    db: Session = Depends(get_db),
+) -> RoleOut:
+    """
+    Create a new role.
+
+    Inserts a new role with the specified name.
+
+    Args:
+        payload: Role creation data including role_name.
+
+    Returns:
+        Newly created role object.
+
+    Raises:
+        HTTPException: 400 if role name already exists.
+    """
     role = Role(role_name=payload.role_name)
     db.add(role)
     try:
@@ -1452,11 +4976,82 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
         db.rollback()
         _handle_integrity_error("Role name already exists", err, "insert_role")
     db.refresh(role)
-    return role
+    return _model_out(RoleOut, role)
 
 
-@app.delete("/api/v1/people/roles/delete", status_code=204)
-def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/people/roles/delete",
+    summary="Delete a role.",
+    description="Removes a role from the database by its ID.",
+    operation_id="delete_role",
+    tags=["people"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_role(
+    payload: RoleDelete = Body(..., examples=_example_for(RoleDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a role.
+
+    Removes a role from the database by its ID.
+
+    Args:
+        payload: Role deletion data including role_id.
+
+    Raises:
+        HTTPException: 404 if role not found.
+    """
     role = db.get(Role, payload.role_id)
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
@@ -1464,21 +5059,159 @@ def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
-@app.get("/api/v1/documents/doc_rev_milestones", response_model=list[DocRevMilestoneOut])
-def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilestone]:
+@app.get(
+    "/api/v1/documents/doc_rev_milestones",
+    summary="List all document revision milestones.",
+    description="Returns a list of all document revision milestones sorted by milestone name.",
+    operation_id="list_doc_rev_milestones",
+    tags=["documents"],
+    response_model=list[DocRevMilestoneOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilestoneOut]:
+    """
+    List all document revision milestones.
+
+    Returns a list of all document revision milestones sorted by milestone name.
+
+    Returns:
+        List of milestones with id, name, and progress percentage.
+
+    Raises:
+        HTTPException: 404 if no milestones are found.
+    """
     milestones = db.query(DocRevMilestone).order_by(DocRevMilestone.milestone_name).all()
     if not milestones:
         raise HTTPException(status_code=404, detail="No milestones found")
-    return milestones
+    return _model_list(DocRevMilestoneOut, milestones)
 
 
 @app.put(
     "/api/v1/documents/doc_rev_milestones/update",
+    summary="Update an existing document revision milestone.",
+    description="Updates the name and/or progress percentage of an existing milestone.",
+    operation_id="update_doc_rev_milestone",
+    tags=["documents"],
     response_model=DocRevMilestoneOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
 )
 def update_doc_rev_milestone(
-    payload: DocRevMilestoneUpdate, db: Session = Depends(get_db)
-) -> DocRevMilestone:
+    payload: DocRevMilestoneUpdate = Body(..., examples=_example_for(DocRevMilestoneUpdate)),
+    db: Session = Depends(get_db),
+) -> DocRevMilestoneOut:
+    """
+    Update an existing document revision milestone.
+
+    Updates the name and/or progress percentage of an existing milestone.
+
+    Args:
+        payload: Milestone update data including milestone_id and at least one field to update.
+
+    Returns:
+        Updated milestone object.
+
+    Raises:
+        HTTPException: 400 if no fields provided or milestone name already exists.
+        HTTPException: 404 if milestone not found.
+    """
     if payload.milestone_name is None and payload.progress is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
@@ -1498,17 +5231,86 @@ def update_doc_rev_milestone(
         _handle_integrity_error("Milestone name already exists", err, "update_doc_rev_milestone")
 
     db.refresh(milestone)
-    return milestone
+    return _model_out(DocRevMilestoneOut, milestone)
 
 
 @app.post(
     "/api/v1/documents/doc_rev_milestones/insert",
+    summary="Create a new document revision milestone.",
+    description="Inserts a new milestone with the specified name and optional progress percentage.",
+    operation_id="insert_doc_rev_milestone",
+    tags=["documents"],
     response_model=DocRevMilestoneOut,
     status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
 )
 def insert_doc_rev_milestone(
-    payload: DocRevMilestoneCreate, db: Session = Depends(get_db)
-) -> DocRevMilestone:
+    payload: DocRevMilestoneCreate = Body(..., examples=_example_for(DocRevMilestoneCreate)),
+    db: Session = Depends(get_db),
+) -> DocRevMilestoneOut:
+    """
+    Create a new document revision milestone.
+
+    Inserts a new milestone with the specified name and optional progress percentage.
+
+    Args:
+        payload: Milestone creation data including name and optional progress.
+
+    Returns:
+        Newly created milestone object.
+
+    Raises:
+        HTTPException: 400 if milestone name already exists.
+    """
     milestone = DocRevMilestone(milestone_name=payload.milestone_name, progress=payload.progress)
     db.add(milestone)
     try:
@@ -1517,11 +5319,82 @@ def insert_doc_rev_milestone(
         db.rollback()
         _handle_integrity_error("Milestone name already exists", err, "insert_doc_rev_milestone")
     db.refresh(milestone)
-    return milestone
+    return _model_out(DocRevMilestoneOut, milestone)
 
 
-@app.delete("/api/v1/documents/doc_rev_milestones/delete", status_code=204)
-def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/documents/doc_rev_milestones/delete",
+    summary="Delete a document revision milestone.",
+    description="Removes a milestone from the database by its ID.",
+    operation_id="delete_doc_rev_milestone",
+    tags=["documents"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_doc_rev_milestone(
+    payload: DocRevMilestoneDelete = Body(..., examples=_example_for(DocRevMilestoneDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a document revision milestone.
+
+    Removes a milestone from the database by its ID.
+
+    Args:
+        payload: Milestone deletion data including milestone_id.
+
+    Raises:
+        HTTPException: 404 if milestone not found.
+    """
     milestone = db.get(DocRevMilestone, payload.milestone_id)
     if not milestone:
         raise HTTPException(status_code=404, detail="Milestone not found")
@@ -1529,18 +5402,164 @@ def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depen
     db.commit()
 
 
-@app.get("/api/v1/documents/revision_overview", response_model=list[RevisionOverviewOut])
-def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOverview]:
+@app.get(
+    "/api/v1/documents/revision_overview",
+    summary="List all revision overview entries.",
+    description="Returns a list of all revision overview entries sorted by revision code name.",
+    operation_id="list_revision_overview",
+    tags=["documents"],
+    response_model=list[RevisionOverviewOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOverviewOut]:
+    """
+    List all revision overview entries.
+
+    Returns a list of all revision overview entries sorted by revision code name.
+
+    Returns:
+        List of revision codes with id, name, acronym, description, and percentage.
+
+    Raises:
+        HTTPException: 404 if no revision overview entries are found.
+    """
     revisions = db.query(RevisionOverview).order_by(RevisionOverview.rev_code_name).all()
     if not revisions:
         raise HTTPException(status_code=404, detail="No revision overview entries found")
-    return revisions
+    return _model_list(RevisionOverviewOut, revisions)
 
 
-@app.put("/api/v1/documents/revision_overview/update", response_model=RevisionOverviewOut)
+@app.put(
+    "/api/v1/documents/revision_overview/update",
+    summary="Update an existing revision overview entry.",
+    description=(
+        "Updates the name, acronym, description, and/or percentage of an existing revision "
+        "overview entry."
+    ),
+    operation_id="update_revision_overview",
+    tags=["documents"],
+    response_model=RevisionOverviewOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
 def update_revision_overview(
-    payload: RevisionOverviewUpdate, db: Session = Depends(get_db)
-) -> RevisionOverview:
+    payload: RevisionOverviewUpdate = Body(..., examples=_example_for(RevisionOverviewUpdate)),
+    db: Session = Depends(get_db),
+) -> RevisionOverviewOut:
+    """
+    Update an existing revision overview entry.
+
+    Updates the name, acronym, description, and/or percentage of an existing revision overview
+    entry.
+
+    Args:
+        payload: Revision overview update data including rev_code_id and at least
+        one field to update.
+
+    Returns:
+        Updated revision overview object.
+
+    Raises:
+        HTTPException: 400 if no fields provided or revision overview already exists.
+        HTTPException: 404 if revision overview entry not found.
+    """
     if (
         payload.rev_code_name is None
         and payload.rev_code_acronym is None
@@ -1571,17 +5590,91 @@ def update_revision_overview(
         )
 
     db.refresh(revision)
-    return revision
+    return _model_out(RevisionOverviewOut, revision)
 
 
 @app.post(
     "/api/v1/documents/revision_overview/insert",
+    summary="Create a new revision overview entry.",
+    description=(
+        "Inserts a new revision overview entry with the specified code, acronym, description, and "
+        "percentage."
+    ),
+    operation_id="insert_revision_overview",
+    tags=["documents"],
     response_model=RevisionOverviewOut,
     status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
 )
 def insert_revision_overview(
-    payload: RevisionOverviewCreate, db: Session = Depends(get_db)
-) -> RevisionOverview:
+    payload: RevisionOverviewCreate = Body(..., examples=_example_for(RevisionOverviewCreate)),
+    db: Session = Depends(get_db),
+) -> RevisionOverviewOut:
+    """
+    Create a new revision overview entry.
+
+    Inserts a new revision overview entry with the specified code, acronym, description, and
+    percentage.
+
+    Args:
+        payload: Revision overview creation data including code name, acronym,
+        description, and optional percentage.
+
+    Returns:
+        Newly created revision overview object.
+
+    Raises:
+        HTTPException: 400 if revision overview entry already exists.
+    """
     revision = RevisionOverview(
         rev_code_name=payload.rev_code_name,
         rev_code_acronym=payload.rev_code_acronym,
@@ -1597,13 +5690,82 @@ def insert_revision_overview(
             "Revision overview entry already exists", err, "insert_revision_overview"
         )
     db.refresh(revision)
-    return revision
+    return _model_out(RevisionOverviewOut, revision)
 
 
-@app.delete("/api/v1/documents/revision_overview/delete", status_code=204)
+@app.delete(
+    "/api/v1/documents/revision_overview/delete",
+    summary="Delete a revision overview entry.",
+    description="Removes a revision overview entry from the database by its ID.",
+    operation_id="delete_revision_overview",
+    tags=["documents"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
 def delete_revision_overview(
-    payload: RevisionOverviewDelete, db: Session = Depends(get_db)
+    payload: RevisionOverviewDelete = Body(..., examples=_example_for(RevisionOverviewDelete)),
+    db: Session = Depends(get_db),
 ) -> None:
+    """
+    Delete a revision overview entry.
+
+    Removes a revision overview entry from the database by its ID.
+
+    Args:
+        payload: Revision overview deletion data including rev_code_id.
+
+    Raises:
+        HTTPException: 404 if revision overview entry not found.
+    """
     revision = db.get(RevisionOverview, payload.rev_code_id)
     if not revision:
         raise HTTPException(status_code=404, detail="Revision overview entry not found")
@@ -1611,18 +5773,159 @@ def delete_revision_overview(
     db.commit()
 
 
-@app.get("/api/v1/lookups/doc_rev_statuses", response_model=list[DocRevStatusOut])
-def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
+@app.get(
+    "/api/v1/lookups/doc_rev_statuses",
+    summary="List all document revision statuses.",
+    description="Returns a list of all document revision statuses sorted by status name.",
+    operation_id="list_doc_rev_statuses",
+    tags=["lookups"],
+    response_model=list[DocRevStatusOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatusOut]:
+    """
+    List all document revision statuses.
+
+    Returns a list of all document revision statuses sorted by status name.
+
+    Returns:
+        List of statuses with id and name.
+
+    Raises:
+        HTTPException: 404 if no document revision statuses are found.
+    """
     statuses = db.query(DocRevStatus).order_by(DocRevStatus.rev_status_name).all()
     if not statuses:
         raise HTTPException(status_code=404, detail="No doc revision statuses found")
-    return statuses
+    return _model_list(DocRevStatusOut, statuses)
 
 
-@app.put("/api/v1/lookups/doc_rev_statuses/update", response_model=DocRevStatusOut)
+@app.put(
+    "/api/v1/lookups/doc_rev_statuses/update",
+    summary="Update an existing document revision status.",
+    description="Updates the name of an existing document revision status.",
+    operation_id="update_doc_rev_status",
+    tags=["lookups"],
+    response_model=DocRevStatusOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
 def update_doc_rev_status(
-    payload: DocRevStatusUpdate, db: Session = Depends(get_db)
-) -> DocRevStatus:
+    payload: DocRevStatusUpdate = Body(..., examples=_example_for(DocRevStatusUpdate)),
+    db: Session = Depends(get_db),
+) -> DocRevStatusOut:
+    """
+    Update an existing document revision status.
+
+    Updates the name of an existing document revision status.
+
+    Args:
+        payload: Status update data including rev_status_id and new rev_status_name.
+
+    Returns:
+        Updated status object.
+
+    Raises:
+        HTTPException: 400 if no fields provided or status already exists.
+        HTTPException: 404 if status not found.
+    """
     if payload.rev_status_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
@@ -1640,17 +5943,86 @@ def update_doc_rev_status(
         _handle_integrity_error("Doc revision status already exists", err, "update_doc_rev_status")
 
     db.refresh(status)
-    return status
+    return _model_out(DocRevStatusOut, status)
 
 
 @app.post(
     "/api/v1/lookups/doc_rev_statuses/insert",
+    summary="Create a new document revision status.",
+    description="Inserts a new document revision status with the specified name.",
+    operation_id="insert_doc_rev_status",
+    tags=["lookups"],
     response_model=DocRevStatusOut,
     status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
 )
 def insert_doc_rev_status(
-    payload: DocRevStatusCreate, db: Session = Depends(get_db)
-) -> DocRevStatus:
+    payload: DocRevStatusCreate = Body(..., examples=_example_for(DocRevStatusCreate)),
+    db: Session = Depends(get_db),
+) -> DocRevStatusOut:
+    """
+    Create a new document revision status.
+
+    Inserts a new document revision status with the specified name.
+
+    Args:
+        payload: Status creation data including rev_status_name.
+
+    Returns:
+        Newly created status object.
+
+    Raises:
+        HTTPException: 400 if status already exists.
+    """
     status = DocRevStatus(rev_status_name=payload.rev_status_name)
     db.add(status)
     try:
@@ -1659,11 +6031,82 @@ def insert_doc_rev_status(
         db.rollback()
         _handle_integrity_error("Doc revision status already exists", err, "insert_doc_rev_status")
     db.refresh(status)
-    return status
+    return _model_out(DocRevStatusOut, status)
 
 
-@app.delete("/api/v1/lookups/doc_rev_statuses/delete", status_code=204)
-def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/lookups/doc_rev_statuses/delete",
+    summary="Delete a document revision status.",
+    description="Removes a document revision status from the database by its ID.",
+    operation_id="delete_doc_rev_status",
+    tags=["lookups"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_doc_rev_status(
+    payload: DocRevStatusDelete = Body(..., examples=_example_for(DocRevStatusDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a document revision status.
+
+    Removes a document revision status from the database by its ID.
+
+    Args:
+        payload: Status deletion data including rev_status_id.
+
+    Raises:
+        HTTPException: 404 if status not found.
+    """
     status = db.get(DocRevStatus, payload.rev_status_id)
     if not status:
         raise HTTPException(status_code=404, detail="Doc revision status not found")
@@ -1671,16 +6114,159 @@ def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get
     db.commit()
 
 
-@app.get("/api/v1/people/persons", response_model=list[PersonOut])
-def list_persons(db: Session = Depends(get_db)) -> list[Person]:
+@app.get(
+    "/api/v1/people/persons",
+    summary="List all persons.",
+    description="Returns a list of all persons sorted by person name.",
+    operation_id="list_persons",
+    tags=["people"],
+    response_model=list[PersonOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_persons(db: Session = Depends(get_db)) -> list[PersonOut]:
+    """
+    List all persons.
+
+    Returns a list of all persons sorted by person name.
+
+    Returns:
+        List of persons with id, name, and photo S3 UID.
+
+    Raises:
+        HTTPException: 404 if no persons are found.
+    """
     persons = db.query(Person).order_by(Person.person_name).all()
     if not persons:
         raise HTTPException(status_code=404, detail="No persons found")
-    return persons
+    return _model_list(PersonOut, persons)
 
 
-@app.put("/api/v1/people/persons/update", response_model=PersonOut)
-def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Person:
+@app.put(
+    "/api/v1/people/persons/update",
+    summary="Update an existing person.",
+    description="Updates the name and/or photo S3 UID of an existing person.",
+    operation_id="update_person",
+    tags=["people"],
+    response_model=PersonOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_person(
+    payload: PersonUpdate = Body(..., examples=_example_for(PersonUpdate)),
+    db: Session = Depends(get_db),
+) -> PersonOut:
+    """
+    Update an existing person.
+
+    Updates the name and/or photo S3 UID of an existing person.
+
+    Args:
+        payload: Person update data including person_id and at least one field to update.
+
+    Returns:
+        Updated person object.
+
+    Raises:
+        HTTPException: 400 if no fields provided.
+        HTTPException: 404 if person not found.
+    """
     if payload.person_name is None and payload.photo_s3_uid is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
@@ -1700,11 +6286,86 @@ def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Perso
         _handle_integrity_error("Failed to update person", err, "update_person")
 
     db.refresh(person)
-    return person
+    return _model_out(PersonOut, person)
 
 
-@app.post("/api/v1/people/persons/insert", response_model=PersonOut, status_code=201)
-def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Person:
+@app.post(
+    "/api/v1/people/persons/insert",
+    summary="Create a new person.",
+    description="Inserts a new person with the specified name and optional photo S3 UID.",
+    operation_id="insert_person",
+    tags=["people"],
+    response_model=PersonOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_person(
+    payload: PersonCreate = Body(..., examples=_example_for(PersonCreate)),
+    db: Session = Depends(get_db),
+) -> PersonOut:
+    """
+    Create a new person.
+
+    Inserts a new person with the specified name and optional photo S3 UID.
+
+    Args:
+        payload: Person creation data including name and optional photo S3 UID.
+
+    Returns:
+        Newly created person object.
+
+    Raises:
+        HTTPException: 400 on creation failure.
+    """
     person = Person(person_name=payload.person_name, photo_s3_uid=payload.photo_s3_uid)
     db.add(person)
     try:
@@ -1713,11 +6374,82 @@ def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Perso
         db.rollback()
         _handle_integrity_error("Failed to create person", err, "insert_person")
     db.refresh(person)
-    return person
+    return _model_out(PersonOut, person)
 
 
-@app.delete("/api/v1/people/persons/delete", status_code=204)
-def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/people/persons/delete",
+    summary="Delete a person.",
+    description="Removes a person from the database by their ID.",
+    operation_id="delete_person",
+    tags=["people"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_person(
+    payload: PersonDelete = Body(..., examples=_example_for(PersonDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a person.
+
+    Removes a person from the database by their ID.
+
+    Args:
+        payload: Person deletion data including person_id.
+
+    Raises:
+        HTTPException: 404 if person not found.
+    """
     person = db.get(Person, payload.person_id)
     if not person:
         raise HTTPException(status_code=404, detail="Person not found")
@@ -1725,8 +6457,79 @@ def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
-@app.get("/api/v1/people/users", response_model=list[UserOut])
-def list_users(db: Session = Depends(get_db)) -> list[User]:
+@app.get(
+    "/api/v1/people/users",
+    summary="List all users.",
+    description=(
+        "Returns a list of all users sorted by user acronym, including person and role "
+        "information."
+    ),
+    operation_id="list_users",
+    tags=["people"],
+    response_model=list[UserOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
+    """
+    List all users.
+
+    Returns a list of all users sorted by user acronym, including person and role information.
+
+    Returns:
+        List of users with id, person details, acronym, and role information.
+
+    Raises:
+        HTTPException: 404 if no users are found.
+    """
     users = (
         db.query(User)
         .join(Person, User.person_id == Person.person_id)
@@ -1739,8 +6542,83 @@ def list_users(db: Session = Depends(get_db)) -> list[User]:
     return [_build_user_out(user) for user in users]
 
 
-@app.put("/api/v1/people/users/update", response_model=UserOut)
-def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
+@app.put(
+    "/api/v1/people/users/update",
+    summary="Update an existing user.",
+    description="Updates the person reference, acronym, and/or role of an existing user.",
+    operation_id="update_user",
+    tags=["people"],
+    response_model=UserOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_user(
+    payload: UserUpdate = Body(..., examples=_example_for(UserUpdate)),
+    db: Session = Depends(get_db),
+) -> UserOut:
+    """
+    Update an existing user.
+
+    Updates the person reference, acronym, and/or role of an existing user.
+
+    Args:
+        payload: User update data including user_id and at least one field to update.
+
+    Returns:
+        Updated user object with person and role information.
+
+    Raises:
+        HTTPException: 400 if no fields provided or update fails.
+        HTTPException: 404 if user, person, or role not found.
+    """
     if payload.person_id is None and payload.user_acronym is None and payload.role_id is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
@@ -1771,8 +6649,84 @@ def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
     return _build_user_out(user)
 
 
-@app.post("/api/v1/people/users/insert", response_model=UserOut, status_code=201)
-def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
+@app.post(
+    "/api/v1/people/users/insert",
+    summary="Create a new user.",
+    description="Creates a new user with the specified person reference, acronym, and role.",
+    operation_id="insert_user",
+    tags=["people"],
+    response_model=UserOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_user(
+    payload: UserCreate = Body(..., examples=_example_for(UserCreate)),
+    db: Session = Depends(get_db),
+) -> UserOut:
+    """
+    Create a new user.
+
+    Creates a new user with the specified person reference, acronym, and role.
+
+    Args:
+        payload: User creation data including person_id, user_acronym, and role_id.
+
+    Returns:
+        Newly created user object with person and role information.
+
+    Raises:
+        HTTPException: 400 on creation failure.
+        HTTPException: 404 if person or role not found.
+    """
     person = db.get(Person, payload.person_id)
     if not person:
         raise HTTPException(status_code=404, detail="Person not found")
@@ -1794,8 +6748,79 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     return _build_user_out(user)
 
 
-@app.delete("/api/v1/people/users/delete", status_code=204)
-def delete_user(payload: UserDelete, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/people/users/delete",
+    summary="Delete a user.",
+    description="Removes a user from the database by their ID.",
+    operation_id="delete_user",
+    tags=["people"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_user(
+    payload: UserDelete = Body(..., examples=_example_for(UserDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a user.
+
+    Removes a user from the database by their ID.
+
+    Args:
+        payload: User deletion data including user_id.
+
+    Raises:
+        HTTPException: 404 if user not found.
+    """
     user = db.get(User, payload.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -1803,7 +6828,10 @@ def delete_user(payload: UserDelete, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
-def _permission_filter(query, payload) -> Session:
+def _permission_filter(
+    query,
+    payload,
+) -> Session:
     if getattr(payload, "permission_id", None) is not None:
         return query.filter(Permission.permission_id == payload.permission_id)
 
@@ -1819,16 +6847,169 @@ def _permission_filter(query, payload) -> Session:
     return query
 
 
-@app.get("/api/v1/people/permissions", response_model=list[PermissionOut])
-def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
+@app.get(
+    "/api/v1/people/permissions",
+    summary="List all permissions.",
+    description=(
+        "Returns a list of all permissions sorted by user ID, including user, person, project, and "
+        "discipline information."
+    ),
+    operation_id="list_permissions",
+    tags=["people"],
+    response_model=list[PermissionOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_permissions(db: Session = Depends(get_db)) -> list[PermissionOut]:
+    """
+    List all permissions.
+
+    Returns a list of all permissions sorted by user ID, including user, person, project, and
+    discipline information.
+
+    Returns:
+        List of permissions with comprehensive metadata.
+
+    Raises:
+        HTTPException: 404 if no permissions are found.
+    """
     permissions = db.query(Permission).order_by(Permission.user_id).all()
     if not permissions:
         raise HTTPException(status_code=404, detail="No permissions found")
     return [_build_permission_out(p) for p in permissions]
 
 
-@app.post("/api/v1/people/permissions/insert", response_model=PermissionOut, status_code=201)
-def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) -> Permission:
+@app.post(
+    "/api/v1/people/permissions/insert",
+    summary="Create a new permission.",
+    description=(
+        "Creates a new permission for a user with project and/or discipline scope. At least one of "
+        "project_id or discipline_id must be provided."
+    ),
+    operation_id="insert_permission",
+    tags=["people"],
+    response_model=PermissionOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_permission(
+    payload: PermissionCreate = Body(..., examples=_example_for(PermissionCreate)),
+    db: Session = Depends(get_db),
+) -> PermissionOut:
+    """
+    Create a new permission.
+
+    Creates a new permission for a user with project and/or discipline scope. At least one of
+    project_id or discipline_id must be provided.
+
+    Args:
+        payload: Permission creation data including user_id and at least one of
+        project_id or discipline_id.
+
+    Returns:
+        Newly created permission object with metadata.
+
+    Raises:
+        HTTPException: 400 if scope is missing or permission already exists.
+        HTTPException: 404 if user, project, or discipline not found.
+    """
     payload.validate_scope()
 
     user = db.get(User, payload.user_id)
@@ -1859,8 +7040,84 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
     return _build_permission_out(permission)
 
 
-@app.put("/api/v1/people/permissions/update", response_model=PermissionOut)
-def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) -> Permission:
+@app.put(
+    "/api/v1/people/permissions/update",
+    summary="Update an existing permission.",
+    description="Updates the project and/or discipline scope of an existing permission.",
+    operation_id="update_permission",
+    tags=["people"],
+    response_model=PermissionOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_permission(
+    payload: PermissionUpdate = Body(..., examples=_example_for(PermissionUpdate)),
+    db: Session = Depends(get_db),
+) -> PermissionOut:
+    """
+    Update an existing permission.
+
+    Updates the project and/or discipline scope of an existing permission.
+
+    Args:
+        payload: Permission update data including current scope and new scope values.
+
+    Returns:
+        Updated permission object with metadata.
+
+    Raises:
+        HTTPException: 400 if current scope missing, no new scope provided, or
+        permission already exists.
+        HTTPException: 404 if permission, project, or discipline not found.
+    """
     payload.validate_current()
 
     existing = _permission_filter(db.query(Permission), payload).first()
@@ -1907,8 +7164,84 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
     return _build_permission_out(existing)
 
 
-@app.delete("/api/v1/people/permissions/delete", status_code=204)
-def delete_permission(payload: PermissionDelete, db: Session = Depends(get_db)) -> None:
+@app.delete(
+    "/api/v1/people/permissions/delete",
+    summary="Delete a permission.",
+    description=(
+        "Removes a permission from the database. Can be identified by permission_id or by user_id "
+        "with project_id and/or discipline_id."
+    ),
+    operation_id="delete_permission",
+    tags=["people"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_permission(
+    payload: PermissionDelete = Body(..., examples=_example_for(PermissionDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a permission.
+
+    Removes a permission from the database. Can be identified by permission_id or by user_id with
+    project_id and/or discipline_id.
+
+    Args:
+        payload: Permission deletion data including permission_id or user scope.
+
+    Raises:
+        HTTPException: 400 if scope information is missing.
+        HTTPException: 404 if permission not found.
+    """
     payload.validate_scope()
 
     permission = _permission_filter(db.query(Permission), payload).first()
@@ -1916,3 +7249,31 @@ def delete_permission(payload: PermissionDelete, db: Session = Depends(get_db)) 
         raise HTTPException(status_code=404, detail="Permission not found")
     db.delete(permission)
     db.commit()
+
+
+def _sync_route_descriptions() -> None:
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        doc = inspect.getdoc(route.endpoint)
+        if doc:
+            route.description = doc
+
+
+def _custom_openapi() -> dict[str, Any]:
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    _sync_route_descriptions()
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = _custom_openapi

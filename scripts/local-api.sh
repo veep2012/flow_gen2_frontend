@@ -17,6 +17,11 @@ fi
 PRESET_DATABASE_URL="${DATABASE_URL:-}"
 PRESET_API_HOST="${API_HOST:-}"
 PRESET_API_PORT="${API_PORT:-}"
+PRESET_MINIO_ENDPOINT="${MINIO_ENDPOINT:-}"
+PRESET_MINIO_BUCKET="${MINIO_BUCKET:-}"
+PRESET_MINIO_ROOT_USER="${MINIO_ROOT_USER:-}"
+PRESET_MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:-}"
+PRESET_MINIO_SECURE="${MINIO_SECURE:-}"
 
 if [[ -f ".env" ]]; then
   set -a
@@ -33,6 +38,26 @@ if [[ -n "$PRESET_API_HOST" ]]; then
 fi
 if [[ -n "$PRESET_API_PORT" ]]; then
   export API_PORT="$PRESET_API_PORT"
+fi
+if [[ -n "$PRESET_MINIO_ENDPOINT" ]]; then
+  export MINIO_ENDPOINT="$PRESET_MINIO_ENDPOINT"
+fi
+if [[ -n "$PRESET_MINIO_BUCKET" ]]; then
+  export MINIO_BUCKET="$PRESET_MINIO_BUCKET"
+fi
+if [[ -n "$PRESET_MINIO_ROOT_USER" ]]; then
+  export MINIO_ROOT_USER="$PRESET_MINIO_ROOT_USER"
+fi
+if [[ -n "$PRESET_MINIO_ROOT_PASSWORD" ]]; then
+  export MINIO_ROOT_PASSWORD="$PRESET_MINIO_ROOT_PASSWORD"
+fi
+if [[ -n "$PRESET_MINIO_SECURE" ]]; then
+  export MINIO_SECURE="$PRESET_MINIO_SECURE"
+fi
+
+if [[ -n "${MINIO_ENDPOINT:-}" ]]; then
+  MINIO_ENDPOINT="${MINIO_ENDPOINT/host.containers.internal/localhost}"
+  export MINIO_ENDPOINT
 fi
 
 API_HOST="${API_HOST:-0.0.0.0}"
@@ -59,7 +84,11 @@ fi
 HEALTH_URL="http://${HOST_FOR_CHECK}:${API_PORT}/health"
 export API_BASE="http://${HOST_FOR_CHECK}:${API_PORT}"
 # Reuse the same health-check logic as Makefile-driven workflows.
-python "$(dirname "$0")/wait-for-api.py"
+PYTHON_CMD="python"
+if ! command -v "$PYTHON_CMD" >/dev/null 2>&1; then
+  PYTHON_CMD="python3"
+fi
+"$PYTHON_CMD" "$(dirname "$0")/wait-for-api.py"
 status=$?
 if [[ $status -ne 0 ]]; then
   echo "API not ready after ${API_WAIT_TIMEOUT}s: $HEALTH_URL"
