@@ -5,7 +5,7 @@ import re
 import time
 import uuid
 from email.utils import formatdate
-from typing import Callable, Iterable, TypeVar
+from typing import Any, Callable, Iterable, TypeVar
 from urllib.parse import quote, urlparse
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request, UploadFile
@@ -1702,7 +1702,8 @@ def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut
         Updated document with complete metadata.
 
     Raises:
-        HTTPException: 400 if no fields provided, required field is null, or document name not unique.
+        HTTPException: 400 if no fields provided, required field is null, or
+        document name not unique.
         HTTPException: 404 if document or any referenced entity not found.
     """
     updates = payload.model_dump(exclude_unset=True)
@@ -2133,7 +2134,8 @@ def update_revision_overview(
         revision overview entry.
 
     Args:
-        payload: Revision overview update data including rev_code_id and at least one field to update.
+        payload: Revision overview update data including rev_code_id and at least
+        one field to update.
 
     Returns:
         Updated revision overview object.
@@ -2785,7 +2787,7 @@ def _sync_route_descriptions() -> None:
             route.description = doc
 
 
-def _custom_openapi() -> dict[str, object]:
+def _custom_openapi() -> dict[str, Any]:
     if app.openapi_schema:
         return app.openapi_schema
 
