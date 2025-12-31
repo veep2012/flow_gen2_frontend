@@ -1431,6 +1431,8 @@ def get_db() -> Iterable[Session]:
     "/",
     summary="Root endpoint returning a welcome message.",
     description="Returns a simple message indicating the Flow backend is operational.",
+    operation_id="read_root",
+    tags=["system"],
     responses={
         400: {"description": "Bad Request"},
         404: {"description": "Not Found"},
@@ -1454,6 +1456,8 @@ def read_root() -> dict[str, str]:
     "/health",
     summary="Health check endpoint.",
     description="Returns the health status of the API service.",
+    operation_id="health",
+    tags=["system"],
     responses={
         400: {"description": "Bad Request"},
         404: {"description": "Not Found"},
@@ -1517,6 +1521,8 @@ def _build_doc_type_out(doc_type: DocType, discipline: Discipline | None = None)
     "/api/v1/lookups/areas",
     summary="List all areas.",
     description="Returns a list of all areas sorted by area name.",
+    operation_id="list_areas",
+    tags=["lookups"],
     response_model=list[AreaOut],
     responses={
         400: {"description": "Bad Request"},
@@ -1547,6 +1553,8 @@ def list_areas(db: Session = Depends(get_db)) -> list[Area]:
     "/api/v1/lookups/areas/update",
     summary="Update an existing area.",
     description="Updates the name and/or acronym of an existing area.",
+    operation_id="update_area",
+    tags=["lookups"],
     response_model=AreaOut,
     responses={
         400: {"description": "Bad Request"},
@@ -1597,6 +1605,8 @@ def update_area(payload: AreaUpdate, db: Session = Depends(get_db)) -> Area:
     "/api/v1/lookups/areas/insert",
     summary="Create a new area.",
     description="Inserts a new area with the specified name and acronym.",
+    operation_id="insert_area",
+    tags=["lookups"],
     response_model=AreaOut,
     status_code=201,
     responses={
@@ -1636,6 +1646,8 @@ def insert_area(payload: AreaCreate, db: Session = Depends(get_db)) -> Area:
     "/api/v1/lookups/areas/delete",
     summary="Delete an area.",
     description="Removes an area from the database by its ID.",
+    operation_id="delete_area",
+    tags=["lookups"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -1667,6 +1679,8 @@ def delete_area(payload: AreaDelete, db: Session = Depends(get_db)) -> None:
     "/api/v1/lookups/disciplines",
     summary="List all disciplines.",
     description="Returns a list of all disciplines sorted by discipline name.",
+    operation_id="list_disciplines",
+    tags=["lookups"],
     response_model=list[DisciplineOut],
     responses={
         400: {"description": "Bad Request"},
@@ -1697,6 +1711,8 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[Discipline]:
     "/api/v1/lookups/disciplines/update",
     summary="Update an existing discipline.",
     description="Updates the name and/or acronym of an existing discipline.",
+    operation_id="update_discipline",
+    tags=["lookups"],
     response_model=DisciplineOut,
     responses={
         400: {"description": "Bad Request"},
@@ -1751,6 +1767,8 @@ def update_discipline(payload: DisciplineUpdate, db: Session = Depends(get_db)) 
     "/api/v1/lookups/disciplines/insert",
     summary="Create a new discipline.",
     description="Inserts a new discipline with the specified name and acronym.",
+    operation_id="insert_discipline",
+    tags=["lookups"],
     response_model=DisciplineOut,
     status_code=201,
     responses={
@@ -1797,6 +1815,8 @@ def insert_discipline(payload: DisciplineCreate, db: Session = Depends(get_db)) 
     "/api/v1/lookups/disciplines/delete",
     summary="Delete a discipline.",
     description="Removes a discipline from the database by its ID.",
+    operation_id="delete_discipline",
+    tags=["lookups"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -1828,6 +1848,8 @@ def delete_discipline(payload: DisciplineDelete, db: Session = Depends(get_db)) 
     "/api/v1/lookups/projects",
     summary="List all projects.",
     description="Returns a list of all projects sorted by project name.",
+    operation_id="list_projects",
+    tags=["lookups"],
     response_model=list[ProjectOut],
     responses={
         400: {"description": "Bad Request"},
@@ -1858,6 +1880,8 @@ def list_projects(db: Session = Depends(get_db)) -> list[Project]:
     "/api/v1/lookups/projects/update",
     summary="Update an existing project.",
     description="Updates the name of an existing project.",
+    operation_id="update_project",
+    tags=["lookups"],
     response_model=ProjectOut,
     responses={
         400: {"description": "Bad Request"},
@@ -1906,6 +1930,8 @@ def update_project(payload: ProjectUpdate, db: Session = Depends(get_db)) -> Pro
     "/api/v1/lookups/projects/insert",
     summary="Create a new project.",
     description="Inserts a new project with the specified name.",
+    operation_id="insert_project",
+    tags=["lookups"],
     response_model=ProjectOut,
     status_code=201,
     responses={
@@ -1945,6 +1971,8 @@ def insert_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
     "/api/v1/lookups/projects/delete",
     summary="Delete a project.",
     description="Removes a project from the database by its ID.",
+    operation_id="delete_project",
+    tags=["lookups"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -1976,6 +2004,8 @@ def delete_project(payload: ProjectDelete, db: Session = Depends(get_db)) -> Non
     "/api/v1/lookups/units",
     summary="List all units.",
     description="Returns a list of all units sorted by unit name.",
+    operation_id="list_units",
+    tags=["lookups"],
     response_model=list[UnitOut],
     responses={
         400: {"description": "Bad Request"},
@@ -2006,6 +2036,8 @@ def list_units(db: Session = Depends(get_db)) -> list[Unit]:
     "/api/v1/lookups/units/update",
     summary="Update an existing unit.",
     description="Updates the name of an existing unit.",
+    operation_id="update_unit",
+    tags=["lookups"],
     response_model=UnitOut,
     responses={
         400: {"description": "Bad Request"},
@@ -2054,6 +2086,8 @@ def update_unit(payload: UnitUpdate, db: Session = Depends(get_db)) -> Unit:
     "/api/v1/lookups/units/insert",
     summary="Create a new unit.",
     description="Inserts a new unit with the specified name.",
+    operation_id="insert_unit",
+    tags=["lookups"],
     response_model=UnitOut,
     status_code=201,
     responses={
@@ -2093,6 +2127,8 @@ def insert_unit(payload: UnitCreate, db: Session = Depends(get_db)) -> Unit:
     "/api/v1/lookups/units/delete",
     summary="Delete a unit.",
     description="Removes a unit from the database by its ID.",
+    operation_id="delete_unit",
+    tags=["lookups"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -2124,6 +2160,8 @@ def delete_unit(payload: UnitDelete, db: Session = Depends(get_db)) -> None:
     "/api/v1/lookups/jobpacks",
     summary="List all jobpacks.",
     description="Returns a list of all jobpacks sorted by jobpack name.",
+    operation_id="list_jobpacks",
+    tags=["lookups"],
     response_model=list[JobpackOut],
     responses={
         400: {"description": "Bad Request"},
@@ -2154,6 +2192,8 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[Jobpack]:
     "/api/v1/lookups/jobpacks/update",
     summary="Update an existing jobpack.",
     description="Updates the name of an existing jobpack.",
+    operation_id="update_jobpack",
+    tags=["lookups"],
     response_model=JobpackOut,
     responses={
         400: {"description": "Bad Request"},
@@ -2201,6 +2241,8 @@ def update_jobpack(payload: JobpackUpdate, db: Session = Depends(get_db)) -> Job
     "/api/v1/lookups/jobpacks/insert",
     summary="Create a new jobpack.",
     description="Inserts a new jobpack with the specified name.",
+    operation_id="insert_jobpack",
+    tags=["lookups"],
     response_model=JobpackOut,
     status_code=201,
     responses={
@@ -2240,6 +2282,8 @@ def insert_jobpack(payload: JobpackCreate, db: Session = Depends(get_db)) -> Job
     "/api/v1/lookups/jobpacks/delete",
     summary="Delete a jobpack.",
     description="Removes a jobpack from the database by its ID.",
+    operation_id="delete_jobpack",
+    tags=["lookups"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -2274,6 +2318,8 @@ def delete_jobpack(payload: JobpackDelete, db: Session = Depends(get_db)) -> Non
         "Returns a list of all document types sorted by document type name, including discipline "
         "information."
     ),
+    operation_id="list_doc_types",
+    tags=["documents"],
     response_model=list[DocTypeOut],
     responses={
         400: {"description": "Bad Request"},
@@ -2312,6 +2358,8 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocType]:
     description=(
         "Inserts a new document type with the specified name, acronym, and discipline reference."
     ),
+    operation_id="insert_doc_type",
+    tags=["documents"],
     response_model=DocTypeOut,
     status_code=201,
     responses={
@@ -2363,6 +2411,8 @@ def insert_doc_type(payload: DocTypeCreate, db: Session = Depends(get_db)) -> Do
     description=(
         "Updates the name, acronym, and/or discipline reference of an existing document type."
     ),
+    operation_id="update_doc_type",
+    tags=["documents"],
     response_model=DocTypeOut,
     responses={
         400: {"description": "Bad Request"},
@@ -2423,6 +2473,8 @@ def update_doc_type(payload: DocTypeUpdate, db: Session = Depends(get_db)) -> Do
     "/api/v1/documents/doc_types/delete",
     summary="Delete a document type.",
     description="Removes a document type from the database by its ID.",
+    operation_id="delete_doc_type",
+    tags=["documents"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -2457,6 +2509,8 @@ def delete_doc_type(payload: DocTypeDelete, db: Session = Depends(get_db)) -> No
         "Returns a list of all documents for the specified project, including details about "
         "associated types, disciplines, areas, units, and revision information."
     ),
+    operation_id="list_documents_for_project",
+    tags=["documents"],
     response_model=list[DocOut],
     responses={
         400: {"description": "Bad Request"},
@@ -2548,6 +2602,8 @@ def list_documents_for_project(
     "/api/v1/files/list",
     summary="List all files for a specific revision.",
     description="Returns a list of all files associated with the specified document revision.",
+    operation_id="list_files_for_revision",
+    tags=["files"],
     response_model=list[FileOut],
     responses={
         400: {"description": "Bad Request"},
@@ -2583,6 +2639,8 @@ def list_files_for_revision(
         "Uploads a file to MinIO object storage and creates a database record linking it to the "
         "specified document revision."
     ),
+    operation_id="insert_file",
+    tags=["files"],
     response_model=FileOut,
     status_code=201,
     responses={
@@ -2718,6 +2776,8 @@ def insert_file(
         "Updates the filename of an existing file record (does not update the actual file "
         "content)."
     ),
+    operation_id="update_file",
+    tags=["files"],
     response_model=FileOut,
     responses={
         400: {"description": "Bad Request"},
@@ -2767,6 +2827,8 @@ def update_file(payload: FileUpdate, db: Session = Depends(get_db)) -> File:
     "/api/v1/files/delete",
     summary="Delete a file.",
     description="Removes a file from both the MinIO object storage and the database.",
+    operation_id="delete_file",
+    tags=["files"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -2818,6 +2880,8 @@ def delete_file(payload: FileDelete, request: Request, db: Session = Depends(get
         "Streams a file from MinIO object storage to the client with proper headers for download "
         "(Content-Disposition, ETag, Last-Modified)."
     ),
+    operation_id="download_file",
+    tags=["files"],
     responses={
         400: {"description": "Bad Request"},
         404: {"description": "Not Found"},
@@ -2907,6 +2971,8 @@ def download_file(
         "type, area, unit, and revision references. Validates all foreign key references and "
         "ensures document name uniqueness."
     ),
+    operation_id="update_document",
+    tags=["documents"],
     response_model=DocOut,
     responses={
         400: {"description": "Bad Request"},
@@ -3108,6 +3174,8 @@ def update_document(payload: DocUpdate, db: Session = Depends(get_db)) -> DocOut
     "/api/v1/people/roles",
     summary="List all roles.",
     description="Returns a list of all roles sorted by role name.",
+    operation_id="list_roles",
+    tags=["people"],
     response_model=list[RoleOut],
     responses={
         400: {"description": "Bad Request"},
@@ -3138,6 +3206,8 @@ def list_roles(db: Session = Depends(get_db)) -> list[Role]:
     "/api/v1/people/roles/update",
     summary="Update an existing role.",
     description="Updates the name of an existing role.",
+    operation_id="update_role",
+    tags=["people"],
     response_model=RoleOut,
     responses={
         400: {"description": "Bad Request"},
@@ -3185,6 +3255,8 @@ def update_role(payload: RoleUpdate, db: Session = Depends(get_db)) -> Role:
     "/api/v1/people/roles/insert",
     summary="Create a new role.",
     description="Inserts a new role with the specified name.",
+    operation_id="insert_role",
+    tags=["people"],
     response_model=RoleOut,
     status_code=201,
     responses={
@@ -3224,6 +3296,8 @@ def insert_role(payload: RoleCreate, db: Session = Depends(get_db)) -> Role:
     "/api/v1/people/roles/delete",
     summary="Delete a role.",
     description="Removes a role from the database by its ID.",
+    operation_id="delete_role",
+    tags=["people"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -3255,6 +3329,8 @@ def delete_role(payload: RoleDelete, db: Session = Depends(get_db)) -> None:
     "/api/v1/documents/doc_rev_milestones",
     summary="List all document revision milestones.",
     description="Returns a list of all document revision milestones sorted by milestone name.",
+    operation_id="list_doc_rev_milestones",
+    tags=["documents"],
     response_model=list[DocRevMilestoneOut],
     responses={
         400: {"description": "Bad Request"},
@@ -3285,6 +3361,8 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
     "/api/v1/documents/doc_rev_milestones/update",
     summary="Update an existing document revision milestone.",
     description="Updates the name and/or progress percentage of an existing milestone.",
+    operation_id="update_doc_rev_milestone",
+    tags=["documents"],
     response_model=DocRevMilestoneOut,
     responses={
         400: {"description": "Bad Request"},
@@ -3337,6 +3415,8 @@ def update_doc_rev_milestone(
     "/api/v1/documents/doc_rev_milestones/insert",
     summary="Create a new document revision milestone.",
     description="Inserts a new milestone with the specified name and optional progress percentage.",
+    operation_id="insert_doc_rev_milestone",
+    tags=["documents"],
     response_model=DocRevMilestoneOut,
     status_code=201,
     responses={
@@ -3378,6 +3458,8 @@ def insert_doc_rev_milestone(
     "/api/v1/documents/doc_rev_milestones/delete",
     summary="Delete a document revision milestone.",
     description="Removes a milestone from the database by its ID.",
+    operation_id="delete_doc_rev_milestone",
+    tags=["documents"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -3409,6 +3491,8 @@ def delete_doc_rev_milestone(payload: DocRevMilestoneDelete, db: Session = Depen
     "/api/v1/documents/revision_overview",
     summary="List all revision overview entries.",
     description="Returns a list of all revision overview entries sorted by revision code name.",
+    operation_id="list_revision_overview",
+    tags=["documents"],
     response_model=list[RevisionOverviewOut],
     responses={
         400: {"description": "Bad Request"},
@@ -3442,6 +3526,8 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
         "Updates the name, acronym, description, and/or percentage of an existing revision "
         "overview entry."
     ),
+    operation_id="update_revision_overview",
+    tags=["documents"],
     response_model=RevisionOverviewOut,
     responses={
         400: {"description": "Bad Request"},
@@ -3510,6 +3596,8 @@ def update_revision_overview(
         "Inserts a new revision overview entry with the specified code, acronym, description, and "
         "percentage."
     ),
+    operation_id="insert_revision_overview",
+    tags=["documents"],
     response_model=RevisionOverviewOut,
     status_code=201,
     responses={
@@ -3560,6 +3648,8 @@ def insert_revision_overview(
     "/api/v1/documents/revision_overview/delete",
     summary="Delete a revision overview entry.",
     description="Removes a revision overview entry from the database by its ID.",
+    operation_id="delete_revision_overview",
+    tags=["documents"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -3593,6 +3683,8 @@ def delete_revision_overview(
     "/api/v1/lookups/doc_rev_statuses",
     summary="List all document revision statuses.",
     description="Returns a list of all document revision statuses sorted by status name.",
+    operation_id="list_doc_rev_statuses",
+    tags=["lookups"],
     response_model=list[DocRevStatusOut],
     responses={
         400: {"description": "Bad Request"},
@@ -3623,6 +3715,8 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatus]:
     "/api/v1/lookups/doc_rev_statuses/update",
     summary="Update an existing document revision status.",
     description="Updates the name of an existing document revision status.",
+    operation_id="update_doc_rev_status",
+    tags=["lookups"],
     response_model=DocRevStatusOut,
     responses={
         400: {"description": "Bad Request"},
@@ -3673,6 +3767,8 @@ def update_doc_rev_status(
     "/api/v1/lookups/doc_rev_statuses/insert",
     summary="Create a new document revision status.",
     description="Inserts a new document revision status with the specified name.",
+    operation_id="insert_doc_rev_status",
+    tags=["lookups"],
     response_model=DocRevStatusOut,
     status_code=201,
     responses={
@@ -3714,6 +3810,8 @@ def insert_doc_rev_status(
     "/api/v1/lookups/doc_rev_statuses/delete",
     summary="Delete a document revision status.",
     description="Removes a document revision status from the database by its ID.",
+    operation_id="delete_doc_rev_status",
+    tags=["lookups"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -3745,6 +3843,8 @@ def delete_doc_rev_status(payload: DocRevStatusDelete, db: Session = Depends(get
     "/api/v1/people/persons",
     summary="List all persons.",
     description="Returns a list of all persons sorted by person name.",
+    operation_id="list_persons",
+    tags=["people"],
     response_model=list[PersonOut],
     responses={
         400: {"description": "Bad Request"},
@@ -3775,6 +3875,8 @@ def list_persons(db: Session = Depends(get_db)) -> list[Person]:
     "/api/v1/people/persons/update",
     summary="Update an existing person.",
     description="Updates the name and/or photo S3 UID of an existing person.",
+    operation_id="update_person",
+    tags=["people"],
     response_model=PersonOut,
     responses={
         400: {"description": "Bad Request"},
@@ -3825,6 +3927,8 @@ def update_person(payload: PersonUpdate, db: Session = Depends(get_db)) -> Perso
     "/api/v1/people/persons/insert",
     summary="Create a new person.",
     description="Inserts a new person with the specified name and optional photo S3 UID.",
+    operation_id="insert_person",
+    tags=["people"],
     response_model=PersonOut,
     status_code=201,
     responses={
@@ -3864,6 +3968,8 @@ def insert_person(payload: PersonCreate, db: Session = Depends(get_db)) -> Perso
     "/api/v1/people/persons/delete",
     summary="Delete a person.",
     description="Removes a person from the database by their ID.",
+    operation_id="delete_person",
+    tags=["people"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -3898,6 +4004,8 @@ def delete_person(payload: PersonDelete, db: Session = Depends(get_db)) -> None:
         "Returns a list of all users sorted by user acronym, including person and role "
         "information."
     ),
+    operation_id="list_users",
+    tags=["people"],
     response_model=list[UserOut],
     responses={
         400: {"description": "Bad Request"},
@@ -3934,6 +4042,8 @@ def list_users(db: Session = Depends(get_db)) -> list[User]:
     "/api/v1/people/users/update",
     summary="Update an existing user.",
     description="Updates the person reference, acronym, and/or role of an existing user.",
+    operation_id="update_user",
+    tags=["people"],
     response_model=UserOut,
     responses={
         400: {"description": "Bad Request"},
@@ -3992,6 +4102,8 @@ def update_user(payload: UserUpdate, db: Session = Depends(get_db)) -> User:
     "/api/v1/people/users/insert",
     summary="Create a new user.",
     description="Creates a new user with the specified person reference, acronym, and role.",
+    operation_id="insert_user",
+    tags=["people"],
     response_model=UserOut,
     status_code=201,
     responses={
@@ -4042,6 +4154,8 @@ def insert_user(payload: UserCreate, db: Session = Depends(get_db)) -> User:
     "/api/v1/people/users/delete",
     summary="Delete a user.",
     description="Removes a user from the database by their ID.",
+    operation_id="delete_user",
+    tags=["people"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
@@ -4092,6 +4206,8 @@ def _permission_filter(query, payload) -> Session:
         "Returns a list of all permissions sorted by user ID, including user, person, project, and "
         "discipline information."
     ),
+    operation_id="list_permissions",
+    tags=["people"],
     response_model=list[PermissionOut],
     responses={
         400: {"description": "Bad Request"},
@@ -4126,6 +4242,8 @@ def list_permissions(db: Session = Depends(get_db)) -> list[Permission]:
         "Creates a new permission for a user with project and/or discipline scope. At least one of "
         "project_id or discipline_id must be provided."
     ),
+    operation_id="insert_permission",
+    tags=["people"],
     response_model=PermissionOut,
     status_code=201,
     responses={
@@ -4187,6 +4305,8 @@ def insert_permission(payload: PermissionCreate, db: Session = Depends(get_db)) 
     "/api/v1/people/permissions/update",
     summary="Update an existing permission.",
     description="Updates the project and/or discipline scope of an existing permission.",
+    operation_id="update_permission",
+    tags=["people"],
     response_model=PermissionOut,
     responses={
         400: {"description": "Bad Request"},
@@ -4265,6 +4385,8 @@ def update_permission(payload: PermissionUpdate, db: Session = Depends(get_db)) 
         "Removes a permission from the database. Can be identified by permission_id or by user_id "
         "with project_id and/or discipline_id."
     ),
+    operation_id="delete_permission",
+    tags=["people"],
     status_code=204,
     responses={
         400: {"description": "Bad Request"},
