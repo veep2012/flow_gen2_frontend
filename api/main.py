@@ -562,22 +562,24 @@ def get_db() -> Iterable[Session]:
 
 @app.get("/")
 def read_root() -> dict[str, str]:
-    """
-    Description:
-        Root endpoint returning a welcome message.
+    """Root endpoint returning a welcome message.
 
-        Returns a simple message indicating the Flow backend is operational.
+    Returns a simple message indicating the Flow backend is operational.
+
+    Returns:
+        dict[str, str]: A message confirming the Flow backend is running.
     """
     return {"message": "Flow backend is running"}
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    """
-    Description:
-        Health check endpoint.
+    """Health check endpoint.
 
-        Returns the health status of the API service.
+    Returns the health status of the API service.
+
+    Returns:
+        dict[str, str]: A status message indicating that the API service is healthy.
     """
     return {"status": "ok"}
 
