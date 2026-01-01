@@ -1122,25 +1122,6 @@ def delete_user(
     db.commit()
 
 
-def _permission_filter(
-    query,
-    payload,
-) -> Session:
-    if getattr(payload, "permission_id", None) is not None:
-        return query.filter(Permission.permission_id == payload.permission_id)
-
-    query = query.filter(Permission.user_id == payload.user_id)
-    if payload.project_id is None:
-        query = query.filter(Permission.project_id.is_(None))
-    else:
-        query = query.filter(Permission.project_id == payload.project_id)
-    if payload.discipline_id is None:
-        query = query.filter(Permission.discipline_id.is_(None))
-    else:
-        query = query.filter(Permission.discipline_id == payload.discipline_id)
-    return query
-
-
 @router.get(
     "/permissions",
     summary="List all permissions.",
