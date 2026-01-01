@@ -297,27 +297,31 @@ def insert_file(
     endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
     if not _minio_with_retry("bucket_exists", endpoint, lambda: client.bucket_exists(bucket)):
         _minio_with_retry("make_bucket", endpoint, lambda: client.make_bucket(bucket))
-    if size is None:
-        _minio_with_retry(
-            "put_object",
-            endpoint,
-            lambda: client.put_object(
-                bucket,
-                object_key,
-                stream,
-                length=-1,
-                part_size=10 * 1024 * 1024,
-                content_type=content_type,
-            ),
-        )
-    else:
-        _minio_with_retry(
-            "put_object",
-            endpoint,
-            lambda: client.put_object(
-                bucket, object_key, stream, length=size, content_type=content_type
-            ),
-        )
+    try:
+        if size is None:
+            _minio_with_retry(
+                "put_object",
+                endpoint,
+                lambda: client.put_object(
+                    bucket,
+                    object_key,
+                    stream,
+                    length=-1,
+                    part_size=10 * 1024 * 1024,
+                    content_type=content_type,
+                ),
+            )
+        else:
+            _minio_with_retry(
+                "put_object",
+                endpoint,
+                lambda: client.put_object(
+                    bucket, object_key, stream, length=size, content_type=content_type
+                ),
+            )
+    except HTTPException:
+        logger.exception("MinIO upload failed for key %s", object_key)
+        raise
 
     new_file = File(
         filename=filename,
@@ -337,7 +341,7 @@ def insert_file(
                 lambda: client.remove_object(bucket, object_key),
             )
         except HTTPException:
-            logger.exception("Failed to cleanup MinIO object after DB error")
+            logger.exception("Failed to cleanup MinIO object after DB error: %s", object_key)
         _handle_integrity_error("Failed to create file record", err, "insert_file")
 
     db.refresh(new_file)
