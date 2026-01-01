@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 import uuid
 from email.utils import formatdate
 from urllib.parse import quote
@@ -27,6 +28,44 @@ from api.utils.minio import (
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
 
 logger = logging.getLogger(__name__)
+
+_ACCEPTED_TYPES_CACHE: dict[str, str] = {}
+_ACCEPTED_TYPES_CACHE_AT = 0.0
+
+
+def _load_accepted_types(db: Session) -> dict[str, str]:
+    return {row.file_type.lower(): row.mimetype for row in db.query(FileAccepted).all()}
+
+
+def _get_cached_accepted_types(db: Session) -> dict[str, str]:
+    ttl_sec = int(os.getenv("ACCEPTED_FILE_TYPES_TTL_SEC", "300"))
+    now = time.time()
+    global _ACCEPTED_TYPES_CACHE_AT
+    if _ACCEPTED_TYPES_CACHE and ttl_sec > 0 and (now - _ACCEPTED_TYPES_CACHE_AT) < ttl_sec:
+        return _ACCEPTED_TYPES_CACHE
+    try:
+        _ACCEPTED_TYPES_CACHE.update(_load_accepted_types(db))
+        _ACCEPTED_TYPES_CACHE_AT = now
+    except Exception:
+        logger.exception("Failed to refresh accepted file types cache")
+    return _ACCEPTED_TYPES_CACHE
+
+
+def _extract_file_extension(filename: str) -> str:
+    if "." not in filename:
+        return ""
+    return filename.rsplit(".", 1)[-1].lower()
+
+
+def _validate_mimetype(file_extension: str, content_type: str, expected_mimetype: str) -> None:
+    if content_type.lower() != expected_mimetype.lower():
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                "File content type does not match accepted type for "
+                f"'.{file_extension}'. Expected '{expected_mimetype}'."
+            ),
+        )
 
 
 @router.get(
@@ -205,10 +244,8 @@ def insert_file(
     if len(filename) > 90:
         raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
 
-    # Extract file extension and validate against accepted file types
-    # rsplit with maxsplit=1 handles multiple dots correctly (e.g., "file.tar.gz" -> "gz")
-    # Empty string is returned for files without extensions or ending with dots (e.g., "file...")
-    file_extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    # Extract file extension and validate against accepted file types.
+    file_extension = _extract_file_extension(filename)
     if not file_extension:
         raise HTTPException(
             status_code=400,
@@ -216,23 +253,23 @@ def insert_file(
         )
 
     content_type = file.content_type or "application/octet-stream"
-    accepted_file = db.query(FileAccepted).filter(FileAccepted.file_type == file_extension).first()
-    if not accepted_file:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, "
-                "PDF, AutoCAD."
-            ),
+    accepted_types = _get_cached_accepted_types(db)
+    accepted_mimetype = accepted_types.get(file_extension)
+    if not accepted_mimetype:
+        accepted_file = (
+            db.query(FileAccepted).filter(FileAccepted.file_type == file_extension).first()
         )
-    if content_type.lower() != accepted_file.mimetype.lower():
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "File content type does not match accepted type for "
-                f"'.{file_extension}'. Expected '{accepted_file.mimetype}'."
-            ),
-        )
+        if not accepted_file:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, "
+                    "PDF, AutoCAD."
+                ),
+            )
+        accepted_mimetype = accepted_file.mimetype
+        accepted_types[file_extension] = accepted_mimetype
+    _validate_mimetype(file_extension, content_type, accepted_mimetype)
     stream = file.file
     size = None
     if hasattr(stream, "seekable") and stream.seekable():
