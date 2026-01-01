@@ -71,6 +71,16 @@ INSERT INTO doc_rev_statuses (rev_status_id, rev_status_name) VALUES
 INSERT INTO roles (role_id, role_name) VALUES 
 (1,'SuperUser'),(2,'User/DCC'),(3,'Limited User');
 
+-- Accepted File Types
+INSERT INTO files_accepted (file_type, mimetype) VALUES
+('docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+('doc', 'application/msword'),
+('xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+('xls', 'application/vnd.ms-excel'),
+('pdf', 'application/pdf'),
+('dwg', 'application/acad'),
+('dxf', 'application/dxf');
+
 -- Users
 INSERT INTO users (user_id, person_id, user_acronym, role_id) VALUES 
 (1,1,'ZAML',3),(2,2,'FDQC',1),(3,3,'ASBB',2),(4,4,'KONI',1);
@@ -144,7 +154,7 @@ BEGIN
         -- will automatically update 'doc.rev_current_id' to point to this new revision.
         INSERT INTO doc_revision (
             rev_code_id, rev_date, rev_author_id, rev_originator_id, 
-            transmittal_current_revision, milestone_id, 
+            transmital_current_revision, milestone_id, 
             planned_start_date, planned_finish_date, 
             rev_status_id, doc_id, seq_num
         ) VALUES (
@@ -163,7 +173,7 @@ BEGIN
         IF (random() > 0.5) THEN
             INSERT INTO doc_revision (
                 rev_code_id, rev_date, rev_author_id, rev_originator_id, 
-                transmittal_current_revision, milestone_id, 
+                transmital_current_revision, milestone_id, 
                 planned_start_date, planned_finish_date, 
                 rev_status_id, doc_id, seq_num
             ) VALUES (

@@ -70,7 +70,8 @@ With the API running (`make local-api-up`):
 ### Environment variables (API + MinIO)
 - `MINIO_ENDPOINT` supports `host:port` or `http(s)://host:port` (scheme controls TLS).
 - `MINIO_SECURE` (`1`/`true` enables TLS when no scheme is provided).
-- `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` control MinIO access.
+- `MINIO_BUCKET` defaults to `flow-default` (override as needed).
+- `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` are required for MinIO access in local dev and CI.
 - `MAX_UPLOAD_SIZE_MB` limits upload size (default 128).
 - `MINIO_RETRIES` / `MINIO_RETRY_DELAY_SEC` control MinIO retry behavior.
 

@@ -9,7 +9,7 @@ def test_build_file_object_key_with_unassigned_project() -> None:
     key = _build_file_object_key(
         project_name=None,
         doc_name_unique="Doc/Name",
-        transmittal_current_revision="IFC/1",
+        transmital_current_revision="IFC/1",
         unique_id="abc123",
         filename="report.pdf",
     )
@@ -20,7 +20,7 @@ def test_build_file_object_key_strips_filename_path() -> None:
     key = _build_file_object_key(
         project_name="Project X",
         doc_name_unique="DOC-001",
-        transmittal_current_revision="A",
+        transmital_current_revision="A",
         unique_id="xyz789",
         filename="uploads/report.txt",
     )

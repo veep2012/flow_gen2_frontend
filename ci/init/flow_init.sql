@@ -63,8 +63,8 @@ CREATE TABLE doc_rev_statuses (
     rev_status_name VARCHAR(45) NOT NULL UNIQUE
 );
 
-CREATE TABLE files_forbidden (
-    file_type VARCHAR(4) PRIMARY KEY,
+CREATE TABLE files_accepted (
+    file_type VARCHAR(10) PRIMARY KEY,
     mimetype VARCHAR(90) NOT NULL
 );
 
@@ -174,7 +174,7 @@ CREATE TABLE doc_revision (
     as_built VARCHAR(3),
     superseded VARCHAR(3),
     voided VARCHAR(3),
-    transmittal_current_revision VARCHAR(45) NOT NULL,
+    transmital_current_revision VARCHAR(45) NOT NULL,
     milestone_id SMALLINT REFERENCES doc_rev_milestones(milestone_id),
     planned_start_date TIMESTAMP NOT NULL,
     planned_finish_date TIMESTAMP NOT NULL,
@@ -201,7 +201,7 @@ CREATE TABLE doc_revision_history (
     as_built VARCHAR(3),
     superseded VARCHAR(3),
     voided VARCHAR(3),
-    transmittal_current_revision VARCHAR(45) NOT NULL,
+    transmital_current_revision VARCHAR(45) NOT NULL,
     milestone_id SMALLINT,
     planned_start_date TIMESTAMP NOT NULL,
     planned_finish_date TIMESTAMP NOT NULL,
@@ -238,7 +238,7 @@ CREATE OR REPLACE VIEW doc_revision_history_view AS
     SELECT 
         rev_id, rev_code_id, rev_date, rev_author_id, rev_originator_id,
         as_built, superseded, voided, 
-        transmittal_current_revision, 
+        transmital_current_revision, 
         milestone_id,
         planned_start_date, planned_finish_date, actual_start_date, actual_finish_date,
         canceled_date, rev_status_id, doc_id, seq_num, 
@@ -248,7 +248,7 @@ CREATE OR REPLACE VIEW doc_revision_history_view AS
     SELECT 
         rev_id, rev_code_id, rev_date, rev_author_id, rev_originator_id,
         as_built, superseded, voided, 
-        transmittal_current_revision, 
+        transmital_current_revision, 
         milestone_id,
         planned_start_date, planned_finish_date, actual_start_date, actual_finish_date,
         canceled_date, rev_status_id, doc_id, seq_num,
@@ -276,14 +276,14 @@ BEGIN
         INSERT INTO doc_revision_history (
             rev_id, rev_code_id, rev_date, rev_author_id, rev_originator_id, 
             as_built, superseded, voided, 
-            transmittal_current_revision, 
+            transmital_current_revision, 
             milestone_id, 
             planned_start_date, planned_finish_date, actual_start_date, actual_finish_date, 
             canceled_date, rev_status_id, doc_id, seq_num
         ) VALUES (
             OLD.rev_id, OLD.rev_code_id, OLD.rev_date, OLD.rev_author_id, OLD.rev_originator_id, 
             OLD.as_built, OLD.superseded, OLD.voided, 
-            OLD.transmittal_current_revision, 
+            OLD.transmital_current_revision, 
             OLD.milestone_id, 
             OLD.planned_start_date, OLD.planned_finish_date, OLD.actual_start_date, 
             NOW(),

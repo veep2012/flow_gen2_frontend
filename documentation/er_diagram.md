@@ -25,7 +25,7 @@ erDiagram
         string as_built
         string superseded
         string voided
-        string transmittal_current_revision
+        string transmital_current_revision
         smallint milestone_id FK
         timestamp planned_start_date
         timestamp planned_finish_date
@@ -49,7 +49,7 @@ erDiagram
         string as_built
         string superseded
         string voided
-        string transmittal_current_revision
+        string transmital_current_revision
         smallint milestone_id
         timestamp planned_start_date
         timestamp planned_finish_date
@@ -72,7 +72,7 @@ erDiagram
         string as_built
         string superseded
         string voided
-        string transmittal_current_revision
+        string transmital_current_revision
         smallint milestone_id
         timestamp planned_start_date
         timestamp planned_finish_date

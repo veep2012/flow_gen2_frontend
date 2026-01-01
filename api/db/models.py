@@ -119,10 +119,10 @@ class DocRevStatus(Base):
     revisions: Mapped[list["DocRevision"]] = relationship(back_populates="status")
 
 
-class FileForbidden(Base):
-    __tablename__ = "files_forbidden"
+class FileAccepted(Base):
+    __tablename__ = "files_accepted"
 
-    file_type: Mapped[str] = mapped_column(String(4), primary_key=True)
+    file_type: Mapped[str] = mapped_column(String(10), primary_key=True)
     mimetype: Mapped[str] = mapped_column(String(90), nullable=False)
 
 
@@ -340,7 +340,7 @@ class DocRevision(Base):
     as_built: Mapped[Optional[str]] = mapped_column(String(3))
     superseded: Mapped[Optional[str]] = mapped_column(String(3))
     voided: Mapped[Optional[str]] = mapped_column(String(3))
-    transmittal_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
+    transmital_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
     milestone_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("flow.doc_rev_milestones.milestone_id")
     )
@@ -395,7 +395,7 @@ class DocRevisionHistory(Base):
     as_built: Mapped[Optional[str]] = mapped_column(String(3))
     superseded: Mapped[Optional[str]] = mapped_column(String(3))
     voided: Mapped[Optional[str]] = mapped_column(String(3))
-    transmittal_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
+    transmital_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
     milestone_id: Mapped[Optional[int]] = mapped_column(SmallInteger)
     planned_start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     planned_finish_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -455,7 +455,7 @@ class DocRevisionHistoryView(Base):
     as_built: Mapped[Optional[str]] = mapped_column(String(3))
     superseded: Mapped[Optional[str]] = mapped_column(String(3))
     voided: Mapped[Optional[str]] = mapped_column(String(3))
-    transmittal_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
+    transmital_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
     milestone_id: Mapped[Optional[int]] = mapped_column(SmallInteger)
     planned_start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     planned_finish_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
