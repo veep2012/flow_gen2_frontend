@@ -3,16 +3,9 @@ set -euo pipefail
 
 PID_FILE="${PID_FILE:-.local/uvicorn.pid}"
 LOG_FILE="${LOG_FILE:-.local/uvicorn.log}"
+STOP_TIMEOUT_SEC="${STOP_TIMEOUT_SEC:-10}"
 
 mkdir -p "$(dirname "$PID_FILE")"
-
-if [[ -f "$PID_FILE" ]]; then
-  if kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-    echo "API already running (pid $(cat "$PID_FILE"))."
-    exit 0
-  fi
-  rm -f "$PID_FILE"
-fi
 
 PRESET_DATABASE_URL="${DATABASE_URL:-}"
 PRESET_API_HOST="${API_HOST:-}"
@@ -63,6 +56,22 @@ fi
 API_HOST="${API_HOST:-0.0.0.0}"
 API_PORT="${API_PORT:-5556}"
 API_WAIT_TIMEOUT="${API_WAIT_TIMEOUT:-30}"
+
+if command -v lsof >/dev/null 2>&1; then
+  existing_pids="$(lsof -ti tcp:"$API_PORT" 2>/dev/null || true)"
+  if [[ -n "$existing_pids" ]]; then
+    API_PORT="$API_PORT" STOP_TIMEOUT_SEC="$STOP_TIMEOUT_SEC" PID_FILE="$PID_FILE" \
+      bash "$(dirname "$0")/local-api-stop.sh"
+  fi
+fi
+
+if [[ -f "$PID_FILE" ]]; then
+  if kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+    echo "API already running (pid $(cat "$PID_FILE"))."
+    exit 0
+  fi
+  rm -f "$PID_FILE"
+fi
 
 if [[ -d ".venv" ]]; then
   # shellcheck disable=SC1091
