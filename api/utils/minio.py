@@ -66,13 +66,13 @@ def _s3_safe_segment(value: str) -> str:
 def _build_file_object_key(
     project_name: str | None,
     doc_name_unique: str,
-    transmittal_current_revision: str,
+    transmital_current_revision: str,
     unique_id: str,
     filename: str,
 ) -> str:
     project_segment = _s3_safe_segment(project_name) if project_name else "unassigned"
     doc_segment = _s3_safe_segment(doc_name_unique) if doc_name_unique else "doc_unknown"
-    rev_segment = _s3_safe_segment(transmittal_current_revision)
+    rev_segment = _s3_safe_segment(transmital_current_revision)
     basename = os.path.basename(filename)
     normalized_name = unicodedata.normalize("NFKC", basename)
     safe_filename = _s3_safe_segment(normalized_name) or "file"

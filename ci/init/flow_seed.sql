@@ -154,7 +154,7 @@ BEGIN
         -- will automatically update 'doc.rev_current_id' to point to this new revision.
         INSERT INTO doc_revision (
             rev_code_id, rev_date, rev_author_id, rev_originator_id, 
-            transmittal_current_revision, milestone_id, 
+            transmital_current_revision, milestone_id, 
             planned_start_date, planned_finish_date, 
             rev_status_id, doc_id, seq_num
         ) VALUES (
@@ -173,7 +173,7 @@ BEGIN
         IF (random() > 0.5) THEN
             INSERT INTO doc_revision (
                 rev_code_id, rev_date, rev_author_id, rev_originator_id, 
-                transmittal_current_revision, milestone_id, 
+                transmital_current_revision, milestone_id, 
                 planned_start_date, planned_finish_date, 
                 rev_status_id, doc_id, seq_num
             ) VALUES (

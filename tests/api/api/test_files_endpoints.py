@@ -111,6 +111,10 @@ def test_files_crud_and_download():
         downloaded = _request(client, "GET", "/files/download", params={"file_id": file_id})
         assert 200 <= downloaded["status"] < 300
         assert downloaded["content"] == content
+        content_disposition = downloaded["headers"].get("content-disposition", "")
+        assert f"file-{suffix}-v2.pdf" in content_disposition
+        assert "etag" in downloaded["headers"]
+        assert "last-modified" in downloaded["headers"]
 
         deleted = _request(client, "DELETE", "/files/delete", json={"id": file_id})
         assert deleted["status"] == 204

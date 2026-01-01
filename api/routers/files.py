@@ -1,5 +1,6 @@
 """Files endpoints for file upload and download operations."""
 
+import io
 import logging
 import os
 import time
@@ -33,8 +34,45 @@ _ACCEPTED_TYPES_CACHE: dict[str, str] = {}
 _ACCEPTED_TYPES_CACHE_AT = 0.0
 
 
+class _PrefixedStream:
+    def __init__(self, prefix: bytes, stream) -> None:
+        self._prefix = io.BytesIO(prefix)
+        self._stream = stream
+
+    def read(self, size: int = -1) -> bytes:
+        if size == 0:
+            return b""
+        prefix_data = self._prefix.read(size)
+        if size < 0:
+            return prefix_data + self._stream.read()
+        if len(prefix_data) < size:
+            return prefix_data + self._stream.read(size - len(prefix_data))
+        return prefix_data
+
+    def close(self) -> None:
+        self._stream.close()
+
+
+def _parse_accepted_file_mime_map() -> dict[str, str]:
+    raw = os.getenv("ACCEPTED_FILE_MIME_MAP", "")
+    mapping: dict[str, str] = {}
+    if not raw:
+        return mapping
+    for entry in raw.split(","):
+        if "=" not in entry:
+            continue
+        ext, mime = entry.split("=", 1)
+        ext = ext.strip().lstrip(".").lower()
+        mime = mime.strip()
+        if ext and mime:
+            mapping[ext] = mime
+    return mapping
+
+
 def _load_accepted_types(db: Session) -> dict[str, str]:
-    return {row.file_type.lower(): row.mimetype for row in db.query(FileAccepted).all()}
+    mapping = {row.file_type.lower(): row.mimetype for row in db.query(FileAccepted).all()}
+    mapping.update(_parse_accepted_file_mime_map())
+    return mapping
 
 
 def _get_cached_accepted_types(db: Session) -> dict[str, str]:
@@ -282,6 +320,11 @@ def insert_file(
         max_size_bytes = max_size_mb * 1024 * 1024
         if max_size_mb > 0 and size > max_size_bytes:
             raise HTTPException(status_code=413, detail="File exceeds upload size limit")
+    else:
+        peek = stream.read(1)
+        if not peek:
+            raise HTTPException(status_code=400, detail="File is empty")
+        stream = _PrefixedStream(peek, stream)
 
     doc = revision.doc
     project_name = doc.project.project_name if doc and doc.project else None
@@ -289,7 +332,7 @@ def insert_file(
     object_key = _build_file_object_key(
         project_name=project_name,
         doc_name_unique=doc_name,
-        transmittal_current_revision=revision.transmittal_current_revision,
+        transmital_current_revision=revision.transmital_current_revision,
         unique_id=uuid.uuid4().hex,
         filename=filename,
     )
