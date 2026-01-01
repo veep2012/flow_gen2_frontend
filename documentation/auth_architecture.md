@@ -573,7 +573,7 @@ Flow Gen2 already has a robust authorization schema:
 ```bash
 # Keycloak
 KEYCLOAK_ADMIN=admin
-KEYCLOAK_ADMIN_PASSWORD=<strong-password>
+KEYCLOAK_ADMIN_PASSWORD=<generated-32-char-password>  # Min 12 chars, see password policy
 KEYCLOAK_HOSTNAME=auth.company.com
 KEYCLOAK_PORT=8081
 KC_DB=postgres  # Use external DB for production
@@ -581,8 +581,8 @@ KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak
 
 # oauth2-proxy
 OAUTH2_PROXY_CLIENT_ID=flow-oauth2-proxy
-OAUTH2_PROXY_CLIENT_SECRET=<generated-secret>
-OAUTH2_PROXY_COOKIE_SECRET=<32-byte-random-string>
+OAUTH2_PROXY_CLIENT_SECRET=<generated-32-char-secret>  # From Keycloak client credentials
+OAUTH2_PROXY_COOKIE_SECRET=<32-byte-random-base64-string>  # Generate with: openssl rand -base64 32
 OAUTH2_PROXY_OIDC_ISSUER_URL=https://auth.company.com/realms/flow-production
 OAUTH2_PROXY_REDIRECT_URL=https://app.company.com/oauth2/callback
 OAUTH2_PROXY_EMAIL_DOMAINS=company.com  # Restrict to organization
@@ -597,22 +597,28 @@ SSL_CERTIFICATE_KEY=/etc/letsencrypt/live/app.company.com/privkey.pem
 
 ```bash
 # Export Keycloak realm configuration
-docker exec flow_gen2_keycloak_compose /opt/keycloak/bin/kc.sh export \
+# Replace <keycloak-container> with actual container name (e.g., flow_gen2_keycloak_compose)
+docker exec <keycloak-container> /opt/keycloak/bin/kc.sh export \
   --file /tmp/realm-export.json --realm flow-production
 
 # Test OIDC discovery endpoint
 curl https://auth.company.com/realms/flow-production/.well-known/openid-configuration
 
 # Validate NGINX configuration
-docker exec flow_gen2_nginx nginx -t
+# Replace <nginx-container> with actual container name (e.g., flow_gen2_nginx)
+docker exec <nginx-container> nginx -t
 
 # View oauth2-proxy logs
-docker logs -f flow_gen2_oauth2_proxy_compose
+# Replace <oauth2-proxy-container> with actual container name (e.g., flow_gen2_oauth2_proxy_compose)
+docker logs -f <oauth2-proxy-container>
 
 # Check user session count
 curl -H "Authorization: Bearer $ADMIN_TOKEN" \
   https://auth.company.com/admin/realms/flow-production/users?max=1000 | \
   jq '[.[] | select(.enabled==true)] | length'
+
+# Generate secure cookie secret
+openssl rand -base64 32
 ```
 
 ### References
