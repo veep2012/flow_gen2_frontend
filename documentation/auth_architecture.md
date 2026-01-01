@@ -597,7 +597,7 @@ SSL_CERTIFICATE_KEY=/etc/letsencrypt/live/app.company.com/privkey.pem
 
 ```bash
 # Export Keycloak realm configuration
-# Replace <keycloak-container> with actual container name (e.g., flow_gen2_keycloak_compose)
+# Replace <keycloak-container> with your container name (default: flow_gen2_keycloak_compose)
 docker exec <keycloak-container> /opt/keycloak/bin/kc.sh export \
   --file /tmp/realm-export.json --realm flow-production
 
@@ -605,11 +605,11 @@ docker exec <keycloak-container> /opt/keycloak/bin/kc.sh export \
 curl https://auth.company.com/realms/flow-production/.well-known/openid-configuration
 
 # Validate NGINX configuration
-# Replace <nginx-container> with actual container name (e.g., flow_gen2_nginx)
+# Replace <nginx-container> with your container name (default: flow_gen2_nginx)
 docker exec <nginx-container> nginx -t
 
 # View oauth2-proxy logs
-# Replace <oauth2-proxy-container> with actual container name (e.g., flow_gen2_oauth2_proxy_compose)
+# Replace <oauth2-proxy-container> with your container name (default: flow_gen2_oauth2_proxy_compose)
 docker logs -f <oauth2-proxy-container>
 
 # Check user session count
