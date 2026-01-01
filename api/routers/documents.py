@@ -696,14 +696,12 @@ def update_document(
         doc.jobpack = jobpack
 
     doc_type: DocType | None = doc.doc_type
-    discipline: Discipline | None = doc_type.discipline if doc_type else None
     if "type_id" in updates:
         type_id = payload.type_id
         require_not_null("type_id", type_id)
         doc_type = db.get(DocType, type_id)
         if not doc_type:
             raise HTTPException(status_code=404, detail="Doc type not found")
-        discipline = doc_type.discipline
         doc.type_id = type_id
         doc.doc_type = doc_type
 
