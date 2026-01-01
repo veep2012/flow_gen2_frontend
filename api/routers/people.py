@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from api.db.models import Discipline, Permission, Person, Project, Role, User
+from api.schemas.lookups import RoleCreate, RoleDelete, RoleOut, RoleUpdate
 from api.schemas.people import (
     PermissionCreate,
     PermissionDelete,
@@ -67,6 +68,344 @@ def _permission_filter(query, payload) -> Session:
     else:
         query = query.filter(Permission.discipline_id == payload.discipline_id)
     return query
+
+
+@router.get(
+    "/roles",
+    summary="List all roles.",
+    description="Returns a list of all roles sorted by role name.",
+    operation_id="list_roles",
+    tags=["people"],
+    response_model=list[RoleOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_roles(db: Session = Depends(get_db)) -> list[RoleOut]:
+    """
+    List all roles.
+
+    Returns a list of all roles sorted by role name.
+
+    Returns:
+        List of roles with id and name.
+
+    Raises:
+        HTTPException: 404 if no roles are found.
+    """
+    roles = db.query(Role).order_by(Role.role_name).all()
+    if not roles:
+        raise HTTPException(status_code=404, detail="No roles found")
+    return _model_list(RoleOut, roles)
+
+
+@router.post(
+    "/roles/insert",
+    summary="Create a new role.",
+    description="Inserts a new role with the specified name.",
+    operation_id="insert_role",
+    tags=["people"],
+    response_model=RoleOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_role(
+    payload: RoleCreate = Body(..., examples=_example_for(RoleCreate)),
+    db: Session = Depends(get_db),
+) -> RoleOut:
+    """
+    Create a new role.
+
+    Inserts a new role with the specified name.
+
+    Args:
+        payload: Role creation data including name.
+
+    Returns:
+        Newly created role object.
+
+    Raises:
+        HTTPException: 400 on creation failure.
+    """
+    role = Role(role_name=payload.role_name)
+    db.add(role)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Failed to create role", err, "insert_role")
+    db.refresh(role)
+    return _model_out(RoleOut, role)
+
+
+@router.put(
+    "/roles/update",
+    summary="Update an existing role.",
+    description="Updates the name of an existing role.",
+    operation_id="update_role",
+    tags=["people"],
+    response_model=RoleOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_role(
+    payload: RoleUpdate = Body(..., examples=_example_for(RoleUpdate)),
+    db: Session = Depends(get_db),
+) -> RoleOut:
+    """
+    Update an existing role.
+
+    Updates the name of an existing role.
+
+    Args:
+        payload: Role update data including role_id and role_name.
+
+    Returns:
+        Updated role object.
+
+    Raises:
+        HTTPException: 400 if no fields provided.
+        HTTPException: 404 if role not found.
+    """
+    if payload.role_name is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    role = db.get(Role, payload.role_id)
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    role.role_name = payload.role_name
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Failed to update role", err, "update_role")
+    db.refresh(role)
+    return _model_out(RoleOut, role)
+
+
+@router.delete(
+    "/roles/delete",
+    summary="Delete a role.",
+    description="Removes a role from the database by its ID.",
+    operation_id="delete_role",
+    tags=["people"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_role(
+    payload: RoleDelete = Body(..., examples=_example_for(RoleDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a role.
+
+    Removes a role from the database by its ID.
+
+    Args:
+        payload: Role deletion data including role_id.
+
+    Raises:
+        HTTPException: 404 if role not found.
+    """
+    role = db.get(Role, payload.role_id)
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    db.delete(role)
+    db.commit()
 
 
 @router.get(

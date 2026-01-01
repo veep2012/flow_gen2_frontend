@@ -22,6 +22,10 @@ from api.schemas.documents import (
     DocRevMilestoneDelete,
     DocRevMilestoneOut,
     DocRevMilestoneUpdate,
+    DocTypeCreate,
+    DocTypeDelete,
+    DocTypeOut,
+    DocTypeUpdate,
     DocUpdate,
     RevisionOverviewCreate,
     RevisionOverviewDelete,
@@ -32,6 +36,394 @@ from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
+
+
+def _build_doc_type_out(doc_type: DocType, discipline: Discipline | None = None) -> DocTypeOut:
+    discipline = discipline or doc_type.discipline
+    return DocTypeOut(
+        type_id=doc_type.type_id,
+        doc_type_name=doc_type.doc_type_name,
+        ref_discipline_id=doc_type.ref_discipline_id,
+        doc_type_acronym=doc_type.doc_type_acronym,
+        discipline_name=discipline.discipline_name if discipline else None,
+        discipline_acronym=discipline.discipline_acronym if discipline else None,
+    )
+
+
+@router.get(
+    "/doc_types",
+    summary="List all document types.",
+    description=(
+        "Returns a list of all document types sorted by document type name, including discipline "
+        "information."
+    ),
+    operation_id="list_doc_types",
+    tags=["documents"],
+    response_model=list[DocTypeOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_doc_types(db: Session = Depends(get_db)) -> list[DocTypeOut]:
+    """
+    List all document types.
+
+    Returns a list of all document types sorted by document type name, including discipline
+    information.
+
+    Returns:
+        List of document types with id, name, acronym, and associated discipline details.
+
+    Raises:
+        HTTPException: 404 if no document types are found.
+    """
+    doc_types = (
+        db.query(DocType, Discipline)
+        .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
+        .order_by(DocType.doc_type_name)
+        .all()
+    )
+    if not doc_types:
+        raise HTTPException(status_code=404, detail="No doc types found")
+    return [_build_doc_type_out(dt, disc) for dt, disc in doc_types]
+
+
+@router.post(
+    "/doc_types/insert",
+    summary="Create a new document type.",
+    description=(
+        "Inserts a new document type with the specified name, acronym, and discipline reference."
+    ),
+    operation_id="insert_doc_type",
+    tags=["documents"],
+    response_model=DocTypeOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_doc_type(
+    payload: DocTypeCreate = Body(..., examples=_example_for(DocTypeCreate)),
+    db: Session = Depends(get_db),
+) -> DocTypeOut:
+    """
+    Create a new document type.
+
+    Inserts a new document type with the specified name, acronym, and discipline reference.
+
+    Args:
+        payload: Document type creation data including name, acronym, and discipline reference.
+
+    Returns:
+        Newly created document type object.
+
+    Raises:
+        HTTPException: 400 if document type already exists.
+        HTTPException: 404 if referenced discipline not found.
+    """
+    discipline = db.get(Discipline, payload.ref_discipline_id)
+    if not discipline:
+        raise HTTPException(status_code=404, detail="Discipline not found")
+
+    doc_type = DocType(
+        doc_type_name=payload.doc_type_name,
+        ref_discipline_id=payload.ref_discipline_id,
+        doc_type_acronym=payload.doc_type_acronym,
+    )
+    db.add(doc_type)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Doc type already exists", err, "insert_doc_type")
+
+    db.refresh(doc_type)
+    return _build_doc_type_out(doc_type)
+
+
+@router.put(
+    "/doc_types/update",
+    summary="Update an existing document type.",
+    description=(
+        "Updates the name, acronym, and/or discipline reference of an existing document type."
+    ),
+    operation_id="update_doc_type",
+    tags=["documents"],
+    response_model=DocTypeOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_doc_type(
+    payload: DocTypeUpdate = Body(..., examples=_example_for(DocTypeUpdate)),
+    db: Session = Depends(get_db),
+) -> DocTypeOut:
+    """
+    Update an existing document type.
+
+    Updates the name, acronym, and/or discipline reference of an existing document type.
+
+    Args:
+        payload: Document type update data including type_id and at least one field to update.
+
+    Returns:
+        Updated document type object.
+
+    Raises:
+        HTTPException: 400 if no fields provided or document type already exists.
+        HTTPException: 404 if document type or referenced discipline not found.
+    """
+    if (
+        payload.doc_type_name is None
+        and payload.doc_type_acronym is None
+        and payload.ref_discipline_id is None
+    ):
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    doc_type = db.get(DocType, payload.type_id)
+    if not doc_type:
+        raise HTTPException(status_code=404, detail="Doc type not found")
+
+    if payload.ref_discipline_id is not None:
+        discipline = db.get(Discipline, payload.ref_discipline_id)
+        if not discipline:
+            raise HTTPException(status_code=404, detail="Discipline not found")
+        doc_type.ref_discipline_id = payload.ref_discipline_id
+
+    if payload.doc_type_name is not None:
+        doc_type.doc_type_name = payload.doc_type_name
+    if payload.doc_type_acronym is not None:
+        doc_type.doc_type_acronym = payload.doc_type_acronym
+
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Doc type already exists", err, "update_doc_type")
+
+    db.refresh(doc_type)
+    return _build_doc_type_out(doc_type)
+
+
+@router.delete(
+    "/doc_types/delete",
+    summary="Delete a document type.",
+    description="Removes a document type from the database by its ID.",
+    operation_id="delete_doc_type",
+    tags=["documents"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_doc_type(
+    payload: DocTypeDelete = Body(..., examples=_example_for(DocTypeDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a document type.
+
+    Removes a document type from the database by its ID.
+
+    Args:
+        payload: Document type deletion data including type_id.
+
+    Raises:
+        HTTPException: 404 if document type not found.
+    """
+    doc_type = db.get(DocType, payload.type_id)
+    if not doc_type:
+        raise HTTPException(status_code=404, detail="Doc type not found")
+    db.delete(doc_type)
+    db.commit()
 
 
 @router.get(

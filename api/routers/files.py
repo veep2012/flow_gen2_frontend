@@ -212,19 +212,27 @@ def insert_file(
     if not file_extension:
         raise HTTPException(
             status_code=400,
-            detail="File must have an extension. Allowed types: Word, Excel, PDF, AutoCAD."
-        )
-
-    accepted_file = db.query(FileAccepted).filter(
-        FileAccepted.file_type == file_extension
-    ).first()
-    if not accepted_file:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, PDF, AutoCAD."
+            detail="File must have an extension. Allowed types: Word, Excel, PDF, AutoCAD.",
         )
 
     content_type = file.content_type or "application/octet-stream"
+    accepted_file = db.query(FileAccepted).filter(FileAccepted.file_type == file_extension).first()
+    if not accepted_file:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, "
+                "PDF, AutoCAD."
+            ),
+        )
+    if content_type.lower() != accepted_file.mimetype.lower():
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "File content type does not match accepted type for "
+                f"'.{file_extension}'. Expected '{accepted_file.mimetype}'."
+            ),
+        )
     stream = file.file
     size = None
     if hasattr(stream, "seekable") and stream.seekable():

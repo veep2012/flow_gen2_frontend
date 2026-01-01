@@ -4,8 +4,17 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from api.db.models import Area, Discipline, DocType, Jobpack, Project, Unit
-from api.schemas.documents import DocTypeCreate, DocTypeDelete, DocTypeOut, DocTypeUpdate
+from api.db.models import Area, Discipline, DocRevStatus, DocType, Jobpack, Project, Unit
+from api.schemas.documents import (
+    DocRevStatusCreate,
+    DocRevStatusDelete,
+    DocRevStatusOut,
+    DocRevStatusUpdate,
+    DocTypeCreate,
+    DocTypeDelete,
+    DocTypeOut,
+    DocTypeUpdate,
+)
 from api.schemas.lookups import (
     AreaCreate,
     AreaDelete,
@@ -1773,7 +1782,7 @@ def delete_jobpack(
         "Returns a list of all document types sorted by document type name, including discipline "
         "information."
     ),
-    operation_id="list_doc_types",
+    operation_id="list_doc_types_lookup",
     tags=["documents"],
     response_model=list[DocTypeOut],
     responses={
@@ -1857,7 +1866,7 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocTypeOut]:
     description=(
         "Inserts a new document type with the specified name, acronym, and discipline reference."
     ),
-    operation_id="insert_doc_type",
+    operation_id="insert_doc_type_lookup",
     tags=["documents"],
     response_model=DocTypeOut,
     status_code=201,
@@ -1957,7 +1966,7 @@ def insert_doc_type(
     description=(
         "Updates the name, acronym, and/or discipline reference of an existing document type."
     ),
-    operation_id="update_doc_type",
+    operation_id="update_doc_type_lookup",
     tags=["documents"],
     response_model=DocTypeOut,
     responses={
@@ -2066,7 +2075,7 @@ def update_doc_type(
     "/api/v1/documents/doc_types/delete",
     summary="Delete a document type.",
     description="Removes a document type from the database by its ID.",
-    operation_id="delete_doc_type",
+    operation_id="delete_doc_type_lookup",
     tags=["documents"],
     status_code=204,
     responses={
@@ -2139,4 +2148,344 @@ def delete_doc_type(
     if not doc_type:
         raise HTTPException(status_code=404, detail="Doc type not found")
     db.delete(doc_type)
+    db.commit()
+
+
+@router.get(
+    "/doc_rev_statuses",
+    summary="List all document revision statuses.",
+    description="Returns a list of all document revision statuses sorted by name.",
+    operation_id="list_doc_rev_statuses",
+    tags=["lookups"],
+    response_model=list[DocRevStatusOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatusOut]:
+    """
+    List all document revision statuses.
+
+    Returns a list of all document revision statuses sorted by name.
+
+    Returns:
+        List of document revision statuses with id and name.
+
+    Raises:
+        HTTPException: 404 if no statuses are found.
+    """
+    statuses = db.query(DocRevStatus).order_by(DocRevStatus.rev_status_name).all()
+    if not statuses:
+        raise HTTPException(status_code=404, detail="No doc revision statuses found")
+    return _model_list(DocRevStatusOut, statuses)
+
+
+@router.post(
+    "/doc_rev_statuses/insert",
+    summary="Create a new document revision status.",
+    description="Inserts a new document revision status with the specified name.",
+    operation_id="insert_doc_rev_status",
+    tags=["lookups"],
+    response_model=DocRevStatusOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_doc_rev_status(
+    payload: DocRevStatusCreate = Body(..., examples=_example_for(DocRevStatusCreate)),
+    db: Session = Depends(get_db),
+) -> DocRevStatusOut:
+    """
+    Create a new document revision status.
+
+    Inserts a new document revision status with the specified name.
+
+    Args:
+        payload: Document revision status creation data including name.
+
+    Returns:
+        Newly created document revision status object.
+
+    Raises:
+        HTTPException: 400 on creation failure.
+    """
+    status = DocRevStatus(rev_status_name=payload.rev_status_name)
+    db.add(status)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Revision status already exists", err, "insert_doc_rev_status")
+
+    db.refresh(status)
+    return _model_out(DocRevStatusOut, status)
+
+
+@router.put(
+    "/doc_rev_statuses/update",
+    summary="Update an existing document revision status.",
+    description="Updates the name of an existing document revision status.",
+    operation_id="update_doc_rev_status",
+    tags=["lookups"],
+    response_model=DocRevStatusOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_doc_rev_status(
+    payload: DocRevStatusUpdate = Body(..., examples=_example_for(DocRevStatusUpdate)),
+    db: Session = Depends(get_db),
+) -> DocRevStatusOut:
+    """
+    Update an existing document revision status.
+
+    Updates the name of an existing document revision status.
+
+    Args:
+        payload: Document revision status update data including rev_status_id and rev_status_name.
+
+    Returns:
+        Updated document revision status object.
+
+    Raises:
+        HTTPException: 400 if no fields provided.
+        HTTPException: 404 if status not found.
+    """
+    if payload.rev_status_name is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    status = db.get(DocRevStatus, payload.rev_status_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Revision status not found")
+
+    status.rev_status_name = payload.rev_status_name
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Revision status already exists", err, "update_doc_rev_status")
+
+    db.refresh(status)
+    return _model_out(DocRevStatusOut, status)
+
+
+@router.delete(
+    "/doc_rev_statuses/delete",
+    summary="Delete a document revision status.",
+    description="Removes a document revision status from the database by its ID.",
+    operation_id="delete_doc_rev_status",
+    tags=["lookups"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_doc_rev_status(
+    payload: DocRevStatusDelete = Body(..., examples=_example_for(DocRevStatusDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a document revision status.
+
+    Removes a document revision status from the database by its ID.
+
+    Args:
+        payload: Document revision status deletion data including rev_status_id.
+
+    Raises:
+        HTTPException: 404 if status not found.
+    """
+    status = db.get(DocRevStatus, payload.rev_status_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Revision status not found")
+    db.delete(status)
     db.commit()
