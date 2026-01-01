@@ -67,6 +67,13 @@ With the API running (`make local-api-up`):
 - `make local-minio-up`
 - `make local-minio-down`
 
+### Run Keycloak + oauth2-proxy (compose)
+These services are part of the compose stack (see `ci/docker-compose.yml`).
+Defaults:
+- Keycloak: `http://localhost:8081` (realm `flow-local`)
+- Test user: `testuser` / `testpass123`
+- oauth2-proxy callback: `http://localhost/oauth2/callback`
+
 ### Environment variables (API + MinIO)
 - `MINIO_ENDPOINT` supports `host:port` or `http(s)://host:port` (scheme controls TLS).
 - `MINIO_SECURE` (`1`/`true` enables TLS when no scheme is provided).
@@ -84,3 +91,5 @@ With the API running (`make local-api-up`):
 - API tests: `4175`
 - MinIO: `9000`
 - MinIO console: `9001`
+- Keycloak: `8081`
+- oauth2-proxy: `4180`

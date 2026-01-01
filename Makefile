@@ -294,6 +294,7 @@ local-minio-up: ## Start local MinIO with host port mapping
 local-minio-down: ## Stop local MinIO started by local-minio-up
 	$(MAKE) minio-down
 
+
 .PHONY: local-venv
 local-venv: ## Create a local Python venv with dependencies
 ifeq ($(OS),Windows_NT)
