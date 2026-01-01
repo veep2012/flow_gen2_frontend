@@ -165,8 +165,8 @@ services:
       OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
       OAUTH2_PROXY_COOKIE_SECURE: "false"
       OAUTH2_PROXY_INSECURE_OIDC_SKIP_ISSUER_VERIFICATION: "true"
-    ports:
-      - "${OAUTH2_PROXY_PORT:-4180}:4180"
+    expose:
+      - "4180"
     depends_on:
       - keycloak
     restart: unless-stopped

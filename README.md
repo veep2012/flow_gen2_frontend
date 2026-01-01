@@ -92,4 +92,5 @@ Defaults:
 - MinIO: `9000`
 - MinIO console: `9001`
 - Keycloak: `8081`
-- oauth2-proxy: `4180`
+
+**Note:** oauth2-proxy (port 4180) is only accessible within the Docker network via nginx and is not exposed to the host.
