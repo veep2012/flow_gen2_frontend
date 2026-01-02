@@ -152,6 +152,8 @@ Brute-force protection and rate limiting:
 Account lockout:
 - Define lockout thresholds and durations.
 - Send lockout notifications and provide recovery flow.
+  - Keycloak: configure in Realm Settings → Security Defenses → Brute Force Detection.
+  - Suggested defaults: 5 failures → 5 min lockout; 10 failures → 30 min lockout; notify user on lockout.
 
 MFA:
 - Prefer TOTP or WebAuthn; use SMS only as a fallback.

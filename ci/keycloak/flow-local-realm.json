@@ -5,6 +5,14 @@
   "sslRequired": "external",
   "registrationAllowed": false,
   "passwordPolicy": "hashAlgorithm(argon2)",
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 300,
+  "maxFailureWaitSeconds": 1800,
+  "minimumQuickLoginWaitSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "permanentLockout": false,
   "clients": [
     {
       "clientId": "flow-ui",
