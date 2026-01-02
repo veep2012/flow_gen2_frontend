@@ -605,7 +605,7 @@ docker exec <keycloak-container> /opt/keycloak/bin/kc.sh export \
 curl https://auth.company.com/realms/flow-production/.well-known/openid-configuration
 
 # Validate NGINX configuration
-# Replace <nginx-container> with your container name (default: flow_gen2_nginx)
+# Replace <nginx-container> with your container name (default: flow_gen2_nginx_compose)
 docker exec <nginx-container> nginx -t
 
 # View oauth2-proxy logs
