@@ -197,6 +197,32 @@ Migration notes:
 - If migrating password hashes, re-hash on first login or provide a migration route.
 - Backfill new fields carefully and keep backward compatibility for a defined window.
 
+## Backwards compatibility & API contract
+
+API contract:
+- Publish explicit auth endpoint specifications (OpenAPI or equivalent) with request/response schemas.
+- Include status codes, error codes, and example responses for each endpoint.
+- Define header requirements (e.g., Authorization, cookie usage) per endpoint.
+
+Versioning policy:
+- Version auth endpoints under `/api/v1/auth` and only introduce breaking changes in `/api/v2`.
+- Provide a deprecation window and migration guide for older versions.
+- Announce deprecations and removal dates in release notes.
+
+## Compliance, privacy, and data retention
+
+Retention policy:
+- Define retention periods for auth logs, session records, and refresh tokens.
+- Minimize PII in logs; store only what is required for security and audit.
+
+Compliance and data location:
+- Identify applicable regulations (e.g., GDPR, HIPAA) and required controls.
+- Document data residency requirements and where identity data is stored.
+
+User data rights:
+- Provide opt-out or account deletion procedures.
+- Document how to export or delete user data on request.
+
 ### Phase 1: Database-Based Authentication (Weeks 1-2)
 **Goal:** Establish basic authentication infrastructure with local user management
 
