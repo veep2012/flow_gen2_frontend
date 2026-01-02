@@ -167,6 +167,36 @@ Incident response/runbook:
 - Steps: revoke keys, rotate secrets, block abusive IPs/users, notify users.
 - Define on-call contact/owner and escalation path.
 
+## Rollout & migration plan (staged, with fallbacks)
+
+Stage 0 — Design + infra:
+- Create JWKS and store private keys in KMS/Secrets Manager.
+- Create service accounts and verify access scopes.
+- Test key issuance, rotation, and rollback in staging.
+
+Stage 1 — Implement auth service (internal only):
+- Deploy auth stack behind feature flags.
+- Allow opt-in for internal users only.
+- Validate auth flows, session handling, and logs.
+
+Stage 2 — Integrate with API gateway & frontend:
+- Enable gateway protection via feature flag.
+- Update frontend to support login/logout/refresh flows.
+- Run internal QA and security checks.
+
+Stage 3 — Canary rollout:
+- Enable for a small percentage of users.
+- Monitor auth success/fail rates, latency, and error budgets.
+- Gradually increase traffic while watching alerts.
+
+Stage 4 — Full rollout:
+- Enable for all users.
+- Deprecate legacy flows and remove old endpoints.
+
+Migration notes:
+- If migrating password hashes, re-hash on first login or provide a migration route.
+- Backfill new fields carefully and keep backward compatibility for a defined window.
+
 ### Phase 1: Database-Based Authentication (Weeks 1-2)
 **Goal:** Establish basic authentication infrastructure with local user management
 
