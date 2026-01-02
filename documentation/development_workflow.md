@@ -103,7 +103,7 @@ flowchart TD
   git checkout frontend
   git rebase dev
   # push rebased branch to remote
-git push --force-with-lease  
+git push --force-with-lease
   ```
 - Commit your local changes (example message):  
   ```bash
