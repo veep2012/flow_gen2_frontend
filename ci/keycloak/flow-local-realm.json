@@ -7,6 +7,7 @@
   "passwordPolicy": "hashAlgorithm(argon2)",
   "eventsEnabled": true,
   "eventsListeners": ["jboss-logging"],
+  "eventsExpiration": 604800,
   "adminEventsEnabled": true,
   "adminEventsDetailsEnabled": false,
   "bruteForceProtected": true,
