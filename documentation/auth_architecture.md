@@ -141,6 +141,32 @@ sequenceDiagram
 
 ## Staged Implementation Plan
 
+## Security & operational controls (must-have checklist)
+
+Brute-force protection and rate limiting:
+- Rate limit auth endpoints (login, refresh, password reset) at the edge and provider.
+- Apply progressive delays after repeated failures; consider CAPTCHA after N failed attempts.
+
+Account lockout:
+- Define lockout thresholds and durations.
+- Send lockout notifications and provide recovery flow.
+
+MFA:
+- Prefer TOTP or WebAuthn; use SMS only as a fallback.
+- Document enrollment, backup codes, and recovery procedures.
+
+Logging & privacy:
+- Log success/failure events and reasons without storing secrets or full tokens.
+- Use structured logs with anonymized identifiers where possible.
+
+Monitoring & alerting:
+- Metrics: auth success/fail rates, refresh rate, token issuance per client, latency, revocation counts.
+- Alerts: spikes in failed logins, abnormal revocations, JWKS signature errors, key rotation failures.
+
+Incident response/runbook:
+- Steps: revoke keys, rotate secrets, block abusive IPs/users, notify users.
+- Define on-call contact/owner and escalation path.
+
 ### Phase 1: Database-Based Authentication (Weeks 1-2)
 **Goal:** Establish basic authentication infrastructure with local user management
 
