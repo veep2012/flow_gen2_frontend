@@ -132,7 +132,6 @@ services:
     image: quay.io/keycloak/keycloak:25.0.4
     container_name: flow_gen2_keycloak_compose
     entrypoint: /bin/sh
-    user: "0"
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-change_me_now}
