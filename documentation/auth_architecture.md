@@ -613,6 +613,12 @@ docker exec <nginx-container> nginx -t
 docker logs -f <oauth2-proxy-container>
 
 # Check user session count
+# First, obtain an admin access token from Keycloak (replace placeholders as needed)
+export ADMIN_TOKEN=$(curl -s -X POST "https://auth.company.com/realms/master/protocol/openid-connect/token" \
+  -d "grant_type=password" \
+  -d "client_id=admin-cli" \
+  -d "username=<admin-username>" \
+  -d "password=<admin-password>" | jq -r '.access_token')
 curl -H "Authorization: Bearer $ADMIN_TOKEN" \
   https://auth.company.com/admin/realms/flow-production/users?max=1000 | \
   jq '[.[] | select(.enabled==true)] | length'
