@@ -162,6 +162,8 @@ MFA:
 Logging & privacy:
 - Log success/failure events and reasons without storing secrets or full tokens.
 - Use structured logs with anonymized identifiers where possible.
+  - Keycloak: enable event logging for LOGIN/LOGIN_ERROR and redact sensitive fields.
+  - oauth2-proxy: log request IDs and user IDs only; avoid logging cookies or tokens.
 
 Monitoring & alerting:
 - Metrics: auth success/fail rates, refresh rate, token issuance per client, latency, revocation counts.

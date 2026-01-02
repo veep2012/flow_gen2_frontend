@@ -131,6 +131,8 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:25.0.4
     container_name: flow_gen2_keycloak_compose
+    entrypoint: /bin/sh
+    user: "0"
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-change_me_now}
@@ -141,11 +143,22 @@ services:
       KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-localhost}
       KC_HOSTNAME_PORT: ${KEYCLOAK_PORT:-8081}
       KC_HTTP_ENABLED: "true"
-    command: start-dev --import-realm --http-port=8080
+    command: >
+      -c "mkdir -p /opt/keycloak/data/log &&
+      chmod 777 /opt/keycloak/data/log &&
+      /opt/keycloak/bin/kc.sh start-dev --import-realm --http-port=8080
+      --log=console,file --log-level=INFO
+      --log-file=/opt/keycloak/data/log/keycloak.log"
     ports:
       - "${KEYCLOAK_PORT:-8081}:8080"
     volumes:
       - ./keycloak/flow-local-realm.json:/opt/keycloak/data/import/flow-local-realm.json:ro
+      - ../.local/keycloak:/opt/keycloak/data/log:rw
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/realms/master >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   oauth2_proxy:
@@ -153,7 +166,7 @@ services:
     container_name: flow_gen2_oauth2_proxy_compose
     environment:
       OAUTH2_PROXY_PROVIDER: oidc
-      OAUTH2_PROXY_OIDC_ISSUER_URL: ${OAUTH2_PROXY_ISSUER:-http://host.containers.internal:8081/realms/flow-local}
+      OAUTH2_PROXY_OIDC_ISSUER_URL: ${OAUTH2_PROXY_ISSUER:-http://keycloak:8080/realms/flow-local}
       OAUTH2_PROXY_CLIENT_ID: ${OAUTH2_PROXY_CLIENT_ID:-flow-oauth2-proxy}
       OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET:-change_me_now}
       OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
