@@ -154,11 +154,6 @@ services:
     volumes:
       - ./keycloak/flow-local-realm.json:/opt/keycloak/data/import/flow-local-realm.json:ro
       - ../.local/keycloak:/opt/keycloak/data/log:rw
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/realms/master >/dev/null || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
     restart: unless-stopped
 
   oauth2_proxy:
@@ -178,6 +173,7 @@ services:
       OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
       OAUTH2_PROXY_COOKIE_SECURE: "false"
       OAUTH2_PROXY_INSECURE_OIDC_SKIP_ISSUER_VERIFICATION: "true"
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
     expose:
       - "4180"
     depends_on:
