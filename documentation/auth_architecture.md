@@ -247,15 +247,19 @@ ALTER TABLE flow.users ADD COLUMN identity_provider VARCHAR(50);
 ALTER TABLE flow.users ADD COLUMN last_login_at TIMESTAMP;
 
 CREATE TABLE flow.identity_provider_mappings (
-    mapping_id SERIAL PRIMARY KEY,
+    mapping_id SERIAL,
     user_id SMALLINT REFERENCES flow.users(user_id),
     provider_name VARCHAR(50) NOT NULL,
     external_user_id VARCHAR(255) NOT NULL,
     attributes JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (provider_name, external_user_id)
+    UNIQUE (provider_name, external_user_id),
+    PRIMARY KEY (mapping_id)
 );
+
+CREATE INDEX idx_identity_provider_mappings_user_id
+    ON flow.identity_provider_mappings(user_id);
 ```
 
 ---
