@@ -577,7 +577,7 @@ Flow Gen2 already has a robust authorization schema:
 ```bash
 # Keycloak
 KEYCLOAK_ADMIN=admin
-KEYCLOAK_ADMIN_PASSWORD=<generated-32-char-password>  # Min 12 chars, see password policy
+KEYCLOAK_ADMIN_PASSWORD=<generated-32-char-password>  # Keycloak admin password; follow password policy (example uses 32 chars)
 KEYCLOAK_HOSTNAME=auth.company.com
 KEYCLOAK_PORT=8081
 KC_DB=postgres  # Use external DB for production
