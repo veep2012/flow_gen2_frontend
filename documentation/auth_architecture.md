@@ -97,6 +97,48 @@ sequenceDiagram
 
 ---
 
+## Concrete design choices & parameters
+
+### Password storage
+- Prefer Argon2id. Starting parameters: time=2, memory=64–128 MB, parallelism=1; tune on prod-like hardware.
+- If Argon2id is unavailable, use bcrypt with cost >= 12.
+- Salt per user (random); never use fixed salts.
+
+### Token strategy
+- JWTs: sign with asymmetric keys (RS256 or ES256). Publish JWKS for key rotation.
+- Access token lifetime: 5–15 minutes. Refresh token lifetime: days/weeks; rotate on each refresh.
+- If you need immediate revocation, use opaque refresh tokens stored server-side.
+
+### Revocation strategy
+- Prefer short access token lifetimes.
+- For refresh tokens, store server-side with TTL and revoke on logout.
+- If JWT revocation is required, use a revocation list (e.g., Redis) with TTL.
+
+### Key management
+- Store private keys and secrets in a secret manager (Vault, AWS KMS + Secrets Manager, GCP KMS).
+- Rotate keys regularly and document rollback procedure.
+- Publish public keys via JWKS (OIDC discovery).
+
+### Public and mobile clients
+- Use OAuth2 Authorization Code with PKCE.
+
+### Cookies vs storage
+- Prefer Secure, HttpOnly cookies with SameSite=Strict (or Lax if required).
+- If using tokens in SPAs, send via Authorization header and avoid localStorage.
+
+### Algorithms & crypto
+- Passwords: Argon2id; fallback bcrypt cost >= 12.
+- JWTs: RS256 or ES256.
+- Minimum key sizes: RSA >= 2048 bits (3072+ recommended for long-term).
+
+### CSRF and CORS
+- If using cookies, require CSRF protection (token or double-submit cookie).
+- Restrict allowed origins for auth endpoints; document CORS policy.
+
+### Session store
+- Use Redis for sessions/blacklists (clustered if needed).
+- Define TTLs and eviction policy (e.g., volatile-ttl).
+
 ## Staged Implementation Plan
 
 ### Phase 1: Database-Based Authentication (Weeks 1-2)
