@@ -589,7 +589,7 @@ OAUTH2_PROXY_CLIENT_SECRET=<generated-32-char-secret>  # From Keycloak client cr
 OAUTH2_PROXY_COOKIE_SECRET=<32-byte-random-base64-string>  # Generate with: openssl rand -base64 32
 OAUTH2_PROXY_OIDC_ISSUER_URL=https://auth.company.com/realms/flow-production
 OAUTH2_PROXY_REDIRECT_URL=https://app.company.com/oauth2/callback
-OAUTH2_PROXY_EMAIL_DOMAINS=company.com  # Restrict to organization
+OAUTH2_PROXY_EMAIL_DOMAINS=company.com  # Restrict to organization (single domain, or comma-separated list; use "*" to allow any)
 
 # NGINX
 CLIENT_MAX_BODY_SIZE=128m
