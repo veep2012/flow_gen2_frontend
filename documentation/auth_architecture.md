@@ -585,7 +585,7 @@ KEYCLOAK_ADMIN_PASSWORD=<generated-32-char-password>  # Keycloak admin password;
 KEYCLOAK_HOSTNAME=auth.company.com
 KEYCLOAK_PORT=8081
 KC_DB=postgres  # Use external DB for production
-KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak
+KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak?sslmode=require  # For production, enable TLS on PostgreSQL and require SSL in the JDBC URL
 
 # oauth2-proxy
 OAUTH2_PROXY_CLIENT_ID=flow-oauth2-proxy
