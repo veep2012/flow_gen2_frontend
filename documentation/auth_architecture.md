@@ -371,7 +371,8 @@ Flow Gen2 already has a robust authorization schema:
 **Configuration:**
 1. **Keycloak LDAP User Federation**
    ```properties
-   Connection URL: ldap://ad.company.com:389
+   Connection URL: ldaps://ad.company.com:636
+   # Use LDAPS or LDAP with StartTLS in production. Disable plaintext ldap:// on all production systems.
    Bind DN: CN=ServiceAccount,OU=ServiceAccounts,DC=company,DC=com
    User DN: OU=Users,DC=company,DC=com
    Username LDAP attribute: sAMAccountName
