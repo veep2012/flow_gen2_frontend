@@ -146,6 +146,8 @@ sequenceDiagram
 Brute-force protection and rate limiting:
 - Rate limit auth endpoints (login, refresh, password reset) at the edge and provider.
 - Apply progressive delays after repeated failures; consider CAPTCHA after N failed attempts.
+  - NGINX: limit `/oauth2/` with `limit_req` (5 r/s, burst 10).
+  - Keycloak: enable Brute Force Detection in Realm Settings → Security Defenses.
 
 Account lockout:
 - Define lockout thresholds and durations.
