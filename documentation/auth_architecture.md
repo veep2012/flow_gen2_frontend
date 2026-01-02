@@ -245,6 +245,9 @@ flowchart TB
 ALTER TABLE flow.users ADD COLUMN external_id VARCHAR(255);
 ALTER TABLE flow.users ADD COLUMN identity_provider VARCHAR(50);
 ALTER TABLE flow.users ADD COLUMN last_login_at TIMESTAMP;
+ALTER TABLE flow.users
+    ADD CONSTRAINT users_identity_provider_external_id_uniq
+    UNIQUE (identity_provider, external_id);
 
 CREATE TABLE flow.identity_provider_mappings (
     mapping_id SERIAL,
