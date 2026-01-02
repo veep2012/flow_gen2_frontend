@@ -453,8 +453,8 @@ Flow Gen2 already has a robust authorization schema:
    - Lock account after 5 failed login attempts
 
 4. **Token Security**
-   - Access tokens valid for 5 minutes
-   - Refresh tokens valid for 8 hours
+   - Access tokens default validity: 5 minutes (recommended starting point; tune based on UX, performance, and security requirements — typical ranges are 15–60 minutes)
+   - Refresh tokens default validity: 8 hours (starting point; adjust based on risk profile, session duration expectations, and compliance needs)
    - ID tokens include user claims (email, roles)
    - Token signing with RS256 algorithm
 
