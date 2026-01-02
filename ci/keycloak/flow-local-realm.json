@@ -4,6 +4,7 @@
   "displayName": "Flow Local",
   "sslRequired": "external",
   "registrationAllowed": false,
+  "passwordPolicy": "hashAlgorithm(argon2)",
   "clients": [
     {
       "clientId": "flow-ui",
