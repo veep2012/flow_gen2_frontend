@@ -63,7 +63,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "testpass123",
+          "value": "TestUser!2345",
           "temporary": false
         }
       ]
