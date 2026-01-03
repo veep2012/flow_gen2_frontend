@@ -69,10 +69,16 @@ With the API running (`make local-api-up`):
 
 ### Run Keycloak + oauth2-proxy (compose)
 These services are part of the compose stack (see `ci/docker-compose.yml`).
+Run compose from the repo root so relative paths resolve correctly.
 The compose file mounts `../.local/keycloak` (repo root `.local/keycloak`) for Keycloak logs.
 `make up` creates it automatically; if you run `podman-compose` directly, create it first:
 ```bash
 mkdir -p .local/keycloak
+```
+Use an env file for secrets (example template in `.env.example`):
+```bash
+cp .env.example .env
+podman-compose --env-file .env -f ci/docker-compose.yml up -d
 ```
 Defaults:
 - Keycloak: `http://localhost:8081` (realm `flow-local`)
