@@ -143,8 +143,7 @@ services:
       KC_HOSTNAME_PORT: ${KEYCLOAK_PORT:-8081}
       KC_HTTP_ENABLED: "true"
     command: >
-      -c "mkdir -p /opt/keycloak/data/log &&
-      chmod 777 /opt/keycloak/data/log &&
+      -c "mkdir -p /opt/keycloak/data/log;
       /opt/keycloak/bin/kc.sh start-dev --import-realm --http-port=8080
       --log=console,file --log-level=INFO
       --log-file=/opt/keycloak/data/log/keycloak.log"
@@ -152,7 +151,7 @@ services:
       - "${KEYCLOAK_PORT:-8081}:8080"
     volumes:
       - ./keycloak/flow-local-realm.json:/opt/keycloak/data/import/flow-local-realm.json:ro
-      - ../.local/keycloak:/opt/keycloak/data/log:rw
+      - ../.local/keycloak:/opt/keycloak/data/log:rw,U
     restart: unless-stopped
 
   oauth2_proxy:
@@ -163,7 +162,7 @@ services:
       OAUTH2_PROXY_OIDC_ISSUER_URL: ${OAUTH2_PROXY_ISSUER:-http://keycloak:8080/realms/flow-local}
       OAUTH2_PROXY_CLIENT_ID: ${OAUTH2_PROXY_CLIENT_ID:-flow-oauth2-proxy}
       OAUTH2_PROXY_CLIENT_SECRET: ${OAUTH2_PROXY_CLIENT_SECRET:-change_me_now}
-      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET:-INSECURE_DO_NOT_USE_IN_PRODUCTION}
+      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET:-insecure-cookie-secret-32bytes!!}
       OAUTH2_PROXY_EMAIL_DOMAINS: "*"
       OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
       OAUTH2_PROXY_REDIRECT_URL: ${OAUTH2_PROXY_REDIRECT_URL:-http://localhost/oauth2/callback}

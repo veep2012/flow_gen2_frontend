@@ -75,6 +75,10 @@ endif
 ensure-pid-dir:
 	@mkdir -p $(PID_DIR)
 
+.PHONY: ensure-keycloak-log-dir
+ensure-keycloak-log-dir:
+	@mkdir -p $(PID_DIR)/keycloak
+
 .PHONY: help
 help: | ensure-pid-dir ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
@@ -139,7 +143,7 @@ build: ## Build services with compose
 	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) build $(if $(NO_CACHE),--no-cache,)
 
 .PHONY: up
-up: ## Start services with compose
+up: ensure-keycloak-log-dir ## Start services with compose
 	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) up -d
 
 .PHONY: down
