@@ -15,11 +15,7 @@ from api.db.models import FileCommented
 from api.schemas.files import FileCommentedDelete, FileCommentedOut, FileCommentedUpdate
 from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
-from api.utils.minio import (
-    _build_minio_client,
-    _close_minio_response,
-    _minio_with_retry,
-)
+from api.utils.minio import _build_minio_client, _close_minio_response, _minio_with_retry
 
 router = APIRouter(prefix="/api/v1/files/commented", tags=["files-commented"])
 
