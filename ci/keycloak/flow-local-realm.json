@@ -1,0 +1,70 @@
+{
+  "realm": "flow-local",
+  "enabled": true,
+  "displayName": "Flow Local",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "passwordPolicy": "hashAlgorithm(argon2)",
+  "eventsEnabled": true,
+  "eventsListeners": ["jboss-logging"],
+  "eventsExpiration": 604800,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": false,
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 300,
+  "maxFailureWaitSeconds": 1800,
+  "minimumQuickLoginWaitSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "permanentLockout": false,
+  "clients": [
+    {
+      "clientId": "flow-ui",
+      "name": "Flow UI",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost/*"
+      ],
+      "webOrigins": [
+        "http://localhost"
+      ]
+    },
+    {
+      "clientId": "flow-oauth2-proxy",
+      "name": "Flow oauth2-proxy",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "change_me_now",
+      "redirectUris": [
+        "http://localhost/oauth2/callback"
+      ],
+      "webOrigins": [
+        "http://localhost"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "testuser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "email": "testuser@local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "TestUser!2345",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

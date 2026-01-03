@@ -44,6 +44,10 @@ flowchart TD
 - Set `DEBUG=1` locally if you want API error details to include DB messages; keep it off in shared/dev/prod environments.
 
 ## Local dev setup
+- Keycloak logs use `.local/keycloak`. `make up` creates it automatically. If you run compose directly, create it first:
+  ```bash
+  mkdir -p .local/keycloak
+  ```
 - Create a Python venv and install dev dependencies:
   ```bash
   make local-venv
@@ -103,7 +107,7 @@ flowchart TD
   git checkout frontend
   git rebase dev
   # push rebased branch to remote
-  git push --force-with-lease
+git push --force-with-lease
   ```
 - Commit your local changes (example message):  
   ```bash

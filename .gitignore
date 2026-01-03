@@ -11,6 +11,7 @@ ui_alt/node_modules/
 ui/.vite/
 ui_alt/.vite/
 .venv/
+.env
 ui/.local/
 ui_alt/.local/
 /.local/

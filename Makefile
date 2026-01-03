@@ -38,6 +38,7 @@ TEST_DB_USER ?= postgres
 TEST_DB_PASSWORD ?= postgres
 
 PID_DIR := .local
+KEYCLOAK_LOG_DIR := $(CURDIR)/.local/keycloak
 API_PID_FILE := $(PID_DIR)/uvicorn.pid
 UI_PID_FILE := $(PID_DIR)/vite.pid
 UI_ALT_PID_FILE := $(PID_DIR)/vite-alt.pid
@@ -74,6 +75,10 @@ endif
 .PHONY: ensure-pid-dir
 ensure-pid-dir:
 	@mkdir -p $(PID_DIR)
+
+.PHONY: ensure-keycloak-log-dir
+ensure-keycloak-log-dir:
+	@mkdir -p $(KEYCLOAK_LOG_DIR)
 
 .PHONY: help
 help: | ensure-pid-dir ## Show available targets
@@ -139,7 +144,7 @@ build: ## Build services with compose
 	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) build $(if $(NO_CACHE),--no-cache,)
 
 .PHONY: up
-up: ## Start services with compose
+up: ensure-keycloak-log-dir ## Start services with compose
 	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) up -d
 
 .PHONY: down
@@ -293,6 +298,7 @@ local-minio-up: ## Start local MinIO with host port mapping
 .PHONY: local-minio-down
 local-minio-down: ## Stop local MinIO started by local-minio-up
 	$(MAKE) minio-down
+
 
 .PHONY: local-venv
 local-venv: ## Create a local Python venv with dependencies
