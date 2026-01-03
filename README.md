@@ -71,7 +71,7 @@ With the API running (`make local-api-up`):
 These services are part of the compose stack (see `ci/docker-compose.yml`).
 Defaults:
 - Keycloak: `http://localhost:8081` (realm `flow-local`)
-- Test user: `testuser` / `testpass123`
+- Test user: `testuser` / `TestUser!2345`
 - oauth2-proxy callback: `http://localhost/oauth2/callback`
 
 ### Environment variables (API + MinIO)
