@@ -147,6 +147,11 @@ services:
       /opt/keycloak/bin/kc.sh start-dev --import-realm --http-port=8080
       --log=console,file --log-level=INFO
       --log-file=/opt/keycloak/data/log/keycloak.log"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/flow-local/.well-known/openid-configuration"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     ports:
       - "${KEYCLOAK_PORT:-8081}:8080"
     volumes:
@@ -176,6 +181,11 @@ services:
       OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"
     expose:
       - "4180"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4180/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     depends_on:
       - keycloak
     restart: unless-stopped
