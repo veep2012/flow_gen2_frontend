@@ -38,6 +38,7 @@ TEST_DB_USER ?= postgres
 TEST_DB_PASSWORD ?= postgres
 
 PID_DIR := .local
+KEYCLOAK_LOG_DIR := $(CURDIR)/.local/keycloak
 API_PID_FILE := $(PID_DIR)/uvicorn.pid
 UI_PID_FILE := $(PID_DIR)/vite.pid
 UI_ALT_PID_FILE := $(PID_DIR)/vite-alt.pid
@@ -77,7 +78,7 @@ ensure-pid-dir:
 
 .PHONY: ensure-keycloak-log-dir
 ensure-keycloak-log-dir:
-	@mkdir -p $(PID_DIR)/keycloak
+	@mkdir -p $(KEYCLOAK_LOG_DIR)
 
 .PHONY: help
 help: | ensure-pid-dir ## Show available targets

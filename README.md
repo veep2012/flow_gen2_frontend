@@ -69,6 +69,11 @@ With the API running (`make local-api-up`):
 
 ### Run Keycloak + oauth2-proxy (compose)
 These services are part of the compose stack (see `ci/docker-compose.yml`).
+The compose file mounts `../.local/keycloak` (repo root `.local/keycloak`) for Keycloak logs.
+`make up` creates it automatically; if you run `podman-compose` directly, create it first:
+```bash
+mkdir -p .local/keycloak
+```
 Defaults:
 - Keycloak: `http://localhost:8081` (realm `flow-local`)
 - Test user: `testuser` / `TestUser!2345`
