@@ -79,6 +79,32 @@ Defaults:
 - Test user: `testuser` / `TestUser!2345`
 - oauth2-proxy callback: `http://localhost/oauth2/callback`
 
+#### Configure Keycloak client for oauth2-proxy
+Create a confidential client in the `flow-local` realm:
+1) Keycloak Admin Console → Clients → Create client.
+2) Client ID: `flow-oauth2-proxy` (or set `OAUTH2_PROXY_CLIENT_ID` to match).
+3) Client type: Confidential; enable standard flow.
+4) Valid redirect URIs: `http://localhost/oauth2/callback` (match `OAUTH2_PROXY_REDIRECT_URL`).
+5) Copy the generated client secret.
+
+Provide the secret to oauth2-proxy via environment variables (Makefile uses `--env-file /dev/null` so export in shell or edit defaults in `ci/docker-compose.yml`):
+```bash
+export OAUTH2_PROXY_CLIENT_SECRET="your-client-secret"
+```
+
+Generate a cookie secret (32 bytes) for oauth2-proxy:
+```bash
+python - <<'PY'
+import secrets, string
+alphabet = string.ascii_letters + string.digits
+print("".join(secrets.choice(alphabet) for _ in range(32)))
+PY
+```
+Then set it before starting compose:
+```bash
+export OAUTH2_PROXY_COOKIE_SECRET="your-32-byte-secret"
+```
+
 ### Environment variables (API + MinIO)
 - `MINIO_ENDPOINT` supports `host:port` or `http(s)://host:port` (scheme controls TLS).
 - `MINIO_SECURE` (`1`/`true` enables TLS when no scheme is provided).
