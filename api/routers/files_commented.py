@@ -183,18 +183,13 @@ def update_commented_file(
         Updated commented file record.
 
     Raises:
-        HTTPException: 400 if s3_uid is empty.
         HTTPException: 404 if commented file not found.
     """
-    s3_uid = payload.s3_uid.strip()
-    if not s3_uid:
-        raise HTTPException(status_code=400, detail="S3 UID is required")
-
     file_row = db.get(FileCommented, payload.id)
     if not file_row:
         raise HTTPException(status_code=404, detail="Commented file not found")
 
-    file_row.s3_uid = s3_uid
+    file_row.s3_uid = payload.s3_uid
     try:
         db.commit()
     except IntegrityError as err:

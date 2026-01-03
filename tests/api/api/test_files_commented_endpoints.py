@@ -87,7 +87,8 @@ def test_files_commented_update_empty_s3_uid():
             "/files/commented/update",
             json={"id": 1, "s3_uid": "   "},
         )
-        assert result["status"] in [400, 404]  # 400 for validation or 404 if id doesn't exist
+        # Pydantic will reject whitespace-only strings, or 404 if id doesn't exist
+        assert result["status"] in [422, 404]
 
 
 @pytest.mark.api_smoke
