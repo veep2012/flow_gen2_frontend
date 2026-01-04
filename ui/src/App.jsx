@@ -82,12 +82,16 @@ function App() {
     fontSize: '14px',
   };
 
-  const infoRatio = 0.35;
+  const [infoRatio, setInfoRatio] = React.useState(0.35);
   const [columnWidths, setColumnWidths] = React.useState({});
   const [activeDetailTab, setActiveDetailTab] = React.useState("Revisions");
   const [infoActiveStep, setInfoActiveStep] = React.useState("IDC");
   const [infoActiveSubTab, setInfoActiveSubTab] = React.useState("Comments");
   const [isDraggingUpload, setIsDraggingUpload] = React.useState(false);
+  const [isDraggingBorder, setIsDraggingBorder] = React.useState(false);
+  const [uploadedFiles, setUploadedFiles] = React.useState({});
+  const [expandedRevisions, setExpandedRevisions] = React.useState({});
+  const containerRef = React.useRef(null);
   const uploadInputRef = React.useRef(null);
   const [selectedDocId, setSelectedDocId] = React.useState(null);
   const [editRowId, setEditRowId] = React.useState(null);
@@ -252,6 +256,36 @@ function App() {
     [columnWidths],
   );
 
+  const startBorderResize = React.useCallback(
+    (event) => {
+      event.preventDefault();
+      setIsDraggingBorder(true);
+      const container = containerRef.current;
+      if (!container) return;
+      
+      const containerWidth = container.getBoundingClientRect().width;
+      const startX = event.clientX;
+      const startRatio = infoRatio;
+
+      const handleMove = (moveEvent) => {
+        const delta = startX - moveEvent.clientX;
+        const deltaRatio = delta / containerWidth;
+        const nextRatio = Math.max(0.15, Math.min(0.85, startRatio + deltaRatio));
+        setInfoRatio(nextRatio);
+      };
+
+      const handleUp = () => {
+        setIsDraggingBorder(false);
+        window.removeEventListener("mousemove", handleMove);
+        window.removeEventListener("mouseup", handleUp);
+      };
+
+      window.addEventListener("mousemove", handleMove);
+      window.addEventListener("mouseup", handleUp);
+    },
+    [infoRatio],
+  );
+
   const startEdit = React.useCallback(
     (doc) => {
       if (!doc) return;
@@ -324,8 +358,20 @@ function App() {
   const handleUploadFiles = (files) => {
     const list = Array.from(files || []);
     if (!list.length) return;
-    console.log("Selected files:", list);
-    // TODO: integrate upload logic
+    
+    const step = infoActiveStep;
+    const fileNames = list.map(f => f.name);
+    
+    setUploadedFiles(prev => ({
+      ...prev,
+      [step]: [...(prev[step] || []), ...fileNames]
+    }));
+    
+    // Auto-expand the revision tree
+    setExpandedRevisions(prev => ({
+      ...prev,
+      [step]: { ...prev[step], isOpen: true }
+    }));
   };
 
   const handleUploadDrop = (e) => {
@@ -708,6 +754,12 @@ function App() {
           border-color: #3b82f6;
           color: #1e3a8a;
         }
+        body {
+          user-select: none;
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+        }
         @media (max-width: 960px) {
           .table {
             display: block;
@@ -729,7 +781,8 @@ function App() {
         ) : null}
       </div>
       <div
-        style={{ display: 'flex', gap: '4px', flex: 1, minHeight: 0, alignItems: 'stretch' }}
+        ref={containerRef}
+        style={{ display: 'flex', gap: '0px', flex: 1, minHeight: 0, alignItems: 'stretch' }}
       >
         <div style={{ flex: `${1 - infoRatio} 1 0`, display: 'flex', flexDirection: 'column', gap: '4px', minHeight: 0, minWidth: 0 }}>
           <div className="card" style={{ flex: '4 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -891,7 +944,17 @@ function App() {
             </div>
           </div>
         </div>
-        {/* Fixed layout; movable divider removed */}
+        <div
+          onMouseDown={startBorderResize}
+          style={{
+            width: '8px',
+            background: isDraggingBorder ? '#3b82f6' : '#e2e8f0',
+            cursor: 'col-resize',
+            transition: isDraggingBorder ? 'none' : 'background 0.2s',
+            userSelect: 'none',
+          }}
+          title="Drag to resize panels"
+        />
         <div style={{ flex: `${infoRatio} 1 0`, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div className="flow-card" style={{ flex: 1 }}>
             <div className="flow-header">DOCUMENT FLOW</div>
@@ -925,7 +988,7 @@ function App() {
                             {infoActiveSubTab === "Comments" ? (
                               <>
                                 <div style={{ fontSize: '12px', color: '#52606d' }}>
-                                  You are not the document owner or in the Distribution list for this document. You cannot create copies for comments.
+                                  Not document owner or in Distribution list.
                                 </div>
                                 <div className="flow-box">
                                   <h4>Original Files</h4>
@@ -974,14 +1037,93 @@ function App() {
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '8px' }}>
-                          <div style={{ flex: 1 }} />
-                          <div
-                            className={`flow-upload ${isDraggingUpload ? "dragging" : ""}`}
-                            {...uploadDragProps}
-                            onClick={() => uploadInputRef.current?.click()}
-                          >
-                            Drag & drop PDF files here<br />or click to browse • Multiple files supported
-                          </div>
+                          {uploadedFiles[step] && uploadedFiles[step].length > 0 ? (
+                            <div style={{ flex: 1, overflow: 'auto', padding: '8px 0' }}>
+                              {['Rev A', 'Rev B', 'Rev C'].map((revision, revIdx) => {
+                                const revFiles = uploadedFiles[step]?.filter(
+                                  (f, idx) => idx >= revIdx * 5 && idx < (revIdx + 1) * 5
+                                ) || [];
+                                
+                                if (!revFiles.length && revIdx > 0) return null;
+                                
+                                const revKey = `${step}-${revision}`;
+                                const isExpanded = expandedRevisions[revKey]?.isOpen !== false;
+                                
+                                return (
+                                  <div key={revision} style={{ marginBottom: '4px' }}>
+                                    <div
+                                      onClick={() => {
+                                        setExpandedRevisions(prev => ({
+                                          ...prev,
+                                          [revKey]: { ...prev[revKey], isOpen: !isExpanded }
+                                        }));
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '6px 8px',
+                                        cursor: 'pointer',
+                                        color: '#1f2933',
+                                        fontSize: '13px',
+                                        fontWeight: 600,
+                                        userSelect: 'none'
+                                      }}
+                                    >
+                                      <span style={{ fontSize: '12px', width: '16px' }}>
+                                        {isExpanded ? '▼' : '▶'}
+                                      </span>
+                                      <span>{revision}</span>
+                                    </div>
+                                    {isExpanded && revFiles.map((file, idx) => (
+                                      <div
+                                        key={`${revision}-${idx}`}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '6px',
+                                          padding: '4px 8px 4px 32px',
+                                          color: '#4d6b8a',
+                                          fontSize: '12px'
+                                        }}
+                                      >
+                                        <span>📄</span>
+                                        <span>{file}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })}
+                              <div style={{ flex: 1 }} />
+                              <button
+                                onClick={() => uploadInputRef.current?.click()}
+                                style={{
+                                  padding: '6px 12px',
+                                  background: '#4d6b8a',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  marginTop: '8px',
+                                  alignSelf: 'flex-start'
+                                }}
+                              >
+                                + Add files
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <div style={{ flex: 1 }} />
+                              <div
+                                className={`flow-upload ${isDraggingUpload ? "dragging" : ""}`}
+                                {...uploadDragProps}
+                                onClick={() => uploadInputRef.current?.click()}
+                              >
+                                Drag & drop PDF files here<br />or click to browse • Multiple files supported
+                              </div>
+                            </>
+                          )}
                           <input
                             ref={uploadInputRef}
                             type="file"
