@@ -1,12 +1,5 @@
 import React from "react";
 
-const ProgressBar = ({ value }) => (
-  <div className="progress" aria-label={`Revision percent ${value}%`}>
-    <div className="progress__fill" style={{ width: `${value}%` }} />
-    <div className="progress__label">{`${Math.round(value)}%`}</div>
-  </div>
-);
-
 const DocumentTable = ({
   visibleColumns,
   columnWidths,
