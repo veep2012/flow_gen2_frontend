@@ -706,6 +706,13 @@ def download_commented_file(
     if not file_row:
         raise HTTPException(status_code=404, detail="Commented file not found")
 
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(
+        "event=commented_download_start commented_id=%s s3_uid=%s client=%s",
+        file_row.id,
+        file_row.s3_uid,
+        client_host,
+    )
     client, bucket = _build_minio_client()
     endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
     response = _minio_with_retry(
@@ -756,9 +763,8 @@ def download_commented_file(
     if stat.last_modified:
         headers["Last-Modified"] = formatdate(stat.last_modified.timestamp(), usegmt=True)
 
-    client_host = request.client.host if request.client else "unknown"
     logger.info(
-        "Commented file download id=%s s3_uid=%s client=%s",
+        "event=commented_download_ready commented_id=%s s3_uid=%s client=%s",
         file_row.id,
         file_row.s3_uid,
         client_host,

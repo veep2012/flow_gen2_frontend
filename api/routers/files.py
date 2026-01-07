@@ -498,6 +498,7 @@ def update_file(
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
 
+    logger.info("event=file_update_attempt file_id=%s", file_row.id)
     file_row.filename = filename
     try:
         db.commit()
@@ -506,6 +507,7 @@ def update_file(
         _handle_integrity_error("Failed to update file", err, "update_file")
 
     db.refresh(file_row)
+    logger.info("event=file_update_success file_id=%s", file_row.id)
     return _model_out(FileOut, file_row)
 
 
@@ -719,6 +721,13 @@ def download_file(
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
 
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(
+        "event=file_download_start file_id=%s s3_uid=%s client=%s",
+        file_row.id,
+        file_row.s3_uid,
+        client_host,
+    )
     client, bucket = _build_minio_client()
     endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
     response = _minio_with_retry(
@@ -754,9 +763,8 @@ def download_file(
         headers["ETag"] = f'"{etag}"'
     if stat.last_modified:
         headers["Last-Modified"] = formatdate(stat.last_modified.timestamp(), usegmt=True)
-    client_host = request.client.host if request.client else "unknown"
     logger.info(
-        "File download file_id=%s s3_uid=%s client=%s",
+        "event=file_download_ready file_id=%s s3_uid=%s client=%s",
         file_row.id,
         file_row.s3_uid,
         client_host,
