@@ -197,7 +197,7 @@ const DocumentFlow = ({
           <React.Fragment key={step}>
             <div
               className={`flow-step ${infoActiveStep === step ? "active" : ""}`}
-              onClick={() => onStepClick(step)}
+              onClick={() => onStepClick(infoActiveStep === step ? null : step)}
             >
               <span className="dot">⦿</span>
               <span>{step}</span>

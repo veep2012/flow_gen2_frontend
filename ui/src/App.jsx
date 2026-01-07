@@ -963,7 +963,14 @@ function App() {
                 <React.Fragment key={step}>
                   <div
                     className={`flow-step ${infoActiveStep === step ? "active" : ""}`}
-                    onClick={() => { setInfoActiveStep(step); setInfoActiveSubTab("Comments"); }}
+                    onClick={() => {
+                      if (infoActiveStep === step) {
+                        setInfoActiveStep(null);
+                        return;
+                      }
+                      setInfoActiveStep(step);
+                      setInfoActiveSubTab("Comments");
+                    }}
                   >
                     <span className="dot">⦿</span>
                     <span>{step}</span>
