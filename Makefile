@@ -87,7 +87,7 @@ ensure-keycloak-log-dir:
 .PHONY: help
 help: | ensure-pid-dir ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
-	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down minio-up minio-down up down build rebuild completely-rebuild logs help test audit mypy; do \
+	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down minio-up minio-down up down build rebuild completely-rebuild logs help test audit mypy lint; do \
 		grep -E "^$${target} " .local/.make-help.tmp || true; \
 	done
 	@rm -f .local/.make-help.tmp
@@ -132,6 +132,10 @@ test: | ensure-pid-dir ## Run unit tests
 		$(PYTHON_BIN) -m mypy api; \
 		status=$$?; \
 	fi; \
+	if [ $$status -eq 0 ]; then \
+		$(MAKE) lint; \
+		status=$$?; \
+	fi; \
 	PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
 	$(MAKE) test-db-down; \
 	$(MAKE) test-minio-down; \
@@ -154,6 +158,11 @@ ifneq (,$(wildcard .venv))
 else
 	$(PYTHON_BIN) -m mypy api
 endif
+
+.PHONY: lint
+lint: ## Run UI lint and format
+	cd ui && npm run lint
+	cd ui && npm run format
 
 .PHONY: build
 build: ## Build services with compose
