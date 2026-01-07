@@ -100,18 +100,15 @@ def _sync_minio_time(err: Exception) -> bool:
 def _minio_with_retry(action: str, endpoint: str, func: Callable[[], T]) -> T:
     retries = int(os.getenv("MINIO_RETRIES", "3"))
     delay = float(os.getenv("MINIO_RETRY_DELAY_SEC", "1"))
-    last_err: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
             return func()
         except Exception as err:
-            last_err = err
             if _sync_minio_time(err):
                 # Time skew detected and offset adjusted; retry immediately once.
                 try:
                     return func()
                 except Exception as retry_err:
-                    last_err = retry_err
                     err = retry_err
             if attempt < retries:
                 time.sleep(delay)
@@ -120,7 +117,7 @@ def _minio_with_retry(action: str, endpoint: str, func: Callable[[], T]) -> T:
             raise HTTPException(
                 status_code=502,
                 detail=f"MinIO {action} failed; check MINIO_ENDPOINT ({endpoint})",
-            ) from last_err
+            ) from err
 
 
 def _s3_safe_segment(value: str) -> str:
