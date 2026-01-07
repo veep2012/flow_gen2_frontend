@@ -663,11 +663,15 @@ function App() {
           gap: 10px;
           padding: 12px 14px 12px 30px;
           cursor: pointer;
-          border-bottom: 1px solid #e2e8f0;
           color: #1f2933;
           font-size: 13px;
           position: relative;
           background: #fff;
+          border: none;
+          border-bottom: 1px solid #e2e8f0;
+          width: 100%;
+          text-align: left;
+          font: inherit;
         }
         .flow-step::before {
           content: none;
@@ -714,8 +718,10 @@ function App() {
           font-size: 13px;
           cursor: pointer;
           color: #1f2933;
-          border-right: 1px solid #e2e8f0;
           background: #fff;
+          border: none;
+          border-right: 1px solid #e2e8f0;
+          font: inherit;
         }
         .flow-subtab.active {
           font-weight: 700;
@@ -748,6 +754,14 @@ function App() {
           font-size: 13px;
           background: #fff;
           transition: background 0.15s, border-color 0.15s, color 0.15s;
+          font: inherit;
+        }
+        .flow-step:focus-visible,
+        .flow-subtab:focus-visible,
+        .flow-upload:focus-visible,
+        .flow-mini-tab:focus-visible {
+          outline: 2px solid #2563eb;
+          outline-offset: 2px;
         }
         .flow-upload.dragging {
           background: #ecf4ff;
@@ -961,8 +975,10 @@ function App() {
             <div className="flow-body">
               {["Official", "Ready for Issue", "IDC", "InDesign", "History"].map((step, idx, arr) => (
                 <React.Fragment key={step}>
-                  <div
+                  <button
+                    type="button"
                     className={`flow-step ${infoActiveStep === step ? "active" : ""}`}
+                    aria-expanded={infoActiveStep === step}
                     onClick={() => {
                       if (infoActiveStep === step) {
                         setInfoActiveStep(null);
@@ -975,7 +991,7 @@ function App() {
                     <span className="dot">⦿</span>
                     <span>{step}</span>
                     {infoActiveStep === step && <span style={{ position: 'absolute', right: 10, color: '#4a5568' }}>⋮</span>}
-                  </div>
+                  </button>
                   {infoActiveStep === step && (
                     <div className="flow-inline-content">
                       {step === "IDC" ? (
@@ -1004,8 +1020,10 @@ function App() {
                                 <div className="flow-box">
                                   <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
                                     {["Files with Comments", "Written Comments"].map((tab) => (
-                                      <div
+                                      <button
+                                        type="button"
                                         key={tab}
+                                        className="flow-mini-tab"
                                         style={{
                                           flex: 1,
                                           padding: '8px 10px',
@@ -1013,12 +1031,15 @@ function App() {
                                           fontWeight: infoActiveSubTab === tab ? 700 : 500,
                                           color: infoActiveSubTab === tab ? '#0f766e' : '#1f2933',
                                           cursor: 'pointer',
-                                          textAlign: 'center'
+                                          textAlign: 'center',
+                                          background: 'transparent',
+                                          border: 'none'
                                         }}
+                                        aria-pressed={infoActiveSubTab === tab}
                                         onClick={() => setInfoActiveSubTab(tab)}
                                       >
                                         {tab}
-                                      </div>
+                                      </button>
                                     ))}
                                   </div>
                                   <div style={{ fontSize: '13px', color: '#98a2b3', padding: '12px 0' }}>
@@ -1122,13 +1143,15 @@ function App() {
                           ) : (
                             <>
                               <div style={{ flex: 1 }} />
-                              <div
+                              <button
+                                type="button"
                                 className={`flow-upload ${isDraggingUpload ? "dragging" : ""}`}
                                 {...uploadDragProps}
                                 onClick={() => uploadInputRef.current?.click()}
+                                aria-label="Upload PDF files"
                               >
                                 Drag & drop PDF files here<br />or click to browse • Multiple files supported
-                              </div>
+                              </button>
                             </>
                           )}
                           <input

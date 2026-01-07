@@ -275,11 +275,15 @@ export const globalStyles = `
     gap: 10px;
     padding: 12px 14px 12px 30px;
     cursor: pointer;
-    border-bottom: 1px solid #e2e8f0;
     color: #1f2933;
     font-size: 13px;
     position: relative;
     background: #fff;
+    border: none;
+    border-bottom: 1px solid #e2e8f0;
+    width: 100%;
+    text-align: left;
+    font: inherit;
   }
   .flow-step::before {
     content: none;
@@ -326,8 +330,10 @@ export const globalStyles = `
     font-size: 13px;
     cursor: pointer;
     color: #1f2933;
-    border-right: 1px solid #e2e8f0;
     background: #fff;
+    border: none;
+    border-right: 1px solid #e2e8f0;
+    font: inherit;
   }
   .flow-subtab.active {
     font-weight: 700;
@@ -360,11 +366,19 @@ export const globalStyles = `
     font-size: 13px;
     background: #fff;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
+    font: inherit;
   }
   .flow-upload.dragging {
     background: #ecf4ff;
     border-color: #3b82f6;
     color: #1e3a8a;
+  }
+  .flow-step:focus-visible,
+  .flow-subtab:focus-visible,
+  .flow-upload:focus-visible,
+  .flow-mini-tab:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
   }
   @media (max-width: 960px) {
     .table {

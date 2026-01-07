@@ -21,13 +21,15 @@ const DocumentFlow = ({
         <>
           <div className="flow-subtabs" style={{ display: 'flex' }}>
             {["Comments", "Distribution list"].map((tab) => (
-              <div
+              <button
+                type="button"
                 key={tab}
                 className={`flow-subtab ${infoActiveSubTab === tab ? "active" : ""}`}
+                aria-pressed={infoActiveSubTab === tab}
                 onClick={() => onSubTabChange(tab)}
               >
                 {tab}
-              </div>
+              </button>
             ))}
           </div>
           <div className="flow-section">
@@ -43,8 +45,10 @@ const DocumentFlow = ({
                 <div className="flow-box">
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
                     {["Files with Comments", "Written Comments"].map((tab) => (
-                      <div
+                      <button
+                        type="button"
                         key={tab}
+                        className="flow-mini-tab"
                         style={{
                           flex: 1,
                           padding: '8px 10px',
@@ -52,12 +56,15 @@ const DocumentFlow = ({
                           fontWeight: infoActiveSubTab === tab ? 700 : 500,
                           color: infoActiveSubTab === tab ? '#0f766e' : '#1f2933',
                           cursor: 'pointer',
-                          textAlign: 'center'
+                          textAlign: 'center',
+                          background: 'transparent',
+                          border: 'none'
                         }}
+                        aria-pressed={infoActiveSubTab === tab}
                         onClick={() => onSubTabChange(tab)}
                       >
                         {tab}
-                      </div>
+                      </button>
                     ))}
                   </div>
                   <div style={{ fontSize: '13px', color: '#98a2b3', padding: '12px 0' }}>
@@ -168,13 +175,15 @@ const DocumentFlow = ({
         ) : (
           <>
             <div style={{ flex: 1 }} />
-            <div
+            <button
+              type="button"
               className={`flow-upload ${isDraggingUpload ? "dragging" : ""}`}
               {...uploadDragProps(activeStep)}
               onClick={onUploadClick}
+              aria-label="Upload PDF files"
             >
               Drag & drop PDF files here<br />or click to browse • Multiple files supported
-            </div>
+            </button>
           </>
         )}
         <input
@@ -195,14 +204,16 @@ const DocumentFlow = ({
       <div className="flow-body">
         {["Official", "Ready for Issue", "IDC", "InDesign", "History"].map((step) => (
           <React.Fragment key={step}>
-            <div
+            <button
+              type="button"
               className={`flow-step ${infoActiveStep === step ? "active" : ""}`}
+              aria-expanded={infoActiveStep === step}
               onClick={() => onStepClick(infoActiveStep === step ? null : step)}
             >
               <span className="dot">⦿</span>
               <span>{step}</span>
               {infoActiveStep === step && <span style={{ position: 'absolute', right: 10, color: '#4a5568' }}>⋮</span>}
-            </div>
+            </button>
             {infoActiveStep === step && (
               <div className="flow-inline-content">
                 {renderStepContent()}
