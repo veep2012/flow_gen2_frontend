@@ -1124,7 +1124,7 @@ function App() {
                               <div style={{ flex: 1 }} />
                               <div
                                 className={`flow-upload ${isDraggingUpload ? "dragging" : ""}`}
-                                {...uploadDragProps(step)}
+                                {...uploadDragProps}
                                 onClick={() => uploadInputRef.current?.click()}
                               >
                                 Drag & drop PDF files here<br />or click to browse • Multiple files supported
