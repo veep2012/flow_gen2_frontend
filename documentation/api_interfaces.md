@@ -280,13 +280,6 @@ Shape (single item):
 - Form fields: `rev_id` (int), `file` (binary).
 - Response: file shape.
 
-### Update
-- `PUT /api/v1/files/update` — 200; updates filename only.
-- Body:
-```json
-{ "id": 12, "filename": "report_v2.pdf" }
-```
-
 ### Delete
 - `DELETE /api/v1/files/delete` — 204; deletes MinIO object and DB row.
 - Body:
@@ -300,6 +293,40 @@ Shape (single item):
 ```json
 { "rev_status_id": 2, "rev_status_name": "In progress" }
 ```
+
+# Files (commented)
+
+Shape (single item):
+```json
+{
+  "id": 3,
+  "file_id": 12,
+  "user_id": 1,
+  "s3_uid": "Project/Doc/IFC/uuid_report.pdf",
+  "filename": "report.pdf",
+  "mimetype": "application/pdf",
+  "rev_id": 45
+}
+```
+
+### List
+- `GET /api/v1/files/commented/list?file_id=12` — 200; optional `user_id` filter.
+
+### Insert (multipart)
+- `POST /api/v1/files/commented/insert` — 201; multipart form.
+- Form fields: `file_id` (int), `user_id` (int), `file` (binary).
+- Validates mimetype against the original file; rejects duplicates per `(file_id, user_id)`.
+
+### Delete
+- `DELETE /api/v1/files/commented/delete` — 204; deletes MinIO object and DB row.
+- Body:
+```json
+{ "id": 3 }
+```
+
+### Download
+- `GET /api/v1/files/commented/download?file_id=3` — streams the commented file.
+- `Content-Disposition` filename is `<original>_commented_by_<user_acronym>`.
 ### Delete
 - `DELETE /api/v1/lookups/doc_rev_statuses/delete` — 204; 404 if not found.
 - Body:

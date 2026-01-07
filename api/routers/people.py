@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Query, Session
 
 from api.db.models import Discipline, Permission, Person, Project, Role, User
 from api.schemas.lookups import RoleCreate, RoleDelete, RoleOut, RoleUpdate
@@ -54,7 +54,7 @@ def _build_permission_out(permission: Permission) -> PermissionOut:
     )
 
 
-def _permission_filter(query, payload) -> Session:
+def _permission_filter(query: Query[Permission], payload) -> Query[Permission]:
     if getattr(payload, "permission_id", None) is not None:
         return query.filter(Permission.permission_id == payload.permission_id)
 
@@ -206,7 +206,7 @@ def list_roles(db: Session = Depends(get_db)) -> list[RoleOut]:
     },
 )
 def insert_role(
-    payload: RoleCreate = Body(..., examples=_example_for(RoleCreate)),
+    payload: RoleCreate = Body(..., openapi_examples=_example_for(RoleCreate)),
     db: Session = Depends(get_db),
 ) -> RoleOut:
     """
@@ -293,7 +293,7 @@ def insert_role(
     },
 )
 def update_role(
-    payload: RoleUpdate = Body(..., examples=_example_for(RoleUpdate)),
+    payload: RoleUpdate = Body(..., openapi_examples=_example_for(RoleUpdate)),
     db: Session = Depends(get_db),
 ) -> RoleOut:
     """
@@ -387,7 +387,7 @@ def update_role(
     },
 )
 def delete_role(
-    payload: RoleDelete = Body(..., examples=_example_for(RoleDelete)),
+    payload: RoleDelete = Body(..., openapi_examples=_example_for(RoleDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
@@ -543,7 +543,7 @@ def list_persons(db: Session = Depends(get_db)) -> list[PersonOut]:
     },
 )
 def update_person(
-    payload: PersonUpdate = Body(..., examples=_example_for(PersonUpdate)),
+    payload: PersonUpdate = Body(..., openapi_examples=_example_for(PersonUpdate)),
     db: Session = Depends(get_db),
 ) -> PersonOut:
     """
@@ -643,7 +643,7 @@ def update_person(
     },
 )
 def insert_person(
-    payload: PersonCreate = Body(..., examples=_example_for(PersonCreate)),
+    payload: PersonCreate = Body(..., openapi_examples=_example_for(PersonCreate)),
     db: Session = Depends(get_db),
 ) -> PersonOut:
     """
@@ -730,7 +730,7 @@ def insert_person(
     },
 )
 def delete_person(
-    payload: PersonDelete = Body(..., examples=_example_for(PersonDelete)),
+    payload: PersonDelete = Body(..., openapi_examples=_example_for(PersonDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
@@ -895,7 +895,7 @@ def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
     },
 )
 def update_user(
-    payload: UserUpdate = Body(..., examples=_example_for(UserUpdate)),
+    payload: UserUpdate = Body(..., openapi_examples=_example_for(UserUpdate)),
     db: Session = Depends(get_db),
 ) -> UserOut:
     """
@@ -1003,7 +1003,7 @@ def update_user(
     },
 )
 def insert_user(
-    payload: UserCreate = Body(..., examples=_example_for(UserCreate)),
+    payload: UserCreate = Body(..., openapi_examples=_example_for(UserCreate)),
     db: Session = Depends(get_db),
 ) -> UserOut:
     """
@@ -1101,7 +1101,7 @@ def insert_user(
     },
 )
 def delete_user(
-    payload: UserDelete = Body(..., examples=_example_for(UserDelete)),
+    payload: UserDelete = Body(..., openapi_examples=_example_for(UserDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
@@ -1265,7 +1265,7 @@ def list_permissions(db: Session = Depends(get_db)) -> list[PermissionOut]:
     },
 )
 def insert_permission(
-    payload: PermissionCreate = Body(..., examples=_example_for(PermissionCreate)),
+    payload: PermissionCreate = Body(..., openapi_examples=_example_for(PermissionCreate)),
     db: Session = Depends(get_db),
 ) -> PermissionOut:
     """
@@ -1374,7 +1374,7 @@ def insert_permission(
     },
 )
 def update_permission(
-    payload: PermissionUpdate = Body(..., examples=_example_for(PermissionUpdate)),
+    payload: PermissionUpdate = Body(..., openapi_examples=_example_for(PermissionUpdate)),
     db: Session = Depends(get_db),
 ) -> PermissionOut:
     """
@@ -1501,7 +1501,7 @@ def update_permission(
     },
 )
 def delete_permission(
-    payload: PermissionDelete = Body(..., examples=_example_for(PermissionDelete)),
+    payload: PermissionDelete = Body(..., openapi_examples=_example_for(PermissionDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """

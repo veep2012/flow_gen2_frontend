@@ -438,6 +438,7 @@ class FileCommented(Base):
     )
     user_id: Mapped[int] = mapped_column(ForeignKey("flow.users.user_id"), nullable=False)
     s3_uid: Mapped[str] = mapped_column(Text, nullable=False)
+    mimetype: Mapped[str] = mapped_column(String(90), nullable=False)
 
     file: Mapped[File] = relationship(back_populates="comments")
     user: Mapped[User] = relationship(back_populates="commented_files")

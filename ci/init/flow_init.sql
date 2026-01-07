@@ -227,8 +227,11 @@ CREATE TABLE files_commented (
     file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
     user_id SMALLINT NOT NULL REFERENCES users(user_id),
     s3_uid TEXT NOT NULL,
+    mimetype VARCHAR(90) NOT NULL,
     UNIQUE(file_id, user_id)
 );
+
+CREATE INDEX idx_files_commented_file_id ON files_commented (file_id);
 
 -- ========================================================
 -- 5. Views
@@ -320,3 +323,25 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER tr_doc_revision_after_delete
 AFTER DELETE ON doc_revision
 FOR EACH ROW EXECUTE FUNCTION fn_doc_revision_after_delete();
+
+CREATE OR REPLACE FUNCTION fn_files_commented_check_mimetype() RETURNS TRIGGER AS $$
+DECLARE
+    original_mimetype VARCHAR(90);
+BEGIN
+    SELECT mimetype INTO original_mimetype FROM flow.files WHERE id = NEW.file_id;
+    IF original_mimetype IS NULL THEN
+        RAISE EXCEPTION 'File not found for commented file_id=%', NEW.file_id
+            USING ERRCODE = '23503';
+    END IF;
+    IF NEW.mimetype IS NULL OR lower(NEW.mimetype) <> lower(original_mimetype) THEN
+        RAISE EXCEPTION 'Commented file mimetype % does not match original %',
+            NEW.mimetype, original_mimetype
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_files_commented_check_mimetype
+BEFORE INSERT OR UPDATE ON files_commented
+FOR EACH ROW EXECUTE FUNCTION fn_files_commented_check_mimetype();

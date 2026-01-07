@@ -174,7 +174,7 @@ def list_areas(db: Session = Depends(get_db)) -> list[AreaOut]:
     },
 )
 def update_area(
-    payload: AreaUpdate = Body(..., examples=_example_for(AreaUpdate)),
+    payload: AreaUpdate = Body(..., openapi_examples=_example_for(AreaUpdate)),
     db: Session = Depends(get_db),
 ) -> AreaOut:
     """
@@ -274,7 +274,7 @@ def update_area(
     },
 )
 def insert_area(
-    payload: AreaCreate = Body(..., examples=_example_for(AreaCreate)),
+    payload: AreaCreate = Body(..., openapi_examples=_example_for(AreaCreate)),
     db: Session = Depends(get_db),
 ) -> AreaOut:
     """
@@ -361,7 +361,7 @@ def insert_area(
     },
 )
 def delete_area(
-    payload: AreaDelete = Body(..., examples=_example_for(AreaDelete)),
+    payload: AreaDelete = Body(..., openapi_examples=_example_for(AreaDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
@@ -517,7 +517,7 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[DisciplineOut]:
     },
 )
 def update_discipline(
-    payload: DisciplineUpdate = Body(..., examples=_example_for(DisciplineUpdate)),
+    payload: DisciplineUpdate = Body(..., openapi_examples=_example_for(DisciplineUpdate)),
     db: Session = Depends(get_db),
 ) -> DisciplineOut:
     """
@@ -621,7 +621,7 @@ def update_discipline(
     },
 )
 def insert_discipline(
-    payload: DisciplineCreate = Body(..., examples=_example_for(DisciplineCreate)),
+    payload: DisciplineCreate = Body(..., openapi_examples=_example_for(DisciplineCreate)),
     db: Session = Depends(get_db),
 ) -> DisciplineOut:
     """
@@ -715,7 +715,7 @@ def insert_discipline(
     },
 )
 def delete_discipline(
-    payload: DisciplineDelete = Body(..., examples=_example_for(DisciplineDelete)),
+    payload: DisciplineDelete = Body(..., openapi_examples=_example_for(DisciplineDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
@@ -871,7 +871,7 @@ def list_projects(db: Session = Depends(get_db)) -> list[ProjectOut]:
     },
 )
 def update_project(
-    payload: ProjectUpdate = Body(..., examples=_example_for(ProjectUpdate)),
+    payload: ProjectUpdate = Body(..., openapi_examples=_example_for(ProjectUpdate)),
     db: Session = Depends(get_db),
 ) -> ProjectOut:
     """
@@ -969,7 +969,7 @@ def update_project(
     },
 )
 def insert_project(
-    payload: ProjectCreate = Body(..., examples=_example_for(ProjectCreate)),
+    payload: ProjectCreate = Body(..., openapi_examples=_example_for(ProjectCreate)),
     db: Session = Depends(get_db),
 ) -> ProjectOut:
     """
@@ -1056,7 +1056,7 @@ def insert_project(
     },
 )
 def delete_project(
-    payload: ProjectDelete = Body(..., examples=_example_for(ProjectDelete)),
+    payload: ProjectDelete = Body(..., openapi_examples=_example_for(ProjectDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
@@ -1212,7 +1212,7 @@ def list_units(db: Session = Depends(get_db)) -> list[UnitOut]:
     },
 )
 def update_unit(
-    payload: UnitUpdate = Body(..., examples=_example_for(UnitUpdate)),
+    payload: UnitUpdate = Body(..., openapi_examples=_example_for(UnitUpdate)),
     db: Session = Depends(get_db),
 ) -> UnitOut:
     """
@@ -1310,7 +1310,7 @@ def update_unit(
     },
 )
 def insert_unit(
-    payload: UnitCreate = Body(..., examples=_example_for(UnitCreate)),
+    payload: UnitCreate = Body(..., openapi_examples=_example_for(UnitCreate)),
     db: Session = Depends(get_db),
 ) -> UnitOut:
     """
@@ -1397,7 +1397,7 @@ def insert_unit(
     },
 )
 def delete_unit(
-    payload: UnitDelete = Body(..., examples=_example_for(UnitDelete)),
+    payload: UnitDelete = Body(..., openapi_examples=_example_for(UnitDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
@@ -1553,7 +1553,7 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[JobpackOut]:
     },
 )
 def update_jobpack(
-    payload: JobpackUpdate = Body(..., examples=_example_for(JobpackUpdate)),
+    payload: JobpackUpdate = Body(..., openapi_examples=_example_for(JobpackUpdate)),
     db: Session = Depends(get_db),
 ) -> JobpackOut:
     """
@@ -1650,7 +1650,7 @@ def update_jobpack(
     },
 )
 def insert_jobpack(
-    payload: JobpackCreate = Body(..., examples=_example_for(JobpackCreate)),
+    payload: JobpackCreate = Body(..., openapi_examples=_example_for(JobpackCreate)),
     db: Session = Depends(get_db),
 ) -> JobpackOut:
     """
@@ -1737,7 +1737,7 @@ def insert_jobpack(
     },
 )
 def delete_jobpack(
-    payload: JobpackDelete = Body(..., examples=_example_for(JobpackDelete)),
+    payload: JobpackDelete = Body(..., openapi_examples=_example_for(JobpackDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
@@ -1894,7 +1894,7 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatusOut
     },
 )
 def insert_doc_rev_status(
-    payload: DocRevStatusCreate = Body(..., examples=_example_for(DocRevStatusCreate)),
+    payload: DocRevStatusCreate = Body(..., openapi_examples=_example_for(DocRevStatusCreate)),
     db: Session = Depends(get_db),
 ) -> DocRevStatusOut:
     """
@@ -1982,7 +1982,7 @@ def insert_doc_rev_status(
     },
 )
 def update_doc_rev_status(
-    payload: DocRevStatusUpdate = Body(..., examples=_example_for(DocRevStatusUpdate)),
+    payload: DocRevStatusUpdate = Body(..., openapi_examples=_example_for(DocRevStatusUpdate)),
     db: Session = Depends(get_db),
 ) -> DocRevStatusOut:
     """
@@ -2077,7 +2077,7 @@ def update_doc_rev_status(
     },
 )
 def delete_doc_rev_status(
-    payload: DocRevStatusDelete = Body(..., examples=_example_for(DocRevStatusDelete)),
+    payload: DocRevStatusDelete = Body(..., openapi_examples=_example_for(DocRevStatusDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
