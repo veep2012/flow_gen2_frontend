@@ -1,25 +1,109 @@
 """Files-commented endpoints for commented file operations."""
 
+import io
 import logging
 import os
+import time
+import uuid
 from email.utils import formatdate
 from urllib.parse import quote
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, UploadFile
+from fastapi import File as UploadFileField
 from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
-from api.db.models import FileCommented
+from api.db.models import File, FileAccepted, FileCommented, User
 from api.schemas.files import FileCommentedDelete, FileCommentedOut, FileCommentedUpdate
 from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
-from api.utils.minio import _build_minio_client, _close_minio_response, _minio_with_retry
+from api.utils.minio import (
+    _build_file_object_key,
+    _build_minio_client,
+    _close_minio_response,
+    _minio_with_retry,
+)
 
 router = APIRouter(prefix="/api/v1/files/commented", tags=["files-commented"])
 
 logger = logging.getLogger(__name__)
+
+_ACCEPTED_TYPES_CACHE: dict[str, str] = {}
+_ACCEPTED_TYPES_CACHE_AT = 0.0
+
+
+class _PrefixedStream:
+    def __init__(self, prefix: bytes, stream) -> None:
+        self._prefix = io.BytesIO(prefix)
+        self._stream = stream
+
+    def read(self, size: int = -1) -> bytes:
+        if size == 0:
+            return b""
+        prefix_data = self._prefix.read(size)
+        if size < 0:
+            return prefix_data + self._stream.read()
+        if len(prefix_data) < size:
+            return prefix_data + self._stream.read(size - len(prefix_data))
+        return prefix_data
+
+    def close(self) -> None:
+        self._stream.close()
+
+
+def _parse_accepted_file_mime_map() -> dict[str, str]:
+    raw = os.getenv("ACCEPTED_FILE_MIME_MAP", "")
+    mapping: dict[str, str] = {}
+    if not raw:
+        return mapping
+    for entry in raw.split(","):
+        if "=" not in entry:
+            continue
+        ext, mime = entry.split("=", 1)
+        ext = ext.strip().lstrip(".").lower()
+        mime = mime.strip()
+        if ext and mime:
+            mapping[ext] = mime
+    return mapping
+
+
+def _load_accepted_types(db: Session) -> dict[str, str]:
+    mapping = {row.file_type.lower(): row.mimetype for row in db.query(FileAccepted).all()}
+    mapping.update(_parse_accepted_file_mime_map())
+    return mapping
+
+
+def _get_cached_accepted_types(db: Session) -> dict[str, str]:
+    ttl_sec = int(os.getenv("ACCEPTED_FILE_TYPES_TTL_SEC", "300"))
+    now = time.time()
+    global _ACCEPTED_TYPES_CACHE_AT
+    if _ACCEPTED_TYPES_CACHE and ttl_sec > 0 and (now - _ACCEPTED_TYPES_CACHE_AT) < ttl_sec:
+        return _ACCEPTED_TYPES_CACHE
+    try:
+        _ACCEPTED_TYPES_CACHE.update(_load_accepted_types(db))
+        _ACCEPTED_TYPES_CACHE_AT = now
+    except Exception:
+        logger.exception("Failed to refresh accepted file types cache")
+    return _ACCEPTED_TYPES_CACHE
+
+
+def _extract_file_extension(filename: str) -> str:
+    if "." not in filename:
+        return ""
+    return filename.rsplit(".", 1)[-1].lower()
+
+
+def _validate_mimetype(file_extension: str, content_type: str, expected_mimetype: str) -> None:
+    if content_type.lower() != expected_mimetype.lower():
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                "File content type does not match accepted type for "
+                f"'.{file_extension}'. Expected '{expected_mimetype}'."
+            ),
+        )
 
 
 @router.get(
@@ -107,6 +191,249 @@ def list_commented_files_for_file(
         query = query.filter(FileCommented.user_id == user_id)
     files = query.order_by(FileCommented.id).all()
     return _model_list(FileCommentedOut, files)
+
+
+@router.post(
+    "/insert",
+    summary="Upload a commented file.",
+    description=(
+        "Uploads a commented file to MinIO object storage and creates a record linked to the "
+        "specified file and user."
+    ),
+    operation_id="insert_commented_file",
+    tags=["files-commented"],
+    response_model=FileCommentedOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        413: {
+            "description": "Payload Too Large",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "File exceeds upload size limit",
+                    },
+                },
+            },
+        },
+        415: {
+            "description": "Unsupported Media Type",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Unsupported Media Type",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_commented_file(
+    request: Request,
+    file_id: int = Form(..., description="File ID to attach the commented file to"),
+    user_id: int = Form(..., description="User ID uploading the commented file"),
+    file: UploadFile = UploadFileField(...),
+    db: Session = Depends(get_db),
+) -> FileCommentedOut:
+    """
+    Upload a commented file and attach it to an existing file.
+
+    Args:
+        request: Incoming request used for logging the client host.
+        file_id: The file ID to attach the commented file to.
+        user_id: The user ID uploading the commented file.
+        file: The uploaded file (multipart form data).
+
+    Returns:
+        Newly created commented file record with metadata.
+
+    Raises:
+        HTTPException: 400 if filename is missing, too long, or file is empty.
+        HTTPException: 404 if file or user not found.
+        HTTPException: 413 if file exceeds size limit.
+    """
+    file_row = db.get(File, file_id)
+    if not file_row:
+        raise HTTPException(status_code=404, detail="File not found")
+    user_row = db.get(User, user_id)
+    if not user_row:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+
+    filename = os.path.basename(file.filename)
+    if len(filename) > 90:
+        raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
+
+    file_extension = _extract_file_extension(filename)
+    if not file_extension:
+        raise HTTPException(
+            status_code=400,
+            detail="File must have an extension. Allowed types: Word, Excel, PDF, AutoCAD.",
+        )
+
+    content_type = file.content_type or "application/octet-stream"
+    accepted_types = _get_cached_accepted_types(db)
+    accepted_mimetype = accepted_types.get(file_extension)
+    if not accepted_mimetype:
+        accepted_file = (
+            db.query(FileAccepted).filter(FileAccepted.file_type == file_extension).first()
+        )
+        if not accepted_file:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, "
+                    "PDF, AutoCAD."
+                ),
+            )
+        accepted_mimetype = accepted_file.mimetype
+        accepted_types[file_extension] = accepted_mimetype
+    _validate_mimetype(file_extension, content_type, accepted_mimetype)
+
+    stream = file.file
+    size = None
+    if hasattr(stream, "seekable") and stream.seekable():
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(0)
+        if size <= 0:
+            raise HTTPException(status_code=400, detail="File is empty")
+        max_size_mb = int(os.getenv("MAX_UPLOAD_SIZE_MB", "128"))
+        max_size_bytes = max_size_mb * 1024 * 1024
+        if max_size_mb > 0 and size > max_size_bytes:
+            raise HTTPException(status_code=413, detail="File exceeds upload size limit")
+    else:
+        peek = stream.read(1)
+        if not peek:
+            raise HTTPException(status_code=400, detail="File is empty")
+        stream = _PrefixedStream(peek, stream)
+
+    revision = file_row.revision
+    doc = revision.doc if revision else None
+    project_name = doc.project.project_name if doc and doc.project else None
+    doc_name = doc.doc_name_unique if doc else f"doc_{revision.doc_id}" if revision else None
+    transmital_current_revision = (
+        revision.transmital_current_revision if revision else "rev_unknown"
+    )
+    object_key = _build_file_object_key(
+        project_name=project_name,
+        doc_name_unique=doc_name or "doc_unknown",
+        transmital_current_revision=transmital_current_revision,
+        unique_id=uuid.uuid4().hex,
+        filename=filename,
+    )
+
+    client, bucket = _build_minio_client()
+    endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
+    if not _minio_with_retry("bucket_exists", endpoint, lambda: client.bucket_exists(bucket)):
+        _minio_with_retry("make_bucket", endpoint, lambda: client.make_bucket(bucket))
+    try:
+        if size is None:
+            _minio_with_retry(
+                "put_object",
+                endpoint,
+                lambda: client.put_object(
+                    bucket,
+                    object_key,
+                    stream,
+                    length=-1,
+                    part_size=10 * 1024 * 1024,
+                    content_type=content_type,
+                ),
+            )
+        else:
+            _minio_with_retry(
+                "put_object",
+                endpoint,
+                lambda: client.put_object(
+                    bucket, object_key, stream, length=size, content_type=content_type
+                ),
+            )
+    except HTTPException:
+        logger.exception("MinIO upload failed for commented file key %s", object_key)
+        raise
+
+    new_file = FileCommented(
+        file_id=file_id,
+        user_id=user_id,
+        s3_uid=object_key,
+    )
+    db.add(new_file)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        try:
+            _minio_with_retry(
+                "remove_object",
+                endpoint,
+                lambda: client.remove_object(bucket, object_key),
+            )
+        except HTTPException:
+            logger.exception("Failed to cleanup MinIO object after DB error: %s", object_key)
+        _handle_integrity_error(
+            "Failed to create commented file record", err, "insert_commented_file"
+        )
+
+    db.refresh(new_file)
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(
+        "Commented file uploaded file_id=%s user_id=%s id=%s client=%s",
+        file_id,
+        user_id,
+        new_file.id,
+        client_host,
+    )
+    return _model_out(FileCommentedOut, new_file)
 
 
 @router.put(
