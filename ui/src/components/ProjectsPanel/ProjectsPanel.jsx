@@ -3,15 +3,15 @@ import React from "react";
 const ProjectsPanel = ({ project, setProject, projects, projectsError, cabinetTabs }) => {
   return (
     <div style={{ 
-      background: '#f0fbf4',
-      border: '1px solid #b6e3c8',
+      background: 'var(--color-success-soft)',
+      border: '1px solid var(--color-success-border)',
       borderRadius: '8px', 
       padding: '12px 14px', 
       marginBottom: '4px',
       boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <label style={{ fontSize: '13px', fontWeight: 600, color: '#22543d' }}>
+        <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-success-text)' }}>
           Project:
         </label>
         <select
@@ -19,12 +19,12 @@ const ProjectsPanel = ({ project, setProject, projects, projectsError, cabinetTa
           onChange={(e) => setProject(e.target.value)}
           aria-label="Select project"
           style={{
-            border: '1px solid #8fd19e',
+            border: '1px solid var(--color-success-border-strong)',
             borderRadius: '8px',
             padding: '7px 10px',
             fontSize: '13px',
-            color: '#1f2933',
-            background: '#ffffff',
+            color: 'var(--color-text)',
+            background: 'var(--color-surface)',
             minWidth: '220px',
             cursor: 'pointer'
           }}
@@ -36,12 +36,12 @@ const ProjectsPanel = ({ project, setProject, projects, projectsError, cabinetTa
             </option>
           ))}
         </select>
-        {projectsError ? <span style={{ fontSize: '12px', color: '#c53030' }}>{projectsError}</span> : null}
+        {projectsError ? <span style={{ fontSize: '12px', color: 'var(--color-danger)' }}>{projectsError}</span> : null}
         <div className="task-cabinet" style={{ marginLeft: 'auto', padding: 0 }}>
           <div className="task-cabinet__label">Task cabinet:</div>
           {cabinetTabs.map((tab) => (
             <div key={tab.label} className="task-tab">
-              <span style={{ color: '#22543d', fontWeight: 600 }}>{tab.label}</span>
+              <span style={{ color: 'var(--color-success-text)', fontWeight: 600 }}>{tab.label}</span>
               <span className="task-tab__badge" style={{ background: tab.tone }}>{tab.count}</span>
             </div>
           ))}

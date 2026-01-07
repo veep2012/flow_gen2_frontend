@@ -4,8 +4,8 @@ const DetailPanel = ({ activeDetailTab, onTabChange }) => {
   return (
     <div style={{ 
       flex: '1 1 0',
-      background: '#fff', 
-      border: '1px solid #e2e8f0', 
+      background: 'var(--color-surface)', 
+      border: '1px solid var(--color-border)', 
       borderRadius: '12px', 
       padding: 0, 
       boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
@@ -27,11 +27,11 @@ const DetailPanel = ({ activeDetailTab, onTabChange }) => {
       </div>
       <div className="detail-tab-panel" style={{ flex: 1 }}>
         {activeDetailTab === "Revisions" ? (
-          <div style={{ color: '#52606d', fontSize: '13px' }}>
+          <div style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
             No revisions yet. A revision will be created automatically when you save a new document.
           </div>
         ) : (
-          <div style={{ color: '#52606d', fontSize: '13px' }}>
+          <div style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
             {activeDetailTab} content will appear here.
           </div>
         )}

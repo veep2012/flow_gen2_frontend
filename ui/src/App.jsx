@@ -62,8 +62,8 @@ function App() {
   };
 
   const buttonStyle = {
-    background: '#4d6b8a',
-    color: 'white',
+    background: 'var(--color-accent)',
+    color: 'var(--color-accent-contrast)',
     border: 'none',
     borderRadius: '4px',
     padding: '6px 12px',
@@ -132,7 +132,7 @@ function App() {
             Save
           </button>
           <button
-            style={{ ...buttonStyle, background: '#e2e8f0', color: '#1f2933' }}
+            style={{ ...buttonStyle, background: 'var(--color-border)', color: 'var(--color-text)' }}
             title="Cancel editing"
             onClick={cancelEdit}
             disabled={saveStatus === "saving"}
@@ -175,15 +175,15 @@ function App() {
   const ProjectsPanel = () => {
     return (
       <div style={{ 
-        background: '#f0fbf4',
-        border: '1px solid #b6e3c8',
+        background: 'var(--color-success-soft)',
+        border: '1px solid var(--color-success-border)',
         borderRadius: '8px', 
         padding: '12px 14px', 
         marginBottom: '4px',
         boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <label style={{ fontSize: '13px', fontWeight: 600, color: '#22543d' }}>
+          <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-success-text)' }}>
             Project:
           </label>
           <select
@@ -191,12 +191,12 @@ function App() {
             onChange={(e) => setProject(e.target.value)}
             aria-label="Select project"
             style={{
-              border: '1px solid #8fd19e',
+              border: '1px solid var(--color-success-border-strong)',
               borderRadius: '8px',
               padding: '7px 10px',
               fontSize: '13px',
-              color: '#1f2933',
-              background: '#ffffff',
+              color: 'var(--color-text)',
+              background: 'var(--color-surface)',
               minWidth: '220px',
               cursor: 'pointer'
             }}
@@ -208,12 +208,12 @@ function App() {
               </option>
             ))}
           </select>
-          {projectsError ? <span style={{ fontSize: '12px', color: '#c53030' }}>{projectsError}</span> : null}
+          {projectsError ? <span style={{ fontSize: '12px', color: 'var(--color-danger)' }}>{projectsError}</span> : null}
           <div className="task-cabinet" style={{ marginLeft: 'auto', padding: 0 }}>
             <div className="task-cabinet__label">Task cabinet:</div>
             {cabinetTabs.map((tab) => (
               <div key={tab.label} className="task-tab">
-                <span style={{ color: '#22543d', fontWeight: 600 }}>{tab.label}</span>
+                <span style={{ color: 'var(--color-success-text)', fontWeight: 600 }}>{tab.label}</span>
                 <span className="task-tab__badge" style={{ background: tab.tone }}>{tab.count}</span>
               </div>
             ))}
@@ -225,9 +225,9 @@ function App() {
 
   const cabinetTabs = React.useMemo(
     () => [
-      { label: "My tasks", count: 3, tone: "#2563eb" },
-      { label: "In review", count: 7, tone: "#dd6b20" },
-      { label: "Completed", count: 12, tone: "#16a34a" },
+      { label: "My tasks", count: 3, tone: "var(--color-focus)" },
+      { label: "In review", count: 7, tone: "var(--color-warning)" },
+      { label: "Completed", count: 12, tone: "var(--color-success)" },
     ],
     [],
   );
@@ -396,14 +396,49 @@ function App() {
       <style>
         {`
         :root {
-          color: #1f2933;
-          background: #f5f7fb;
+          --color-bg: #f5f7fb;
+          --color-surface: #ffffff;
+          --color-surface-alt: #f8fafc;
+          --color-surface-muted: #f1f5f9;
+          --color-surface-muted-strong: #e5e7eb;
+          --color-surface-subtle: #f7fafc;
+          --color-border: #e2e8f0;
+          --color-border-soft: #d9e2ec;
+          --color-border-strong: #cbd5e0;
+          --color-text: #1f2933;
+          --color-text-muted: #52606d;
+          --color-text-subtle: #98a2b3;
+          --color-text-strong: #344155;
+          --color-text-secondary: #4a5568;
+          --color-primary: #0f766e;
+          --color-primary-contrast: #ffffff;
+          --color-primary-soft: #eef6f4;
+          --color-primary-outline: rgba(15, 118, 110, 0.15);
+          --color-accent: #4d6b8a;
+          --color-accent-contrast: #ffffff;
+          --color-info: #3b82f6;
+          --color-info-strong: #1e3a8a;
+          --color-info-soft: #ecf4ff;
+          --color-warning: #dd6b20;
+          --color-danger: #c53030;
+          --color-danger-soft: #fff5f5;
+          --color-success: #16a34a;
+          --color-success-soft: #f0fbf4;
+          --color-success-border: #b6e3c8;
+          --color-success-border-strong: #8fd19e;
+          --color-success-text: #22543d;
+          --color-row-selected: #f0f4ff;
+          --color-focus: #2563eb;
+          --color-spinner-start: #2f80ed;
+          --color-spinner-end: #4ea1ff;
+          color: var(--color-text);
+          background: var(--color-bg);
           font-family: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
         }
         * { box-sizing: border-box; }
         body {
           margin: 0;
-          background: #f5f7fb;
+          background: var(--color-bg);
         }
         .page {
           padding: 8px;
@@ -413,16 +448,16 @@ function App() {
           align-items: center;
           gap: 12px;
           margin-bottom: 12px;
-          color: #52606d;
+          color: var(--color-text-muted);
           font-size: 14px;
         }
         .toolbar select {
-          border: 1px solid #d9e2ec;
+          border: 1px solid var(--color-border-soft);
           border-radius: 8px;
           padding: 6px 8px;
           font-size: 13px;
-          color: #52606d;
-          background: #fff;
+          color: var(--color-text-muted);
+          background: var(--color-surface);
         }
         .toolbar button {
           display: inline-flex;
@@ -431,34 +466,34 @@ function App() {
         }
         .toolbar .status {
           font-size: 12px;
-          color: #c53030;
+          color: var(--color-danger);
         }
         .status-row {
           text-align: left;
           padding: 6px;
-          color: #52606d;
+          color: var(--color-text-muted);
           font-size: 14px;
-          background: #f8fafc;
+          background: var(--color-surface-alt);
         }
         .status-row.error {
-          color: #c53030;
-          background: #fff5f5;
+          color: var(--color-danger);
+          background: var(--color-surface)5f5;
         }
         .progress {
           width: 120px;
-          background: #e5e7eb;
+          background: var(--color-surface-muted-strong);
           border-radius: 999px;
           height: 20px;
           position: relative;
           overflow: hidden;
-          border: 1px solid #e2e8f0;
+          border: 1px solid var(--color-border);
         }
         .progress__fill {
           position: absolute;
           top: 0;
           left: 0;
           height: 100%;
-          background: linear-gradient(90deg, #2f80ed, #4ea1ff);
+          background: linear-gradient(90deg, var(--color-spinner-start), var(--color-spinner-end));
           border-radius: 999px;
           transition: width 180ms ease;
         }
@@ -470,14 +505,14 @@ function App() {
           justify-content: center;
           font-size: 12px;
           font-weight: 600;
-          color: #fff;
+          color: var(--color-surface);
           text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
         }
         .spinner {
           width: 22px;
           height: 22px;
-          border: 3px solid #e2e8f0;
-          border-top-color: #2f80ed;
+          border: 3px solid var(--color-border);
+          border-top-color: var(--color-spinner-start);
           border-radius: 50%;
           display: inline-block;
           animation: spin 0.8s linear infinite;
@@ -488,8 +523,8 @@ function App() {
           }
         }
         .card {
-          background: #fff;
-          border: 1px solid #e2e8f0;
+          background: var(--color-surface);
+          border: 1px solid var(--color-border);
           border-radius: 12px;
           box-shadow:
             0 10px 30px rgba(15, 23, 42, 0.05),
@@ -502,60 +537,60 @@ function App() {
           white-space: nowrap;
         }
         .table thead th {
-          background: #f8fafc;
+          background: var(--color-surface-alt);
           font-weight: 700;
           text-align: left;
           font-size: 14px;
-          color: #1f2933;
+          color: var(--color-text);
           padding: 6px 8px 2px;
-          border-bottom: 1px solid #e2e8f0;
+          border-bottom: 1px solid var(--color-border);
           white-space: nowrap;
-          border-right: 1px solid #e2e8f0;
+          border-right: 1px solid var(--color-border);
         }
         .table thead th:not(:first-child) {
-          border-left: 1px solid #e2e8f0;
+          border-left: 1px solid var(--color-border);
         }
         .table thead input {
           width: 100%;
           margin-top: 4px;
           padding: 6px 8px;
-          border: 1px solid #d9e2ec;
+          border: 1px solid var(--color-border-soft);
           border-radius: 8px;
           font-size: 13px;
-          color: #52606d;
-          background: #fff;
+          color: var(--color-text-muted);
+          background: var(--color-surface);
           caret-color: transparent; /* Hide blinking text cursor in header filters */
         }
         .table td {
           padding: 6px 8px;
-          border-bottom: 1px solid #e2e8f0;
+          border-bottom: 1px solid var(--color-border);
           position: relative;
         }
         .table td:not(:first-child) {
-          border-left: 1px solid #e2e8f0;
+          border-left: 1px solid var(--color-border);
         }
         .table tbody tr {
-          border-bottom: 1px solid #e2e8f0;
+          border-bottom: 1px solid var(--color-border);
         }
         .table tbody tr:hover td {
-          background: #f7fafc;
+          background: var(--color-surface-subtle);
         }
         .meta {
           display: flex;
           justify-content: space-between;
           align-items: center;
           padding: 14px 16px;
-          border-bottom: 1px solid #e2e8f0;
+          border-bottom: 1px solid var(--color-border);
         }
         .meta h1 {
           margin: 0;
           font-size: 18px;
           font-weight: 700;
-          color: #1f2933;
+          color: var(--color-text);
         }
         .meta .count {
           font-size: 13px;
-          color: #52606d;
+          color: var(--color-text-muted);
         }
         .table-wrapper {
           width: 100%;
@@ -571,20 +606,20 @@ function App() {
         .task-cabinet__label {
           font-size: 13px;
           font-weight: 600;
-          color: #22543d;
+          color: var(--color-success-text);
           min-width: 92px;
         }
         .task-tab {
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          background: #ffffff;
-          border: 1px solid #8fd19e;
+          background: var(--color-surface);
+          border: 1px solid var(--color-success-border-strong);
           border-radius: 8px;
           padding: 7px 10px;
           font-size: 13px;
           font-weight: 600;
-          color: #1f2933;
+          color: var(--color-text);
           box-shadow: none;
           cursor: default;
         }
@@ -598,36 +633,36 @@ function App() {
           border-radius: 6px;
           font-weight: 700;
           font-size: 12px;
-          color: #fff;
+          color: var(--color-surface);
         }
         .detail-tabs {
           display: flex;
           gap: 2px;
-          border-bottom: 1px solid #e2e8f0;
-          background: #f8fafc;
+          border-bottom: 1px solid var(--color-border);
+          background: var(--color-surface-alt);
           padding: 4px 6px 0;
         }
         .detail-tab {
           padding: 8px 12px;
-          border: 1px solid #e2e8f0;
+          border: 1px solid var(--color-border);
           border-bottom: none;
           border-radius: 10px 10px 0 0;
-          background: #f1f5f9;
+          background: var(--color-surface-muted);
           font-size: 13px;
           cursor: pointer;
-          color: #1f2933;
+          color: var(--color-text);
         }
         .detail-tab.active {
-          background: #fff;
+          background: var(--color-surface);
           font-weight: 600;
-          color: #1f2933;
+          color: var(--color-text);
         }
         .detail-tab-panel {
-          border: 1px solid #e2e8f0;
+          border: 1px solid var(--color-border);
           border-top: none;
           border-radius: 0 0 12px 12px;
           padding: 16px;
-          background: #fff;
+          background: var(--color-surface);
           min-height: 180px;
           display: flex;
           flex-direction: column;
@@ -635,8 +670,8 @@ function App() {
           height: 100%;
         }
         .flow-card {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
+          background: var(--color-surface-alt);
+          border: 1px solid var(--color-border);
           border-radius: 12px;
           box-shadow: 0 1px 2px rgba(0,0,0,0.04);
           display: flex;
@@ -648,8 +683,8 @@ function App() {
           padding: 12px 14px;
           font-size: 14px;
           font-weight: 700;
-          color: #344155;
-          border-bottom: 1px solid #e2e8f0;
+          color: var(--color-text-strong);
+          border-bottom: 1px solid var(--color-border);
         }
         .flow-body {
           display: flex;
@@ -663,12 +698,12 @@ function App() {
           gap: 10px;
           padding: 12px 14px 12px 30px;
           cursor: pointer;
-          color: #1f2933;
+          color: var(--color-text);
           font-size: 13px;
           position: relative;
-          background: #fff;
+          background: var(--color-surface);
           border: none;
-          border-bottom: 1px solid #e2e8f0;
+          border-bottom: 1px solid var(--color-border);
           width: 100%;
           text-align: left;
           font: inherit;
@@ -680,24 +715,24 @@ function App() {
           width: 16px;
           height: 16px;
           border-radius: 50%;
-          border: 2px solid #0f766e;
-          background: #fff;
+          border: 2px solid var(--color-primary);
+          background: var(--color-surface);
           display: inline-flex;
           align-items: center;
           justify-content: center;
           font-size: 10px;
-          color: #0f766e;
+          color: var(--color-primary);
           z-index: 1;
         }
         .flow-step.active .dot {
-          background: #0f766e;
-          color: #fff;
+          background: var(--color-primary);
+          color: var(--color-surface);
           box-shadow: 0 0 0 3px rgba(15,118,110,0.15);
         }
         .flow-inline-content {
-          border-left: 4px solid #0f766e;
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
+          border-left: 4px solid var(--color-primary);
+          background: var(--color-surface-alt);
+          border: 1px solid var(--color-border);
           border-radius: 10px;
           margin: 4px 8px 10px 8px;
           padding: 10px 12px;
@@ -707,7 +742,7 @@ function App() {
         }
         .flow-subtabs {
           margin: 0 0 8px 0;
-          border: 1px solid #e2e8f0;
+          border: 1px solid var(--color-border);
           border-radius: 8px;
           overflow: hidden;
         }
@@ -717,17 +752,17 @@ function App() {
           text-align: center;
           font-size: 13px;
           cursor: pointer;
-          color: #1f2933;
-          background: #fff;
+          color: var(--color-text);
+          background: var(--color-surface);
           border: none;
-          border-right: 1px solid #e2e8f0;
+          border-right: 1px solid var(--color-border);
           font: inherit;
         }
         .flow-subtab.active {
           font-weight: 700;
-          color: #0f766e;
-          box-shadow: inset 0 -3px 0 #0f766e;
-          background: #eef6f4;
+          color: var(--color-primary);
+          box-shadow: inset 0 -3px 0 var(--color-primary);
+          background: var(--color-primary-soft);
         }
         .flow-subtab:last-child { border-right: none; }
         .flow-section {
@@ -740,19 +775,19 @@ function App() {
           flex: 1;
         }
         .flow-box {
-          border: 1px solid #d9e2ec;
+          border: 1px solid var(--color-border-soft);
           border-radius: 10px;
-          background: #fff;
+          background: var(--color-surface);
           padding: 12px;
         }
         .flow-upload {
-          border: 1px dashed #cbd5e0;
+          border: 1px dashed var(--color-border-strong);
           border-radius: 12px;
           padding: 18px;
           text-align: center;
-          color: #4d6b8a;
+          color: var(--color-accent);
           font-size: 13px;
-          background: #fff;
+          background: var(--color-surface);
           transition: background 0.15s, border-color 0.15s, color 0.15s;
           font: inherit;
         }
@@ -760,13 +795,13 @@ function App() {
         .flow-subtab:focus-visible,
         .flow-upload:focus-visible,
         .flow-mini-tab:focus-visible {
-          outline: 2px solid #2563eb;
+          outline: 2px solid var(--color-focus);
           outline-offset: 2px;
         }
         .flow-upload.dragging {
-          background: #ecf4ff;
-          border-color: #3b82f6;
-          color: #1e3a8a;
+          background: var(--color-info-soft);
+          border-color: var(--color-info);
+          color: var(--color-info-strong);
         }
         body {
           user-select: none;
@@ -784,14 +819,14 @@ function App() {
       `}
       </style>
       <ProjectsPanel />
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 4px', marginBottom: '4px', minHeight: '40px' }}>
+      <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '8px 4px', marginBottom: '4px', minHeight: '40px' }}>
         <ToolbarMenu />
         {saveStatus === "saving" ? (
           <span className="status" style={{ marginLeft: 8 }}>Saving...</span>
         ) : saveStatus === "saved" ? (
-          <span className="status" style={{ marginLeft: 8, color: '#16a34a' }}>Saved</span>
+          <span className="status" style={{ marginLeft: 8, color: 'var(--color-success)' }}>Saved</span>
         ) : saveStatus === "error" ? (
-          <span className="status" style={{ marginLeft: 8, color: '#c53030' }}>{saveError}</span>
+          <span className="status" style={{ marginLeft: 8, color: 'var(--color-danger)' }}>{saveError}</span>
         ) : null}
       </div>
       <div
@@ -873,7 +908,7 @@ function App() {
                           key={rowId}
                           onClick={() => setSelectedDocId(rowId)}
                           onDoubleClick={() => startEdit(doc)}
-                          style={{ background: selectedDocId === rowId ? '#f0f4ff' : undefined }}
+                          style={{ background: selectedDocId === rowId ? 'var(--color-row-selected)' : undefined }}
                         >
                           {visibleColumns.map((col) => {
                             const isEditable = col.id === "doc_name" || col.id === "title";
@@ -889,7 +924,7 @@ function App() {
                                   }}
                                 >
                                   <input
-                                    style={{ width: '100%', padding: '6px 8px', borderRadius: '8px', border: '1px solid #cbd5e0' }}
+                                    style={{ width: '100%', padding: '6px 8px', borderRadius: '8px', border: '1px solid var(--color-border-strong)' }}
                                     value={col.id === "doc_name" ? editValues.doc_name_unique : editValues.title}
                                     onChange={(e) =>
                                       setEditValues((prev) => ({
@@ -924,8 +959,8 @@ function App() {
           </div>
           <div style={{ 
             flex: '1 1 0',
-            background: '#fff', 
-            border: '1px solid #e2e8f0', 
+            background: 'var(--color-surface)', 
+            border: '1px solid var(--color-border)', 
             borderRadius: '12px', 
             padding: 0, 
             boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
@@ -947,11 +982,11 @@ function App() {
             </div>
             <div className="detail-tab-panel" style={{ flex: 1 }}>
               {activeDetailTab === "Revisions" ? (
-                <div style={{ color: '#52606d', fontSize: '13px' }}>
+                <div style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
                   No revisions yet. A revision will be created automatically when you save a new document.
                 </div>
               ) : (
-                <div style={{ color: '#52606d', fontSize: '13px' }}>
+                <div style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
                   {activeDetailTab} content will appear here.
                 </div>
               )}
@@ -962,7 +997,7 @@ function App() {
           onMouseDown={startBorderResize}
           style={{
             width: '8px',
-            background: isDraggingBorder ? '#3b82f6' : '#e2e8f0',
+            background: isDraggingBorder ? 'var(--color-info)' : 'var(--color-border)',
             cursor: 'col-resize',
             transition: isDraggingBorder ? 'none' : 'background 0.2s',
             userSelect: 'none',
@@ -990,7 +1025,7 @@ function App() {
                   >
                     <span className="dot">⦿</span>
                     <span>{step}</span>
-                    {infoActiveStep === step && <span style={{ position: 'absolute', right: 10, color: '#4a5568' }}>⋮</span>}
+                    {infoActiveStep === step && <span style={{ position: 'absolute', right: 10, color: 'var(--color-text-secondary)' }}>⋮</span>}
                   </button>
                   {infoActiveStep === step && (
                     <div className="flow-inline-content">
@@ -1010,12 +1045,12 @@ function App() {
                           <div className="flow-section">
                             {infoActiveSubTab === "Comments" ? (
                               <>
-                                <div style={{ fontSize: '12px', color: '#52606d' }}>
+                                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
                                   Not document owner or in Distribution list.
                                 </div>
                                 <div className="flow-box">
                                   <h4>Original Files</h4>
-                                  <div style={{ fontSize: '13px', color: '#98a2b3' }}>No original files uploaded yet</div>
+                                  <div style={{ fontSize: '13px', color: 'var(--color-text-subtle)' }}>No original files uploaded yet</div>
                                 </div>
                                 <div className="flow-box">
                                   <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
@@ -1027,9 +1062,9 @@ function App() {
                                         style={{
                                           flex: 1,
                                           padding: '8px 10px',
-                                          borderBottom: infoActiveSubTab === tab ? '2px solid #0f766e' : '1px solid #e2e8f0',
+                                          borderBottom: infoActiveSubTab === tab ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
                                           fontWeight: infoActiveSubTab === tab ? 700 : 500,
-                                          color: infoActiveSubTab === tab ? '#0f766e' : '#1f2933',
+                                          color: infoActiveSubTab === tab ? 'var(--color-primary)' : 'var(--color-text)',
                                           cursor: 'pointer',
                                           textAlign: 'center',
                                           background: 'transparent',
@@ -1042,7 +1077,7 @@ function App() {
                                       </button>
                                     ))}
                                   </div>
-                                  <div style={{ fontSize: '13px', color: '#98a2b3', padding: '12px 0' }}>
+                                  <div style={{ fontSize: '13px', color: 'var(--color-text-subtle)', padding: '12px 0' }}>
                                     No files with comments yet
                                   </div>
                                 </div>
@@ -1050,17 +1085,17 @@ function App() {
                             ) : (
                               <div className="flow-box">
                                 <h4>Distribution List</h4>
-                                <div style={{ fontSize: '13px', color: '#98a2b3' }}>No distribution list assigned</div>
+                                <div style={{ fontSize: '13px', color: 'var(--color-text-subtle)' }}>No distribution list assigned</div>
                               </div>
                             )}
                           </div>
                         </>
                       ) : step === "History" ? (
-                        <div style={{ fontSize: '13px', color: '#52606d', padding: '8px 4px' }}>
+                        <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', padding: '8px 4px' }}>
                           No history available yet.
                         </div>
                       ) : step === "Official" || step === "Ready for Issue" ? (
-                        <div style={{ fontSize: '13px', color: '#52606d', padding: '8px 4px' }}>
+                        <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', padding: '8px 4px' }}>
                           No documents available yet.
                         </div>
                       ) : (
@@ -1092,7 +1127,7 @@ function App() {
                                         gap: '6px',
                                         padding: '6px 8px',
                                         cursor: 'pointer',
-                                        color: '#1f2933',
+                                        color: 'var(--color-text)',
                                         fontSize: '13px',
                                         fontWeight: 600,
                                         userSelect: 'none'
@@ -1111,7 +1146,7 @@ function App() {
                                           alignItems: 'center',
                                           gap: '6px',
                                           padding: '4px 8px 4px 32px',
-                                          color: '#4d6b8a',
+                                          color: 'var(--color-accent)',
                                           fontSize: '12px'
                                         }}
                                       >
@@ -1127,8 +1162,8 @@ function App() {
                                 onClick={() => uploadInputRef.current?.click()}
                                 style={{
                                   padding: '6px 12px',
-                                  background: '#4d6b8a',
-                                  color: '#fff',
+                                  background: 'var(--color-accent)',
+                                  color: 'var(--color-surface)',
                                   border: 'none',
                                   borderRadius: '6px',
                                   cursor: 'pointer',

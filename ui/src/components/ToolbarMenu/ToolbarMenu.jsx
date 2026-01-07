@@ -1,8 +1,8 @@
 import React from "react";
 
 const buttonStyle = {
-  background: '#4d6b8a',
-  color: 'white',
+  background: 'var(--color-accent)',
+  color: 'var(--color-accent-contrast)',
   border: 'none',
   borderRadius: '4px',
   padding: '6px 12px',
@@ -46,7 +46,7 @@ const ToolbarMenu = ({
           Save
         </button>
         <button
-          style={{ ...buttonStyle, background: '#e2e8f0', color: '#1f2933' }}
+          style={{ ...buttonStyle, background: 'var(--color-border)', color: 'var(--color-text)' }}
           title="Cancel editing"
           onClick={onCancel}
           disabled={isSaving}

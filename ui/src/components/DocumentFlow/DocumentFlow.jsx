@@ -35,12 +35,12 @@ const DocumentFlow = ({
           <div className="flow-section">
             {infoActiveSubTab === "Comments" ? (
               <>
-                <div style={{ fontSize: '12px', color: '#52606d' }}>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
                   Not document owner or in Distribution list.
                 </div>
                 <div className="flow-box">
                   <h4>Original Files</h4>
-                  <div style={{ fontSize: '13px', color: '#98a2b3' }}>No original files uploaded yet</div>
+                  <div style={{ fontSize: '13px', color: 'var(--color-text-subtle)' }}>No original files uploaded yet</div>
                 </div>
                 <div className="flow-box">
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
@@ -52,9 +52,9 @@ const DocumentFlow = ({
                         style={{
                           flex: 1,
                           padding: '8px 10px',
-                          borderBottom: infoActiveSubTab === tab ? '2px solid #0f766e' : '1px solid #e2e8f0',
+                          borderBottom: infoActiveSubTab === tab ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
                           fontWeight: infoActiveSubTab === tab ? 700 : 500,
-                          color: infoActiveSubTab === tab ? '#0f766e' : '#1f2933',
+                          color: infoActiveSubTab === tab ? 'var(--color-primary)' : 'var(--color-text)',
                           cursor: 'pointer',
                           textAlign: 'center',
                           background: 'transparent',
@@ -67,7 +67,7 @@ const DocumentFlow = ({
                       </button>
                     ))}
                   </div>
-                  <div style={{ fontSize: '13px', color: '#98a2b3', padding: '12px 0' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--color-text-subtle)', padding: '12px 0' }}>
                     No files with comments yet
                   </div>
                 </div>
@@ -75,7 +75,7 @@ const DocumentFlow = ({
             ) : (
               <div className="flow-box">
                 <h4>Distribution List</h4>
-                <div style={{ fontSize: '13px', color: '#98a2b3' }}>No distribution list assigned</div>
+                <div style={{ fontSize: '13px', color: 'var(--color-text-subtle)' }}>No distribution list assigned</div>
               </div>
             )}
           </div>
@@ -85,7 +85,7 @@ const DocumentFlow = ({
 
     if (activeStep === "History") {
       return (
-        <div style={{ fontSize: '13px', color: '#52606d', padding: '8px 4px' }}>
+        <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', padding: '8px 4px' }}>
           No history available yet.
         </div>
       );
@@ -93,7 +93,7 @@ const DocumentFlow = ({
 
     if (activeStep === "Official" || activeStep === "Ready for Issue") {
       return (
-        <div style={{ fontSize: '13px', color: '#52606d', padding: '8px 4px' }}>
+        <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', padding: '8px 4px' }}>
           No documents available yet.
         </div>
       );
@@ -124,7 +124,7 @@ const DocumentFlow = ({
                       gap: '6px',
                       padding: '6px 8px',
                       cursor: 'pointer',
-                      color: '#1f2933',
+                      color: 'var(--color-text)',
                       fontSize: '13px',
                       fontWeight: 600,
                       userSelect: 'none'
@@ -143,7 +143,7 @@ const DocumentFlow = ({
                         alignItems: 'center',
                         gap: '6px',
                         padding: '4px 8px 4px 32px',
-                        color: '#4d6b8a',
+                        color: 'var(--color-accent)',
                         fontSize: '12px'
                       }}
                     >
@@ -159,8 +159,8 @@ const DocumentFlow = ({
               onClick={onUploadClick}
               style={{
                 padding: '6px 12px',
-                background: '#4d6b8a',
-                color: '#fff',
+                background: 'var(--color-accent)',
+                color: 'var(--color-surface)',
                 border: 'none',
                 borderRadius: '6px',
                 cursor: 'pointer',
@@ -212,7 +212,7 @@ const DocumentFlow = ({
             >
               <span className="dot">⦿</span>
               <span>{step}</span>
-              {infoActiveStep === step && <span style={{ position: 'absolute', right: 10, color: '#4a5568' }}>⋮</span>}
+              {infoActiveStep === step && <span style={{ position: 'absolute', right: 10, color: 'var(--color-text-secondary)' }}>⋮</span>}
             </button>
             {infoActiveStep === step && (
               <div className="flow-inline-content">

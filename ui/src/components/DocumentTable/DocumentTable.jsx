@@ -93,7 +93,7 @@ const DocumentTable = ({
                     key={rowId}
                     onClick={() => onRowSelect(rowId)}
                     onDoubleClick={() => onRowDoubleClick(doc)}
-                    style={{ background: selectedDocId === rowId ? '#f0f4ff' : undefined }}
+                    style={{ background: selectedDocId === rowId ? 'var(--color-row-selected)' : undefined }}
                   >
                     {visibleColumns.map((col) => {
                       const isEditable = col.id === "doc_name" || col.id === "title";
@@ -109,7 +109,7 @@ const DocumentTable = ({
                             }}
                           >
                             <input
-                              style={{ width: '100%', padding: '6px 8px', borderRadius: '8px', border: '1px solid #cbd5e0' }}
+                              style={{ width: '100%', padding: '6px 8px', borderRadius: '8px', border: '1px solid var(--color-border-strong)' }}
                               value={col.id === "doc_name" ? editValues.doc_name_unique : editValues.title}
                               onChange={(e) =>
                                 onEditValuesChange(prev => ({
