@@ -35,6 +35,11 @@ class FileCommentedOut(BaseModel):
     s3_uid: str = Field(
         ..., description="S3 object key.", examples=["bucket/path/file.pdf"], min_length=1
     )
+    filename: str = Field(..., description="Filename.", examples=["Example"], min_length=1)
+    mimetype: str = Field(
+        ..., description="File MIME type.", examples=["application/pdf"], min_length=1
+    )
+    rev_id: int = Field(..., description="Rev ID.", examples=[1], gt=0)
 
 
 class FileCommentedUpdate(BaseModel):

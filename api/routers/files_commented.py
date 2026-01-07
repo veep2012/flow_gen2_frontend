@@ -186,10 +186,26 @@ def list_commented_files_for_file(
         List of commented files with metadata. If no commented files exist for the specified
         file, an empty list is returned.
     """
-    query = db.query(FileCommented).filter(FileCommented.file_id == file_id)
+    query = (
+        db.query(FileCommented, File.filename, File.mimetype, File.rev_id)
+        .join(File, FileCommented.file_id == File.id)
+        .filter(FileCommented.file_id == file_id)
+    )
     if user_id is not None:
         query = query.filter(FileCommented.user_id == user_id)
-    files = query.order_by(FileCommented.id).all()
+    rows = query.order_by(FileCommented.id).all()
+    files = [
+        {
+            "id": file_row.id,
+            "file_id": file_row.file_id,
+            "user_id": file_row.user_id,
+            "s3_uid": file_row.s3_uid,
+            "filename": filename,
+            "mimetype": mimetype,
+            "rev_id": rev_id,
+        }
+        for file_row, filename, mimetype, rev_id in rows
+    ]
     return _model_list(FileCommentedOut, files)
 
 
@@ -731,8 +747,20 @@ def download_commented_file(
         lambda: client.stat_object(bucket, file_row.s3_uid),
     )
 
-    # Extract filename from s3_uid path
-    filename = file_row.s3_uid.split("/")[-1] if "/" in file_row.s3_uid else file_row.s3_uid
+    source_filename = None
+    user_acronym = None
+    if file_row.file is not None:
+        source_filename = file_row.file.filename
+    if file_row.user is not None:
+        user_acronym = file_row.user.user_acronym
+
+    # Extract filename from s3_uid path as fallback
+    filename = source_filename or (
+        file_row.s3_uid.split("/")[-1] if "/" in file_row.s3_uid else file_row.s3_uid
+    )
+    if user_acronym:
+        base, ext = os.path.splitext(filename)
+        filename = f"{base}_commented_by_{user_acronym}{ext}"
     safe_name = (
         filename.replace('"', "'")
         .replace("\r", "")
