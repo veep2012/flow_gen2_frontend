@@ -563,14 +563,36 @@ def delete_commented_file(
 
     client, bucket = _build_minio_client()
     endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
-    _minio_with_retry(
-        "remove_object",
-        endpoint,
-        lambda: client.remove_object(bucket, file_row.s3_uid),
-    )
+    try:
+        _minio_with_retry(
+            "remove_object",
+            endpoint,
+            lambda: client.remove_object(bucket, file_row.s3_uid),
+        )
+        logger.info(
+            "MinIO delete succeeded commented_id=%s s3_uid=%s",
+            file_row.id,
+            file_row.s3_uid,
+        )
+    except HTTPException:
+        logger.exception(
+            "MinIO delete failed for commented_id=%s s3_uid=%s",
+            file_row.id,
+            file_row.s3_uid,
+        )
+        raise
 
-    db.delete(file_row)
-    db.commit()
+    try:
+        db.delete(file_row)
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception(
+            "DB delete failed after MinIO delete commented_id=%s s3_uid=%s",
+            file_row.id,
+            file_row.s3_uid,
+        )
+        raise HTTPException(status_code=500, detail="Internal Server Error")
     client_host = request.client.host if request.client else "unknown"
     logger.info(
         "Commented file deleted id=%s s3_uid=%s client=%s",
