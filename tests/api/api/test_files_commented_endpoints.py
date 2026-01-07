@@ -136,7 +136,7 @@ def test_files_commented_list_missing_file_id():
         # List without file_id (mandatory parameter)
         result = _request(client, "GET", "/files/commented/list")
         # Should fail validation
-    assert result["status"] == 422
+        assert result["status"] == 422
 
 
 @pytest.mark.api_smoke
