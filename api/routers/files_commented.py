@@ -190,8 +190,12 @@ def _handle_commented_file_integrity_error(err: IntegrityError) -> None:
     },
 )
 def list_commented_files_for_file(
-    file_id: int = Query(..., gt=0, description="File ID to filter commented files by"),
-    user_id: int | None = Query(None, gt=0, description="Optional User ID to filter by"),
+    file_id: int = Query(
+        ..., gt=0, description="File ID to filter commented files by", examples=[1]
+    ),
+    user_id: int | None = Query(
+        None, gt=0, description="Optional User ID to filter by", examples=[1]
+    ),
     db: Session = Depends(get_db),
 ) -> list[FileCommentedOut]:
     """
@@ -315,8 +319,8 @@ def list_commented_files_for_file(
 )
 def insert_commented_file(
     request: Request,
-    file_id: int = Form(..., description="File ID to attach the commented file to"),
-    user_id: int = Form(..., description="User ID uploading the commented file"),
+    file_id: int = Form(..., description="File ID to attach the commented file to", examples=[1]),
+    user_id: int = Form(..., description="User ID uploading the commented file", examples=[1]),
     file: UploadFile = UploadFileField(...),
     db: Session = Depends(get_db),
 ) -> FileCommentedOut:
@@ -680,7 +684,7 @@ def delete_commented_file(
 )
 def download_commented_file(
     request: Request,
-    file_id: int = Query(..., description="Commented file ID to download"),
+    file_id: int = Query(..., description="Commented file ID to download", examples=[1]),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     """
