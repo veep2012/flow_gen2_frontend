@@ -63,7 +63,11 @@ def _apply_minio_time_offset(offset_sec: float) -> None:
 
             minio_providers.utcnow = _utcnow  # type: ignore[assignment]
         except Exception:
-            pass
+            logger.debug(
+                "Unable to override MinIO credential providers time function; "
+                "continuing with core time offset only.",
+                exc_info=True,
+            )
     except Exception:
         logger.exception("Failed to apply MinIO time offset")
 
