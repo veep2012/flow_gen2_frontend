@@ -6,6 +6,7 @@ import os
 import time
 import uuid
 from email.utils import formatdate
+from typing import BinaryIO, cast
 from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, UploadFile
@@ -376,7 +377,7 @@ def insert_commented_file(
             ),
         )
 
-    stream = file.file
+    stream: BinaryIO = cast(BinaryIO, file.file)
     size = None
     if hasattr(stream, "seekable") and stream.seekable():
         stream.seek(0, os.SEEK_END)
@@ -392,7 +393,7 @@ def insert_commented_file(
         peek = stream.read(1)
         if not peek:
             raise HTTPException(status_code=400, detail="File is empty")
-        stream = _PrefixedStream(peek, stream)
+        stream = cast(BinaryIO, _PrefixedStream(peek, stream))
 
     revision = file_row.revision
     doc = revision.doc if revision else None
@@ -541,7 +542,7 @@ def insert_commented_file(
 )
 def delete_commented_file(
     request: Request,
-    payload: FileCommentedDelete = Body(..., examples=_example_for(FileCommentedDelete)),
+    payload: FileCommentedDelete = Body(..., openapi_examples=_example_for(FileCommentedDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """

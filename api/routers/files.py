@@ -6,6 +6,7 @@ import os
 import time
 import uuid
 from email.utils import formatdate
+from typing import BinaryIO, cast
 from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, UploadFile
@@ -308,7 +309,7 @@ def insert_file(
         accepted_mimetype = accepted_file.mimetype
         accepted_types[file_extension] = accepted_mimetype
     _validate_mimetype(file_extension, content_type, accepted_mimetype)
-    stream = file.file
+    stream: BinaryIO = cast(BinaryIO, file.file)
     size = None
     if hasattr(stream, "seekable") and stream.seekable():
         stream.seek(0, os.SEEK_END)
@@ -324,7 +325,7 @@ def insert_file(
         peek = stream.read(1)
         if not peek:
             raise HTTPException(status_code=400, detail="File is empty")
-        stream = _PrefixedStream(peek, stream)
+        stream = cast(BinaryIO, _PrefixedStream(peek, stream))
 
     doc = revision.doc
     project_name = doc.project.project_name if doc and doc.project else None
@@ -461,7 +462,7 @@ def insert_file(
     },
 )
 def update_file(
-    payload: FileUpdate = Body(..., examples=_example_for(FileUpdate)),
+    payload: FileUpdate = Body(..., openapi_examples=_example_for(FileUpdate)),
     db: Session = Depends(get_db),
 ) -> FileOut:
     """
@@ -560,7 +561,7 @@ def update_file(
 )
 def delete_file(
     request: Request,
-    payload: FileDelete = Body(..., examples=_example_for(FileDelete)),
+    payload: FileDelete = Body(..., openapi_examples=_example_for(FileDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """

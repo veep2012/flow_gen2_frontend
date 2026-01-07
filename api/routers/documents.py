@@ -1,5 +1,7 @@
 """Documents endpoints for managing documents, revisions, milestones, and overviews."""
 
+from typing import TypeVar
+
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased, joinedload
@@ -197,7 +199,7 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocTypeOut]:
     },
 )
 def insert_doc_type(
-    payload: DocTypeCreate = Body(..., examples=_example_for(DocTypeCreate)),
+    payload: DocTypeCreate = Body(..., openapi_examples=_example_for(DocTypeCreate)),
     db: Session = Depends(get_db),
 ) -> DocTypeOut:
     """
@@ -296,7 +298,7 @@ def insert_doc_type(
     },
 )
 def update_doc_type(
-    payload: DocTypeUpdate = Body(..., examples=_example_for(DocTypeUpdate)),
+    payload: DocTypeUpdate = Body(..., openapi_examples=_example_for(DocTypeUpdate)),
     db: Session = Depends(get_db),
 ) -> DocTypeOut:
     """
@@ -405,7 +407,7 @@ def update_doc_type(
     },
 )
 def delete_doc_type(
-    payload: DocTypeDelete = Body(..., examples=_example_for(DocTypeDelete)),
+    payload: DocTypeDelete = Body(..., openapi_examples=_example_for(DocTypeDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
@@ -629,7 +631,7 @@ def list_documents_for_project(
     },
 )
 def update_document(
-    payload: DocUpdate = Body(..., examples=_example_for(DocUpdate)),
+    payload: DocUpdate = Body(..., openapi_examples=_example_for(DocUpdate)),
     db: Session = Depends(get_db),
 ) -> DocOut:
     """
@@ -659,17 +661,18 @@ def update_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    def require_not_null(field_name: str, value: object) -> None:
+    T = TypeVar("T")
+
+    def require_not_null(field_name: str, value: T | None) -> T:
         if value is None:
             raise HTTPException(status_code=400, detail=f"{field_name} cannot be null")
+        return value
 
     if "doc_name_unique" in updates:
-        require_not_null("doc_name_unique", payload.doc_name_unique)
-        doc.doc_name_unique = payload.doc_name_unique
+        doc.doc_name_unique = require_not_null("doc_name_unique", payload.doc_name_unique)
 
     if "title" in updates:
-        require_not_null("title", payload.title)
-        doc.title = payload.title
+        doc.title = require_not_null("title", payload.title)
 
     project: Project | None = doc.project
     if "project_id" in updates:
@@ -697,8 +700,7 @@ def update_document(
 
     doc_type: DocType | None = doc.doc_type
     if "type_id" in updates:
-        type_id = payload.type_id
-        require_not_null("type_id", type_id)
+        type_id = require_not_null("type_id", payload.type_id)
         doc_type = db.get(DocType, type_id)
         if not doc_type:
             raise HTTPException(status_code=404, detail="Doc type not found")
@@ -707,8 +709,7 @@ def update_document(
 
     area: Area | None = doc.area
     if "area_id" in updates:
-        area_id = payload.area_id
-        require_not_null("area_id", area_id)
+        area_id = require_not_null("area_id", payload.area_id)
         area = db.get(Area, area_id)
         if not area:
             raise HTTPException(status_code=404, detail="Area not found")
@@ -717,8 +718,7 @@ def update_document(
 
     unit: Unit | None = doc.unit
     if "unit_id" in updates:
-        unit_id = payload.unit_id
-        require_not_null("unit_id", unit_id)
+        unit_id = require_not_null("unit_id", payload.unit_id)
         unit = db.get(Unit, unit_id)
         if not unit:
             raise HTTPException(status_code=404, detail="Unit not found")
@@ -953,7 +953,9 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
     },
 )
 def update_doc_rev_milestone(
-    payload: DocRevMilestoneUpdate = Body(..., examples=_example_for(DocRevMilestoneUpdate)),
+    payload: DocRevMilestoneUpdate = Body(
+        ..., openapi_examples=_example_for(DocRevMilestoneUpdate)
+    ),
     db: Session = Depends(get_db),
 ) -> DocRevMilestoneOut:
     """
@@ -1053,7 +1055,9 @@ def update_doc_rev_milestone(
     },
 )
 def insert_doc_rev_milestone(
-    payload: DocRevMilestoneCreate = Body(..., examples=_example_for(DocRevMilestoneCreate)),
+    payload: DocRevMilestoneCreate = Body(
+        ..., openapi_examples=_example_for(DocRevMilestoneCreate)
+    ),
     db: Session = Depends(get_db),
 ) -> DocRevMilestoneOut:
     """
@@ -1140,7 +1144,9 @@ def insert_doc_rev_milestone(
     },
 )
 def delete_doc_rev_milestone(
-    payload: DocRevMilestoneDelete = Body(..., examples=_example_for(DocRevMilestoneDelete)),
+    payload: DocRevMilestoneDelete = Body(
+        ..., openapi_examples=_example_for(DocRevMilestoneDelete)
+    ),
     db: Session = Depends(get_db),
 ) -> None:
     """
@@ -1299,7 +1305,9 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     },
 )
 def update_revision_overview(
-    payload: RevisionOverviewUpdate = Body(..., examples=_example_for(RevisionOverviewUpdate)),
+    payload: RevisionOverviewUpdate = Body(
+        ..., openapi_examples=_example_for(RevisionOverviewUpdate)
+    ),
     db: Session = Depends(get_db),
 ) -> RevisionOverviewOut:
     """
@@ -1415,7 +1423,9 @@ def update_revision_overview(
     },
 )
 def insert_revision_overview(
-    payload: RevisionOverviewCreate = Body(..., examples=_example_for(RevisionOverviewCreate)),
+    payload: RevisionOverviewCreate = Body(
+        ..., openapi_examples=_example_for(RevisionOverviewCreate)
+    ),
     db: Session = Depends(get_db),
 ) -> RevisionOverviewOut:
     """
@@ -1511,7 +1521,9 @@ def insert_revision_overview(
     },
 )
 def delete_revision_overview(
-    payload: RevisionOverviewDelete = Body(..., examples=_example_for(RevisionOverviewDelete)),
+    payload: RevisionOverviewDelete = Body(
+        ..., openapi_examples=_example_for(RevisionOverviewDelete)
+    ),
     db: Session = Depends(get_db),
 ) -> None:
     """

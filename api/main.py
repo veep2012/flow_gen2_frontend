@@ -68,4 +68,4 @@ def _custom_openapi() -> dict[str, Any]:
     return app.openapi_schema
 
 
-app.openapi = _custom_openapi
+app.openapi = _custom_openapi  # type: ignore[method-assign]

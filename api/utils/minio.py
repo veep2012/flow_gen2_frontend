@@ -7,7 +7,7 @@ import time
 import unicodedata
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
-from typing import Callable, TypeVar
+from typing import TYPE_CHECKING, Callable, TypeVar
 from urllib.parse import urlparse
 
 from fastapi import HTTPException
@@ -16,8 +16,11 @@ T = TypeVar("T")
 _MINIO_TIME_OFFSET_SEC = 0.0
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from minio import Minio
 
-def _build_minio_client() -> tuple[object, str]:
+
+def _build_minio_client() -> tuple["Minio", str]:
     try:
         from minio import Minio
     except ImportError as exc:
@@ -118,6 +121,10 @@ def _minio_with_retry(action: str, endpoint: str, func: Callable[[], T]) -> T:
                 status_code=502,
                 detail=f"MinIO {action} failed; check MINIO_ENDPOINT ({endpoint})",
             ) from err
+    raise HTTPException(
+        status_code=502,
+        detail=f"MinIO {action} failed; check MINIO_ENDPOINT ({endpoint})",
+    )
 
 
 def _s3_safe_segment(value: str) -> str:

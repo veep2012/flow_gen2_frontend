@@ -83,7 +83,7 @@ ensure-keycloak-log-dir:
 .PHONY: help
 help: | ensure-pid-dir ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
-	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down minio-up minio-down up down build rebuild completely-rebuild logs help test audit; do \
+	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down minio-up minio-down up down build rebuild completely-rebuild logs help test audit mypy; do \
 		grep -E "^$${target} " .local/.make-help.tmp || true; \
 	done
 	@rm -f .local/.make-help.tmp
@@ -124,6 +124,10 @@ test: | ensure-pid-dir ## Run unit tests
 		API_BASE=http://localhost:4175 API_PREFIX=/api/v1 pytest -m api_smoke; \
 		status=$$?; \
 	fi; \
+	if [ $$status -eq 0 ]; then \
+		$(PYTHON_BIN) -m mypy api; \
+		status=$$?; \
+	fi; \
 	PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
 	$(MAKE) test-db-down; \
 	$(MAKE) test-minio-down; \
@@ -138,6 +142,14 @@ audit-python: ## Run pip-audit against API requirements
 audit-node: ## Run npm audit against UI lockfiles
 	cd ui && npm audit --package-lock-only
 	cd ui_alt && npm audit --package-lock-only
+
+.PHONY: mypy
+mypy: ## Run static type checks with mypy
+ifneq (,$(wildcard .venv))
+	$(VENV_PY) -m mypy api
+else
+	$(PYTHON_BIN) -m mypy api
+endif
 
 .PHONY: build
 build: ## Build services with compose
@@ -301,13 +313,13 @@ local-minio-down: ## Stop local MinIO started by local-minio-up
 
 
 .PHONY: local-venv
-local-venv: ## Create a local Python venv with dependencies
+local-venv: ## Create a local Python venv with dev dependencies
 ifeq ($(OS),Windows_NT)
 	$(PYTHON_BIN) -m venv .venv
 	$(VENV_PY) -m pip install --upgrade pip
-	$(VENV_PY) -m pip install -r api/requirements.txt
+	$(VENV_PY) -m pip install -r requirements-dev.txt
 else
-	$(PYTHON_BIN) -m venv .venv && . $(ACTIVATE_VENV) && pip install --upgrade pip && pip install -r api/requirements.txt
+	$(PYTHON_BIN) -m venv .venv && . $(ACTIVATE_VENV) && pip install --upgrade pip && pip install -r requirements-dev.txt
 endif
 
 .PHONY: local-api-up
