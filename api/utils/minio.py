@@ -103,13 +103,12 @@ def _minio_with_retry(action: str, endpoint: str, func: Callable[[], T]) -> T:
         except Exception as err:
             last_err = err
             if _sync_minio_time(err):
-                if attempt < retries:
-                    continue
+                # Time skew detected and offset adjusted; retry immediately once.
                 try:
                     return func()
                 except Exception as retry_err:
                     last_err = retry_err
-                    break
+                    err = retry_err
             if attempt < retries:
                 time.sleep(delay)
                 continue
