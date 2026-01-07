@@ -367,6 +367,14 @@ def insert_commented_file(
         accepted_mimetype = accepted_file.mimetype
         accepted_types[file_extension] = accepted_mimetype
     _validate_mimetype(file_extension, content_type, accepted_mimetype)
+    if content_type.lower() != file_row.mimetype.lower():
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                "Commented file content type does not match original file. "
+                f"Expected '{file_row.mimetype}'."
+            ),
+        )
 
     stream = file.file
     size = None
