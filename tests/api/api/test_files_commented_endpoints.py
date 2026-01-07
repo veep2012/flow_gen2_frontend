@@ -1,5 +1,6 @@
 import os
 import time
+import uuid
 
 import httpx
 import pytest
@@ -27,6 +28,80 @@ def _request(client: httpx.Client, method: str, path: str, **kwargs) -> dict:
         "duration_ms": duration_ms,
         "headers": response.headers,
         "content": response.content,
+    }
+
+
+def _extract_first_id(items: list, keys: list[str]) -> int | None:
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        for key in keys:
+            value = item.get(key)
+            if value is not None:
+                return value
+    return None
+
+
+def _get_test_revision_id(client: httpx.Client) -> int:
+    projects = _request(client, "GET", "/lookups/projects")
+    if projects["status"] == 404:
+        pytest.skip("No projects available for files commented test")
+    assert 200 <= projects["status"] < 300
+    project_id = _extract_first_id(projects["payload"], ["project_id"])
+    if project_id is None:
+        pytest.skip("No project_id available for files commented test")
+
+    docs = _request(client, "GET", "/documents/list", params={"project_id": project_id})
+    if docs["status"] == 404:
+        pytest.skip("No documents available for files commented test")
+    assert 200 <= docs["status"] < 300
+    rev_id = None
+    for doc in docs["payload"]:
+        if not isinstance(doc, dict):
+            continue
+        rev_id = doc.get("rev_current_id") or doc.get("rev_actual_id")
+        if rev_id is not None:
+            break
+    if rev_id is None:
+        pytest.skip("No revision id available for files commented test")
+
+    return rev_id
+
+
+def _get_test_user(client: httpx.Client) -> tuple[int, str]:
+    users = _request(client, "GET", "/people/users")
+    if users["status"] == 404:
+        pytest.skip("No users available for files commented test")
+    assert 200 <= users["status"] < 300
+    for item in users["payload"]:
+        if not isinstance(item, dict):
+            continue
+        user_id = item.get("user_id")
+        user_acronym = item.get("user_acronym")
+        if user_id is not None and user_acronym:
+            return user_id, user_acronym
+    pytest.skip("No user_id/user_acronym available for files commented test")
+
+
+def _upload_base_file(
+    client: httpx.Client, rev_id: int, suffix: str, ext: str, mimetype: str
+) -> dict:
+    content = f"base-{suffix}".encode()
+    filename = f"file-{suffix}.{ext}"
+    upload = _request(
+        client,
+        "POST",
+        "/files/insert",
+        files={"file": (filename, content, mimetype)},
+        data={"rev_id": str(rev_id)},
+    )
+    assert upload["status"] == 201
+    return {
+        "id": upload["payload"]["id"],
+        "filename": upload["payload"]["filename"],
+        "mimetype": upload["payload"]["mimetype"],
+        "rev_id": upload["payload"]["rev_id"],
+        "content": content,
     }
 
 
@@ -61,34 +136,108 @@ def test_files_commented_list_missing_file_id():
         # List without file_id (mandatory parameter)
         result = _request(client, "GET", "/files/commented/list")
         # Should fail validation
-        assert result["status"] == 422
+    assert result["status"] == 422
 
 
 @pytest.mark.api_smoke
-def test_files_commented_update_nonexistent():
-    """Test updating a non-existent commented file."""
+def test_files_commented_insert_and_download():
+    suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
-        result = _request(
+        rev_id = _get_test_revision_id(client)
+        user_id, user_acronym = _get_test_user(client)
+        base_file = _upload_base_file(client, rev_id, suffix, "pdf", "application/pdf")
+
+        commented_content = f"commented-{suffix}".encode()
+        insert = _request(
             client,
-            "PUT",
-            "/files/commented/update",
-            json={"id": 999999, "s3_uid": "test/path/file.pdf"},
+            "POST",
+            "/files/commented/insert",
+            files={
+                "file": (
+                    f"commented-{suffix}.pdf",
+                    commented_content,
+                    "application/pdf",
+                )
+            },
+            data={"file_id": str(base_file["id"]), "user_id": str(user_id)},
         )
-        assert result["status"] == 404
+        assert insert["status"] == 201
+        commented_id = insert["payload"]["id"]
+        assert insert["payload"]["file_id"] == base_file["id"]
+        assert insert["payload"]["user_id"] == user_id
+        assert insert["payload"]["filename"] == base_file["filename"]
+        assert insert["payload"]["mimetype"] == base_file["mimetype"]
+        assert insert["payload"]["rev_id"] == base_file["rev_id"]
+
+        listed = _request(
+            client,
+            "GET",
+            "/files/commented/list",
+            params={"file_id": base_file["id"], "user_id": user_id},
+        )
+        assert 200 <= listed["status"] < 300
+        assert any(item.get("id") == commented_id for item in listed["payload"])
+
+        downloaded = _request(
+            client, "GET", "/files/commented/download", params={"file_id": commented_id}
+        )
+        assert 200 <= downloaded["status"] < 300
+        assert downloaded["content"] == commented_content
+        content_disposition = downloaded["headers"].get("content-disposition", "")
+        assert f"_commented_by_{user_acronym}" in content_disposition
+        base_name = os.path.splitext(base_file["filename"])[0]
+        assert base_name in content_disposition
+
+        deleted = _request(
+            client,
+            "DELETE",
+            "/files/commented/delete",
+            json={"id": commented_id},
+        )
+        assert deleted["status"] == 204
+        _request(client, "DELETE", "/files/delete", json={"id": base_file["id"]})
 
 
 @pytest.mark.api_smoke
-def test_files_commented_update_empty_s3_uid():
-    """Test updating a commented file with empty s3_uid."""
+def test_files_commented_insert_duplicate():
+    suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
-        result = _request(
+        rev_id = _get_test_revision_id(client)
+        user_id, _ = _get_test_user(client)
+        base_file = _upload_base_file(client, rev_id, suffix, "pdf", "application/pdf")
+
+        first = _request(
             client,
-            "PUT",
-            "/files/commented/update",
-            json={"id": 1, "s3_uid": "   "},
+            "POST",
+            "/files/commented/insert",
+            files={
+                "file": (
+                    f"commented-{suffix}.pdf",
+                    f"commented-{suffix}".encode(),
+                    "application/pdf",
+                )
+            },
+            data={"file_id": str(base_file["id"]), "user_id": str(user_id)},
         )
-        # Pydantic will reject whitespace-only strings, or 404 if id doesn't exist
-        assert result["status"] in [422, 404]
+        assert first["status"] == 201
+        duplicate = _request(
+            client,
+            "POST",
+            "/files/commented/insert",
+            files={
+                "file": (
+                    f"commented-{suffix}-dup.pdf",
+                    f"commented-{suffix}-dup".encode(),
+                    "application/pdf",
+                )
+            },
+            data={"file_id": str(base_file["id"]), "user_id": str(user_id)},
+        )
+        assert duplicate["status"] == 400
+        assert "already exists" in duplicate["payload"]["detail"].lower()
+
+        _request(client, "DELETE", "/files/commented/delete", json={"id": first["payload"]["id"]})
+        _request(client, "DELETE", "/files/delete", json={"id": base_file["id"]})
 
 
 @pytest.mark.api_smoke
@@ -110,3 +259,71 @@ def test_files_commented_download_nonexistent():
     with httpx.Client(timeout=10) as client:
         result = _request(client, "GET", "/files/commented/download", params={"file_id": 999999})
         assert result["status"] == 404
+
+
+@pytest.mark.api_smoke
+def test_files_commented_insert_missing_fields():
+    with httpx.Client(timeout=10) as client:
+        result = _request(
+            client,
+            "POST",
+            "/files/commented/insert",
+            files={"file": ("missing.pdf", b"content", "application/pdf")},
+            data={"user_id": "1"},
+        )
+        assert result["status"] == 422
+        result = _request(
+            client,
+            "POST",
+            "/files/commented/insert",
+            files={"file": ("missing.pdf", b"content", "application/pdf")},
+            data={"file_id": "1"},
+        )
+        assert result["status"] == 422
+
+
+@pytest.mark.api_smoke
+def test_files_commented_insert_nonexistent_file_or_user():
+    with httpx.Client(timeout=10) as client:
+        result = _request(
+            client,
+            "POST",
+            "/files/commented/insert",
+            files={"file": ("missing.pdf", b"content", "application/pdf")},
+            data={"file_id": "999999", "user_id": "1"},
+        )
+        assert result["status"] == 404
+        result = _request(
+            client,
+            "POST",
+            "/files/commented/insert",
+            files={"file": ("missing.pdf", b"content", "application/pdf")},
+            data={"file_id": "1", "user_id": "999999"},
+        )
+        assert result["status"] == 404
+
+
+@pytest.mark.api_smoke
+def test_files_commented_insert_mimetype_mismatch():
+    suffix = uuid.uuid4().hex[:6]
+    with httpx.Client(timeout=10) as client:
+        rev_id = _get_test_revision_id(client)
+        user_id, _ = _get_test_user(client)
+        base_file = _upload_base_file(client, rev_id, suffix, "pdf", "application/pdf")
+
+        mismatch = _request(
+            client,
+            "POST",
+            "/files/commented/insert",
+            files={
+                "file": (
+                    f"commented-{suffix}.docx",
+                    f"commented-{suffix}".encode(),
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
+            data={"file_id": str(base_file["id"]), "user_id": str(user_id)},
+        )
+        assert mismatch["status"] in [400, 415]
+
+        _request(client, "DELETE", "/files/delete", json={"id": base_file["id"]})
