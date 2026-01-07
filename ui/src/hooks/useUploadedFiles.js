@@ -12,17 +12,17 @@ export const useUploadedFiles = () => {
   const handleUploadFiles = (files, currentStep) => {
     const list = Array.from(files || []);
     if (!list.length) return;
-    
-    const fileNames = list.map(f => f.name);
-    
-    setUploadedFiles(prev => ({
+
+    const fileNames = list.map((f) => f.name);
+
+    setUploadedFiles((prev) => ({
       ...prev,
-      [currentStep]: [...(prev[currentStep] || []), ...fileNames]
+      [currentStep]: [...(prev[currentStep] || []), ...fileNames],
     }));
-    
-    setExpandedRevisions(prev => ({
+
+    setExpandedRevisions((prev) => ({
       ...prev,
-      [`${currentStep}-Rev A`]: { ...prev[`${currentStep}-Rev A`], isOpen: true }
+      [`${currentStep}-Rev A`]: { ...prev[`${currentStep}-Rev A`], isOpen: true },
     }));
   };
 
@@ -38,15 +38,18 @@ export const useUploadedFiles = () => {
   };
 
   const uploadDragProps = (currentStep) => ({
-    onDragOver: (e) => { e.preventDefault(); setIsDraggingUpload(true); },
+    onDragOver: (e) => {
+      e.preventDefault();
+      setIsDraggingUpload(true);
+    },
     onDragLeave: () => setIsDraggingUpload(false),
     onDrop: (e) => handleUploadDrop(e, currentStep),
   });
 
   const toggleRevisionExpanded = (revisionKey) => {
-    setExpandedRevisions(prev => ({
+    setExpandedRevisions((prev) => ({
       ...prev,
-      [revisionKey]: { ...prev[revisionKey], isOpen: !prev[revisionKey]?.isOpen }
+      [revisionKey]: { ...prev[revisionKey], isOpen: !prev[revisionKey]?.isOpen },
     }));
   };
 

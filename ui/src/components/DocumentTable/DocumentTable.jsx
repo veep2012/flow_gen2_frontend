@@ -1,4 +1,5 @@
 import React from "react";
+import PropTypes from "prop-types";
 
 const DocumentTable = ({
   visibleColumns,
@@ -19,8 +20,11 @@ const DocumentTable = ({
   renderCell,
 }) => {
   return (
-    <div className="card" style={{ flex: '4 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div className="meta" style={{ display: 'none' }}>
+    <div
+      className="card"
+      style={{ flex: "4 1 0", minHeight: 0, display: "flex", flexDirection: "column" }}
+    >
+      <div className="meta" style={{ display: "none" }}>
         {/* Document register header hidden */}
       </div>
       <div className="table-wrapper">
@@ -31,9 +35,9 @@ const DocumentTable = ({
                 <th
                   key={col.key}
                   style={{
-                    position: 'relative',
+                    position: "relative",
                     width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
-                    minWidth: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined
+                    minWidth: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
                   }}
                 >
                   <div>{col.label}</div>
@@ -42,17 +46,22 @@ const DocumentTable = ({
                     placeholder="Search..."
                     onChange={(e) => onFilterChange(col.key, e.target.value)}
                   />
-                  <span
+                  <button
+                    type="button"
                     onMouseDown={(e) => onColumnResize(e, col.key)}
                     style={{
-                      position: 'absolute',
+                      position: "absolute",
                       top: 0,
                       right: 0,
-                      width: '6px',
-                      height: '100%',
-                      cursor: 'col-resize'
+                      width: "6px",
+                      height: "100%",
+                      cursor: "col-resize",
+                      background: "transparent",
+                      border: "none",
+                      padding: 0,
                     }}
                     title="Drag to resize column"
+                    aria-label={`Resize column ${col.label}`}
                   />
                 </th>
               ))}
@@ -93,7 +102,9 @@ const DocumentTable = ({
                     key={rowId}
                     onClick={() => onRowSelect(rowId)}
                     onDoubleClick={() => onRowDoubleClick(doc)}
-                    style={{ background: selectedDocId === rowId ? 'var(--color-row-selected)' : undefined }}
+                    style={{
+                      background: selectedDocId === rowId ? "var(--color-row-selected)" : undefined,
+                    }}
                   >
                     {visibleColumns.map((col) => {
                       const isEditable = col.id === "doc_name" || col.id === "title";
@@ -104,17 +115,31 @@ const DocumentTable = ({
                           <td
                             key={col.key}
                             style={{
-                              width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
-                              minWidth: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined
+                              width: columnWidths[col.key]
+                                ? `${columnWidths[col.key]}px`
+                                : undefined,
+                              minWidth: columnWidths[col.key]
+                                ? `${columnWidths[col.key]}px`
+                                : undefined,
                             }}
                           >
                             <input
-                              style={{ width: '100%', padding: '6px 8px', borderRadius: '8px', border: '1px solid var(--color-border-strong)' }}
-                              value={col.id === "doc_name" ? editValues.doc_name_unique : editValues.title}
+                              style={{
+                                width: "100%",
+                                padding: "6px 8px",
+                                borderRadius: "8px",
+                                border: "1px solid var(--color-border-strong)",
+                              }}
+                              value={
+                                col.id === "doc_name"
+                                  ? editValues.doc_name_unique
+                                  : editValues.title
+                              }
                               onChange={(e) =>
-                                onEditValuesChange(prev => ({
+                                onEditValuesChange((prev) => ({
                                   ...prev,
-                                  [col.id === "doc_name" ? "doc_name_unique" : "title"]: e.target.value,
+                                  [col.id === "doc_name" ? "doc_name_unique" : "title"]:
+                                    e.target.value,
                                 }))
                               }
                             />
@@ -127,7 +152,9 @@ const DocumentTable = ({
                           key={col.key}
                           style={{
                             width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
-                            minWidth: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined
+                            minWidth: columnWidths[col.key]
+                              ? `${columnWidths[col.key]}px`
+                              : undefined,
                           }}
                         >
                           {value}
@@ -146,3 +173,31 @@ const DocumentTable = ({
 };
 
 export default DocumentTable;
+
+DocumentTable.propTypes = {
+  visibleColumns: PropTypes.arrayOf(
+    PropTypes.shape({
+      key: PropTypes.string.isRequired,
+      id: PropTypes.string,
+      label: PropTypes.string,
+    }),
+  ).isRequired,
+  columnWidths: PropTypes.objectOf(PropTypes.number).isRequired,
+  filters: PropTypes.objectOf(PropTypes.string).isRequired,
+  onFilterChange: PropTypes.func.isRequired,
+  onColumnResize: PropTypes.func.isRequired,
+  documentsLoading: PropTypes.bool.isRequired,
+  documentsError: PropTypes.string,
+  project: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  filteredDocuments: PropTypes.arrayOf(PropTypes.object).isRequired,
+  selectedDocId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  onRowSelect: PropTypes.func.isRequired,
+  onRowDoubleClick: PropTypes.func.isRequired,
+  editRowId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  editValues: PropTypes.shape({
+    doc_name_unique: PropTypes.string,
+    title: PropTypes.string,
+  }).isRequired,
+  onEditValuesChange: PropTypes.func.isRequired,
+  renderCell: PropTypes.func.isRequired,
+};

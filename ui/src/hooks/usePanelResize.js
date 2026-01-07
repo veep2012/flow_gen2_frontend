@@ -14,7 +14,7 @@ export const usePanelResize = (initialRatio = 0.35) => {
       setIsDraggingBorder(true);
       const container = containerRef.current;
       if (!container) return;
-      
+
       const containerWidth = container.getBoundingClientRect().width;
       const startX = event.clientX;
       const startRatio = infoRatio;

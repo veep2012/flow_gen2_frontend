@@ -1,24 +1,25 @@
 import React from "react";
+import PropTypes from "prop-types";
 
 const buttonStyle = {
-  background: 'var(--color-accent)',
-  color: 'var(--color-accent-contrast)',
-  border: 'none',
-  borderRadius: '4px',
-  padding: '6px 12px',
-  marginRight: '2px',
-  fontSize: '13px',
+  background: "var(--color-accent)",
+  color: "var(--color-accent-contrast)",
+  border: "none",
+  borderRadius: "4px",
+  padding: "6px 12px",
+  marginRight: "2px",
+  fontSize: "13px",
   fontWeight: 500,
-  cursor: 'pointer',
-  display: 'inline-flex',
-  alignItems: 'center',
-  boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-  transition: 'background 0.2s',
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+  transition: "background 0.2s",
 };
 
 const iconStyle = {
-  marginRight: '5px',
-  fontSize: '14px',
+  marginRight: "5px",
+  fontSize: "14px",
 };
 
 const ToolbarMenu = ({
@@ -35,18 +36,13 @@ const ToolbarMenu = ({
 }) => {
   if (editRowId) {
     return (
-      <div style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '0 6px' }}>
-        <button
-          style={buttonStyle}
-          title="Save changes"
-          onClick={onSave}
-          disabled={isSaving}
-        >
+      <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
+        <button style={buttonStyle} title="Save changes" onClick={onSave} disabled={isSaving}>
           <span style={iconStyle}>💾</span>
           Save
         </button>
         <button
-          style={{ ...buttonStyle, background: 'var(--color-border)', color: 'var(--color-text)' }}
+          style={{ ...buttonStyle, background: "var(--color-border)", color: "var(--color-text)" }}
           title="Cancel editing"
           onClick={onCancel}
           disabled={isSaving}
@@ -59,7 +55,7 @@ const ToolbarMenu = ({
   }
 
   return (
-    <div style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '0 6px' }}>
+    <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
       <button style={buttonStyle} title="Add new document" onClick={onAddNew}>
         <span style={iconStyle}>+</span>
         Add new
@@ -76,10 +72,10 @@ const ToolbarMenu = ({
         <span style={iconStyle}>⬇</span>
         Export to...
       </button>
-      <button style={{ ...buttonStyle, padding: '6px 10px' }} title="Undo" onClick={onUndo}>
+      <button style={{ ...buttonStyle, padding: "6px 10px" }} title="Undo" onClick={onUndo}>
         <span style={iconStyle}>↶</span>
       </button>
-      <button style={{ ...buttonStyle, padding: '6px 10px' }} title="Redo" onClick={onRedo}>
+      <button style={{ ...buttonStyle, padding: "6px 10px" }} title="Redo" onClick={onRedo}>
         <span style={iconStyle}>↷</span>
       </button>
     </div>
@@ -87,3 +83,16 @@ const ToolbarMenu = ({
 };
 
 export default ToolbarMenu;
+
+ToolbarMenu.propTypes = {
+  editRowId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  onSave: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  onAddNew: PropTypes.func.isRequired,
+  onEdit: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired,
+  onExport: PropTypes.func.isRequired,
+  onUndo: PropTypes.func.isRequired,
+  onRedo: PropTypes.func.isRequired,
+  isSaving: PropTypes.bool.isRequired,
+};

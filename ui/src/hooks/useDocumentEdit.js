@@ -10,20 +10,17 @@ export const useDocumentEdit = (apiBase, reloadDocuments) => {
   const [saveError, setSaveError] = React.useState(null);
   const [saveStatus, setSaveStatus] = React.useState("idle");
 
-  const startEdit = React.useCallback(
-    (doc) => {
-      if (!doc) return;
-      const rowId = doc.doc_id || doc.doc_name || doc.doc_name_unique || doc.id;
-      setEditRowId(rowId);
-      setSaveError(null);
-      setSaveStatus("idle");
-      setEditValues({
-        doc_name_unique: doc.doc_name || doc.doc_name_unique || "",
-        title: doc.title || "",
-      });
-    },
-    [],
-  );
+  const startEdit = React.useCallback((doc) => {
+    if (!doc) return;
+    const rowId = doc.doc_id || doc.doc_name || doc.doc_name_unique || doc.id;
+    setEditRowId(rowId);
+    setSaveError(null);
+    setSaveStatus("idle");
+    setEditValues({
+      doc_name_unique: doc.doc_name || doc.doc_name_unique || "",
+      title: doc.title || "",
+    });
+  }, []);
 
   const cancelEdit = React.useCallback(() => {
     setEditRowId(null);

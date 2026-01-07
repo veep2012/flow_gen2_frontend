@@ -20,9 +20,9 @@ const normalizeApiBase = (raw) => {
   const trimmed = prepared.replace(/\/+$/, "");
   try {
     // Validate; allow relative paths.
-    new URL(trimmed, window.location.origin);
-    return trimmed;
-  } catch (_err) {
+    const parsed = new URL(trimmed, window.location.origin);
+    return parsed.pathname === trimmed ? trimmed : parsed.href.replace(/\/+$/, "");
+  } catch {
     console.warn("Invalid VITE_API_BASE_URL, falling back to default /api/v1");
     return fallback;
   }
@@ -62,24 +62,24 @@ function App() {
   };
 
   const buttonStyle = {
-    background: 'var(--color-accent)',
-    color: 'var(--color-accent-contrast)',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '6px 12px',
-    marginRight: '2px',
-    fontSize: '13px',
+    background: "var(--color-accent)",
+    color: "var(--color-accent-contrast)",
+    border: "none",
+    borderRadius: "4px",
+    padding: "6px 12px",
+    marginRight: "2px",
+    fontSize: "13px",
     fontWeight: 500,
-    cursor: 'pointer',
-    display: 'inline-flex',
-    alignItems: 'center',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-    transition: 'background 0.2s',
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+    transition: "background 0.2s",
   };
 
   const iconStyle = {
-    marginRight: '5px',
-    fontSize: '14px',
+    marginRight: "5px",
+    fontSize: "14px",
   };
 
   const [infoRatio, setInfoRatio] = React.useState(0.35);
@@ -103,9 +103,13 @@ function App() {
     () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === editRowId),
     [filteredDocuments, editRowId],
   );
+  const selectedDoc = React.useMemo(
+    () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === selectedDocId),
+    [filteredDocuments, selectedDocId],
+  );
 
   const ToolbarMenu = () => {
-    const handleAddNew = () => console.log('Add new clicked');
+    const handleAddNew = () => console.log("Add new clicked");
     const handleEdit = () => {
       if (!selectedDoc) {
         setSaveStatus("error");
@@ -114,14 +118,14 @@ function App() {
       }
       startEdit(selectedDoc);
     };
-    const handleDelete = () => console.log('Delete clicked');
-    const handleExport = () => console.log('Export clicked');
-    const handleUndo = () => console.log('Undo clicked');
-    const handleRedo = () => console.log('Redo clicked');
+    const handleDelete = () => console.log("Delete clicked");
+    const handleExport = () => console.log("Export clicked");
+    const handleUndo = () => console.log("Undo clicked");
+    const handleRedo = () => console.log("Redo clicked");
 
     if (editRowId) {
       return (
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '0 6px' }}>
+        <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
           <button
             style={buttonStyle}
             title="Save changes"
@@ -132,7 +136,11 @@ function App() {
             Save
           </button>
           <button
-            style={{ ...buttonStyle, background: 'var(--color-border)', color: 'var(--color-text)' }}
+            style={{
+              ...buttonStyle,
+              background: "var(--color-border)",
+              color: "var(--color-text)",
+            }}
             title="Cancel editing"
             onClick={cancelEdit}
             disabled={saveStatus === "saving"}
@@ -145,7 +153,7 @@ function App() {
     }
 
     return (
-      <div style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '0 6px' }}>
+      <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
         <button style={buttonStyle} title="Add new document" onClick={handleAddNew}>
           <span style={iconStyle}>+</span>
           Add new
@@ -162,10 +170,10 @@ function App() {
           <span style={iconStyle}>⬇</span>
           Export to...
         </button>
-        <button style={{ ...buttonStyle, padding: '6px 10px' }} title="Undo" onClick={handleUndo}>
+        <button style={{ ...buttonStyle, padding: "6px 10px" }} title="Undo" onClick={handleUndo}>
           <span style={iconStyle}>↶</span>
         </button>
-        <button style={{ ...buttonStyle, padding: '6px 10px' }} title="Redo" onClick={handleRedo}>
+        <button style={{ ...buttonStyle, padding: "6px 10px" }} title="Redo" onClick={handleRedo}>
           <span style={iconStyle}>↷</span>
         </button>
       </div>
@@ -174,31 +182,37 @@ function App() {
 
   const ProjectsPanel = () => {
     return (
-      <div style={{ 
-        background: 'var(--color-success-soft)',
-        border: '1px solid var(--color-success-border)',
-        borderRadius: '8px', 
-        padding: '12px 14px', 
-        marginBottom: '4px',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-success-text)' }}>
+      <div
+        style={{
+          background: "var(--color-success-soft)",
+          border: "1px solid var(--color-success-border)",
+          borderRadius: "8px",
+          padding: "12px 14px",
+          marginBottom: "4px",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <label
+            htmlFor="project-select"
+            style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-success-text)" }}
+          >
             Project:
           </label>
           <select
+            id="project-select"
             value={project}
             onChange={(e) => setProject(e.target.value)}
             aria-label="Select project"
             style={{
-              border: '1px solid var(--color-success-border-strong)',
-              borderRadius: '8px',
-              padding: '7px 10px',
-              fontSize: '13px',
-              color: 'var(--color-text)',
-              background: 'var(--color-surface)',
-              minWidth: '220px',
-              cursor: 'pointer'
+              border: "1px solid var(--color-success-border-strong)",
+              borderRadius: "8px",
+              padding: "7px 10px",
+              fontSize: "13px",
+              color: "var(--color-text)",
+              background: "var(--color-surface)",
+              minWidth: "220px",
+              cursor: "pointer",
             }}
           >
             <option value="">Project number</option>
@@ -208,13 +222,19 @@ function App() {
               </option>
             ))}
           </select>
-          {projectsError ? <span style={{ fontSize: '12px', color: 'var(--color-danger)' }}>{projectsError}</span> : null}
-          <div className="task-cabinet" style={{ marginLeft: 'auto', padding: 0 }}>
+          {projectsError ? (
+            <span style={{ fontSize: "12px", color: "var(--color-danger)" }}>{projectsError}</span>
+          ) : null}
+          <div className="task-cabinet" style={{ marginLeft: "auto", padding: 0 }}>
             <div className="task-cabinet__label">Task cabinet:</div>
             {cabinetTabs.map((tab) => (
               <div key={tab.label} className="task-tab">
-                <span style={{ color: 'var(--color-success-text)', fontWeight: 600 }}>{tab.label}</span>
-                <span className="task-tab__badge" style={{ background: tab.tone }}>{tab.count}</span>
+                <span style={{ color: "var(--color-success-text)", fontWeight: 600 }}>
+                  {tab.label}
+                </span>
+                <span className="task-tab__badge" style={{ background: tab.tone }}>
+                  {tab.count}
+                </span>
               </div>
             ))}
           </div>
@@ -262,7 +282,7 @@ function App() {
       setIsDraggingBorder(true);
       const container = containerRef.current;
       if (!container) return;
-      
+
       const containerWidth = container.getBoundingClientRect().width;
       const startX = event.clientX;
       const startRatio = infoRatio;
@@ -286,21 +306,18 @@ function App() {
     [infoRatio],
   );
 
-  const startEdit = React.useCallback(
-    (doc) => {
-      if (!doc) return;
-      const rowId = doc.doc_id || doc.doc_name || doc.doc_name_unique || doc.id;
-      setSelectedDocId(rowId);
-      setEditRowId(rowId);
-      setSaveError(null);
-      setSaveStatus("idle");
-      setEditValues({
-        doc_name_unique: doc.doc_name || doc.doc_name_unique || "",
-        title: doc.title || "",
-      });
-    },
-    [],
-  );
+  const startEdit = React.useCallback((doc) => {
+    if (!doc) return;
+    const rowId = doc.doc_id || doc.doc_name || doc.doc_name_unique || doc.id;
+    setSelectedDocId(rowId);
+    setEditRowId(rowId);
+    setSaveError(null);
+    setSaveStatus("idle");
+    setEditValues({
+      doc_name_unique: doc.doc_name || doc.doc_name_unique || "",
+      title: doc.title || "",
+    });
+  }, []);
 
   const cancelEdit = React.useCallback(() => {
     setEditRowId(null);
@@ -358,19 +375,19 @@ function App() {
   const handleUploadFiles = (files) => {
     const list = Array.from(files || []);
     if (!list.length) return;
-    
+
     const step = infoActiveStep;
-    const fileNames = list.map(f => f.name);
-    
-    setUploadedFiles(prev => ({
+    const fileNames = list.map((f) => f.name);
+
+    setUploadedFiles((prev) => ({
       ...prev,
-      [step]: [...(prev[step] || []), ...fileNames]
+      [step]: [...(prev[step] || []), ...fileNames],
     }));
-    
+
     // Auto-expand the revision tree
-    setExpandedRevisions(prev => ({
+    setExpandedRevisions((prev) => ({
       ...prev,
-      [step]: { ...prev[step], isOpen: true }
+      [step]: { ...prev[step], isOpen: true },
     }));
   };
 
@@ -386,13 +403,16 @@ function App() {
   };
 
   const uploadDragProps = {
-    onDragOver: (e) => { e.preventDefault(); setIsDraggingUpload(true); },
+    onDragOver: (e) => {
+      e.preventDefault();
+      setIsDraggingUpload(true);
+    },
     onDragLeave: () => setIsDraggingUpload(false),
     onDrop: handleUploadDrop,
   };
 
   return (
-    <main className="page" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <main className="page" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <style>
         {`
         :root {
@@ -819,23 +839,50 @@ function App() {
       `}
       </style>
       <ProjectsPanel />
-      <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '8px 4px', marginBottom: '4px', minHeight: '40px' }}>
+      <div
+        style={{
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "8px",
+          padding: "8px 4px",
+          marginBottom: "4px",
+          minHeight: "40px",
+        }}
+      >
         <ToolbarMenu />
         {saveStatus === "saving" ? (
-          <span className="status" style={{ marginLeft: 8 }}>Saving...</span>
+          <span className="status" style={{ marginLeft: 8 }}>
+            Saving...
+          </span>
         ) : saveStatus === "saved" ? (
-          <span className="status" style={{ marginLeft: 8, color: 'var(--color-success)' }}>Saved</span>
+          <span className="status" style={{ marginLeft: 8, color: "var(--color-success)" }}>
+            Saved
+          </span>
         ) : saveStatus === "error" ? (
-          <span className="status" style={{ marginLeft: 8, color: 'var(--color-danger)' }}>{saveError}</span>
+          <span className="status" style={{ marginLeft: 8, color: "var(--color-danger)" }}>
+            {saveError}
+          </span>
         ) : null}
       </div>
       <div
         ref={containerRef}
-        style={{ display: 'flex', gap: '0px', flex: 1, minHeight: 0, alignItems: 'stretch' }}
+        style={{ display: "flex", gap: "0px", flex: 1, minHeight: 0, alignItems: "stretch" }}
       >
-        <div style={{ flex: `${1 - infoRatio} 1 0`, display: 'flex', flexDirection: 'column', gap: '4px', minHeight: 0, minWidth: 0 }}>
-          <div className="card" style={{ flex: '4 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <div className="meta" style={{ display: 'none' }}>
+        <div
+          style={{
+            flex: `${1 - infoRatio} 1 0`,
+            display: "flex",
+            flexDirection: "column",
+            gap: "4px",
+            minHeight: 0,
+            minWidth: 0,
+          }}
+        >
+          <div
+            className="card"
+            style={{ flex: "4 1 0", minHeight: 0, display: "flex", flexDirection: "column" }}
+          >
+            <div className="meta" style={{ display: "none" }}>
               {/* Document register header hidden */}
             </div>
             <div className="table-wrapper">
@@ -846,9 +893,11 @@ function App() {
                       <th
                         key={col.key}
                         style={{
-                          position: 'relative',
+                          position: "relative",
                           width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
-                          minWidth: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined
+                          minWidth: columnWidths[col.key]
+                            ? `${columnWidths[col.key]}px`
+                            : undefined,
                         }}
                       >
                         <div>{col.label}</div>
@@ -857,17 +906,22 @@ function App() {
                           placeholder="Search..."
                           onChange={(e) => handleFilterChange(col.key, e.target.value)}
                         />
-                        <span
+                        <button
+                          type="button"
                           onMouseDown={(e) => startColResize(e, col.key)}
                           style={{
-                            position: 'absolute',
+                            position: "absolute",
                             top: 0,
                             right: 0,
-                            width: '6px',
-                            height: '100%',
-                            cursor: 'col-resize'
+                            width: "6px",
+                            height: "100%",
+                            cursor: "col-resize",
+                            background: "transparent",
+                            border: "none",
+                            padding: 0,
                           }}
                           title="Drag to resize column"
+                          aria-label={`Resize column ${col.label}`}
                         />
                       </th>
                     ))}
@@ -908,7 +962,10 @@ function App() {
                           key={rowId}
                           onClick={() => setSelectedDocId(rowId)}
                           onDoubleClick={() => startEdit(doc)}
-                          style={{ background: selectedDocId === rowId ? 'var(--color-row-selected)' : undefined }}
+                          style={{
+                            background:
+                              selectedDocId === rowId ? "var(--color-row-selected)" : undefined,
+                          }}
                         >
                           {visibleColumns.map((col) => {
                             const isEditable = col.id === "doc_name" || col.id === "title";
@@ -919,17 +976,31 @@ function App() {
                                 <td
                                   key={col.key}
                                   style={{
-                                    width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
-                                    minWidth: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined
+                                    width: columnWidths[col.key]
+                                      ? `${columnWidths[col.key]}px`
+                                      : undefined,
+                                    minWidth: columnWidths[col.key]
+                                      ? `${columnWidths[col.key]}px`
+                                      : undefined,
                                   }}
                                 >
                                   <input
-                                    style={{ width: '100%', padding: '6px 8px', borderRadius: '8px', border: '1px solid var(--color-border-strong)' }}
-                                    value={col.id === "doc_name" ? editValues.doc_name_unique : editValues.title}
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                    }}
+                                    value={
+                                      col.id === "doc_name"
+                                        ? editValues.doc_name_unique
+                                        : editValues.title
+                                    }
                                     onChange={(e) =>
                                       setEditValues((prev) => ({
                                         ...prev,
-                                        [col.id === "doc_name" ? "doc_name_unique" : "title"]: e.target.value,
+                                        [col.id === "doc_name" ? "doc_name_unique" : "title"]:
+                                          e.target.value,
                                       }))
                                     }
                                   />
@@ -941,8 +1012,12 @@ function App() {
                               <td
                                 key={col.key}
                                 style={{
-                                  width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
-                                  minWidth: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined
+                                  width: columnWidths[col.key]
+                                    ? `${columnWidths[col.key]}px`
+                                    : undefined,
+                                  minWidth: columnWidths[col.key]
+                                    ? `${columnWidths[col.key]}px`
+                                    : undefined,
                                 }}
                               >
                                 {value}
@@ -957,18 +1032,20 @@ function App() {
               </table>
             </div>
           </div>
-          <div style={{ 
-            flex: '1 1 0',
-            background: 'var(--color-surface)', 
-            border: '1px solid var(--color-border)', 
-            borderRadius: '12px', 
-            padding: 0, 
-            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-            minHeight: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}>
+          <div
+            style={{
+              flex: "1 1 0",
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "12px",
+              padding: 0,
+              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
             <div className="detail-tabs">
               {["Revisions", "TAGs", "References", "Plan", "Information"].map((tab) => (
                 <button
@@ -982,33 +1059,45 @@ function App() {
             </div>
             <div className="detail-tab-panel" style={{ flex: 1 }}>
               {activeDetailTab === "Revisions" ? (
-                <div style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
-                  No revisions yet. A revision will be created automatically when you save a new document.
+                <div style={{ color: "var(--color-text-muted)", fontSize: "13px" }}>
+                  No revisions yet. A revision will be created automatically when you save a new
+                  document.
                 </div>
               ) : (
-                <div style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
+                <div style={{ color: "var(--color-text-muted)", fontSize: "13px" }}>
                   {activeDetailTab} content will appear here.
                 </div>
               )}
             </div>
           </div>
         </div>
-        <div
+        <button
+          type="button"
           onMouseDown={startBorderResize}
           style={{
-            width: '8px',
-            background: isDraggingBorder ? 'var(--color-info)' : 'var(--color-border)',
-            cursor: 'col-resize',
-            transition: isDraggingBorder ? 'none' : 'background 0.2s',
-            userSelect: 'none',
+            width: "8px",
+            background: isDraggingBorder ? "var(--color-info)" : "var(--color-border)",
+            cursor: "col-resize",
+            transition: isDraggingBorder ? "none" : "background 0.2s",
+            userSelect: "none",
+            border: "none",
+            padding: 0,
           }}
           title="Drag to resize panels"
+          aria-label="Resize panels"
         />
-        <div style={{ flex: `${infoRatio} 1 0`, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div
+          style={{
+            flex: `${infoRatio} 1 0`,
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 0,
+          }}
+        >
           <div className="flow-card" style={{ flex: 1 }}>
             <div className="flow-header">DOCUMENT FLOW</div>
             <div className="flow-body">
-              {["Official", "Ready for Issue", "IDC", "InDesign", "History"].map((step, idx, arr) => (
+              {["Official", "Ready for Issue", "IDC", "InDesign", "History"].map((step) => (
                 <React.Fragment key={step}>
                   <button
                     type="button"
@@ -1025,35 +1114,53 @@ function App() {
                   >
                     <span className="dot">⦿</span>
                     <span>{step}</span>
-                    {infoActiveStep === step && <span style={{ position: 'absolute', right: 10, color: 'var(--color-text-secondary)' }}>⋮</span>}
+                    {infoActiveStep === step && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          right: 10,
+                          color: "var(--color-text-secondary)",
+                        }}
+                      >
+                        ⋮
+                      </span>
+                    )}
                   </button>
                   {infoActiveStep === step && (
                     <div className="flow-inline-content">
                       {step === "IDC" ? (
                         <>
-                          <div className="flow-subtabs" style={{ display: 'flex' }}>
+                          <div className="flow-subtabs" style={{ display: "flex" }}>
                             {["Comments", "Distribution list"].map((tab) => (
-                              <div
+                              <button
+                                type="button"
                                 key={tab}
                                 className={`flow-subtab ${infoActiveSubTab === tab ? "active" : ""}`}
+                                aria-pressed={infoActiveSubTab === tab}
                                 onClick={() => setInfoActiveSubTab(tab)}
                               >
                                 {tab}
-                              </div>
+                              </button>
                             ))}
                           </div>
                           <div className="flow-section">
                             {infoActiveSubTab === "Comments" ? (
                               <>
-                                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                                <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
                                   Not document owner or in Distribution list.
                                 </div>
                                 <div className="flow-box">
                                   <h4>Original Files</h4>
-                                  <div style={{ fontSize: '13px', color: 'var(--color-text-subtle)' }}>No original files uploaded yet</div>
+                                  <div
+                                    style={{ fontSize: "13px", color: "var(--color-text-subtle)" }}
+                                  >
+                                    No original files uploaded yet
+                                  </div>
                                 </div>
                                 <div className="flow-box">
-                                  <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                                  <div
+                                    style={{ display: "flex", gap: "8px", marginBottom: "10px" }}
+                                  >
                                     {["Files with Comments", "Written Comments"].map((tab) => (
                                       <button
                                         type="button"
@@ -1061,14 +1168,20 @@ function App() {
                                         className="flow-mini-tab"
                                         style={{
                                           flex: 1,
-                                          padding: '8px 10px',
-                                          borderBottom: infoActiveSubTab === tab ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                                          padding: "8px 10px",
+                                          borderBottom:
+                                            infoActiveSubTab === tab
+                                              ? "2px solid var(--color-primary)"
+                                              : "1px solid var(--color-border)",
                                           fontWeight: infoActiveSubTab === tab ? 700 : 500,
-                                          color: infoActiveSubTab === tab ? 'var(--color-primary)' : 'var(--color-text)',
-                                          cursor: 'pointer',
-                                          textAlign: 'center',
-                                          background: 'transparent',
-                                          border: 'none'
+                                          color:
+                                            infoActiveSubTab === tab
+                                              ? "var(--color-primary)"
+                                              : "var(--color-text)",
+                                          cursor: "pointer",
+                                          textAlign: "center",
+                                          background: "transparent",
+                                          border: "none",
                                         }}
                                         aria-pressed={infoActiveSubTab === tab}
                                         onClick={() => setInfoActiveSubTab(tab)}
@@ -1077,7 +1190,13 @@ function App() {
                                       </button>
                                     ))}
                                   </div>
-                                  <div style={{ fontSize: '13px', color: 'var(--color-text-subtle)', padding: '12px 0' }}>
+                                  <div
+                                    style={{
+                                      fontSize: "13px",
+                                      color: "var(--color-text-subtle)",
+                                      padding: "12px 0",
+                                    }}
+                                  >
                                     No files with comments yet
                                   </div>
                                 </div>
@@ -1085,75 +1204,101 @@ function App() {
                             ) : (
                               <div className="flow-box">
                                 <h4>Distribution List</h4>
-                                <div style={{ fontSize: '13px', color: 'var(--color-text-subtle)' }}>No distribution list assigned</div>
+                                <div
+                                  style={{ fontSize: "13px", color: "var(--color-text-subtle)" }}
+                                >
+                                  No distribution list assigned
+                                </div>
                               </div>
                             )}
                           </div>
                         </>
                       ) : step === "History" ? (
-                        <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', padding: '8px 4px' }}>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            color: "var(--color-text-muted)",
+                            padding: "8px 4px",
+                          }}
+                        >
                           No history available yet.
                         </div>
                       ) : step === "Official" || step === "Ready for Issue" ? (
-                        <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', padding: '8px 4px' }}>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            color: "var(--color-text-muted)",
+                            padding: "8px 4px",
+                          }}
+                        >
                           No documents available yet.
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '8px' }}>
+                        <div
+                          style={{ display: "flex", flexDirection: "column", flex: 1, gap: "8px" }}
+                        >
                           {uploadedFiles[step] && uploadedFiles[step].length > 0 ? (
-                            <div style={{ flex: 1, overflow: 'auto', padding: '8px 0' }}>
-                              {['Rev A', 'Rev B', 'Rev C'].map((revision, revIdx) => {
-                                const revFiles = uploadedFiles[step]?.filter(
-                                  (f, idx) => idx >= revIdx * 5 && idx < (revIdx + 1) * 5
-                                ) || [];
-                                
+                            <div style={{ flex: 1, overflow: "auto", padding: "8px 0" }}>
+                              {["Rev A", "Rev B", "Rev C"].map((revision, revIdx) => {
+                                const revFiles =
+                                  uploadedFiles[step]?.filter(
+                                    (f, idx) => idx >= revIdx * 5 && idx < (revIdx + 1) * 5,
+                                  ) || [];
+
                                 if (!revFiles.length && revIdx > 0) return null;
-                                
+
                                 const revKey = `${step}-${revision}`;
                                 const isExpanded = expandedRevisions[revKey]?.isOpen !== false;
-                                
+
                                 return (
-                                  <div key={revision} style={{ marginBottom: '4px' }}>
-                                    <div
+                                  <div key={revision} style={{ marginBottom: "4px" }}>
+                                    <button
+                                      type="button"
                                       onClick={() => {
-                                        setExpandedRevisions(prev => ({
+                                        setExpandedRevisions((prev) => ({
                                           ...prev,
-                                          [revKey]: { ...prev[revKey], isOpen: !isExpanded }
+                                          [revKey]: { ...prev[revKey], isOpen: !isExpanded },
                                         }));
                                       }}
                                       style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        padding: '6px 8px',
-                                        cursor: 'pointer',
-                                        color: 'var(--color-text)',
-                                        fontSize: '13px',
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "6px",
+                                        padding: "6px 8px",
+                                        cursor: "pointer",
+                                        color: "var(--color-text)",
+                                        fontSize: "13px",
                                         fontWeight: 600,
-                                        userSelect: 'none'
+                                        userSelect: "none",
+                                        background: "transparent",
+                                        border: "none",
+                                        width: "100%",
+                                        textAlign: "left",
                                       }}
+                                      aria-expanded={isExpanded}
                                     >
-                                      <span style={{ fontSize: '12px', width: '16px' }}>
-                                        {isExpanded ? '▼' : '▶'}
+                                      <span style={{ fontSize: "12px", width: "16px" }}>
+                                        {isExpanded ? "▼" : "▶"}
                                       </span>
                                       <span>{revision}</span>
-                                    </div>
-                                    {isExpanded && revFiles.map((file, idx) => (
-                                      <div
-                                        key={`${revision}-${idx}`}
-                                        style={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: '6px',
-                                          padding: '4px 8px 4px 32px',
-                                          color: 'var(--color-accent)',
-                                          fontSize: '12px'
-                                        }}
-                                      >
-                                        <span>📄</span>
-                                        <span>{file}</span>
-                                      </div>
-                                    ))}
+                                    </button>
+                                    {isExpanded &&
+                                      revFiles.map((file, idx) => (
+                                        <div
+                                          key={`${revision}-${idx}`}
+                                          style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "6px",
+                                            padding: "4px 8px 4px 32px",
+                                            color: "var(--color-accent)",
+                                            fontSize: "12px",
+                                          }}
+                                        >
+                                          <span>📄</span>
+                                          <span>{file}</span>
+                                        </div>
+                                      ))}
                                   </div>
                                 );
                               })}
@@ -1161,15 +1306,15 @@ function App() {
                               <button
                                 onClick={() => uploadInputRef.current?.click()}
                                 style={{
-                                  padding: '6px 12px',
-                                  background: 'var(--color-accent)',
-                                  color: 'var(--color-surface)',
-                                  border: 'none',
-                                  borderRadius: '6px',
-                                  cursor: 'pointer',
-                                  fontSize: '12px',
-                                  marginTop: '8px',
-                                  alignSelf: 'flex-start'
+                                  padding: "6px 12px",
+                                  background: "var(--color-accent)",
+                                  color: "var(--color-surface)",
+                                  border: "none",
+                                  borderRadius: "6px",
+                                  cursor: "pointer",
+                                  fontSize: "12px",
+                                  marginTop: "8px",
+                                  alignSelf: "flex-start",
                                 }}
                               >
                                 + Add files
@@ -1185,7 +1330,9 @@ function App() {
                                 onClick={() => uploadInputRef.current?.click()}
                                 aria-label="Upload PDF files"
                               >
-                                Drag & drop PDF files here<br />or click to browse • Multiple files supported
+                                Drag & drop PDF files here
+                                <br />
+                                or click to browse • Multiple files supported
                               </button>
                             </>
                           )}
@@ -1212,3 +1359,5 @@ function App() {
 }
 
 export default App;
+
+App.propTypes = {};

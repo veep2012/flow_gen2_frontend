@@ -1,4 +1,5 @@
 import React from "react";
+import PropTypes from "prop-types";
 
 /**
  * Context for UI state management
@@ -24,6 +25,10 @@ export const UIProvider = ({ children }) => {
   };
 
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
+};
+
+UIProvider.propTypes = {
+  children: PropTypes.node.isRequired,
 };
 
 export const useUI = () => {

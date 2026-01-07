@@ -11,9 +11,9 @@ export const normalizeApiBase = (raw) => {
   const prepared = hasProtocol || value.startsWith("/") ? value : `http://${value}`;
   const trimmed = prepared.replace(/\/+$/, "");
   try {
-    new URL(trimmed, window.location.origin);
-    return trimmed;
-  } catch (_err) {
+    const parsed = new URL(trimmed, window.location.origin);
+    return parsed.pathname === trimmed ? trimmed : parsed.href.replace(/\/+$/, "");
+  } catch {
     console.warn("Invalid VITE_API_BASE_URL, falling back to default /api/v1");
     return fallback;
   }

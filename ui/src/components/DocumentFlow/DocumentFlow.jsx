@@ -1,4 +1,5 @@
 import React from "react";
+import PropTypes from "prop-types";
 
 const DocumentFlow = ({
   infoActiveStep,
@@ -19,7 +20,7 @@ const DocumentFlow = ({
     if (activeStep === "IDC") {
       return (
         <>
-          <div className="flow-subtabs" style={{ display: 'flex' }}>
+          <div className="flow-subtabs" style={{ display: "flex" }}>
             {["Comments", "Distribution list"].map((tab) => (
               <button
                 type="button"
@@ -35,15 +36,17 @@ const DocumentFlow = ({
           <div className="flow-section">
             {infoActiveSubTab === "Comments" ? (
               <>
-                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
                   Not document owner or in Distribution list.
                 </div>
                 <div className="flow-box">
                   <h4>Original Files</h4>
-                  <div style={{ fontSize: '13px', color: 'var(--color-text-subtle)' }}>No original files uploaded yet</div>
+                  <div style={{ fontSize: "13px", color: "var(--color-text-subtle)" }}>
+                    No original files uploaded yet
+                  </div>
                 </div>
                 <div className="flow-box">
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
                     {["Files with Comments", "Written Comments"].map((tab) => (
                       <button
                         type="button"
@@ -51,14 +54,18 @@ const DocumentFlow = ({
                         className="flow-mini-tab"
                         style={{
                           flex: 1,
-                          padding: '8px 10px',
-                          borderBottom: infoActiveSubTab === tab ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                          padding: "8px 10px",
+                          borderBottom:
+                            infoActiveSubTab === tab
+                              ? "2px solid var(--color-primary)"
+                              : "1px solid var(--color-border)",
                           fontWeight: infoActiveSubTab === tab ? 700 : 500,
-                          color: infoActiveSubTab === tab ? 'var(--color-primary)' : 'var(--color-text)',
-                          cursor: 'pointer',
-                          textAlign: 'center',
-                          background: 'transparent',
-                          border: 'none'
+                          color:
+                            infoActiveSubTab === tab ? "var(--color-primary)" : "var(--color-text)",
+                          cursor: "pointer",
+                          textAlign: "center",
+                          background: "transparent",
+                          border: "none",
                         }}
                         aria-pressed={infoActiveSubTab === tab}
                         onClick={() => onSubTabChange(tab)}
@@ -67,7 +74,13 @@ const DocumentFlow = ({
                       </button>
                     ))}
                   </div>
-                  <div style={{ fontSize: '13px', color: 'var(--color-text-subtle)', padding: '12px 0' }}>
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      color: "var(--color-text-subtle)",
+                      padding: "12px 0",
+                    }}
+                  >
                     No files with comments yet
                   </div>
                 </div>
@@ -75,7 +88,9 @@ const DocumentFlow = ({
             ) : (
               <div className="flow-box">
                 <h4>Distribution List</h4>
-                <div style={{ fontSize: '13px', color: 'var(--color-text-subtle)' }}>No distribution list assigned</div>
+                <div style={{ fontSize: "13px", color: "var(--color-text-subtle)" }}>
+                  No distribution list assigned
+                </div>
               </div>
             )}
           </div>
@@ -85,7 +100,7 @@ const DocumentFlow = ({
 
     if (activeStep === "History") {
       return (
-        <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', padding: '8px 4px' }}>
+        <div style={{ fontSize: "13px", color: "var(--color-text-muted)", padding: "8px 4px" }}>
           No history available yet.
         </div>
       );
@@ -93,7 +108,7 @@ const DocumentFlow = ({
 
     if (activeStep === "Official" || activeStep === "Ready for Issue") {
       return (
-        <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', padding: '8px 4px' }}>
+        <div style={{ fontSize: "13px", color: "var(--color-text-muted)", padding: "8px 4px" }}>
           No documents available yet.
         </div>
       );
@@ -101,56 +116,64 @@ const DocumentFlow = ({
 
     // InDesign or other steps with upload capability
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '8px' }}>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "8px" }}>
         {uploadedFiles[activeStep] && uploadedFiles[activeStep].length > 0 ? (
-          <div style={{ flex: 1, overflow: 'auto', padding: '8px 0' }}>
-            {['Rev A', 'Rev B', 'Rev C'].map((revision, revIdx) => {
-              const revFiles = uploadedFiles[activeStep]?.filter(
-                (f, idx) => idx >= revIdx * 5 && idx < (revIdx + 1) * 5
-              ) || [];
-              
+          <div style={{ flex: 1, overflow: "auto", padding: "8px 0" }}>
+            {["Rev A", "Rev B", "Rev C"].map((revision, revIdx) => {
+              const revFiles =
+                uploadedFiles[activeStep]?.filter(
+                  (f, idx) => idx >= revIdx * 5 && idx < (revIdx + 1) * 5,
+                ) || [];
+
               if (!revFiles.length && revIdx > 0) return null;
-              
+
               const revKey = `${activeStep}-${revision}`;
               const isExpanded = expandedRevisions[revKey]?.isOpen !== false;
-              
+
               return (
-                <div key={revision} style={{ marginBottom: '4px' }}>
-                  <div
+                <div key={revision} style={{ marginBottom: "4px" }}>
+                  <button
+                    type="button"
                     onClick={() => onRevisionToggle(revKey)}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 8px',
-                      cursor: 'pointer',
-                      color: 'var(--color-text)',
-                      fontSize: '13px',
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "6px 8px",
+                      cursor: "pointer",
+                      color: "var(--color-text)",
+                      fontSize: "13px",
                       fontWeight: 600,
-                      userSelect: 'none'
+                      userSelect: "none",
+                      background: "transparent",
+                      border: "none",
+                      width: "100%",
+                      textAlign: "left",
                     }}
+                    aria-expanded={isExpanded}
                   >
-                    <span style={{ fontSize: '12px', width: '16px' }}>
-                      {isExpanded ? '▼' : '▶'}
+                    <span style={{ fontSize: "12px", width: "16px" }}>
+                      {isExpanded ? "▼" : "▶"}
                     </span>
                     <span>{revision}</span>
-                  </div>
-                  {isExpanded && revFiles.map((file, idx) => (
-                    <div
-                      key={`${revision}-${idx}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '4px 8px 4px 32px',
-                        color: 'var(--color-accent)',
-                        fontSize: '12px'
-                      }}
-                    >
-                      <span>📄</span>
-                      <span>{file}</span>
-                    </div>
-                  ))}
+                  </button>
+                  {isExpanded &&
+                    revFiles.map((file, idx) => (
+                      <div
+                        key={`${revision}-${idx}`}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "4px 8px 4px 32px",
+                          color: "var(--color-accent)",
+                          fontSize: "12px",
+                        }}
+                      >
+                        <span>📄</span>
+                        <span>{file}</span>
+                      </div>
+                    ))}
                 </div>
               );
             })}
@@ -158,15 +181,15 @@ const DocumentFlow = ({
             <button
               onClick={onUploadClick}
               style={{
-                padding: '6px 12px',
-                background: 'var(--color-accent)',
-                color: 'var(--color-surface)',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                marginTop: '8px',
-                alignSelf: 'flex-start'
+                padding: "6px 12px",
+                background: "var(--color-accent)",
+                color: "var(--color-surface)",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "12px",
+                marginTop: "8px",
+                alignSelf: "flex-start",
               }}
             >
               + Add files
@@ -182,7 +205,9 @@ const DocumentFlow = ({
               onClick={onUploadClick}
               aria-label="Upload PDF files"
             >
-              Drag & drop PDF files here<br />or click to browse • Multiple files supported
+              Drag & drop PDF files here
+              <br />
+              or click to browse • Multiple files supported
             </button>
           </>
         )}
@@ -212,12 +237,16 @@ const DocumentFlow = ({
             >
               <span className="dot">⦿</span>
               <span>{step}</span>
-              {infoActiveStep === step && <span style={{ position: 'absolute', right: 10, color: 'var(--color-text-secondary)' }}>⋮</span>}
+              {infoActiveStep === step && (
+                <span
+                  style={{ position: "absolute", right: 10, color: "var(--color-text-secondary)" }}
+                >
+                  ⋮
+                </span>
+              )}
             </button>
             {infoActiveStep === step && (
-              <div className="flow-inline-content">
-                {renderStepContent()}
-              </div>
+              <div className="flow-inline-content">{renderStepContent()}</div>
             )}
           </React.Fragment>
         ))}
@@ -227,3 +256,23 @@ const DocumentFlow = ({
 };
 
 export default DocumentFlow;
+
+DocumentFlow.propTypes = {
+  infoActiveStep: PropTypes.string,
+  onStepClick: PropTypes.func.isRequired,
+  infoActiveSubTab: PropTypes.string.isRequired,
+  onSubTabChange: PropTypes.func.isRequired,
+  activeStep: PropTypes.string,
+  uploadedFiles: PropTypes.objectOf(PropTypes.arrayOf(PropTypes.string)).isRequired,
+  expandedRevisions: PropTypes.objectOf(
+    PropTypes.shape({
+      isOpen: PropTypes.bool,
+    }),
+  ).isRequired,
+  onRevisionToggle: PropTypes.func.isRequired,
+  isDraggingUpload: PropTypes.bool.isRequired,
+  uploadDragProps: PropTypes.func.isRequired,
+  onUploadClick: PropTypes.func.isRequired,
+  uploadInputRef: PropTypes.shape({ current: PropTypes.instanceOf(Element) }),
+  onFileSelect: PropTypes.func.isRequired,
+};
