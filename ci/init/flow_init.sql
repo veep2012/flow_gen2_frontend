@@ -231,6 +231,8 @@ CREATE TABLE files_commented (
     UNIQUE(file_id, user_id)
 );
 
+CREATE INDEX idx_files_commented_file_id ON files_commented (file_id);
+
 -- ========================================================
 -- 5. Views
 -- ========================================================
