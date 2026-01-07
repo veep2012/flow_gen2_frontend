@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Iterable, TypeVar
+from typing import Any, Iterable, TypeVar
 
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 DEBUG_MODE = os.getenv("DEBUG", "").lower() in {"1", "true", "yes", "on", "debug"}
 
 
-def _example_for(model_cls: type[ModelT]) -> dict[str, dict[str, object]]:
+def _example_for(model_cls: type[ModelT]) -> dict[str, Any]:
     schema = model_cls.model_json_schema()
     props = schema.get("properties", {}) if isinstance(schema, dict) else {}
     example: dict[str, object] = {}

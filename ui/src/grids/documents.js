@@ -24,8 +24,7 @@ export function mapDocumentRow(doc) {
   const disciplineDisplay = doc.discipline_name
     ? `${doc.discipline_name}${doc.discipline_acronym ? ` (${doc.discipline_acronym})` : ""}`
     : "";
-  const jobpackDisplay =
-    doc.jobpack_name || (doc.jobpack_id ? `Jobpack ${doc.jobpack_id}` : "");
+  const jobpackDisplay = doc.jobpack_name || (doc.jobpack_id ? `Jobpack ${doc.jobpack_id}` : "");
   const areaDisplay = doc.area_name
     ? `${doc.area_name}${doc.area_acronym ? ` (${doc.area_acronym})` : ""}`
     : "";

@@ -243,14 +243,36 @@ function App() {
       <style>
         {`
         :root {
-          color: #1b2a44;
-          background: #e3edff;
+          --color-bg: #e3edff;
+          --color-surface: #f9fbff;
+          --color-surface-alt: #f1f6ff;
+          --color-surface-muted: #e9f1ff;
+          --color-surface-muted-strong: #cfe0ff;
+          --color-surface-soft: #e7f0ff;
+          --color-surface-soft-2: #dbe8ff;
+          --color-surface-soft-3: #e1ebff;
+          --color-surface-soft-4: #d7e3ff;
+          --color-border: #c2d4f6;
+          --color-border-soft: #b8ccf0;
+          --color-border-strong: #b6ccf3;
+          --color-border-subtle: #d2e1ff;
+          --color-text: #1b2a44;
+          --color-text-muted: #2f4666;
+          --color-primary: #1f5ed6;
+          --color-primary-contrast: #ffffff;
+          --color-info: #5a9bff;
+          --color-danger: #c53030;
+          --color-danger-soft: #fff5f5;
+          --color-focus: #2563eb;
+          --color-spinner-border: #c6d8ff;
+          color: var(--color-text);
+          background: var(--color-bg);
           font-family: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
         }
         * { box-sizing: border-box; }
         body {
           margin: 0;
-          background: #e3edff;
+          background: var(--color-bg);
         }
         .page {
           padding: 24px;
@@ -260,48 +282,48 @@ function App() {
           align-items: center;
           gap: 12px;
           margin-bottom: 16px;
-          color: #2f4666;
+          color: var(--color-text-muted);
           font-size: 14px;
         }
         .toolbar select {
-          border: 1px solid #b8ccf0;
+          border: 1px solid var(--color-border-soft);
           border-radius: 8px;
           padding: 8px 10px;
           font-size: 14px;
-          color: #1b2a44;
-          background: #f1f6ff;
+          color: var(--color-text);
+          background: var(--color-surface-alt);
           min-width: 180px;
         }
         .toolbar .status {
           font-size: 12px;
-          color: #c53030;
+          color: var(--color-danger);
         }
         .status-row {
           text-align: left;
           padding: 12px;
-          color: #2f4666;
+          color: var(--color-text-muted);
           font-size: 14px;
-          background: #e9f1ff;
+          background: var(--color-surface-muted);
         }
         .status-row.error {
-          color: #c53030;
-          background: #fff5f5;
+          color: var(--color-danger);
+          background: var(--color-danger-soft);
         }
         .progress {
           width: 120px;
-          background: #cfe0ff;
+          background: var(--color-surface-muted-strong);
           border-radius: 999px;
           height: 20px;
           position: relative;
           overflow: hidden;
-          border: 1px solid #b6ccf3;
+          border: 1px solid var(--color-border-strong);
         }
         .progress__fill {
           position: absolute;
           top: 0;
           left: 0;
           height: 100%;
-          background: linear-gradient(90deg, #1f5ed6, #5a9bff);
+          background: linear-gradient(90deg, var(--color-primary), var(--color-info));
           border-radius: 999px;
           transition: width 180ms ease;
         }
@@ -313,14 +335,14 @@ function App() {
           justify-content: center;
           font-size: 12px;
           font-weight: 600;
-          color: #fff;
+          color: var(--color-primary-contrast);
           text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
         }
         .spinner {
           width: 22px;
           height: 22px;
-          border: 3px solid #c6d8ff;
-          border-top-color: #1f5ed6;
+          border: 3px solid var(--color-spinner-border);
+          border-top-color: var(--color-primary);
           border-radius: 50%;
           display: inline-block;
           animation: spin 0.8s linear infinite;
@@ -331,8 +353,8 @@ function App() {
           }
         }
         .card {
-          background: #f9fbff;
-          border: 1px solid #c2d4f6;
+          background: var(--color-surface);
+          border: 1px solid var(--color-border);
           border-radius: 12px;
           box-shadow:
             0 16px 32px rgba(30, 64, 175, 0.12),
@@ -344,26 +366,26 @@ function App() {
           border-collapse: collapse;
         }
         .table thead th {
-          background: #dbe8ff;
+          background: var(--color-surface-soft-2);
           font-weight: 700;
           text-align: left;
           font-size: 14px;
-          color: #1b2a44;
+          color: var(--color-text);
           padding: 14px 12px 6px;
-          border-bottom: 1px solid #b6ccf3;
+          border-bottom: 1px solid var(--color-border-strong);
         }
         .table thead input {
           width: 100%;
           margin-top: 6px;
           padding: 8px 10px;
-          border: 1px solid #b8ccf0;
+          border: 1px solid var(--color-border-soft);
           border-radius: 8px;
           font-size: 13px;
-          color: #2f4666;
-          background: #f1f6ff;
+          color: var(--color-text-muted);
+          background: var(--color-surface-alt);
         }
         .table tbody tr {
-          border-bottom: 1px solid #d2e1ff;
+          border-bottom: 1px solid var(--color-border-subtle);
         }
         .table tbody tr:last-child {
           border-bottom: none;
@@ -371,12 +393,12 @@ function App() {
         .table td {
           padding: 10px 12px;
           font-size: 14px;
-          color: #1b2a44;
+          color: var(--color-text);
           line-height: 1.4;
-          background: #f9fbff;
+          background: var(--color-surface);
         }
         .table tbody tr:hover td {
-          background: #e7f0ff;
+          background: var(--color-surface-soft);
         }
         .actions-cell {
           width: 44px;
@@ -396,18 +418,18 @@ function App() {
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          color: #2f4666;
+          color: var(--color-text-muted);
         }
         .menu-trigger:hover {
-          background: #e1ebff;
+          background: var(--color-surface-soft-3);
         }
         .row-menu {
           position: absolute;
           right: 8px;
           top: 42px;
           min-width: 140px;
-          background: #f9fbff;
-          border: 1px solid #c2d4f6;
+          background: var(--color-surface);
+          border: 1px solid var(--color-border);
           border-radius: 10px;
           box-shadow:
             0 12px 24px rgba(15, 23, 42, 0.12),
@@ -426,23 +448,23 @@ function App() {
           padding: 8px 10px;
           border-radius: 8px;
           font-size: 13px;
-          color: #1b2a44;
+          color: var(--color-text);
           cursor: pointer;
         }
         .row-menu button:hover {
-          background: #e7f0ff;
+          background: var(--color-surface-soft);
         }
         .row-menu .danger {
-          color: #c53030;
+          color: var(--color-danger);
         }
         .inline-input {
           width: 100%;
           padding: 6px 8px;
           border-radius: 8px;
-          border: 1px solid #b8ccf0;
+          border: 1px solid var(--color-border-soft);
           font-size: 13px;
-          color: #1b2a44;
-          background: #f1f6ff;
+          color: var(--color-text);
+          background: var(--color-surface-alt);
         }
         .edit-actions {
           display: inline-flex;
@@ -450,44 +472,44 @@ function App() {
         }
         .edit-actions button {
           border: none;
-          background: #1f5ed6;
-          color: #fff;
+          background: var(--color-primary);
+          color: var(--color-primary-contrast);
           padding: 6px 10px;
           border-radius: 8px;
           font-size: 12px;
           cursor: pointer;
         }
         .edit-actions button.secondary {
-          background: #d7e3ff;
-          color: #1b2a44;
+          background: var(--color-surface-soft-4);
+          color: var(--color-text);
         }
         .edit-error {
           margin-top: 6px;
           font-size: 12px;
-          color: #c53030;
+          color: var(--color-danger);
           text-align: right;
         }
         .lookup-hint {
           margin-left: 8px;
           font-size: 12px;
-          color: #c53030;
+          color: var(--color-danger);
         }
         .meta {
           display: flex;
           justify-content: space-between;
           align-items: center;
           padding: 14px 16px;
-          border-bottom: 1px solid #c2d4f6;
+          border-bottom: 1px solid var(--color-border);
         }
         .meta h1 {
           margin: 0;
           font-size: 18px;
           font-weight: 700;
-          color: #1b2a44;
+          color: var(--color-text);
         }
         .meta .count {
           font-size: 13px;
-          color: #2f4666;
+          color: var(--color-text-muted);
         }
         @media (max-width: 960px) {
           .table {

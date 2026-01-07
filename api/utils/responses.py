@@ -1,6 +1,8 @@
 """Common response templates for API endpoints."""
 
-COMMON_RESPONSES = {
+from typing import Any
+
+COMMON_RESPONSES: dict[int | str, dict[str, Any]] = {
     400: {
         "description": "Bad Request",
         "content": {

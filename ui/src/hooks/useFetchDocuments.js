@@ -10,12 +10,10 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
     const prepared = hasProtocol || raw.startsWith("/") ? raw : `http://${raw}`;
     const trimmed = prepared.replace(/\/+$/, "");
     try {
-      // Validate the URL; allow relative paths by resolving against current origin
-      // This prevents fetch from throwing "string did not match the expected pattern".
-      // eslint-disable-next-line no-new
-      new URL(trimmed, window.location.origin);
-      return trimmed;
-    } catch (_err) {
+      // Validate the URL; allow relative paths by resolving against current origin.
+      const parsed = new URL(trimmed, window.location.origin);
+      return parsed.pathname === trimmed ? trimmed : parsed.href.replace(/\/+$/, "");
+    } catch {
       console.warn("Invalid VITE_API_BASE_URL, falling back to default /api/v1");
       return fallback;
     }
@@ -50,13 +48,9 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
 
   useEffect(() => {
     const extractProjects = (data) => {
-      const candidates = [
-        data,
-        data?.items,
-        data?.results,
-        data?.projects,
-        data?.data,
-      ].find(Array.isArray);
+      const candidates = [data, data?.items, data?.results, data?.projects, data?.data].find(
+        Array.isArray,
+      );
 
       const source = candidates ?? [];
       return source.map((item) => {
@@ -64,12 +58,7 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
           return { id: String(item), label: String(item) };
         }
         const id =
-          item?.id ??
-          item?.project_id ??
-          item?.value ??
-          item?.code ??
-          item?.name ??
-          item?.number;
+          item?.id ?? item?.project_id ?? item?.value ?? item?.code ?? item?.name ?? item?.number;
         const label =
           item?.name ??
           item?.project_name ??

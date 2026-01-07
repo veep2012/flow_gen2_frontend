@@ -1,4 +1,4 @@
-"""Files endpoints for file upload and download operations."""
+"""Files-commented endpoints for commented file operations."""
 
 import io
 import logging
@@ -16,8 +16,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
-from api.db.models import DocRevision, File, FileAccepted
-from api.schemas.files import FileDelete, FileOut, FileUpdate
+from api.db.models import File, FileAccepted, FileCommented, User
+from api.schemas.files import FileCommentedDelete, FileCommentedOut
 from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
 from api.utils.minio import (
@@ -27,7 +27,7 @@ from api.utils.minio import (
     _minio_with_retry,
 )
 
-router = APIRouter(prefix="/api/v1/files", tags=["files"])
+router = APIRouter(prefix="/api/v1/files/commented", tags=["files-commented"])
 
 logger = logging.getLogger(__name__)
 
@@ -115,13 +115,29 @@ def _validate_mimetype(file_extension: str, content_type: str, expected_mimetype
         )
 
 
+def _handle_commented_file_integrity_error(err: IntegrityError) -> None:
+    constraint = None
+    orig = getattr(err, "orig", None)
+    if orig is not None:
+        constraint = getattr(getattr(orig, "diag", None), "constraint_name", None)
+    if constraint == "files_commented_file_id_user_id_key":
+        raise HTTPException(
+            status_code=400,
+            detail="Commented file already exists for this file and user.",
+        )
+    _handle_integrity_error("Failed to create commented file record", err, "insert_commented_file")
+
+
 @router.get(
     "/list",
-    summary="List all files for a specific revision.",
-    description="Returns a list of all files associated with the specified document revision.",
-    operation_id="list_files_for_revision",
-    tags=["files"],
-    response_model=list[FileOut],
+    summary="List all commented files for a specific file.",
+    description=(
+        "Returns a list of all commented files associated with the specified file ID. "
+        "Optionally filter by user ID."
+    ),
+    operation_id="list_commented_files_for_file",
+    tags=["files-commented"],
+    response_model=list[FileCommentedOut],
     responses={
         400: {
             "description": "Bad Request",
@@ -173,36 +189,62 @@ def _validate_mimetype(file_extension: str, content_type: str, expected_mimetype
         },
     },
 )
-def list_files_for_revision(
-    rev_id: int = Query(..., description="Revision ID to filter files by"),
+def list_commented_files_for_file(
+    file_id: int = Query(
+        ..., gt=0, description="File ID to filter commented files by", examples=[1]
+    ),
+    user_id: int | None = Query(
+        None, gt=0, description="Optional User ID to filter by", examples=[1]
+    ),
     db: Session = Depends(get_db),
-) -> list[FileOut]:
+) -> list[FileCommentedOut]:
     """
-    List all files for a specific revision.
+    List all commented files for a specific file.
 
-    Returns a list of all files associated with the specified document revision.
+    Returns a list of all commented files associated with the specified file ID.
+    Optionally filter by user ID.
 
     Args:
-        rev_id: The revision ID to filter files by.
+        file_id: The file ID to filter commented files by (mandatory).
+        user_id: The user ID to filter by (optional).
 
     Returns:
-        List of files with metadata. If no files exist for the specified revision, an empty list is
-        returned.
+        List of commented files with metadata. If no commented files exist for the specified
+        file, an empty list is returned.
     """
-    files = db.query(File).filter(File.rev_id == rev_id).order_by(File.filename, File.id).all()
-    return _model_list(FileOut, files)
+    query = (
+        db.query(FileCommented, File.filename, File.mimetype, File.rev_id)
+        .join(File, FileCommented.file_id == File.id)
+        .filter(FileCommented.file_id == file_id)
+    )
+    if user_id is not None:
+        query = query.filter(FileCommented.user_id == user_id)
+    rows = query.order_by(FileCommented.id).all()
+    files = [
+        {
+            "id": file_row.id,
+            "file_id": file_row.file_id,
+            "user_id": file_row.user_id,
+            "s3_uid": file_row.s3_uid,
+            "filename": filename,
+            "mimetype": mimetype,
+            "rev_id": rev_id,
+        }
+        for file_row, filename, mimetype, rev_id in rows
+    ]
+    return _model_list(FileCommentedOut, files)
 
 
 @router.post(
     "/insert",
-    summary="Upload a file and attach it to a document revision.",
+    summary="Upload a commented file.",
     description=(
-        "Uploads a file to MinIO object storage and creates a database record linking it to the "
-        "specified document revision."
+        "Uploads a commented file to MinIO object storage and creates a record linked to the "
+        "specified file and user."
     ),
-    operation_id="insert_file",
-    tags=["files"],
-    response_model=FileOut,
+    operation_id="insert_commented_file",
+    tags=["files-commented"],
+    response_model=FileCommentedOut,
     status_code=201,
     responses={
         400: {
@@ -225,6 +267,26 @@ def list_files_for_revision(
                 },
             },
         },
+        413: {
+            "description": "Payload Too Large",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "File exceeds upload size limit",
+                    },
+                },
+            },
+        },
+        415: {
+            "description": "Unsupported Media Type",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Unsupported Media Type",
+                    },
+                },
+            },
+        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -255,34 +317,36 @@ def list_files_for_revision(
         },
     },
 )
-def insert_file(
+def insert_commented_file(
     request: Request,
-    rev_id: int = Form(..., description="Revision ID to attach the file to"),
+    file_id: int = Form(..., description="File ID to attach the commented file to", examples=[1]),
+    user_id: int = Form(..., description="User ID uploading the commented file", examples=[1]),
     file: UploadFile = UploadFileField(...),
     db: Session = Depends(get_db),
-) -> FileOut:
+) -> FileCommentedOut:
     """
-    Upload a file and attach it to a document revision.
-
-    Uploads a file to MinIO object storage and creates a database record linking it to the specified
-    document revision.
+    Upload a commented file and attach it to an existing file.
 
     Args:
         request: Incoming request used for logging the client host.
-        rev_id: The revision ID to attach the file to.
+        file_id: The file ID to attach the commented file to.
+        user_id: The user ID uploading the commented file.
         file: The uploaded file (multipart form data).
 
     Returns:
-        Newly created file record with metadata.
+        Newly created commented file record with metadata.
 
     Raises:
         HTTPException: 400 if filename is missing, too long, or file is empty.
-        HTTPException: 404 if revision not found.
+        HTTPException: 404 if file or user not found.
         HTTPException: 413 if file exceeds size limit.
     """
-    revision = db.get(DocRevision, rev_id)
-    if not revision:
-        raise HTTPException(status_code=404, detail="Revision not found")
+    file_row = db.get(File, file_id)
+    if not file_row:
+        raise HTTPException(status_code=404, detail="File not found")
+    user_row = db.get(User, user_id)
+    if not user_row:
+        raise HTTPException(status_code=404, detail="User not found")
 
     if not file.filename:
         raise HTTPException(status_code=400, detail="Filename is required")
@@ -291,7 +355,6 @@ def insert_file(
     if len(filename) > 90:
         raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
 
-    # Extract file extension and validate against accepted file types.
     file_extension = _extract_file_extension(filename)
     if not file_extension:
         raise HTTPException(
@@ -317,6 +380,15 @@ def insert_file(
         accepted_mimetype = accepted_file.mimetype
         accepted_types[file_extension] = accepted_mimetype
     _validate_mimetype(file_extension, content_type, accepted_mimetype)
+    if content_type.lower() != file_row.mimetype.lower():
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                "Commented file content type does not match original file. "
+                f"Expected '{file_row.mimetype}'."
+            ),
+        )
+
     stream: BinaryIO = cast(BinaryIO, file.file)
     size = None
     if hasattr(stream, "seekable") and stream.seekable():
@@ -335,16 +407,21 @@ def insert_file(
             raise HTTPException(status_code=400, detail="File is empty")
         stream = cast(BinaryIO, _PrefixedStream(peek, stream))
 
-    doc = revision.doc
+    revision = file_row.revision
+    doc = revision.doc if revision else None
     project_name = doc.project.project_name if doc and doc.project else None
-    doc_name = doc.doc_name_unique if doc else f"doc_{revision.doc_id}"
+    doc_name = doc.doc_name_unique if doc else f"doc_{revision.doc_id}" if revision else None
+    transmital_current_revision = (
+        revision.transmital_current_revision if revision else "rev_unknown"
+    )
     object_key = _build_file_object_key(
         project_name=project_name,
-        doc_name_unique=doc_name,
-        transmital_current_revision=revision.transmital_current_revision,
+        doc_name_unique=doc_name or "doc_unknown",
+        transmital_current_revision=transmital_current_revision,
         unique_id=uuid.uuid4().hex,
         filename=filename,
     )
+
     client, bucket = _build_minio_client()
     endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
     if not _minio_with_retry("bucket_exists", endpoint, lambda: client.bucket_exists(bucket)):
@@ -372,14 +449,14 @@ def insert_file(
                 ),
             )
     except HTTPException:
-        logger.exception("MinIO upload failed for key %s", object_key)
+        logger.exception("MinIO upload failed for commented file key %s", object_key)
         raise
 
-    new_file = File(
-        filename=filename,
+    new_file = FileCommented(
+        file_id=file_id,
+        user_id=user_id,
         s3_uid=object_key,
         mimetype=content_type,
-        rev_id=rev_id,
     )
     db.add(new_file)
     try:
@@ -394,129 +471,35 @@ def insert_file(
             )
         except HTTPException:
             logger.exception("Failed to cleanup MinIO object after DB error: %s", object_key)
-        _handle_integrity_error("Failed to create file record", err, "insert_file")
+        _handle_commented_file_integrity_error(err)
 
     db.refresh(new_file)
     client_host = request.client.host if request.client else "unknown"
     logger.info(
-        "File uploaded rev_id=%s file_id=%s filename=%s client=%s",
-        rev_id,
+        "Commented file uploaded file_id=%s user_id=%s id=%s client=%s",
+        file_id,
+        user_id,
         new_file.id,
-        filename,
         client_host,
     )
-    return _model_out(FileOut, new_file)
-
-
-@router.put(
-    "/update",
-    summary="Update file metadata.",
-    description=(
-        "Updates the filename of an existing file record (does not update the actual file "
-        "content)."
-    ),
-    operation_id="update_file",
-    tags=["files"],
-    response_model=FileOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
-def update_file(
-    payload: FileUpdate = Body(..., openapi_examples=_example_for(FileUpdate)),
-    db: Session = Depends(get_db),
-) -> FileOut:
-    """
-    Update file metadata.
-
-    Updates the filename of an existing file record (does not update the actual file content).
-
-    Args:
-        payload: File update data including file id and new filename.
-
-    Returns:
-        Updated file record.
-
-    Raises:
-        HTTPException: 400 if filename is empty or too long.
-        HTTPException: 404 if file not found.
-    """
-    filename = payload.filename.strip()
-    if not filename:
-        raise HTTPException(status_code=400, detail="Filename is required")
-    if len(filename) > 90:
-        raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
-
-    file_row = db.get(File, payload.id)
-    if not file_row:
-        raise HTTPException(status_code=404, detail="File not found")
-
-    logger.info("event=file_update_attempt file_id=%s", file_row.id)
-    file_row.filename = filename
-    try:
-        db.commit()
-    except IntegrityError as err:
-        db.rollback()
-        _handle_integrity_error("Failed to update file", err, "update_file")
-
-    db.refresh(file_row)
-    logger.info("event=file_update_success file_id=%s", file_row.id)
-    return _model_out(FileOut, file_row)
+    response_payload = {
+        "id": new_file.id,
+        "file_id": file_id,
+        "user_id": user_id,
+        "s3_uid": new_file.s3_uid,
+        "filename": file_row.filename,
+        "mimetype": file_row.mimetype,
+        "rev_id": file_row.rev_id,
+    }
+    return _model_out(FileCommentedOut, response_payload)
 
 
 @router.delete(
     "/delete",
-    summary="Delete a file.",
-    description="Removes a file from both the MinIO object storage and the database.",
-    operation_id="delete_file",
-    tags=["files"],
+    summary="Delete a commented file.",
+    description="Removes a commented file from both the MinIO object storage and the database.",
+    operation_id="delete_commented_file",
+    tags=["files-commented"],
     status_code=204,
     responses={
         400: {
@@ -569,26 +552,26 @@ def update_file(
         },
     },
 )
-def delete_file(
+def delete_commented_file(
     request: Request,
-    payload: FileDelete = Body(..., openapi_examples=_example_for(FileDelete)),
+    payload: FileCommentedDelete = Body(..., openapi_examples=_example_for(FileCommentedDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
-    Delete a file.
+    Delete a commented file.
 
-    Removes a file from both the MinIO object storage and the database.
+    Removes a commented file from both the MinIO object storage and the database.
 
     Args:
-        payload: File deletion data including file id.
+        payload: Commented file deletion data including id.
         request: Incoming request used for logging the client host.
 
     Raises:
-        HTTPException: 404 if file not found.
+        HTTPException: 404 if commented file not found.
     """
-    file_row = db.get(File, payload.id)
+    file_row = db.get(FileCommented, payload.id)
     if not file_row:
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(status_code=404, detail="Commented file not found")
 
     client, bucket = _build_minio_client()
     endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
@@ -598,10 +581,16 @@ def delete_file(
             endpoint,
             lambda: client.remove_object(bucket, file_row.s3_uid),
         )
-        logger.info("MinIO delete succeeded file_id=%s s3_uid=%s", file_row.id, file_row.s3_uid)
+        logger.info(
+            "MinIO delete succeeded commented_id=%s s3_uid=%s",
+            file_row.id,
+            file_row.s3_uid,
+        )
     except HTTPException:
         logger.exception(
-            "MinIO delete failed for file_id=%s s3_uid=%s", file_row.id, file_row.s3_uid
+            "MinIO delete failed for commented_id=%s s3_uid=%s",
+            file_row.id,
+            file_row.s3_uid,
         )
         raise
 
@@ -611,14 +600,14 @@ def delete_file(
     except Exception:
         db.rollback()
         logger.exception(
-            "DB delete failed after MinIO delete file_id=%s s3_uid=%s",
+            "DB delete failed after MinIO delete commented_id=%s s3_uid=%s",
             file_row.id,
             file_row.s3_uid,
         )
         raise HTTPException(status_code=500, detail="Internal Server Error")
     client_host = request.client.host if request.client else "unknown"
     logger.info(
-        "File deleted file_id=%s s3_uid=%s client=%s",
+        "Commented file deleted id=%s s3_uid=%s client=%s",
         payload.id,
         file_row.s3_uid,
         client_host,
@@ -627,13 +616,13 @@ def delete_file(
 
 @router.get(
     "/download",
-    summary="Download a file.",
+    summary="Download a commented file.",
     description=(
-        "Streams a file from MinIO object storage to the client with proper headers for download "
-        "(Content-Disposition, ETag, Last-Modified)."
+        "Streams a commented file from MinIO object storage to the client with proper headers "
+        "for download (Content-Disposition, ETag, Last-Modified)."
     ),
-    operation_id="download_file",
-    tags=["files"],
+    operation_id="download_commented_file",
+    tags=["files-commented"],
     responses={
         200: {
             "description": "File content.",
@@ -693,37 +682,37 @@ def delete_file(
         },
     },
 )
-def download_file(
+def download_commented_file(
     request: Request,
-    file_id: int = Query(..., description="File ID to download"),
+    file_id: int = Query(..., description="Commented file ID to download", examples=[1]),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     """
-    Download a file.
+    Download a commented file.
 
-    Streams a file from MinIO object storage to the client with proper headers for download
-    (Content-Disposition, ETag, Last-Modified).
+    Streams a commented file from MinIO object storage to the client with proper headers for
+    download (Content-Disposition, ETag, Last-Modified).
 
     Args:
         request: Incoming request used for logging the client host.
-        file_id: The ID of the file to download.
+        file_id: The ID of the commented file to download.
 
     Returns:
         Streaming response with the file content.
 
     Raises:
-        HTTPException: 404 if file not found.
+        HTTPException: 404 if commented file not found.
     """
     if request.headers.get("range"):
         raise HTTPException(status_code=416, detail="Range requests are not supported")
 
-    file_row = db.get(File, file_id)
+    file_row = db.get(FileCommented, file_id)
     if not file_row:
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(status_code=404, detail="Commented file not found")
 
     client_host = request.client.host if request.client else "unknown"
     logger.info(
-        "event=file_download_start file_id=%s s3_uid=%s client=%s",
+        "event=commented_download_start commented_id=%s s3_uid=%s client=%s",
         file_row.id,
         file_row.s3_uid,
         client_host,
@@ -741,14 +730,28 @@ def download_file(
         lambda: client.stat_object(bucket, file_row.s3_uid),
     )
 
+    source_filename = None
+    user_acronym = None
+    if file_row.file is not None:
+        source_filename = file_row.file.filename
+    if file_row.user is not None:
+        user_acronym = file_row.user.user_acronym
+
+    # Extract filename from s3_uid path as fallback
+    filename = source_filename or (
+        file_row.s3_uid.split("/")[-1] if "/" in file_row.s3_uid else file_row.s3_uid
+    )
+    if user_acronym:
+        base, ext = os.path.splitext(filename)
+        filename = f"{base}_commented_by_{user_acronym}{ext}"
     safe_name = (
-        file_row.filename.replace('"', "'")
+        filename.replace('"', "'")
         .replace("\r", "")
         .replace("\n", "")
         .encode("latin-1", "ignore")
         .decode("latin-1")
     )
-    quoted_name = quote(file_row.filename)
+    quoted_name = quote(filename)
     headers = {
         "Content-Disposition": (
             "attachment; filename=\"{}\"; filename*=UTF-8''{}".format(
@@ -763,15 +766,20 @@ def download_file(
         headers["ETag"] = f'"{etag}"'
     if stat.last_modified:
         headers["Last-Modified"] = formatdate(stat.last_modified.timestamp(), usegmt=True)
+
     logger.info(
-        "event=file_download_ready file_id=%s s3_uid=%s client=%s",
+        "event=commented_download_ready commented_id=%s s3_uid=%s client=%s",
         file_row.id,
         file_row.s3_uid,
         client_host,
     )
+
+    # Prefer stored mimetype; fall back to MinIO stat, then octet-stream.
+    mimetype = file_row.mimetype or stat.content_type or "application/octet-stream"
+
     return StreamingResponse(
         _stream_minio(response),
-        media_type=file_row.mimetype or stat.content_type or "application/octet-stream",
+        media_type=mimetype,
         headers=headers,
         background=BackgroundTask(_close_minio_response, response),
     )

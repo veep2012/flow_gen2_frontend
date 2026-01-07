@@ -96,6 +96,7 @@ erDiagram
         integer file_id FK
         smallint user_id FK
         text s3_uid "S3 Object Key (Annotation)"
+        string mimetype
     }
 
     FILES_FORBIDDEN {
@@ -256,5 +257,4 @@ erDiagram
     UNITS ||--o{ DOC_CACHE : "cached"
 
 ```
-
 
