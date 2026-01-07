@@ -70,6 +70,10 @@ STOP_UI_CMD := PID_FILE="$(UI_PID_FILE)" bash scripts/local-ui-stop.sh
 STOP_UI_ALT_CMD := PID_FILE="$(UI_ALT_PID_FILE)" bash scripts/local-ui-stop.sh
 endif
 
+ifneq (,$(wildcard .venv))
+PYTHON_BIN := $(VENV_PY)
+endif
+
 .DEFAULT_GOAL := help
 
 .PHONY: ensure-pid-dir

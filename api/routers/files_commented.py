@@ -182,8 +182,8 @@ def _handle_commented_file_integrity_error(err: IntegrityError) -> None:
     },
 )
 def list_commented_files_for_file(
-    file_id: int = Query(..., description="File ID to filter commented files by"),
-    user_id: int | None = Query(None, description="Optional User ID to filter by"),
+    file_id: int = Query(..., gt=0, description="File ID to filter commented files by"),
+    user_id: int | None = Query(None, gt=0, description="Optional User ID to filter by"),
     db: Session = Depends(get_db),
 ) -> list[FileCommentedOut]:
     """
