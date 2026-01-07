@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
 from api.db.models import File, FileAccepted, FileCommented, User
-from api.schemas.files import FileCommentedDelete, FileCommentedOut, FileCommentedUpdate
+from api.schemas.files import FileCommentedDelete, FileCommentedOut
 from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
 from api.utils.minio import (
@@ -104,6 +104,19 @@ def _validate_mimetype(file_extension: str, content_type: str, expected_mimetype
                 f"'.{file_extension}'. Expected '{expected_mimetype}'."
             ),
         )
+
+
+def _handle_commented_file_integrity_error(err: IntegrityError) -> None:
+    constraint = None
+    orig = getattr(err, "orig", None)
+    if orig is not None:
+        constraint = getattr(getattr(orig, "diag", None), "constraint_name", None)
+    if constraint == "files_commented_file_id_user_id_key":
+        raise HTTPException(
+            status_code=400,
+            detail="Commented file already exists for this file and user.",
+        )
+    _handle_integrity_error("Failed to create commented file record", err, "insert_commented_file")
 
 
 @router.get(
@@ -422,6 +435,7 @@ def insert_commented_file(
         file_id=file_id,
         user_id=user_id,
         s3_uid=object_key,
+        mimetype=content_type,
     )
     db.add(new_file)
     try:
@@ -436,9 +450,7 @@ def insert_commented_file(
             )
         except HTTPException:
             logger.exception("Failed to cleanup MinIO object after DB error: %s", object_key)
-        _handle_integrity_error(
-            "Failed to create commented file record", err, "insert_commented_file"
-        )
+        _handle_commented_file_integrity_error(err)
 
     db.refresh(new_file)
     client_host = request.client.host if request.client else "unknown"
@@ -449,98 +461,16 @@ def insert_commented_file(
         new_file.id,
         client_host,
     )
-    return _model_out(FileCommentedOut, new_file)
-
-
-@router.put(
-    "/update",
-    summary="Update commented file metadata.",
-    description="Updates the s3_uid of an existing commented file record.",
-    operation_id="update_commented_file",
-    tags=["files-commented"],
-    response_model=FileCommentedOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
-def update_commented_file(
-    payload: FileCommentedUpdate = Body(..., examples=_example_for(FileCommentedUpdate)),
-    db: Session = Depends(get_db),
-) -> FileCommentedOut:
-    """
-    Update commented file metadata.
-
-    Updates the s3_uid of an existing commented file record.
-
-    Args:
-        payload: Commented file update data including id and new s3_uid.
-
-    Returns:
-        Updated commented file record.
-
-    Raises:
-        HTTPException: 404 if commented file not found.
-    """
-    file_row = db.get(FileCommented, payload.id)
-    if not file_row:
-        raise HTTPException(status_code=404, detail="Commented file not found")
-
-    file_row.s3_uid = payload.s3_uid
-    try:
-        db.commit()
-    except IntegrityError as err:
-        db.rollback()
-        _handle_integrity_error("Failed to update commented file", err, "update_commented_file")
-
-    db.refresh(file_row)
-    return _model_out(FileCommentedOut, file_row)
+    response_payload = {
+        "id": new_file.id,
+        "file_id": file_id,
+        "user_id": user_id,
+        "s3_uid": new_file.s3_uid,
+        "filename": file_row.filename,
+        "mimetype": file_row.mimetype,
+        "rev_id": file_row.rev_id,
+    }
+    return _model_out(FileCommentedOut, response_payload)
 
 
 @router.delete(
