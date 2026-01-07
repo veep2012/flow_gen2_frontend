@@ -6,7 +6,7 @@ import os
 import time
 import uuid
 from email.utils import formatdate
-from typing import BinaryIO, cast
+from typing import BinaryIO, Iterator, cast
 from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, UploadFile
@@ -52,6 +52,14 @@ class _PrefixedStream:
 
     def close(self) -> None:
         self._stream.close()
+
+
+def _stream_minio(response, chunk_size: int = 64 * 1024) -> Iterator[bytes]:
+    while True:
+        chunk = response.read(chunk_size)
+        if not chunk:
+            break
+        yield chunk
 
 
 def _parse_accepted_file_mime_map() -> dict[str, str]:
@@ -704,6 +712,9 @@ def download_file(
     Raises:
         HTTPException: 404 if file not found.
     """
+    if request.headers.get("range"):
+        raise HTTPException(status_code=416, detail="Range requests are not supported")
+
     file_row = db.get(File, file_id)
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
@@ -737,6 +748,7 @@ def download_file(
             )
         )
     }
+    headers["Accept-Ranges"] = "none"
     if stat.etag:
         etag = stat.etag.strip('"')
         headers["ETag"] = f'"{etag}"'
@@ -750,8 +762,8 @@ def download_file(
         client_host,
     )
     return StreamingResponse(
-        response,
-        media_type=file_row.mimetype or "application/octet-stream",
+        _stream_minio(response),
+        media_type=file_row.mimetype or stat.content_type or "application/octet-stream",
         headers=headers,
         background=BackgroundTask(_close_minio_response, response),
     )
