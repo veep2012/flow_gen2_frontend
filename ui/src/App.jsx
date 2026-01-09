@@ -558,18 +558,16 @@ function App() {
 
   React.useEffect(() => {
     if (orderedStatuses.length === 0) return;
-    const exists =
-      infoActiveStep !== null &&
-      orderedStatuses.some((s) => String(s.rev_status_id) === infoActiveStep);
-    if (exists) return;
-    if (infoActiveStep !== null && !exists && infoActiveStep !== "history") {
-      setInfoActiveStep(String(orderedStatuses[0].rev_status_id));
+    if (infoActiveStep === null) {
+      hasInitializedFlowRef.current = true;
       return;
     }
-    if (!hasInitializedFlowRef.current) {
-      setInfoActiveStep(String(orderedStatuses[0].rev_status_id));
-      hasInitializedFlowRef.current = true;
-    }
+    const exists =
+      orderedStatuses.some((s) => String(s.rev_status_id) === infoActiveStep)
+      || infoActiveStep === "history";
+    if (exists) return;
+    setInfoActiveStep(null);
+    hasInitializedFlowRef.current = true;
   }, [orderedStatuses, infoActiveStep]);
 
   return (
@@ -1394,10 +1392,7 @@ function App() {
                         </span>
                       </button>
                       {isActive && (
-                        <div
-                          className="flow-inline-content"
-                          data-ui-behavior={behaviorFile || ""}
-                        >
+                        <div className="flow-inline-content" data-ui-behavior={behaviorFile || ""}>
                           <Behavior
                             behaviorName={behaviorName}
                             statusKey={statusKey}
