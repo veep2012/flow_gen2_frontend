@@ -83,15 +83,18 @@ function App() {
   };
 
   const [infoRatio, setInfoRatio] = React.useState(0.35);
+  const [detailRatio, setDetailRatio] = React.useState(0.25);
   const [columnWidths, setColumnWidths] = React.useState({});
   const [activeDetailTab, setActiveDetailTab] = React.useState("Revisions");
   const [infoActiveStep, setInfoActiveStep] = React.useState("IDC");
   const [infoActiveSubTab, setInfoActiveSubTab] = React.useState("Comments");
   const [isDraggingUpload, setIsDraggingUpload] = React.useState(false);
   const [isDraggingBorder, setIsDraggingBorder] = React.useState(false);
+  const [isDraggingRow, setIsDraggingRow] = React.useState(false);
   const [uploadedFiles, setUploadedFiles] = React.useState({});
   const [expandedRevisions, setExpandedRevisions] = React.useState({});
   const containerRef = React.useRef(null);
+  const leftPanelRef = React.useRef(null);
   const uploadInputRef = React.useRef(null);
   const [selectedDocId, setSelectedDocId] = React.useState(null);
   const [editRowId, setEditRowId] = React.useState(null);
@@ -304,6 +307,36 @@ function App() {
       window.addEventListener("mouseup", handleUp);
     },
     [infoRatio],
+  );
+
+  const startRowResize = React.useCallback(
+    (event) => {
+      event.preventDefault();
+      setIsDraggingRow(true);
+      const container = leftPanelRef.current;
+      if (!container) return;
+
+      const containerHeight = container.getBoundingClientRect().height;
+      const startY = event.clientY;
+      const startRatio = detailRatio;
+
+      const handleMove = (moveEvent) => {
+        const delta = startY - moveEvent.clientY;
+        const deltaRatio = delta / containerHeight;
+        const nextRatio = Math.max(0.2, Math.min(0.8, startRatio + deltaRatio));
+        setDetailRatio(nextRatio);
+      };
+
+      const handleUp = () => {
+        setIsDraggingRow(false);
+        window.removeEventListener("mousemove", handleMove);
+        window.removeEventListener("mouseup", handleUp);
+      };
+
+      window.addEventListener("mousemove", handleMove);
+      window.addEventListener("mouseup", handleUp);
+    },
+    [detailRatio],
   );
 
   const startEdit = React.useCallback((doc) => {
@@ -877,10 +910,16 @@ function App() {
             minHeight: 0,
             minWidth: 0,
           }}
+          ref={leftPanelRef}
         >
           <div
             className="card"
-            style={{ flex: "4 1 0", minHeight: 0, display: "flex", flexDirection: "column" }}
+            style={{
+              flex: `${1 - detailRatio} 1 0`,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+            }}
           >
             <div className="meta" style={{ display: "none" }}>
               {/* Document register header hidden */}
@@ -1032,9 +1071,24 @@ function App() {
               </table>
             </div>
           </div>
+          <button
+            type="button"
+            onMouseDown={startRowResize}
+            style={{
+              height: "8px",
+              background: isDraggingRow ? "var(--color-info)" : "var(--color-border)",
+              cursor: "row-resize",
+              transition: isDraggingRow ? "none" : "background 0.2s",
+              userSelect: "none",
+              border: "none",
+              padding: 0,
+            }}
+            title="Drag to resize panels"
+            aria-label="Resize panels"
+          />
           <div
             style={{
-              flex: "1 1 0",
+              flex: `${detailRatio} 1 0`,
               background: "var(--color-surface)",
               border: "1px solid var(--color-border)",
               borderRadius: "12px",
