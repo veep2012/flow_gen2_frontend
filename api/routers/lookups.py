@@ -4,11 +4,23 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from api.db.models import Area, Discipline, DocRevStatus, Jobpack, Project, Unit
+from api.db.models import (
+    Area,
+    Discipline,
+    DocRevStatus,
+    DocRevStatusUiBehavior,
+    Jobpack,
+    Project,
+    Unit,
+)
 from api.schemas.documents import (
     DocRevStatusCreate,
     DocRevStatusDelete,
     DocRevStatusOut,
+    DocRevStatusUiBehaviorCreate,
+    DocRevStatusUiBehaviorDelete,
+    DocRevStatusUiBehaviorOut,
+    DocRevStatusUiBehaviorUpdate,
     DocRevStatusUpdate,
 )
 from api.schemas.lookups import (
@@ -1759,6 +1771,352 @@ def delete_jobpack(
 
 
 @router.get(
+    "/doc_rev_status_ui_behaviors",
+    summary="List all document revision status UI behaviors.",
+    description="Returns a list of all document revision status UI behaviors sorted by name.",
+    operation_id="list_doc_rev_status_ui_behaviors",
+    tags=["lookups"],
+    response_model=list[DocRevStatusUiBehaviorOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_doc_rev_status_ui_behaviors(
+    db: Session = Depends(get_db),
+) -> list[DocRevStatusUiBehaviorOut]:
+    """
+    List all document revision status UI behaviors.
+
+    Returns:
+        List of document revision status UI behaviors with id and name.
+
+    Raises:
+        HTTPException: 404 if no UI behaviors are found.
+    """
+    behaviors = (
+        db.query(DocRevStatusUiBehavior).order_by(DocRevStatusUiBehavior.ui_behavior_name).all()
+    )
+    if not behaviors:
+        raise HTTPException(status_code=404, detail="No doc revision status UI behaviors found")
+    return _model_list(DocRevStatusUiBehaviorOut, behaviors)
+
+
+@router.post(
+    "/doc_rev_status_ui_behaviors/insert",
+    summary="Create a new document revision status UI behavior.",
+    description="Inserts a new document revision status UI behavior with the specified name.",
+    operation_id="insert_doc_rev_status_ui_behavior",
+    tags=["lookups"],
+    response_model=DocRevStatusUiBehaviorOut,
+    status_code=201,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def insert_doc_rev_status_ui_behavior(
+    payload: DocRevStatusUiBehaviorCreate = Body(
+        ..., openapi_examples=_example_for(DocRevStatusUiBehaviorCreate)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevStatusUiBehaviorOut:
+    """
+    Create a new document revision status UI behavior.
+
+    Args:
+        payload: UI behavior creation data including name.
+
+    Returns:
+        Newly created UI behavior object.
+
+    Raises:
+        HTTPException: 400 on creation failure.
+    """
+    behavior = DocRevStatusUiBehavior(ui_behavior_name=payload.ui_behavior_name)
+    db.add(behavior)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error(
+            "Revision status UI behavior already exists", err, "insert_doc_rev_status_ui_behavior"
+        )
+
+    db.refresh(behavior)
+    return _model_out(DocRevStatusUiBehaviorOut, behavior)
+
+
+@router.put(
+    "/doc_rev_status_ui_behaviors/update",
+    summary="Update an existing document revision status UI behavior.",
+    description="Updates the name of an existing document revision status UI behavior.",
+    operation_id="update_doc_rev_status_ui_behavior",
+    tags=["lookups"],
+    response_model=DocRevStatusUiBehaviorOut,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def update_doc_rev_status_ui_behavior(
+    payload: DocRevStatusUiBehaviorUpdate = Body(
+        ..., openapi_examples=_example_for(DocRevStatusUiBehaviorUpdate)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevStatusUiBehaviorOut:
+    """
+    Update an existing document revision status UI behavior.
+
+    Args:
+        payload: UI behavior update data including ui_behavior_id and name.
+
+    Returns:
+        Updated UI behavior object.
+
+    Raises:
+        HTTPException: 400 if no fields provided.
+        HTTPException: 404 if UI behavior not found.
+    """
+    if payload.ui_behavior_name is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    behavior = db.get(DocRevStatusUiBehavior, payload.ui_behavior_id)
+    if not behavior:
+        raise HTTPException(status_code=404, detail="Revision status UI behavior not found")
+
+    behavior.ui_behavior_name = payload.ui_behavior_name
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error(
+            "Revision status UI behavior already exists", err, "update_doc_rev_status_ui_behavior"
+        )
+
+    db.refresh(behavior)
+    return _model_out(DocRevStatusUiBehaviorOut, behavior)
+
+
+@router.delete(
+    "/doc_rev_status_ui_behaviors/delete",
+    summary="Delete a document revision status UI behavior.",
+    description="Removes a document revision status UI behavior from the database by its ID.",
+    operation_id="delete_doc_rev_status_ui_behavior",
+    tags=["lookups"],
+    status_code=204,
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def delete_doc_rev_status_ui_behavior(
+    payload: DocRevStatusUiBehaviorDelete = Body(
+        ..., openapi_examples=_example_for(DocRevStatusUiBehaviorDelete)
+    ),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a document revision status UI behavior.
+
+    Args:
+        payload: UI behavior deletion data including ui_behavior_id.
+
+    Raises:
+        HTTPException: 404 if UI behavior not found.
+    """
+    behavior = db.get(DocRevStatusUiBehavior, payload.ui_behavior_id)
+    if not behavior:
+        raise HTTPException(status_code=404, detail="Revision status UI behavior not found")
+    db.delete(behavior)
+    db.commit()
+
+
+@router.get(
     "/doc_rev_statuses",
     summary="List all document revision statuses.",
     description="Returns a list of all document revision statuses sorted by name.",
@@ -1911,7 +2269,23 @@ def insert_doc_rev_status(
     Raises:
         HTTPException: 400 on creation failure.
     """
-    status = DocRevStatus(rev_status_name=payload.rev_status_name)
+    if payload.final and payload.next_rev_status_id is not None:
+        raise HTTPException(status_code=400, detail="Final status cannot have next status")
+    if not payload.final and payload.next_rev_status_id is None:
+        raise HTTPException(status_code=400, detail="Non-final status must have next status")
+
+    status_fields = {
+        "rev_status_name": payload.rev_status_name,
+        "ui_behavior_id": payload.ui_behavior_id,
+        "next_rev_status_id": payload.next_rev_status_id,
+        "final": payload.final,
+    }
+    if payload.revertible is not None:
+        status_fields["revertible"] = payload.revertible
+    if payload.editable is not None:
+        status_fields["editable"] = payload.editable
+
+    status = DocRevStatus(**status_fields)
     db.add(status)
     try:
         db.commit()
@@ -2000,14 +2374,44 @@ def update_doc_rev_status(
         HTTPException: 400 if no fields provided.
         HTTPException: 404 if status not found.
     """
-    if payload.rev_status_name is None:
+    update_fields = {
+        "rev_status_name",
+        "ui_behavior_id",
+        "next_rev_status_id",
+        "revertible",
+        "editable",
+        "final",
+    }
+    if not update_fields.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
     status = db.get(DocRevStatus, payload.rev_status_id)
     if not status:
         raise HTTPException(status_code=404, detail="Revision status not found")
 
-    status.rev_status_name = payload.rev_status_name
+    if "rev_status_name" in payload.model_fields_set and payload.rev_status_name is None:
+        raise HTTPException(status_code=400, detail="Revision status name cannot be null")
+    if "ui_behavior_id" in payload.model_fields_set and payload.ui_behavior_id is None:
+        raise HTTPException(status_code=400, detail="UI behavior ID cannot be null")
+    if "revertible" in payload.model_fields_set and payload.revertible is None:
+        raise HTTPException(status_code=400, detail="Revertible flag cannot be null")
+    if "editable" in payload.model_fields_set and payload.editable is None:
+        raise HTTPException(status_code=400, detail="Editable flag cannot be null")
+    if "final" in payload.model_fields_set and payload.final is None:
+        raise HTTPException(status_code=400, detail="Final flag cannot be null")
+
+    if "rev_status_name" in payload.model_fields_set:
+        status.rev_status_name = payload.rev_status_name
+    if "ui_behavior_id" in payload.model_fields_set:
+        status.ui_behavior_id = payload.ui_behavior_id
+    if "next_rev_status_id" in payload.model_fields_set:
+        status.next_rev_status_id = payload.next_rev_status_id
+    if "revertible" in payload.model_fields_set:
+        status.revertible = payload.revertible
+    if "editable" in payload.model_fields_set:
+        status.editable = payload.editable
+    if "final" in payload.model_fields_set:
+        status.final = payload.final
     try:
         db.commit()
     except IntegrityError as err:

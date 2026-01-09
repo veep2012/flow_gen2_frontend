@@ -63,9 +63,24 @@ INSERT INTO revision_overview (rev_code_id, rev_code_name, rev_code_acronym, rev
 (3,'AFD','D','APPROVED FOR DESIGN',NULL),(4,'AFC','E','APPROVED FOR CONSTRUCTION',NULL),
 (5,'AS-BUILT','Z','AS-BUILT',NULL),(6,'INDESIGN','A','IN-DESIGN',10);
 
+-- Rev Status UI Behaviors
+INSERT INTO doc_rev_status_ui_behaviors (ui_behavior_id, ui_behavior_name) VALUES
+(1,'InDesign'),(2,'IDC'),(3,'Ready for Issue'),(4,'Official');
+
 -- Rev Statuses
-INSERT INTO doc_rev_statuses (rev_status_id, rev_status_name) VALUES 
-(1,'in progress'),(2,'not started'),(3,'done');
+INSERT INTO doc_rev_statuses (
+    rev_status_id,
+    rev_status_name,
+    ui_behavior_id,
+    next_rev_status_id,
+    revertible,
+    editable,
+    final
+) VALUES 
+(1,'InDesign',1,2,FALSE,TRUE,FALSE),
+(2,'IDC',2,3,TRUE,TRUE,FALSE),
+(3,'Ready for Issue',3,4,TRUE,FALSE,FALSE),
+(4,'Official',4,NULL,FALSE,FALSE,TRUE);
 
 -- Roles
 INSERT INTO roles (role_id, role_name) VALUES 
@@ -112,6 +127,7 @@ SELECT setval(pg_get_serial_sequence('person', 'person_id'), max(person_id)) FRO
 SELECT setval(pg_get_serial_sequence('doc_types', 'type_id'), max(type_id)) FROM doc_types;
 SELECT setval(pg_get_serial_sequence('users', 'user_id'), max(user_id)) FROM users;
 SELECT setval(pg_get_serial_sequence('permissions', 'permission_id'), max(permission_id)) FROM permissions;
+SELECT setval(pg_get_serial_sequence('doc_rev_status_ui_behaviors', 'ui_behavior_id'), max(ui_behavior_id)) FROM doc_rev_status_ui_behaviors;
 
 -- --------------------------------------------------------
 -- 3. Generate Fake Documents & Revisions
@@ -164,7 +180,7 @@ BEGIN
             'TR-00' || i,
             1, -- Issued for Construction
             NOW(), NOW() + interval '5 days',
-            1, -- In Progress
+            1, -- InDesign
             v_doc_id,
             1
         );
@@ -183,7 +199,7 @@ BEGIN
                 'TR-01' || i,
                 2, 
                 NOW(), NOW() + interval '10 days',
-                3, -- Done
+                4, -- Official
                 v_doc_id,
                 2
             );

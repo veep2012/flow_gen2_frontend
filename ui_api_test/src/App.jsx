@@ -342,6 +342,34 @@ function useDocRevStatuses() {
   return { statuses, loading, error, fetchStatuses, setStatuses };
 }
 
+function useDocRevStatusUiBehaviors() {
+  const [uiBehaviors, setUiBehaviors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchUiBehaviors = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/v1/lookups/doc_rev_status_ui_behaviors`);
+      if (!res.ok) {
+        throw new Error(`API error ${res.status}`);
+      }
+      const data = await res.json();
+      setUiBehaviors(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUiBehaviors();
+  }, []);
+
+  return { uiBehaviors, loading, error, fetchUiBehaviors, setUiBehaviors };
+}
+
 function usePersons() {
   const [persons, setPersons] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -496,6 +524,11 @@ export default function App() {
     setStatuses,
   } = useDocRevStatuses();
   const {
+    uiBehaviors,
+    loading: uiBehaviorsLoading,
+    error: uiBehaviorsError,
+  } = useDocRevStatusUiBehaviors();
+  const {
     persons,
     loading: personsLoading,
     error: personsError,
@@ -543,6 +576,15 @@ export default function App() {
   const jobpackById = useMemo(
     () => Object.fromEntries(jobpacks.map((j) => [j.jobpack_id, j.jobpack_name])),
     [jobpacks],
+  );
+  const statusById = useMemo(
+    () => Object.fromEntries(statuses.map((status) => [status.rev_status_id, status])),
+    [statuses],
+  );
+  const uiBehaviorById = useMemo(
+    () =>
+      Object.fromEntries(uiBehaviors.map((behavior) => [behavior.ui_behavior_id, behavior])),
+    [uiBehaviors],
   );
   const [createForm, setCreateForm] = useState({ area_name: "", area_acronym: "" });
   const [editingId, setEditingId] = useState(null);
@@ -616,9 +658,23 @@ export default function App() {
   });
   const [revSaving, setRevSaving] = useState(false);
   const [revSaveError, setRevSaveError] = useState("");
-  const [statusCreateForm, setStatusCreateForm] = useState({ rev_status_name: "" });
+  const [statusCreateForm, setStatusCreateForm] = useState({
+    rev_status_name: "",
+    ui_behavior_id: "",
+    next_rev_status_id: "",
+    revertible: true,
+    editable: true,
+    final: false,
+  });
   const [statusEditingId, setStatusEditingId] = useState(null);
-  const [statusForm, setStatusForm] = useState({ rev_status_name: "" });
+  const [statusForm, setStatusForm] = useState({
+    rev_status_name: "",
+    ui_behavior_id: "",
+    next_rev_status_id: "",
+    revertible: true,
+    editable: true,
+    final: false,
+  });
   const [statusSaving, setStatusSaving] = useState(false);
   const [statusSaveError, setStatusSaveError] = useState("");
   const [personCreateForm, setPersonCreateForm] = useState({ person_name: "", photo_s3_uid: "" });
@@ -995,6 +1051,7 @@ export default function App() {
         </div>
 
         {statusesError && <div className="alert alert-error">{statusesError}</div>}
+        {uiBehaviorsError && <div className="alert alert-error">{uiBehaviorsError}</div>}
         {statusSaveError && <div className="alert alert-error">{statusSaveError}</div>}
         {!statusesError && statuses.length === 0 && !statusesLoading && (
           <div className="alert">No statuses available</div>
@@ -1002,7 +1059,7 @@ export default function App() {
 
         <div className="panel subpanel">
           <h3>Add status</h3>
-          <div className="create-row">
+          <div className="create-row status-create">
             <input
               className="input"
               placeholder="Status name"
@@ -1011,10 +1068,100 @@ export default function App() {
                 setStatusCreateForm((f) => ({ ...f, rev_status_name: e.target.value }))
               }
             />
-            <div />
+            <select
+              className="input"
+              value={statusCreateForm.ui_behavior_id}
+              onChange={(e) =>
+                setStatusCreateForm((f) => ({ ...f, ui_behavior_id: e.target.value }))
+              }
+              disabled={uiBehaviorsLoading}
+            >
+              <option value="">Select UI behavior</option>
+              {uiBehaviors.map((behavior) => (
+                <option key={behavior.ui_behavior_id} value={behavior.ui_behavior_id}>
+                  {behavior.ui_behavior_name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="input"
+              value={statusCreateForm.next_rev_status_id}
+              onChange={(e) =>
+                setStatusCreateForm((f) => ({ ...f, next_rev_status_id: e.target.value }))
+              }
+              disabled={statusCreateForm.final}
+            >
+              <option value="">Final (no next)</option>
+              {statuses.map((status) => (
+                <option key={status.rev_status_id} value={status.rev_status_id}>
+                  {status.rev_status_name}
+                </option>
+              ))}
+            </select>
+            <div className="flag-editor">
+              <label className="flag-field">
+                Editable
+                <select
+                  className="input"
+                  value={statusCreateForm.editable ? "true" : "false"}
+                  onChange={(e) =>
+                    setStatusCreateForm((f) => ({
+                      ...f,
+                      editable: e.target.value === "true",
+                    }))
+                  }
+                  disabled={statusCreateForm.final}
+                >
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </label>
+              <label className="flag-field">
+                Revertible
+                <select
+                  className="input"
+                  value={statusCreateForm.revertible ? "true" : "false"}
+                  onChange={(e) =>
+                    setStatusCreateForm((f) => ({
+                      ...f,
+                      revertible: e.target.value === "true",
+                    }))
+                  }
+                  disabled={statusCreateForm.final}
+                >
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </label>
+              <label className="flag-field">
+                Final
+                <select
+                  className="input"
+                  value={statusCreateForm.final ? "true" : "false"}
+                  onChange={(e) => {
+                    const isFinal = e.target.value === "true";
+                    setStatusCreateForm((f) => ({
+                      ...f,
+                      final: isFinal,
+                      next_rev_status_id: isFinal ? "" : f.next_rev_status_id,
+                      editable: isFinal ? false : f.editable,
+                      revertible: isFinal ? false : f.revertible,
+                    }));
+                  }}
+                >
+                  <option value="false">No</option>
+                  <option value="true">Yes</option>
+                </select>
+              </label>
+            </div>
             <button
               className="btn"
-              disabled={statusSaving || !statusCreateForm.rev_status_name}
+              disabled={
+                statusSaving ||
+                !statusCreateForm.rev_status_name ||
+                !statusCreateForm.ui_behavior_id ||
+                (!statusCreateForm.final && !statusCreateForm.next_rev_status_id)
+              }
               onClick={async () => {
                 setStatusSaveError("");
                 setStatusSaving(true);
@@ -1024,6 +1171,13 @@ export default function App() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                       rev_status_name: statusCreateForm.rev_status_name,
+                      ui_behavior_id: Number(statusCreateForm.ui_behavior_id),
+                      next_rev_status_id: statusCreateForm.final
+                        ? null
+                        : Number(statusCreateForm.next_rev_status_id),
+                      revertible: statusCreateForm.revertible,
+                      editable: statusCreateForm.editable,
+                      final: statusCreateForm.final,
                     }),
                   });
                   if (!res.ok) {
@@ -1032,7 +1186,14 @@ export default function App() {
                   }
                   const created = await res.json();
                   setStatuses((prev) => [...prev, created]);
-                  setStatusCreateForm({ rev_status_name: "" });
+                  setStatusCreateForm({
+                    rev_status_name: "",
+                    ui_behavior_id: "",
+                    next_rev_status_id: "",
+                    revertible: true,
+                    editable: true,
+                    final: false,
+                  });
                 } catch (err) {
                   setStatusSaveError(err instanceof Error ? err.message : "Create failed");
                 } finally {
@@ -1045,11 +1206,13 @@ export default function App() {
           </div>
         </div>
 
-        <div className="table">
+        <div className="table status-table">
           <div className="table-head">
             <span>ID</span>
             <span>Name</span>
-            <span className="hide-on-small" />
+            <span>UI behavior</span>
+            <span>Next</span>
+            <span>Flags</span>
             <span>Actions</span>
           </div>
           <div className="table-body">
@@ -1065,12 +1228,109 @@ export default function App() {
                         setStatusForm((f) => ({ ...f, rev_status_name: e.target.value }))
                       }
                     />
-                    <div />
+                    <select
+                      className="input"
+                      value={statusForm.ui_behavior_id}
+                      onChange={(e) =>
+                        setStatusForm((f) => ({ ...f, ui_behavior_id: e.target.value }))
+                      }
+                      disabled={uiBehaviorsLoading}
+                    >
+                      <option value="">Select UI behavior</option>
+                      {uiBehaviors.map((behavior) => (
+                        <option key={behavior.ui_behavior_id} value={behavior.ui_behavior_id}>
+                          {behavior.ui_behavior_name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="input"
+                      value={statusForm.next_rev_status_id}
+                      onChange={(e) =>
+                        setStatusForm((f) => ({ ...f, next_rev_status_id: e.target.value }))
+                      }
+                      disabled={statusForm.final}
+                    >
+                      <option value="">Final (no next)</option>
+                      {statuses.map((option) => (
+                        <option key={option.rev_status_id} value={option.rev_status_id}>
+                          {option.rev_status_name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flag-editor">
+                      <label className="flag-field">
+                        Editable
+                        <select
+                          className="input"
+                          value={statusForm.editable ? "true" : "false"}
+                          onChange={(e) =>
+                            setStatusForm((f) => ({
+                              ...f,
+                              editable: e.target.value === "true",
+                            }))
+                          }
+                          disabled={statusForm.final}
+                        >
+                          <option value="true">Yes</option>
+                          <option value="false">No</option>
+                        </select>
+                      </label>
+                      <label className="flag-field">
+                        Revertible
+                        <select
+                          className="input"
+                          value={statusForm.revertible ? "true" : "false"}
+                          onChange={(e) =>
+                            setStatusForm((f) => ({
+                              ...f,
+                              revertible: e.target.value === "true",
+                            }))
+                          }
+                          disabled={statusForm.final}
+                        >
+                          <option value="true">Yes</option>
+                          <option value="false">No</option>
+                        </select>
+                      </label>
+                      <label className="flag-field">
+                        Final
+                        <select
+                          className="input"
+                          value={statusForm.final ? "true" : "false"}
+                          onChange={(e) => {
+                            const isFinal = e.target.value === "true";
+                            setStatusForm((f) => ({
+                              ...f,
+                              final: isFinal,
+                              next_rev_status_id: isFinal ? "" : f.next_rev_status_id,
+                              editable: isFinal ? false : f.editable,
+                              revertible: isFinal ? false : f.revertible,
+                            }));
+                          }}
+                        >
+                          <option value="false">No</option>
+                          <option value="true">Yes</option>
+                        </select>
+                      </label>
+                    </div>
                   </>
                 ) : (
                   <>
                     <span>{status.rev_status_name}</span>
-                    <span className="hide-on-small" />
+                    <span>
+                      {uiBehaviorById[status.ui_behavior_id]?.ui_behavior_name || "—"}
+                    </span>
+                    <span>
+                      {status.next_rev_status_id
+                        ? statusById[status.next_rev_status_id]?.rev_status_name ||
+                          `#${status.next_rev_status_id}`
+                        : "Final"}
+                    </span>
+                    <span>
+                      E:{status.editable ? "Y" : "N"} R:{status.revertible ? "Y" : "N"} F:
+                      {status.final ? "Y" : "N"}
+                    </span>
                   </>
                 )}
                 <span className="actions">
@@ -1078,7 +1338,12 @@ export default function App() {
                     <>
                       <button
                         className="btn"
-                        disabled={statusSaving}
+                        disabled={
+                          statusSaving ||
+                          !statusForm.rev_status_name ||
+                          !statusForm.ui_behavior_id ||
+                          (!statusForm.final && !statusForm.next_rev_status_id)
+                        }
                         onClick={async () => {
                           setStatusSaveError("");
                           setStatusSaving(true);
@@ -1091,6 +1356,13 @@ export default function App() {
                                 body: JSON.stringify({
                                   rev_status_id: status.rev_status_id,
                                   rev_status_name: statusForm.rev_status_name,
+                                  ui_behavior_id: Number(statusForm.ui_behavior_id),
+                                  next_rev_status_id: statusForm.final
+                                    ? null
+                                    : Number(statusForm.next_rev_status_id),
+                                  revertible: statusForm.revertible,
+                                  editable: statusForm.editable,
+                                  final: statusForm.final,
                                 }),
                               },
                             );
@@ -1131,7 +1403,18 @@ export default function App() {
                         className="btn"
                         onClick={() => {
                           setStatusEditingId(status.rev_status_id);
-                          setStatusForm({ rev_status_name: status.rev_status_name });
+                          setStatusForm({
+                            rev_status_name: status.rev_status_name,
+                            ui_behavior_id: status.ui_behavior_id
+                              ? String(status.ui_behavior_id)
+                              : "",
+                            next_rev_status_id: status.next_rev_status_id
+                              ? String(status.next_rev_status_id)
+                              : "",
+                            revertible: Boolean(status.revertible),
+                            editable: Boolean(status.editable),
+                            final: Boolean(status.final),
+                          });
                         }}
                       >
                         Edit
