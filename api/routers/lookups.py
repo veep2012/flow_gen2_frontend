@@ -1925,7 +1925,10 @@ def insert_doc_rev_status_ui_behavior(
     Raises:
         HTTPException: 400 on creation failure.
     """
-    behavior = DocRevStatusUiBehavior(ui_behavior_name=payload.ui_behavior_name)
+    behavior = DocRevStatusUiBehavior(
+        ui_behavior_name=payload.ui_behavior_name,
+        ui_behavior_file=payload.ui_behavior_file,
+    )
     db.add(behavior)
     try:
         db.commit()
@@ -2016,14 +2019,17 @@ def update_doc_rev_status_ui_behavior(
         HTTPException: 400 if no fields provided.
         HTTPException: 404 if UI behavior not found.
     """
-    if payload.ui_behavior_name is None:
+    if payload.ui_behavior_name is None and payload.ui_behavior_file is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
     behavior = db.get(DocRevStatusUiBehavior, payload.ui_behavior_id)
     if not behavior:
         raise HTTPException(status_code=404, detail="Revision status UI behavior not found")
 
-    behavior.ui_behavior_name = payload.ui_behavior_name
+    if payload.ui_behavior_name is not None:
+        behavior.ui_behavior_name = payload.ui_behavior_name
+    if payload.ui_behavior_file is not None:
+        behavior.ui_behavior_file = payload.ui_behavior_file
     try:
         db.commit()
     except IntegrityError as err:

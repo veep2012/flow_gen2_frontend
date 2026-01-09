@@ -64,8 +64,11 @@ INSERT INTO revision_overview (rev_code_id, rev_code_name, rev_code_acronym, rev
 (5,'AS-BUILT','Z','AS-BUILT',NULL),(6,'INDESIGN','A','IN-DESIGN',10);
 
 -- Rev Status UI Behaviors
-INSERT INTO doc_rev_status_ui_behaviors (ui_behavior_id, ui_behavior_name) VALUES
-(1,'InDesign'),(2,'IDC'),(3,'Ready for Issue'),(4,'Official');
+INSERT INTO doc_rev_status_ui_behaviors (ui_behavior_id, ui_behavior_name, ui_behavior_file) VALUES
+(1,'InDesign','InDesignBehavior.jsx'),
+(2,'IDC','IDCBehavior.jsx'),
+(3,'Ready for Issue','ReadyForIssueBehavior.jsx'),
+(4,'Official','OfficialBehavior.jsx');
 
 -- Rev Statuses
 INSERT INTO doc_rev_statuses (

@@ -5,26 +5,30 @@ import InDesignBehavior from "./InDesignBehavior";
 import OfficialBehavior from "./OfficialBehavior";
 import ReadyForIssueBehavior from "./ReadyForIssueBehavior";
 
-const behaviorByExactName = {
-  InDesign: InDesignBehavior,
-  IDC: IDCBehavior,
-  "Ready for Issue": ReadyForIssueBehavior,
-  Official: OfficialBehavior,
-  History: HistoryBehavior,
+const behaviorByExactFile = {
+  InDesignBehavior,
+  IDCBehavior,
+  ReadyForIssueBehavior,
+  OfficialBehavior,
+  HistoryBehavior,
 };
 
-const resolveBehaviorByName = (name) => {
-  if (!name) return DefaultBehavior;
-  if (behaviorByExactName[name]) return behaviorByExactName[name];
+const normalizeFileKey = (fileKey) =>
+  typeof fileKey === "string" ? fileKey.replace(/\.jsx$/i, "") : "";
 
-  const normalized = name.toLowerCase().trim();
+const resolveBehaviorByFile = (fileKey) => {
+  const normalizedKey = normalizeFileKey(fileKey);
+  if (!normalizedKey) return DefaultBehavior;
+  if (behaviorByExactFile[normalizedKey]) return behaviorByExactFile[normalizedKey];
+
+  const normalized = normalizedKey.toLowerCase().trim();
   if (normalized.startsWith("idc")) return IDCBehavior;
   if (normalized.startsWith("indesign")) return InDesignBehavior;
-  if (normalized.startsWith("ready for issue")) return ReadyForIssueBehavior;
+  if (normalized.startsWith("readyforissue")) return ReadyForIssueBehavior;
   if (normalized.startsWith("official")) return OfficialBehavior;
   if (normalized.startsWith("history")) return HistoryBehavior;
 
   return DefaultBehavior;
 };
 
-export { resolveBehaviorByName };
+export { resolveBehaviorByFile };

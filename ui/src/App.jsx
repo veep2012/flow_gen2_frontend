@@ -1,7 +1,7 @@
 import React from "react";
 import { documentGridColumns } from "./grids/documents";
 import { useFetchDocuments } from "./hooks/useFetchDocuments";
-import { resolveBehaviorByName } from "./components/DocRevStatusBehaviors";
+import { resolveBehaviorByFile } from "./components/DocRevStatusBehaviors";
 
 const columns = documentGridColumns.map(({ id, label, field, hidden }) => ({
   key: field,
@@ -511,6 +511,14 @@ function App() {
       ]),
     );
   }, [revStatusBehaviors]);
+  const behaviorFileById = React.useMemo(() => {
+    return Object.fromEntries(
+      (revStatusBehaviors || []).map((behavior) => [
+        behavior.ui_behavior_id,
+        behavior.ui_behavior_file,
+      ]),
+    );
+  }, [revStatusBehaviors]);
 
   const orderedStatuses = React.useMemo(() => {
     if (!Array.isArray(revStatuses) || revStatuses.length === 0) return [];
@@ -909,18 +917,18 @@ function App() {
           background: #16a34a;
           box-shadow: 0 0 0 3px rgba(22,163,74,0.2);
         }
-        .flow-step[data-ui-behavior="History"] {
+        .flow-step[data-ui-behavior="HistoryBehavior.jsx"] {
           background: #fef9c3;
         }
-        .flow-step[data-ui-behavior="History"] .dot {
+        .flow-step[data-ui-behavior="HistoryBehavior.jsx"] .dot {
           border-color: #d97706;
           color: #d97706;
           background: #fff7d6;
         }
-        .flow-step[data-ui-behavior="History"].active .dot {
+        .flow-step[data-ui-behavior="HistoryBehavior.jsx"].active .dot {
           box-shadow: 0 0 0 3px rgba(217,119,6,0.2);
         }
-        .flow-step[data-ui-behavior="History"] .dot__icon {
+        .flow-step[data-ui-behavior="HistoryBehavior.jsx"] .dot__icon {
           stroke-linecap: square;
           stroke-linejoin: miter;
         }
@@ -1345,7 +1353,12 @@ function App() {
               ) : (
                 orderedStatuses.map((status) => {
                   const behaviorName = behaviorNameById[status.ui_behavior_id];
-                  const Behavior = resolveBehaviorByName(behaviorName);
+                  const behaviorFile = behaviorFileById[status.ui_behavior_id];
+                  const behaviorFileLabel =
+                    typeof behaviorFile === "string"
+                      ? behaviorFile.replace(/\.jsx$/i, "")
+                      : behaviorFile;
+                  const Behavior = resolveBehaviorByFile(behaviorFile);
                   const statusKey = String(status.rev_status_id);
                   const isActive = infoActiveStep === statusKey;
 
@@ -1355,7 +1368,7 @@ function App() {
                         type="button"
                         className={`flow-step ${isActive ? "active" : ""}`}
                         aria-expanded={isActive}
-                        data-ui-behavior={behaviorName || "default"}
+                        data-ui-behavior={behaviorFile || "default"}
                         data-final={status.final ? "true" : "false"}
                         onClick={() => {
                           if (isActive) {
@@ -1376,10 +1389,15 @@ function App() {
                           )}
                         </span>
                         <span className="flow-step__label">{status.rev_status_name}</span>
-                        <span className="flow-step__behavior">{behaviorName || "Default"}</span>
+                        <span className="flow-step__behavior">
+                          {behaviorFileLabel || "Default"}
+                        </span>
                       </button>
                       {isActive && (
-                        <div className="flow-inline-content" data-ui-behavior={behaviorName || ""}>
+                        <div
+                          className="flow-inline-content"
+                          data-ui-behavior={behaviorFile || ""}
+                        >
                           <Behavior
                             behaviorName={behaviorName}
                             statusKey={statusKey}
@@ -1406,7 +1424,7 @@ function App() {
                     type="button"
                     className={`flow-step ${infoActiveStep === "history" ? "active" : ""}`}
                     aria-expanded={infoActiveStep === "history"}
-                    data-ui-behavior="History"
+                    data-ui-behavior="HistoryBehavior.jsx"
                     data-final="false"
                     onClick={() => {
                       if (infoActiveStep === "history") {
@@ -1427,9 +1445,9 @@ function App() {
                     <span className="flow-step__behavior">History</span>
                   </button>
                   {infoActiveStep === "history" && (
-                    <div className="flow-inline-content" data-ui-behavior="History">
+                    <div className="flow-inline-content" data-ui-behavior="HistoryBehavior.jsx">
                       {(() => {
-                        const Behavior = resolveBehaviorByName("History");
+                        const Behavior = resolveBehaviorByFile("HistoryBehavior.jsx");
                         return <Behavior behaviorName="History" />;
                       })()}
                     </div>

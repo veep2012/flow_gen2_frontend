@@ -269,6 +269,9 @@ class DocRevStatusUiBehaviorOut(BaseModel):
     ui_behavior_name: str = Field(
         ..., description="UI behavior name.", examples=["InDesign"], min_length=1
     )
+    ui_behavior_file: str = Field(
+        ..., description="UI behavior file key.", examples=["InDesignBehavior"], min_length=1
+    )
 
 
 class DocRevStatusUiBehaviorUpdate(BaseModel):
@@ -276,11 +279,17 @@ class DocRevStatusUiBehaviorUpdate(BaseModel):
     ui_behavior_name: str | None = Field(
         None, description="UI behavior name.", examples=["InDesign"], min_length=1
     )
+    ui_behavior_file: str | None = Field(
+        None, description="UI behavior file key.", examples=["InDesignBehavior"], min_length=1
+    )
 
 
 class DocRevStatusUiBehaviorCreate(BaseModel):
     ui_behavior_name: str = Field(
         ..., description="UI behavior name.", examples=["InDesign"], min_length=1
+    )
+    ui_behavior_file: str = Field(
+        ..., description="UI behavior file key.", examples=["InDesignBehavior"], min_length=1
     )
 
 

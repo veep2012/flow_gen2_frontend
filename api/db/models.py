@@ -135,6 +135,7 @@ class DocRevStatusUiBehavior(Base):
 
     ui_behavior_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     ui_behavior_name: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    ui_behavior_file: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
 
     statuses: Mapped[list[DocRevStatus]] = relationship(back_populates="ui_behavior")
 

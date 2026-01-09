@@ -237,7 +237,10 @@ def test_post_documents_metadata():
             200 <= deleted["status"] < 300
         ), f"revision overview delete failed: {deleted['status']}"
 
-        behavior_payload = {"ui_behavior_name": f"Behavior {suffix}"}
+        behavior_payload = {
+            "ui_behavior_name": f"Behavior {suffix}",
+            "ui_behavior_file": f"Behavior{suffix}File.jsx",
+        }
         created = _request(
             client,
             "POST",
@@ -423,7 +426,10 @@ def test_post_doc_rev_status_constraints():
             client,
             "POST",
             "/lookups/doc_rev_status_ui_behaviors/insert",
-            json={"ui_behavior_name": f"Behavior {suffix} Constraints"},
+            json={
+                "ui_behavior_name": f"Behavior {suffix} Constraints",
+                "ui_behavior_file": f"Behavior{suffix}ConstraintsFile.jsx",
+            },
         )
         assert 200 <= created["status"] < 300, f"ui behavior insert failed: {created['status']}"
         behavior_id = created["payload"].get("ui_behavior_id")
