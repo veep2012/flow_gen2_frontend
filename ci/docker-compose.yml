@@ -148,7 +148,7 @@ services:
       --log=console,file --log-level=INFO
       --log-file=/opt/keycloak/data/log/keycloak.log"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/flow-local/.well-known/openid-configuration"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8080'"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -182,12 +182,13 @@ services:
     expose:
       - "4180"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4180/ping"]
+      test: ["CMD", "/bin/oauth2-proxy", "--version"]
       interval: 10s
       timeout: 5s
       retries: 6
     depends_on:
-      - keycloak
+      keycloak:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
