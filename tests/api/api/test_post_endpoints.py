@@ -237,7 +237,33 @@ def test_post_documents_metadata():
             200 <= deleted["status"] < 300
         ), f"revision overview delete failed: {deleted['status']}"
 
-        status_payload = {"rev_status_name": f"Status {suffix}"}
+        behavior_payload = {"ui_behavior_name": f"Behavior {suffix}"}
+        created = _request(
+            client,
+            "POST",
+            "/lookups/doc_rev_status_ui_behaviors/insert",
+            json=behavior_payload,
+        )
+        assert 200 <= created["status"] < 300, f"ui behavior insert failed: {created['status']}"
+        behavior_id = created["payload"].get("ui_behavior_id")
+        assert behavior_id is not None, "ui behavior insert missing id"
+
+        statuses = _ensure_list(_request(client, "GET", "/lookups/doc_rev_statuses"))
+        final_status_id = _extract_first_id(
+            [s for s in statuses if isinstance(s, dict) and s.get("final")],
+            ["rev_status_id"],
+        )
+        if final_status_id is None:
+            pytest.skip("No final status available for rev status insert")
+
+        status_payload = {
+            "rev_status_name": f"Status {suffix}",
+            "ui_behavior_id": behavior_id,
+            "next_rev_status_id": final_status_id,
+            "revertible": True,
+            "editable": True,
+            "final": False,
+        }
         created = _request(
             client,
             "POST",
@@ -246,6 +272,7 @@ def test_post_documents_metadata():
         )
         assert 200 <= created["status"] < 300, f"rev status insert failed: {created['status']}"
         status_id = created["payload"].get("rev_status_id")
+        assert status_id is not None, "rev status insert missing id"
         updated = _request(
             client,
             "PUT",
@@ -260,6 +287,13 @@ def test_post_documents_metadata():
             json={"rev_status_id": status_id},
         )
         assert 200 <= deleted["status"] < 300, f"rev status delete failed: {deleted['status']}"
+        deleted = _request(
+            client,
+            "DELETE",
+            "/lookups/doc_rev_status_ui_behaviors/delete",
+            json={"ui_behavior_id": behavior_id},
+        )
+        assert 200 <= deleted["status"] < 300, f"ui behavior delete failed: {deleted['status']}"
 
 
 @pytest.mark.api_smoke
@@ -379,3 +413,57 @@ def test_post_people_roles_persons_users_permissions():
 
         deleted_role = _request(client, "DELETE", "/people/roles/delete", json={"role_id": role_id})
         assert 200 <= deleted_role["status"] < 300, f"roles delete failed: {deleted_role['status']}"
+
+
+@pytest.mark.api_smoke
+def test_post_doc_rev_status_constraints():
+    suffix = uuid.uuid4().hex[:6]
+    with httpx.Client(timeout=10) as client:
+        created = _request(
+            client,
+            "POST",
+            "/lookups/doc_rev_status_ui_behaviors/insert",
+            json={"ui_behavior_name": f"Behavior {suffix} Constraints"},
+        )
+        assert 200 <= created["status"] < 300, f"ui behavior insert failed: {created['status']}"
+        behavior_id = created["payload"].get("ui_behavior_id")
+
+        invalid_final = _request(
+            client,
+            "POST",
+            "/lookups/doc_rev_statuses/insert",
+            json={
+                "rev_status_name": f"Status {suffix} Invalid Final",
+                "ui_behavior_id": behavior_id,
+                "next_rev_status_id": 99999,
+                "revertible": False,
+                "editable": False,
+                "final": True,
+            },
+        )
+        assert invalid_final["status"] == 400, "final status with next should be rejected"
+
+        invalid_non_final = _request(
+            client,
+            "POST",
+            "/lookups/doc_rev_statuses/insert",
+            json={
+                "rev_status_name": f"Status {suffix} Missing Next",
+                "ui_behavior_id": behavior_id,
+                "next_rev_status_id": None,
+                "revertible": True,
+                "editable": True,
+                "final": False,
+            },
+        )
+        assert (
+            invalid_non_final["status"] == 400
+        ), "non-final status without next should be rejected"
+
+        deleted = _request(
+            client,
+            "DELETE",
+            "/lookups/doc_rev_status_ui_behaviors/delete",
+            json={"ui_behavior_id": behavior_id},
+        )
+        assert 200 <= deleted["status"] < 300, f"ui behavior delete failed: {deleted['status']}"

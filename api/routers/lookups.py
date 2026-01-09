@@ -2401,16 +2401,21 @@ def update_doc_rev_status(
         raise HTTPException(status_code=400, detail="Final flag cannot be null")
 
     if "rev_status_name" in payload.model_fields_set:
+        assert payload.rev_status_name is not None
         status.rev_status_name = payload.rev_status_name
     if "ui_behavior_id" in payload.model_fields_set:
+        assert payload.ui_behavior_id is not None
         status.ui_behavior_id = payload.ui_behavior_id
     if "next_rev_status_id" in payload.model_fields_set:
         status.next_rev_status_id = payload.next_rev_status_id
     if "revertible" in payload.model_fields_set:
+        assert payload.revertible is not None
         status.revertible = payload.revertible
     if "editable" in payload.model_fields_set:
+        assert payload.editable is not None
         status.editable = payload.editable
     if "final" in payload.model_fields_set:
+        assert payload.final is not None
         status.final = payload.final
     try:
         db.commit()

@@ -66,6 +66,7 @@ def test_all_get_endpoints():
             ("/documents/doc_types", None),
             ("/documents/doc_rev_milestones", None),
             ("/documents/revision_overview", None),
+            ("/lookups/doc_rev_status_ui_behaviors", None),
             ("/lookups/doc_rev_statuses", None),
             ("/people/roles", None),
             ("/people/persons", None),
