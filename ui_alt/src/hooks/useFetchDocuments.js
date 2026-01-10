@@ -132,7 +132,7 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
     setDocumentsLoading(true);
     setDocumentsError(null);
 
-    fetch(`${normalizedBase}/documents/list?project_id=${encodeURIComponent(project)}`, { signal })
+    fetch(`${normalizedBase}/documents?project_id=${encodeURIComponent(project)}`, { signal })
       .then((res) => {
         if (res.status === 404) {
           return [];

@@ -250,7 +250,7 @@ def delete_doc_type(
 
 
 @router.get(
-    "/list",
+    "",
     summary="List all documents for a specific project.",
     description=(
         "Returns a list of all documents for the specified project, including details about "

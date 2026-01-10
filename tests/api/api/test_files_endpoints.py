@@ -61,7 +61,7 @@ def _get_test_revision_id(client: httpx.Client) -> int:
     if project_id is None:
         pytest.skip("No project_id available for files test")
 
-    docs = _request(client, "GET", "/documents/list", params={"project_id": project_id})
+    docs = _request(client, "GET", "/documents", params={"project_id": project_id})
     if docs["status"] == 404:
         pytest.skip("No documents available for files test")
     assert 200 <= docs["status"] < 300
@@ -104,11 +104,11 @@ def test_files_crud_and_download():
         assert 200 <= updated["status"] < 300
         assert updated["payload"]["filename"] == f"file-{suffix}-v2.pdf"
 
-        listed = _request(client, "GET", "/files/list", params={"rev_id": rev_id})
+        listed = _request(client, "GET", "/files", params={"rev_id": rev_id})
         assert 200 <= listed["status"] < 300
         assert any(item.get("id") == file_id for item in listed["payload"])
 
-        downloaded = _request(client, "GET", "/files/download", params={"file_id": file_id})
+        downloaded = _request(client, "GET", f"/files/{file_id}/download")
         assert 200 <= downloaded["status"] < 300
         assert downloaded["content"] == content
         content_disposition = downloaded["headers"].get("content-disposition", "")
@@ -119,7 +119,7 @@ def test_files_crud_and_download():
         deleted = _request(client, "DELETE", f"/files/{file_id}")
         assert deleted["status"] == 204
 
-        listed_after = _request(client, "GET", "/files/list", params={"rev_id": rev_id})
+        listed_after = _request(client, "GET", "/files", params={"rev_id": rev_id})
         assert 200 <= listed_after["status"] < 300
         assert all(item.get("id") != file_id for item in listed_after["payload"])
 
@@ -222,7 +222,7 @@ def test_files_insert_no_extension_rejected():
 def test_files_concurrent_uploads_same_revision():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
-        docs = _request(client, "GET", "/documents/list", params={"project_id": 1})
+        docs = _request(client, "GET", "/documents", params={"project_id": 1})
         if docs["status"] == 404:
             pytest.skip("No documents available for files test")
         assert 200 <= docs["status"] < 300

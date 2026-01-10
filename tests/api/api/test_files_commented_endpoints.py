@@ -51,7 +51,7 @@ def _get_test_revision_id(client: httpx.Client) -> int:
     if project_id is None:
         pytest.skip("No project_id available for files commented test")
 
-    docs = _request(client, "GET", "/documents/list", params={"project_id": project_id})
+    docs = _request(client, "GET", "/documents", params={"project_id": project_id})
     if docs["status"] == 404:
         pytest.skip("No documents available for files commented test")
     assert 200 <= docs["status"] < 300
