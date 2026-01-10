@@ -2279,6 +2279,13 @@ def insert_doc_rev_status(
         raise HTTPException(status_code=400, detail="Final status cannot have next status")
     if not payload.final and payload.next_rev_status_id is None:
         raise HTTPException(status_code=400, detail="Non-final status must have next status")
+    if payload.final and (
+        (payload.editable is True) or (payload.revertible is True)
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Final status cannot be editable or revertible",
+        )
 
     status_fields = {
         "rev_status_name": payload.rev_status_name,
