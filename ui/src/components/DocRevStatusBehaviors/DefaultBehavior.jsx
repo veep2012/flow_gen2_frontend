@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-const DefaultBehavior = ({ behaviorName }) => {
+const DefaultBehavior = ({ behaviorName = "" }) => {
   return (
     <div style={{ fontSize: "13px", color: "var(--color-text-muted)", padding: "8px 4px" }}>
       {behaviorName
@@ -13,10 +13,6 @@ const DefaultBehavior = ({ behaviorName }) => {
 
 DefaultBehavior.propTypes = {
   behaviorName: PropTypes.string,
-};
-
-DefaultBehavior.defaultProps = {
-  behaviorName: "",
 };
 
 export default DefaultBehavior;
