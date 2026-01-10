@@ -511,9 +511,23 @@ def test_post_doc_rev_status_constraints():
         )
         assert invalid_update_next["status"] == 400, "next cleared without final should be rejected"
 
-        final_status = next(
-            (s for s in statuses if isinstance(s, dict) and s.get("final")), None
+        invalid_update_final_flags = _request(
+            client,
+            "PUT",
+            "/lookups/doc_rev_statuses/update",
+            json={
+                "rev_status_id": created_id,
+                "final": True,
+                "next_rev_status_id": None,
+                "revertible": True,
+                "editable": True,
+            },
         )
+        assert (
+            invalid_update_final_flags["status"] == 400
+        ), "final update with editable/revertible should be rejected"
+
+        final_status = next((s for s in statuses if isinstance(s, dict) and s.get("final")), None)
         non_final_status = next(
             (s for s in statuses if isinstance(s, dict) and not s.get("final")), None
         )
