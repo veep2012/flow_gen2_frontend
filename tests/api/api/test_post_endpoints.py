@@ -467,6 +467,76 @@ def test_post_doc_rev_status_constraints():
             invalid_non_final["status"] == 400
         ), "non-final status without next should be rejected"
 
+        statuses = _ensure_list(_request(client, "GET", "/lookups/doc_rev_statuses"))
+        final_status_id = _extract_first_id(
+            [s for s in statuses if isinstance(s, dict) and s.get("final")],
+            ["rev_status_id"],
+        )
+        if final_status_id is None:
+            pytest.skip("No final status available for update constraint test")
+
+        created = _request(
+            client,
+            "POST",
+            "/lookups/doc_rev_statuses/insert",
+            json={
+                "rev_status_name": f"Status {suffix} Update Guard",
+                "ui_behavior_id": behavior_id,
+                "next_rev_status_id": final_status_id,
+                "revertible": True,
+                "editable": True,
+                "final": False,
+                "start": False,
+            },
+        )
+        assert created["status"] in (200, 201), "status insert failed for update tests"
+        created_id = created["payload"].get("rev_status_id")
+        assert created_id is not None, "status insert missing id for update tests"
+
+        invalid_update_final = _request(
+            client,
+            "PUT",
+            "/lookups/doc_rev_statuses/update",
+            json={"rev_status_id": created_id, "final": True},
+        )
+        assert (
+            invalid_update_final["status"] == 400
+        ), "final update without clearing next should be rejected"
+
+        invalid_update_next = _request(
+            client,
+            "PUT",
+            "/lookups/doc_rev_statuses/update",
+            json={"rev_status_id": created_id, "next_rev_status_id": None},
+        )
+        assert invalid_update_next["status"] == 400, "next cleared without final should be rejected"
+
+        has_final = any(isinstance(s, dict) and s.get("final") for s in statuses)
+        valid_update = _request(
+            client,
+            "PUT",
+            "/lookups/doc_rev_statuses/update",
+            json={
+                "rev_status_id": created_id,
+                "final": True,
+                "next_rev_status_id": None,
+                "revertible": False,
+                "editable": False,
+            },
+        )
+        if has_final:
+            assert valid_update["status"] == 400, "second final status should be rejected"
+        else:
+            assert valid_update["status"] in (200, 201), "valid update failed"
+
+        deleted = _request(
+            client,
+            "DELETE",
+            "/lookups/doc_rev_statuses/delete",
+            json={"rev_status_id": created_id},
+        )
+        assert 200 <= deleted["status"] < 300, f"status delete failed: {deleted['status']}"
+
         deleted = _request(
             client,
             "DELETE",
