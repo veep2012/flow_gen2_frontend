@@ -49,7 +49,7 @@ export const useDocumentEdit = (apiBase, reloadDocuments) => {
       setSaveError(null);
 
       try {
-        const res = await fetch(`${apiBase}/documents/update`, {
+        const res = await fetch(`${apiBase}/documents/${payload.doc_id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),

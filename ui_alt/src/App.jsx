@@ -193,7 +193,7 @@ function App() {
     setEditSaving(true);
     setEditError("");
     try {
-      const response = await fetch(`${apiBase}/documents/update`, {
+      const response = await fetch(`${apiBase}/documents/${docId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

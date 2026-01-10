@@ -91,7 +91,7 @@ def _upload_base_file(
     upload = _request(
         client,
         "POST",
-        "/files/insert",
+        "/files/",
         files={"file": (filename, content, mimetype)},
         data={"rev_id": str(rev_id)},
     )
@@ -151,7 +151,7 @@ def test_files_commented_insert_and_download():
         insert = _request(
             client,
             "POST",
-            "/files/commented/insert",
+            "/files/commented/",
             files={
                 "file": (
                     f"commented-{suffix}.pdf",
@@ -188,14 +188,9 @@ def test_files_commented_insert_and_download():
         base_name = os.path.splitext(base_file["filename"])[0]
         assert base_name in content_disposition
 
-        deleted = _request(
-            client,
-            "DELETE",
-            "/files/commented/delete",
-            json={"id": commented_id},
-        )
+        deleted = _request(client, "DELETE", f"/files/commented/{commented_id}")
         assert deleted["status"] == 204
-        _request(client, "DELETE", "/files/delete", json={"id": base_file["id"]})
+        _request(client, "DELETE", f"/files/{base_file['id']}")
 
 
 @pytest.mark.api_smoke
@@ -209,7 +204,7 @@ def test_files_commented_insert_duplicate():
         first = _request(
             client,
             "POST",
-            "/files/commented/insert",
+            "/files/commented/",
             files={
                 "file": (
                     f"commented-{suffix}.pdf",
@@ -223,7 +218,7 @@ def test_files_commented_insert_duplicate():
         duplicate = _request(
             client,
             "POST",
-            "/files/commented/insert",
+            "/files/commented/",
             files={
                 "file": (
                     f"commented-{suffix}-dup.pdf",
@@ -236,8 +231,8 @@ def test_files_commented_insert_duplicate():
         assert duplicate["status"] == 400
         assert "already exists" in duplicate["payload"]["detail"].lower()
 
-        _request(client, "DELETE", "/files/commented/delete", json={"id": first["payload"]["id"]})
-        _request(client, "DELETE", "/files/delete", json={"id": base_file["id"]})
+        _request(client, "DELETE", f"/files/commented/{first['payload']['id']}")
+        _request(client, "DELETE", f"/files/{base_file['id']}")
 
 
 @pytest.mark.api_smoke
@@ -247,8 +242,7 @@ def test_files_commented_delete_nonexistent():
         result = _request(
             client,
             "DELETE",
-            "/files/commented/delete",
-            json={"id": 999999},
+            "/files/commented/999999",
         )
         assert result["status"] == 404
 
@@ -267,7 +261,7 @@ def test_files_commented_insert_missing_fields():
         result = _request(
             client,
             "POST",
-            "/files/commented/insert",
+            "/files/commented/",
             files={"file": ("missing.pdf", b"content", "application/pdf")},
             data={"user_id": "1"},
         )
@@ -275,7 +269,7 @@ def test_files_commented_insert_missing_fields():
         result = _request(
             client,
             "POST",
-            "/files/commented/insert",
+            "/files/commented/",
             files={"file": ("missing.pdf", b"content", "application/pdf")},
             data={"file_id": "1"},
         )
@@ -288,7 +282,7 @@ def test_files_commented_insert_nonexistent_file_or_user():
         result = _request(
             client,
             "POST",
-            "/files/commented/insert",
+            "/files/commented/",
             files={"file": ("missing.pdf", b"content", "application/pdf")},
             data={"file_id": "999999", "user_id": "1"},
         )
@@ -296,7 +290,7 @@ def test_files_commented_insert_nonexistent_file_or_user():
         result = _request(
             client,
             "POST",
-            "/files/commented/insert",
+            "/files/commented/",
             files={"file": ("missing.pdf", b"content", "application/pdf")},
             data={"file_id": "1", "user_id": "999999"},
         )
@@ -314,7 +308,7 @@ def test_files_commented_insert_mimetype_mismatch():
         mismatch = _request(
             client,
             "POST",
-            "/files/commented/insert",
+            "/files/commented/",
             files={
                 "file": (
                     f"commented-{suffix}.docx",
@@ -326,4 +320,4 @@ def test_files_commented_insert_mimetype_mismatch():
         )
         assert mismatch["status"] in [400, 415]
 
-        _request(client, "DELETE", "/files/delete", json={"id": base_file["id"]})
+        _request(client, "DELETE", f"/files/{base_file['id']}")

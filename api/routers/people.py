@@ -1,5 +1,7 @@
 """People and security endpoints for persons, users, and permissions."""
 
+from typing import Any
+
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Query, Session
@@ -146,65 +148,6 @@ def list_roles(db: Session = Depends(get_db)) -> list[RoleOut]:
     return _model_list(RoleOut, roles)
 
 
-@router.post(
-    "/roles/insert",
-    summary="Create a new role.",
-    description="Inserts a new role with the specified name.",
-    operation_id="insert_role",
-    tags=["people"],
-    response_model=RoleOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_role(
     payload: RoleCreate = Body(..., openapi_examples=_example_for(RoleCreate)),
     db: Session = Depends(get_db),
@@ -234,64 +177,6 @@ def insert_role(
     return _model_out(RoleOut, role)
 
 
-@router.put(
-    "/roles/update",
-    summary="Update an existing role.",
-    description="Updates the name of an existing role.",
-    operation_id="update_role",
-    tags=["people"],
-    response_model=RoleOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_role(
     payload: RoleUpdate = Body(..., openapi_examples=_example_for(RoleUpdate)),
     db: Session = Depends(get_db),
@@ -328,64 +213,6 @@ def update_role(
     return _model_out(RoleOut, role)
 
 
-@router.delete(
-    "/roles/delete",
-    summary="Delete a role.",
-    description="Removes a role from the database by its ID.",
-    operation_id="delete_role",
-    tags=["people"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_role(
     payload: RoleDelete = Body(..., openapi_examples=_example_for(RoleDelete)),
     db: Session = Depends(get_db),
@@ -484,64 +311,6 @@ def list_persons(db: Session = Depends(get_db)) -> list[PersonOut]:
     return _model_list(PersonOut, persons)
 
 
-@router.put(
-    "/persons/update",
-    summary="Update an existing person.",
-    description="Updates the name and/or photo S3 UID of an existing person.",
-    operation_id="update_person",
-    tags=["people"],
-    response_model=PersonOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_person(
     payload: PersonUpdate = Body(..., openapi_examples=_example_for(PersonUpdate)),
     db: Session = Depends(get_db),
@@ -583,65 +352,6 @@ def update_person(
     return _model_out(PersonOut, person)
 
 
-@router.post(
-    "/persons/insert",
-    summary="Create a new person.",
-    description="Inserts a new person with the specified name and optional photo S3 UID.",
-    operation_id="insert_person",
-    tags=["people"],
-    response_model=PersonOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_person(
     payload: PersonCreate = Body(..., openapi_examples=_example_for(PersonCreate)),
     db: Session = Depends(get_db),
@@ -671,64 +381,6 @@ def insert_person(
     return _model_out(PersonOut, person)
 
 
-@router.delete(
-    "/persons/delete",
-    summary="Delete a person.",
-    description="Removes a person from the database by their ID.",
-    operation_id="delete_person",
-    tags=["people"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_person(
     payload: PersonDelete = Body(..., openapi_examples=_example_for(PersonDelete)),
     db: Session = Depends(get_db),
@@ -836,64 +488,6 @@ def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
     return [_build_user_out(user) for user in users]
 
 
-@router.put(
-    "/users/update",
-    summary="Update an existing user.",
-    description="Updates the person reference, acronym, and/or role of an existing user.",
-    operation_id="update_user",
-    tags=["people"],
-    response_model=UserOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_user(
     payload: UserUpdate = Body(..., openapi_examples=_example_for(UserUpdate)),
     db: Session = Depends(get_db),
@@ -943,65 +537,6 @@ def update_user(
     return _build_user_out(user)
 
 
-@router.post(
-    "/users/insert",
-    summary="Create a new user.",
-    description="Creates a new user with the specified person reference, acronym, and role.",
-    operation_id="insert_user",
-    tags=["people"],
-    response_model=UserOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_user(
     payload: UserCreate = Body(..., openapi_examples=_example_for(UserCreate)),
     db: Session = Depends(get_db),
@@ -1042,64 +577,6 @@ def insert_user(
     return _build_user_out(user)
 
 
-@router.delete(
-    "/users/delete",
-    summary="Delete a user.",
-    description="Removes a user from the database by their ID.",
-    operation_id="delete_user",
-    tags=["people"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_user(
     payload: UserDelete = Body(..., openapi_examples=_example_for(UserDelete)),
     db: Session = Depends(get_db),
@@ -1202,68 +679,6 @@ def list_permissions(db: Session = Depends(get_db)) -> list[PermissionOut]:
     return [_build_permission_out(p) for p in permissions]
 
 
-@router.post(
-    "/permissions/insert",
-    summary="Create a new permission.",
-    description=(
-        "Creates a new permission for a user with project and/or discipline scope. At least one of "
-        "project_id or discipline_id must be provided."
-    ),
-    operation_id="insert_permission",
-    tags=["people"],
-    response_model=PermissionOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_permission(
     payload: PermissionCreate = Body(..., openapi_examples=_example_for(PermissionCreate)),
     db: Session = Depends(get_db),
@@ -1315,64 +730,6 @@ def insert_permission(
     return _build_permission_out(permission)
 
 
-@router.put(
-    "/permissions/update",
-    summary="Update an existing permission.",
-    description="Updates the project and/or discipline scope of an existing permission.",
-    operation_id="update_permission",
-    tags=["people"],
-    response_model=PermissionOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_permission(
     payload: PermissionUpdate = Body(..., openapi_examples=_example_for(PermissionUpdate)),
     db: Session = Depends(get_db),
@@ -1439,67 +796,6 @@ def update_permission(
     return _build_permission_out(existing)
 
 
-@router.delete(
-    "/permissions/delete",
-    summary="Delete a permission.",
-    description=(
-        "Removes a permission from the database. Can be identified by permission_id or by user_id "
-        "with project_id and/or discipline_id."
-    ),
-    operation_id="delete_permission",
-    tags=["people"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_permission(
     payload: PermissionDelete = Body(..., openapi_examples=_example_for(PermissionDelete)),
     db: Session = Depends(get_db),
@@ -1524,3 +820,229 @@ def delete_permission(
         raise HTTPException(status_code=404, detail="Permission not found")
     db.delete(permission)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# RESTful aliases (POST collection, PUT/DELETE item)
+# ---------------------------------------------------------------------------
+
+_REST_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {
+        "description": "Bad Request",
+        "content": {"application/json": {"example": {"detail": "Bad Request"}}},
+    },
+    404: {
+        "description": "Not Found",
+        "content": {"application/json": {"example": {"detail": "Not Found"}}},
+    },
+    422: {
+        "description": "Validation Error",
+        "content": {
+            "application/json": {
+                "example": {
+                    "detail": [
+                        {"loc": ["body", "field"], "msg": "Field required", "type": "missing"}
+                    ]
+                }
+            }
+        },
+    },
+    500: {
+        "description": "Internal Server Error",
+        "content": {"application/json": {"example": {"detail": "Internal Server Error"}}},
+    },
+}
+
+
+@router.post(
+    "/roles",
+    summary="Create a new role (REST).",
+    description="Creates a new role with the specified name.",
+    response_model=RoleOut,
+    status_code=201,
+    tags=["people"],
+    responses=_REST_RESPONSES,
+)
+def create_role_rest(
+    payload: RoleCreate = Body(..., openapi_examples=_example_for(RoleCreate)),
+    db: Session = Depends(get_db),
+) -> RoleOut:
+    return insert_role(payload, db)
+
+
+@router.put(
+    "/roles/{role_id}",
+    summary="Update an existing role (REST).",
+    description="Updates the name of an existing role.",
+    response_model=RoleOut,
+    tags=["people"],
+    responses=_REST_RESPONSES,
+)
+def update_role_rest(
+    role_id: int,
+    payload: RoleUpdate = Body(..., openapi_examples=_example_for(RoleUpdate)),
+    db: Session = Depends(get_db),
+) -> RoleOut:
+    if payload.role_id != role_id:
+        raise HTTPException(status_code=400, detail="role_id mismatch")
+    return update_role(payload, db)
+
+
+@router.delete(
+    "/roles/{role_id}",
+    summary="Delete a role (REST).",
+    description="Removes a role from the database by its ID.",
+    status_code=204,
+    tags=["people"],
+    responses=_REST_RESPONSES,
+)
+def delete_role_rest(role_id: int, db: Session = Depends(get_db)) -> None:
+    return delete_role(RoleDelete(role_id=role_id), db)
+
+
+@router.post(
+    "/persons",
+    summary="Create a new person (REST).",
+    description="Creates a new person with the specified name.",
+    response_model=PersonOut,
+    status_code=201,
+    tags=["people"],
+    responses=_REST_RESPONSES,
+)
+def create_person_rest(
+    payload: PersonCreate = Body(..., openapi_examples=_example_for(PersonCreate)),
+    db: Session = Depends(get_db),
+) -> PersonOut:
+    return insert_person(payload, db)
+
+
+@router.put(
+    "/persons/{person_id}",
+    summary="Update an existing person (REST).",
+    description="Updates the name of an existing person.",
+    response_model=PersonOut,
+    tags=["people"],
+    responses=_REST_RESPONSES,
+)
+def update_person_rest(
+    person_id: int,
+    payload: PersonUpdate = Body(..., openapi_examples=_example_for(PersonUpdate)),
+    db: Session = Depends(get_db),
+) -> PersonOut:
+    if payload.person_id != person_id:
+        raise HTTPException(status_code=400, detail="person_id mismatch")
+    return update_person(payload, db)
+
+
+@router.delete(
+    "/persons/{person_id}",
+    summary="Delete a person (REST).",
+    description="Removes a person from the database by its ID.",
+    status_code=204,
+    tags=["people"],
+    responses=_REST_RESPONSES,
+)
+def delete_person_rest(person_id: int, db: Session = Depends(get_db)) -> None:
+    return delete_person(PersonDelete(person_id=person_id), db)
+
+
+@router.post(
+    "/users",
+    summary="Create a new user (REST).",
+    description="Creates a new user with the specified fields.",
+    response_model=UserOut,
+    status_code=201,
+    tags=["people"],
+    responses=_REST_RESPONSES,
+)
+def create_user_rest(
+    payload: UserCreate = Body(..., openapi_examples=_example_for(UserCreate)),
+    db: Session = Depends(get_db),
+) -> UserOut:
+    return insert_user(payload, db)
+
+
+@router.put(
+    "/users/{user_id}",
+    summary="Update an existing user (REST).",
+    description="Updates the fields of an existing user.",
+    response_model=UserOut,
+    tags=["people"],
+    responses=_REST_RESPONSES,
+)
+def update_user_rest(
+    user_id: int,
+    payload: UserUpdate = Body(..., openapi_examples=_example_for(UserUpdate)),
+    db: Session = Depends(get_db),
+) -> UserOut:
+    if payload.user_id != user_id:
+        raise HTTPException(status_code=400, detail="user_id mismatch")
+    return update_user(payload, db)
+
+
+@router.delete(
+    "/users/{user_id}",
+    summary="Delete a user (REST).",
+    description="Removes a user from the database by its ID.",
+    status_code=204,
+    tags=["people"],
+    responses=_REST_RESPONSES,
+)
+def delete_user_rest(user_id: int, db: Session = Depends(get_db)) -> None:
+    return delete_user(UserDelete(user_id=user_id), db)
+
+
+@router.post(
+    "/permissions",
+    summary="Create a new permission (REST).",
+    description="Creates a new permission with the specified scope.",
+    response_model=PermissionOut,
+    status_code=201,
+    tags=["people"],
+    responses=_REST_RESPONSES,
+)
+def create_permission_rest(
+    payload: PermissionCreate = Body(..., openapi_examples=_example_for(PermissionCreate)),
+    db: Session = Depends(get_db),
+) -> PermissionOut:
+    return insert_permission(payload, db)
+
+
+@router.put(
+    "/permissions/{permission_id}",
+    summary="Update an existing permission (REST).",
+    description="Updates the scope of an existing permission.",
+    response_model=PermissionOut,
+    tags=["people"],
+    responses=_REST_RESPONSES,
+)
+def update_permission_rest(
+    permission_id: int,
+    payload: PermissionUpdate = Body(..., openapi_examples=_example_for(PermissionUpdate)),
+    db: Session = Depends(get_db),
+) -> PermissionOut:
+    if payload.permission_id is None:
+        payload = payload.model_copy(update={"permission_id": permission_id})
+    elif payload.permission_id != permission_id:
+        raise HTTPException(status_code=400, detail="permission_id mismatch")
+    return update_permission(payload, db)
+
+
+@router.delete(
+    "/permissions/{permission_id}",
+    summary="Delete a permission (REST).",
+    description="Removes a permission by its ID or scope.",
+    status_code=204,
+    tags=["people"],
+    responses=_REST_RESPONSES,
+)
+def delete_permission_rest(
+    permission_id: int,
+    payload: PermissionDelete = Body(..., openapi_examples=_example_for(PermissionDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    if payload.permission_id is None:
+        payload = payload.model_copy(update={"permission_id": permission_id})
+    elif payload.permission_id != permission_id:
+        raise HTTPException(status_code=400, detail="permission_id mismatch")
+    return delete_permission(payload, db)

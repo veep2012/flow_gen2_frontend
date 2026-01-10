@@ -6,7 +6,7 @@ import os
 import time
 import uuid
 from email.utils import formatdate
-from typing import BinaryIO, Iterator, cast
+from typing import Any, BinaryIO, Iterator, cast
 from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, UploadFile
@@ -193,68 +193,6 @@ def list_files_for_revision(
     return _model_list(FileOut, files)
 
 
-@router.post(
-    "/insert",
-    summary="Upload a file and attach it to a document revision.",
-    description=(
-        "Uploads a file to MinIO object storage and creates a database record linking it to the "
-        "specified document revision."
-    ),
-    operation_id="insert_file",
-    tags=["files"],
-    response_model=FileOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_file(
     request: Request,
     rev_id: int = Form(..., description="Revision ID to attach the file to"),
@@ -408,67 +346,6 @@ def insert_file(
     return _model_out(FileOut, new_file)
 
 
-@router.put(
-    "/update",
-    summary="Update file metadata.",
-    description=(
-        "Updates the filename of an existing file record (does not update the actual file "
-        "content)."
-    ),
-    operation_id="update_file",
-    tags=["files"],
-    response_model=FileOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_file(
     payload: FileUpdate = Body(..., openapi_examples=_example_for(FileUpdate)),
     db: Session = Depends(get_db),
@@ -511,64 +388,6 @@ def update_file(
     return _model_out(FileOut, file_row)
 
 
-@router.delete(
-    "/delete",
-    summary="Delete a file.",
-    description="Removes a file from both the MinIO object storage and the database.",
-    operation_id="delete_file",
-    tags=["files"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_file(
     request: Request,
     payload: FileDelete = Body(..., openapi_examples=_example_for(FileDelete)),
@@ -623,6 +442,89 @@ def delete_file(
         file_row.s3_uid,
         client_host,
     )
+
+
+# ---------------------------------------------------------------------------
+# RESTful aliases (POST collection, PUT/DELETE item)
+# ---------------------------------------------------------------------------
+
+_REST_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {
+        "description": "Bad Request",
+        "content": {"application/json": {"example": {"detail": "Bad Request"}}},
+    },
+    404: {
+        "description": "Not Found",
+        "content": {"application/json": {"example": {"detail": "Not Found"}}},
+    },
+    422: {
+        "description": "Validation Error",
+        "content": {
+            "application/json": {
+                "example": {
+                    "detail": [
+                        {"loc": ["body", "field"], "msg": "Field required", "type": "missing"}
+                    ]
+                }
+            }
+        },
+    },
+    500: {
+        "description": "Internal Server Error",
+        "content": {"application/json": {"example": {"detail": "Internal Server Error"}}},
+    },
+}
+
+
+@router.post(
+    "/",
+    summary="Upload a file.",
+    description="Uploads a file to MinIO object storage and creates a database record.",
+    operation_id="insert_file_rest",
+    tags=["files"],
+    response_model=FileOut,
+    status_code=201,
+    responses=_REST_RESPONSES,
+)
+def insert_file_rest(
+    request: Request,
+    rev_id: int = Form(..., description="Revision ID to attach the file to"),
+    file: UploadFile = UploadFileField(...),
+    db: Session = Depends(get_db),
+) -> FileOut:
+    return insert_file(request, rev_id, file, db)
+
+
+@router.put(
+    "/{id}",
+    summary="Update a file.",
+    description="Updates the filename of an existing file record.",
+    operation_id="update_file_rest",
+    tags=["files"],
+    response_model=FileOut,
+    responses=_REST_RESPONSES,
+)
+def update_file_rest(
+    id: int,
+    payload: FileUpdate = Body(..., openapi_examples=_example_for(FileUpdate)),
+    db: Session = Depends(get_db),
+) -> FileOut:
+    if payload.id != id:
+        raise HTTPException(status_code=400, detail="id mismatch")
+    return update_file(payload, db)
+
+
+@router.delete(
+    "/{id}",
+    summary="Delete a file.",
+    description="Removes a file from storage and deletes its database record.",
+    operation_id="delete_file_rest",
+    tags=["files"],
+    status_code=204,
+    responses=_REST_RESPONSES,
+)
+def delete_file_rest(id: int, request: Request, db: Session = Depends(get_db)) -> None:
+    return delete_file(request, FileDelete(id=id), db)
 
 
 @router.get(
