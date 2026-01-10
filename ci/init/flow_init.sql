@@ -98,6 +98,13 @@ CREATE UNIQUE INDEX ux_doc_rev_statuses_single_start
     ON doc_rev_statuses (start)
     WHERE start = TRUE;
 
+COMMENT ON TABLE doc_rev_statuses IS
+    'Global workflow statuses. Business rule: only one status may be final (next_rev_status_id IS NULL).';
+COMMENT ON COLUMN doc_rev_statuses.final IS
+    'Marks the single final status in the global workflow (only one allowed).';
+COMMENT ON INDEX ux_doc_rev_statuses_single_final IS
+    'Enforces single final status in the global workflow.';
+
 CREATE OR REPLACE FUNCTION doc_rev_statuses_prevent_cycle()
 RETURNS trigger
 LANGUAGE plpgsql

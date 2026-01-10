@@ -224,7 +224,11 @@ class DocRevStatusOut(BaseModel):
     )
     revertible: bool = Field(..., description="Whether status is revertible.", examples=[True])
     editable: bool = Field(..., description="Whether status is editable.", examples=[True])
-    final: bool = Field(..., description="Whether status is final.", examples=[False])
+    final: bool = Field(
+        ...,
+        description="Whether status is final (global workflow allows only one final status).",
+        examples=[False],
+    )
     start: bool = Field(..., description="Whether status is the start.", examples=[False])
 
 
@@ -241,7 +245,11 @@ class DocRevStatusUpdate(BaseModel):
         None, description="Whether status is revertible.", examples=[True]
     )
     editable: bool | None = Field(None, description="Whether status is editable.", examples=[True])
-    final: bool | None = Field(None, description="Whether status is final.", examples=[False])
+    final: bool | None = Field(
+        None,
+        description="Whether status is final (global workflow allows only one final status).",
+        examples=[False],
+    )
     start: bool | None = Field(None, description="Whether status is the start.", examples=[False])
 
 
@@ -257,7 +265,11 @@ class DocRevStatusCreate(BaseModel):
         None, description="Whether status is revertible.", examples=[True]
     )
     editable: bool | None = Field(None, description="Whether status is editable.", examples=[True])
-    final: bool = Field(..., description="Whether status is final.", examples=[False])
+    final: bool = Field(
+        ...,
+        description="Whether status is final (global workflow allows only one final status).",
+        examples=[False],
+    )
     start: bool | None = Field(None, description="Whether status is the start.", examples=[False])
 
 
