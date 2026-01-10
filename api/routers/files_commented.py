@@ -6,7 +6,7 @@ import os
 import time
 import uuid
 from email.utils import formatdate
-from typing import BinaryIO, Iterator, cast
+from typing import Any, BinaryIO, Iterator, cast
 from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, UploadFile
@@ -235,88 +235,6 @@ def list_commented_files_for_file(
     return _model_list(FileCommentedOut, files)
 
 
-@router.post(
-    "/insert",
-    summary="Upload a commented file.",
-    description=(
-        "Uploads a commented file to MinIO object storage and creates a record linked to the "
-        "specified file and user."
-    ),
-    operation_id="insert_commented_file",
-    tags=["files-commented"],
-    response_model=FileCommentedOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        413: {
-            "description": "Payload Too Large",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "File exceeds upload size limit",
-                    },
-                },
-            },
-        },
-        415: {
-            "description": "Unsupported Media Type",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Unsupported Media Type",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_commented_file(
     request: Request,
     file_id: int = Form(..., description="File ID to attach the commented file to", examples=[1]),
@@ -494,64 +412,6 @@ def insert_commented_file(
     return _model_out(FileCommentedOut, response_payload)
 
 
-@router.delete(
-    "/delete",
-    summary="Delete a commented file.",
-    description="Removes a commented file from both the MinIO object storage and the database.",
-    operation_id="delete_commented_file",
-    tags=["files-commented"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_commented_file(
     request: Request,
     payload: FileCommentedDelete = Body(..., openapi_examples=_example_for(FileCommentedDelete)),
@@ -612,6 +472,75 @@ def delete_commented_file(
         file_row.s3_uid,
         client_host,
     )
+
+
+# ---------------------------------------------------------------------------
+# RESTful aliases (POST collection, DELETE item)
+# ---------------------------------------------------------------------------
+
+_REST_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {
+        "description": "Bad Request",
+        "content": {"application/json": {"example": {"detail": "Bad Request"}}},
+    },
+    404: {
+        "description": "Not Found",
+        "content": {"application/json": {"example": {"detail": "Not Found"}}},
+    },
+    422: {
+        "description": "Validation Error",
+        "content": {
+            "application/json": {
+                "example": {
+                    "detail": [
+                        {"loc": ["body", "field"], "msg": "Field required", "type": "missing"}
+                    ]
+                }
+            }
+        },
+    },
+    500: {
+        "description": "Internal Server Error",
+        "content": {"application/json": {"example": {"detail": "Internal Server Error"}}},
+    },
+}
+
+
+@router.post(
+    "/",
+    summary="Upload a commented file.",
+    description="Uploads a commented file and creates a record linked to the file and user.",
+    operation_id="insert_commented_file_rest",
+    tags=["files-commented"],
+    response_model=FileCommentedOut,
+    status_code=201,
+    responses=_REST_RESPONSES,
+)
+def insert_commented_file_rest(
+    request: Request,
+    file_id: int = Form(..., description="File ID to attach the commented file to", examples=[1]),
+    user_id: int = Form(..., description="User ID uploading the commented file", examples=[1]),
+    file: UploadFile = UploadFileField(...),
+    db: Session = Depends(get_db),
+) -> FileCommentedOut:
+    return insert_commented_file(request, file_id, user_id, file, db)
+
+
+@router.delete(
+    "/{id}",
+    summary="Delete a commented file.",
+    description="Removes a commented file from storage and deletes its database record.",
+    operation_id="delete_commented_file_rest",
+    tags=["files-commented"],
+    status_code=204,
+    responses=_REST_RESPONSES,
+)
+def delete_commented_file_rest(
+    id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> None:
+    return delete_commented_file(request, FileCommentedDelete(id=id), db)
 
 
 @router.get(

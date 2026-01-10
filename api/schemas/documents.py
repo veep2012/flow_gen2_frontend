@@ -218,6 +218,22 @@ class DocRevStatusOut(BaseModel):
     rev_status_name: str = Field(
         ..., description="Revision status name.", examples=["Rev Status A"], min_length=1
     )
+    ui_behavior_id: int = Field(..., description="UI behavior ID.", examples=[1], gt=0)
+    next_rev_status_id: int | None = Field(
+        None, description="Next revision status ID.", examples=[2], gt=0
+    )
+    revertible: bool = Field(..., description="Whether status is revertible.", examples=[True])
+    editable: bool = Field(..., description="Whether status is editable.", examples=[True])
+    final: bool = Field(
+        ...,
+        description="Whether status is final (global workflow allows only one final status).",
+        examples=[False],
+    )
+    start: bool = Field(
+        ...,
+        description="Whether status is the start (global workflow allows only one start status).",
+        examples=[False],
+    )
 
 
 class DocRevStatusUpdate(BaseModel):
@@ -225,13 +241,84 @@ class DocRevStatusUpdate(BaseModel):
     rev_status_name: str | None = Field(
         None, description="Revision status name.", examples=["Rev Status A"], min_length=1
     )
+    ui_behavior_id: int | None = Field(None, description="UI behavior ID.", examples=[1], gt=0)
+    next_rev_status_id: int | None = Field(
+        None, description="Next revision status ID.", examples=[2], gt=0
+    )
+    revertible: bool | None = Field(
+        None, description="Whether status is revertible.", examples=[True]
+    )
+    editable: bool | None = Field(None, description="Whether status is editable.", examples=[True])
+    final: bool | None = Field(
+        None,
+        description="Whether status is final (global workflow allows only one final status).",
+        examples=[False],
+    )
+    start: bool | None = Field(
+        None,
+        description="Whether status is the start (global workflow allows only one start status).",
+        examples=[False],
+    )
 
 
 class DocRevStatusCreate(BaseModel):
     rev_status_name: str = Field(
         ..., description="Revision status name.", examples=["Rev Status A"], min_length=1
     )
+    ui_behavior_id: int = Field(..., description="UI behavior ID.", examples=[1], gt=0)
+    next_rev_status_id: int | None = Field(
+        None, description="Next revision status ID.", examples=[2], gt=0
+    )
+    revertible: bool | None = Field(
+        None, description="Whether status is revertible.", examples=[True]
+    )
+    editable: bool | None = Field(None, description="Whether status is editable.", examples=[True])
+    final: bool = Field(
+        ...,
+        description="Whether status is final (global workflow allows only one final status).",
+        examples=[False],
+    )
+    start: bool | None = Field(
+        None,
+        description="Whether status is the start (global workflow allows only one start status).",
+        examples=[False],
+    )
 
 
 class DocRevStatusDelete(BaseModel):
     rev_status_id: int = Field(..., description="Rev Status ID.", examples=[1], gt=0)
+
+
+class DocRevStatusUiBehaviorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    ui_behavior_id: int = Field(..., description="UI behavior ID.", examples=[1], gt=0)
+    ui_behavior_name: str = Field(
+        ..., description="UI behavior name.", examples=["InDesign"], min_length=1
+    )
+    ui_behavior_file: str = Field(
+        ..., description="UI behavior file key.", examples=["InDesignBehavior"], min_length=1
+    )
+
+
+class DocRevStatusUiBehaviorUpdate(BaseModel):
+    ui_behavior_id: int = Field(..., description="UI behavior ID.", examples=[1], gt=0)
+    ui_behavior_name: str | None = Field(
+        None, description="UI behavior name.", examples=["InDesign"], min_length=1
+    )
+    ui_behavior_file: str | None = Field(
+        None, description="UI behavior file key.", examples=["InDesignBehavior"], min_length=1
+    )
+
+
+class DocRevStatusUiBehaviorCreate(BaseModel):
+    ui_behavior_name: str = Field(
+        ..., description="UI behavior name.", examples=["InDesign"], min_length=1
+    )
+    ui_behavior_file: str = Field(
+        ..., description="UI behavior file key.", examples=["InDesignBehavior"], min_length=1
+    )
+
+
+class DocRevStatusUiBehaviorDelete(BaseModel):
+    ui_behavior_id: int = Field(..., description="UI behavior ID.", examples=[1], gt=0)

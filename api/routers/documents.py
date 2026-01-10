@@ -1,6 +1,6 @@
 """Documents endpoints for managing documents, revisions, milestones, and overviews."""
 
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
@@ -137,67 +137,6 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocTypeOut]:
     return [_build_doc_type_out(dt, disc) for dt, disc in doc_types]
 
 
-@router.post(
-    "/doc_types/insert",
-    summary="Create a new document type.",
-    description=(
-        "Inserts a new document type with the specified name, acronym, and discipline reference."
-    ),
-    operation_id="insert_doc_type",
-    tags=["documents"],
-    response_model=DocTypeOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_doc_type(
     payload: DocTypeCreate = Body(..., openapi_examples=_example_for(DocTypeCreate)),
     db: Session = Depends(get_db),
@@ -237,66 +176,6 @@ def insert_doc_type(
     return _build_doc_type_out(doc_type)
 
 
-@router.put(
-    "/doc_types/update",
-    summary="Update an existing document type.",
-    description=(
-        "Updates the name, acronym, and/or discipline reference of an existing document type."
-    ),
-    operation_id="update_doc_type",
-    tags=["documents"],
-    response_model=DocTypeOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_doc_type(
     payload: DocTypeUpdate = Body(..., openapi_examples=_example_for(DocTypeUpdate)),
     db: Session = Depends(get_db),
@@ -348,64 +227,6 @@ def update_doc_type(
     return _build_doc_type_out(doc_type)
 
 
-@router.delete(
-    "/doc_types/delete",
-    summary="Delete a document type.",
-    description="Removes a document type from the database by its ID.",
-    operation_id="delete_doc_type",
-    tags=["documents"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_doc_type(
     payload: DocTypeDelete = Body(..., openapi_examples=_example_for(DocTypeDelete)),
     db: Session = Depends(get_db),
@@ -568,68 +389,6 @@ def list_documents_for_project(
     ]
 
 
-@router.put(
-    "/update",
-    summary="Update an existing document.",
-    description=(
-        "Updates various fields of an existing document including name, title, project, jobpack, "
-        "type, area, unit, and revision references. Validates all foreign key references and "
-        "ensures document name uniqueness."
-    ),
-    operation_id="update_document",
-    tags=["documents"],
-    response_model=DocOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_document(
     payload: DocUpdate = Body(..., openapi_examples=_example_for(DocUpdate)),
     db: Session = Depends(get_db),
@@ -894,64 +653,6 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
     return _model_list(DocRevMilestoneOut, milestones)
 
 
-@router.put(
-    "/doc_rev_milestones/update",
-    summary="Update an existing document revision milestone.",
-    description="Updates the name and/or progress percentage of an existing milestone.",
-    operation_id="update_doc_rev_milestone",
-    tags=["documents"],
-    response_model=DocRevMilestoneOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_doc_rev_milestone(
     payload: DocRevMilestoneUpdate = Body(
         ..., openapi_examples=_example_for(DocRevMilestoneUpdate)
@@ -995,65 +696,6 @@ def update_doc_rev_milestone(
     return _model_out(DocRevMilestoneOut, milestone)
 
 
-@router.post(
-    "/doc_rev_milestones/insert",
-    summary="Create a new document revision milestone.",
-    description="Inserts a new milestone with the specified name and optional progress percentage.",
-    operation_id="insert_doc_rev_milestone",
-    tags=["documents"],
-    response_model=DocRevMilestoneOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_doc_rev_milestone(
     payload: DocRevMilestoneCreate = Body(
         ..., openapi_examples=_example_for(DocRevMilestoneCreate)
@@ -1085,64 +727,6 @@ def insert_doc_rev_milestone(
     return _model_out(DocRevMilestoneOut, milestone)
 
 
-@router.delete(
-    "/doc_rev_milestones/delete",
-    summary="Delete a document revision milestone.",
-    description="Removes a milestone from the database by its ID.",
-    operation_id="delete_doc_rev_milestone",
-    tags=["documents"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_doc_rev_milestone(
     payload: DocRevMilestoneDelete = Body(
         ..., openapi_examples=_example_for(DocRevMilestoneDelete)
@@ -1243,67 +827,6 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     return _model_list(RevisionOverviewOut, revisions)
 
 
-@router.put(
-    "/revision_overview/update",
-    summary="Update an existing revision overview entry.",
-    description=(
-        "Updates the name, acronym, description, and/or percentage of an existing revision "
-        "overview entry."
-    ),
-    operation_id="update_revision_overview",
-    tags=["documents"],
-    response_model=RevisionOverviewOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_revision_overview(
     payload: RevisionOverviewUpdate = Body(
         ..., openapi_examples=_example_for(RevisionOverviewUpdate)
@@ -1360,68 +883,6 @@ def update_revision_overview(
     return _model_out(RevisionOverviewOut, revision)
 
 
-@router.post(
-    "/revision_overview/insert",
-    summary="Create a new revision overview entry.",
-    description=(
-        "Inserts a new revision overview entry with the specified code, acronym, description, and "
-        "percentage."
-    ),
-    operation_id="insert_revision_overview",
-    tags=["documents"],
-    response_model=RevisionOverviewOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_revision_overview(
     payload: RevisionOverviewCreate = Body(
         ..., openapi_examples=_example_for(RevisionOverviewCreate)
@@ -1462,64 +923,6 @@ def insert_revision_overview(
     return _model_out(RevisionOverviewOut, revision)
 
 
-@router.delete(
-    "/revision_overview/delete",
-    summary="Delete a revision overview entry.",
-    description="Removes a revision overview entry from the database by its ID.",
-    operation_id="delete_revision_overview",
-    tags=["documents"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_revision_overview(
     payload: RevisionOverviewDelete = Body(
         ..., openapi_examples=_example_for(RevisionOverviewDelete)
@@ -1542,3 +945,195 @@ def delete_revision_overview(
         raise HTTPException(status_code=404, detail="Revision overview entry not found")
     db.delete(revision)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# RESTful aliases (POST collection, PUT/DELETE item)
+# ---------------------------------------------------------------------------
+
+_REST_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {
+        "description": "Bad Request",
+        "content": {"application/json": {"example": {"detail": "Bad Request"}}},
+    },
+    404: {
+        "description": "Not Found",
+        "content": {"application/json": {"example": {"detail": "Not Found"}}},
+    },
+    422: {
+        "description": "Validation Error",
+        "content": {
+            "application/json": {
+                "example": {
+                    "detail": [
+                        {"loc": ["body", "field"], "msg": "Field required", "type": "missing"}
+                    ]
+                }
+            }
+        },
+    },
+    500: {
+        "description": "Internal Server Error",
+        "content": {"application/json": {"example": {"detail": "Internal Server Error"}}},
+    },
+}
+
+
+@router.post(
+    "/doc_types",
+    summary="Create a new document type (REST).",
+    description="Creates a new document type with the specified name and acronym.",
+    response_model=DocTypeOut,
+    status_code=201,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def create_doc_type_rest(
+    payload: DocTypeCreate = Body(..., openapi_examples=_example_for(DocTypeCreate)),
+    db: Session = Depends(get_db),
+) -> DocTypeOut:
+    return insert_doc_type(payload, db)
+
+
+@router.put(
+    "/doc_types/{type_id}",
+    summary="Update an existing document type (REST).",
+    description="Updates the name and/or acronym of an existing document type.",
+    response_model=DocTypeOut,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def update_doc_type_rest(
+    type_id: int,
+    payload: DocTypeUpdate = Body(..., openapi_examples=_example_for(DocTypeUpdate)),
+    db: Session = Depends(get_db),
+) -> DocTypeOut:
+    if payload.type_id != type_id:
+        raise HTTPException(status_code=400, detail="type_id mismatch")
+    return update_doc_type(payload, db)
+
+
+@router.delete(
+    "/doc_types/{type_id}",
+    summary="Delete a document type (REST).",
+    description="Removes a document type from the database by its ID.",
+    status_code=204,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def delete_doc_type_rest(type_id: int, db: Session = Depends(get_db)) -> None:
+    return delete_doc_type(DocTypeDelete(type_id=type_id), db)
+
+
+@router.post(
+    "/doc_rev_milestones",
+    summary="Create a new document revision milestone (REST).",
+    description="Creates a new document revision milestone with the specified name.",
+    response_model=DocRevMilestoneOut,
+    status_code=201,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def create_doc_rev_milestone_rest(
+    payload: DocRevMilestoneCreate = Body(
+        ..., openapi_examples=_example_for(DocRevMilestoneCreate)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevMilestoneOut:
+    return insert_doc_rev_milestone(payload, db)
+
+
+@router.put(
+    "/doc_rev_milestones/{milestone_id}",
+    summary="Update an existing document revision milestone (REST).",
+    description="Updates the name and/or progress of an existing milestone.",
+    response_model=DocRevMilestoneOut,
+    responses=_REST_RESPONSES,
+)
+def update_doc_rev_milestone_rest(
+    milestone_id: int,
+    payload: DocRevMilestoneUpdate = Body(
+        ..., openapi_examples=_example_for(DocRevMilestoneUpdate)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevMilestoneOut:
+    if payload.milestone_id != milestone_id:
+        raise HTTPException(status_code=400, detail="milestone_id mismatch")
+    return update_doc_rev_milestone(payload, db)
+
+
+@router.delete(
+    "/doc_rev_milestones/{milestone_id}",
+    summary="Delete a document revision milestone (REST).",
+    description="Removes a document revision milestone by its ID.",
+    status_code=204,
+    responses=_REST_RESPONSES,
+)
+def delete_doc_rev_milestone_rest(milestone_id: int, db: Session = Depends(get_db)) -> None:
+    return delete_doc_rev_milestone(DocRevMilestoneDelete(milestone_id=milestone_id), db)
+
+
+@router.post(
+    "/revision_overview",
+    summary="Create a new revision overview entry (REST).",
+    description="Creates a new revision overview entry with the specified details.",
+    response_model=RevisionOverviewOut,
+    status_code=201,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def create_revision_overview_rest(
+    payload: RevisionOverviewCreate = Body(
+        ..., openapi_examples=_example_for(RevisionOverviewCreate)
+    ),
+    db: Session = Depends(get_db),
+) -> RevisionOverviewOut:
+    return insert_revision_overview(payload, db)
+
+
+@router.put(
+    "/revision_overview/{rev_code_id}",
+    summary="Update an existing revision overview entry (REST).",
+    description="Updates the fields of an existing revision overview entry.",
+    response_model=RevisionOverviewOut,
+    responses=_REST_RESPONSES,
+)
+def update_revision_overview_rest(
+    rev_code_id: int,
+    payload: RevisionOverviewUpdate = Body(
+        ..., openapi_examples=_example_for(RevisionOverviewUpdate)
+    ),
+    db: Session = Depends(get_db),
+) -> RevisionOverviewOut:
+    if payload.rev_code_id != rev_code_id:
+        raise HTTPException(status_code=400, detail="rev_code_id mismatch")
+    return update_revision_overview(payload, db)
+
+
+@router.delete(
+    "/revision_overview/{rev_code_id}",
+    summary="Delete a revision overview entry (REST).",
+    description="Removes a revision overview entry by its ID.",
+    status_code=204,
+    responses=_REST_RESPONSES,
+)
+def delete_revision_overview_rest(rev_code_id: int, db: Session = Depends(get_db)) -> None:
+    return delete_revision_overview(RevisionOverviewDelete(rev_code_id=rev_code_id), db)
+
+
+@router.put(
+    "/{doc_id}",
+    summary="Update an existing document (REST).",
+    description="Updates the metadata of an existing document.",
+    response_model=DocOut,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def update_document_rest(
+    doc_id: int,
+    payload: DocUpdate = Body(..., openapi_examples=_example_for(DocUpdate)),
+    db: Session = Depends(get_db),
+) -> DocOut:
+    if payload.doc_id != doc_id:
+        raise HTTPException(status_code=400, detail="doc_id mismatch")
+    return update_document(payload, db)

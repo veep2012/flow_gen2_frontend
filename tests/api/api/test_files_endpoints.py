@@ -88,7 +88,7 @@ def test_files_crud_and_download():
         upload = _request(
             client,
             "POST",
-            "/files/insert",
+            "/files/",
             files={"file": (f"file-{suffix}.pdf", content, "application/pdf")},
             data={"rev_id": str(rev_id)},
         )
@@ -98,7 +98,7 @@ def test_files_crud_and_download():
         updated = _request(
             client,
             "PUT",
-            "/files/update",
+            f"/files/{file_id}",
             json={"id": file_id, "filename": f"file-{suffix}-v2.pdf"},
         )
         assert 200 <= updated["status"] < 300
@@ -116,7 +116,7 @@ def test_files_crud_and_download():
         assert "etag" in downloaded["headers"]
         assert "last-modified" in downloaded["headers"]
 
-        deleted = _request(client, "DELETE", "/files/delete", json={"id": file_id})
+        deleted = _request(client, "DELETE", f"/files/{file_id}")
         assert deleted["status"] == 204
 
         listed_after = _request(client, "GET", "/files/list", params={"rev_id": rev_id})
@@ -130,7 +130,7 @@ def test_files_insert_empty_file_rejected():
         result = _request(
             client,
             "POST",
-            "/files/insert",
+            "/files/",
             files={"file": ("empty.txt", b"", "text/plain")},
             data={"rev_id": "1"},
         )
@@ -144,7 +144,7 @@ def test_files_insert_long_filename_rejected():
         result = _request(
             client,
             "POST",
-            "/files/insert",
+            "/files/",
             files={"file": (long_name, b"content", "text/plain")},
             data={"rev_id": "1"},
         )
@@ -157,7 +157,7 @@ def test_files_insert_nonexistent_revision():
         result = _request(
             client,
             "POST",
-            "/files/insert",
+            "/files/",
             files={"file": ("file.txt", b"content", "text/plain")},
             data={"rev_id": "999999"},
         )
@@ -173,7 +173,7 @@ def test_files_insert_unaccepted_file_type_rejected():
         result = _request(
             client,
             "POST",
-            "/files/insert",
+            "/files/",
             files={"file": (f"file-{suffix}.txt", b"content", "text/plain")},
             data={"rev_id": str(rev_id)},
         )
@@ -191,7 +191,7 @@ def test_files_insert_accepted_file_type_pdf():
         upload = _request(
             client,
             "POST",
-            "/files/insert",
+            "/files/",
             files={"file": (f"file-{suffix}.pdf", content, "application/pdf")},
             data={"rev_id": str(rev_id)},
         )
@@ -199,7 +199,7 @@ def test_files_insert_accepted_file_type_pdf():
         file_id = upload["payload"]["id"]
 
         # Cleanup
-        _request(client, "DELETE", "/files/delete", json={"id": file_id})
+        _request(client, "DELETE", f"/files/{file_id}")
 
 
 @pytest.mark.api_smoke
@@ -210,7 +210,7 @@ def test_files_insert_no_extension_rejected():
         result = _request(
             client,
             "POST",
-            "/files/insert",
+            "/files/",
             files={"file": ("filename_no_extension", b"content", "application/octet-stream")},
             data={"rev_id": str(rev_id)},
         )
@@ -240,7 +240,7 @@ def test_files_concurrent_uploads_same_revision():
             result = _request(
                 client,
                 "POST",
-                "/files/insert",
+                "/files/",
                 files={
                     "file": (
                         f"file-{suffix}-{idx}.pdf",

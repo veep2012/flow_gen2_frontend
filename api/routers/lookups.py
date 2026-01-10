@@ -1,14 +1,28 @@
 """Lookups endpoints for areas, disciplines, projects, units, jobpacks, roles, and doc types."""
 
+from typing import Any
+
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from api.db.models import Area, Discipline, DocRevStatus, Jobpack, Project, Unit
+from api.db.models import (
+    Area,
+    Discipline,
+    DocRevStatus,
+    DocRevStatusUiBehavior,
+    Jobpack,
+    Project,
+    Unit,
+)
 from api.schemas.documents import (
     DocRevStatusCreate,
     DocRevStatusDelete,
     DocRevStatusOut,
+    DocRevStatusUiBehaviorCreate,
+    DocRevStatusUiBehaviorDelete,
+    DocRevStatusUiBehaviorOut,
+    DocRevStatusUiBehaviorUpdate,
     DocRevStatusUpdate,
 )
 from api.schemas.lookups import (
@@ -115,64 +129,6 @@ def list_areas(db: Session = Depends(get_db)) -> list[AreaOut]:
     return _model_list(AreaOut, areas)
 
 
-@router.put(
-    "/areas/update",
-    summary="Update an existing area.",
-    description="Updates the name and/or acronym of an existing area.",
-    operation_id="update_area",
-    tags=["lookups"],
-    response_model=AreaOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_area(
     payload: AreaUpdate = Body(..., openapi_examples=_example_for(AreaUpdate)),
     db: Session = Depends(get_db),
@@ -214,65 +170,6 @@ def update_area(
     return _model_out(AreaOut, area)
 
 
-@router.post(
-    "/areas/insert",
-    summary="Create a new area.",
-    description="Inserts a new area with the specified name and acronym.",
-    operation_id="insert_area",
-    tags=["lookups"],
-    response_model=AreaOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_area(
     payload: AreaCreate = Body(..., openapi_examples=_example_for(AreaCreate)),
     db: Session = Depends(get_db),
@@ -302,64 +199,6 @@ def insert_area(
     return _model_out(AreaOut, area)
 
 
-@router.delete(
-    "/areas/delete",
-    summary="Delete an area.",
-    description="Removes an area from the database by its ID.",
-    operation_id="delete_area",
-    tags=["lookups"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_area(
     payload: AreaDelete = Body(..., openapi_examples=_example_for(AreaDelete)),
     db: Session = Depends(get_db),
@@ -458,64 +297,6 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[DisciplineOut]:
     return _model_list(DisciplineOut, disciplines)
 
 
-@router.put(
-    "/disciplines/update",
-    summary="Update an existing discipline.",
-    description="Updates the name and/or acronym of an existing discipline.",
-    operation_id="update_discipline",
-    tags=["lookups"],
-    response_model=DisciplineOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_discipline(
     payload: DisciplineUpdate = Body(..., openapi_examples=_example_for(DisciplineUpdate)),
     db: Session = Depends(get_db),
@@ -561,65 +342,6 @@ def update_discipline(
     return _model_out(DisciplineOut, discipline)
 
 
-@router.post(
-    "/disciplines/insert",
-    summary="Create a new discipline.",
-    description="Inserts a new discipline with the specified name and acronym.",
-    operation_id="insert_discipline",
-    tags=["lookups"],
-    response_model=DisciplineOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_discipline(
     payload: DisciplineCreate = Body(..., openapi_examples=_example_for(DisciplineCreate)),
     db: Session = Depends(get_db),
@@ -656,64 +378,6 @@ def insert_discipline(
     return _model_out(DisciplineOut, discipline)
 
 
-@router.delete(
-    "/disciplines/delete",
-    summary="Delete a discipline.",
-    description="Removes a discipline from the database by its ID.",
-    operation_id="delete_discipline",
-    tags=["lookups"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_discipline(
     payload: DisciplineDelete = Body(..., openapi_examples=_example_for(DisciplineDelete)),
     db: Session = Depends(get_db),
@@ -812,64 +476,6 @@ def list_projects(db: Session = Depends(get_db)) -> list[ProjectOut]:
     return _model_list(ProjectOut, projects)
 
 
-@router.put(
-    "/projects/update",
-    summary="Update an existing project.",
-    description="Updates the name of an existing project.",
-    operation_id="update_project",
-    tags=["lookups"],
-    response_model=ProjectOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_project(
     payload: ProjectUpdate = Body(..., openapi_examples=_example_for(ProjectUpdate)),
     db: Session = Depends(get_db),
@@ -909,65 +515,6 @@ def update_project(
     return _model_out(ProjectOut, project)
 
 
-@router.post(
-    "/projects/insert",
-    summary="Create a new project.",
-    description="Inserts a new project with the specified name.",
-    operation_id="insert_project",
-    tags=["lookups"],
-    response_model=ProjectOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_project(
     payload: ProjectCreate = Body(..., openapi_examples=_example_for(ProjectCreate)),
     db: Session = Depends(get_db),
@@ -997,64 +544,6 @@ def insert_project(
     return _model_out(ProjectOut, project)
 
 
-@router.delete(
-    "/projects/delete",
-    summary="Delete a project.",
-    description="Removes a project from the database by its ID.",
-    operation_id="delete_project",
-    tags=["lookups"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_project(
     payload: ProjectDelete = Body(..., openapi_examples=_example_for(ProjectDelete)),
     db: Session = Depends(get_db),
@@ -1153,64 +642,6 @@ def list_units(db: Session = Depends(get_db)) -> list[UnitOut]:
     return _model_list(UnitOut, units)
 
 
-@router.put(
-    "/units/update",
-    summary="Update an existing unit.",
-    description="Updates the name of an existing unit.",
-    operation_id="update_unit",
-    tags=["lookups"],
-    response_model=UnitOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_unit(
     payload: UnitUpdate = Body(..., openapi_examples=_example_for(UnitUpdate)),
     db: Session = Depends(get_db),
@@ -1250,65 +681,6 @@ def update_unit(
     return _model_out(UnitOut, unit)
 
 
-@router.post(
-    "/units/insert",
-    summary="Create a new unit.",
-    description="Inserts a new unit with the specified name.",
-    operation_id="insert_unit",
-    tags=["lookups"],
-    response_model=UnitOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_unit(
     payload: UnitCreate = Body(..., openapi_examples=_example_for(UnitCreate)),
     db: Session = Depends(get_db),
@@ -1338,64 +710,6 @@ def insert_unit(
     return _model_out(UnitOut, unit)
 
 
-@router.delete(
-    "/units/delete",
-    summary="Delete a unit.",
-    description="Removes a unit from the database by its ID.",
-    operation_id="delete_unit",
-    tags=["lookups"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_unit(
     payload: UnitDelete = Body(..., openapi_examples=_example_for(UnitDelete)),
     db: Session = Depends(get_db),
@@ -1494,64 +808,6 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[JobpackOut]:
     return _model_list(JobpackOut, jobpacks)
 
 
-@router.put(
-    "/jobpacks/update",
-    summary="Update an existing jobpack.",
-    description="Updates the name of an existing jobpack.",
-    operation_id="update_jobpack",
-    tags=["lookups"],
-    response_model=JobpackOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_jobpack(
     payload: JobpackUpdate = Body(..., openapi_examples=_example_for(JobpackUpdate)),
     db: Session = Depends(get_db),
@@ -1590,65 +846,6 @@ def update_jobpack(
     return _model_out(JobpackOut, jobpack)
 
 
-@router.post(
-    "/jobpacks/insert",
-    summary="Create a new jobpack.",
-    description="Inserts a new jobpack with the specified name.",
-    operation_id="insert_jobpack",
-    tags=["lookups"],
-    response_model=JobpackOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_jobpack(
     payload: JobpackCreate = Body(..., openapi_examples=_example_for(JobpackCreate)),
     db: Session = Depends(get_db),
@@ -1678,13 +875,35 @@ def insert_jobpack(
     return _model_out(JobpackOut, jobpack)
 
 
-@router.delete(
-    "/jobpacks/delete",
-    summary="Delete a jobpack.",
-    description="Removes a jobpack from the database by its ID.",
-    operation_id="delete_jobpack",
+def delete_jobpack(
+    payload: JobpackDelete = Body(..., openapi_examples=_example_for(JobpackDelete)),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a jobpack.
+
+    Removes a jobpack from the database by its ID.
+
+    Args:
+        payload: Jobpack deletion data including jobpack_id.
+
+    Raises:
+        HTTPException: 404 if jobpack not found.
+    """
+    jobpack = db.get(Jobpack, payload.jobpack_id)
+    if not jobpack:
+        raise HTTPException(status_code=404, detail="Jobpack not found")
+    db.delete(jobpack)
+    db.commit()
+
+
+@router.get(
+    "/doc_rev_status_ui_behaviors",
+    summary="List all document revision status UI behaviors.",
+    description="Returns a list of all document revision status UI behaviors sorted by name.",
+    operation_id="list_doc_rev_status_ui_behaviors",
     tags=["lookups"],
-    status_code=204,
+    response_model=list[DocRevStatusUiBehaviorOut],
     responses={
         400: {
             "description": "Bad Request",
@@ -1736,25 +955,122 @@ def insert_jobpack(
         },
     },
 )
-def delete_jobpack(
-    payload: JobpackDelete = Body(..., openapi_examples=_example_for(JobpackDelete)),
+def list_doc_rev_status_ui_behaviors(
+    db: Session = Depends(get_db),
+) -> list[DocRevStatusUiBehaviorOut]:
+    """
+    List all document revision status UI behaviors.
+
+    Returns:
+        List of document revision status UI behaviors with id and name.
+
+    Raises:
+        HTTPException: 404 if no UI behaviors are found.
+    """
+    behaviors = (
+        db.query(DocRevStatusUiBehavior).order_by(DocRevStatusUiBehavior.ui_behavior_name).all()
+    )
+    if not behaviors:
+        raise HTTPException(status_code=404, detail="No doc revision status UI behaviors found")
+    return _model_list(DocRevStatusUiBehaviorOut, behaviors)
+
+
+def insert_doc_rev_status_ui_behavior(
+    payload: DocRevStatusUiBehaviorCreate = Body(
+        ..., openapi_examples=_example_for(DocRevStatusUiBehaviorCreate)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevStatusUiBehaviorOut:
+    """
+    Create a new document revision status UI behavior.
+
+    Args:
+        payload: UI behavior creation data including name.
+
+    Returns:
+        Newly created UI behavior object.
+
+    Raises:
+        HTTPException: 400 on creation failure.
+    """
+    behavior = DocRevStatusUiBehavior(
+        ui_behavior_name=payload.ui_behavior_name,
+        ui_behavior_file=payload.ui_behavior_file,
+    )
+    db.add(behavior)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error(
+            "Revision status UI behavior already exists", err, "insert_doc_rev_status_ui_behavior"
+        )
+
+    db.refresh(behavior)
+    return _model_out(DocRevStatusUiBehaviorOut, behavior)
+
+
+def update_doc_rev_status_ui_behavior(
+    payload: DocRevStatusUiBehaviorUpdate = Body(
+        ..., openapi_examples=_example_for(DocRevStatusUiBehaviorUpdate)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevStatusUiBehaviorOut:
+    """
+    Update an existing document revision status UI behavior.
+
+    Args:
+        payload: UI behavior update data including ui_behavior_id and name.
+
+    Returns:
+        Updated UI behavior object.
+
+    Raises:
+        HTTPException: 400 if no fields provided.
+        HTTPException: 404 if UI behavior not found.
+    """
+    if payload.ui_behavior_name is None and payload.ui_behavior_file is None:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    behavior = db.get(DocRevStatusUiBehavior, payload.ui_behavior_id)
+    if not behavior:
+        raise HTTPException(status_code=404, detail="Revision status UI behavior not found")
+
+    if payload.ui_behavior_name is not None:
+        behavior.ui_behavior_name = payload.ui_behavior_name
+    if payload.ui_behavior_file is not None:
+        behavior.ui_behavior_file = payload.ui_behavior_file
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error(
+            "Revision status UI behavior already exists", err, "update_doc_rev_status_ui_behavior"
+        )
+
+    db.refresh(behavior)
+    return _model_out(DocRevStatusUiBehaviorOut, behavior)
+
+
+def delete_doc_rev_status_ui_behavior(
+    payload: DocRevStatusUiBehaviorDelete = Body(
+        ..., openapi_examples=_example_for(DocRevStatusUiBehaviorDelete)
+    ),
     db: Session = Depends(get_db),
 ) -> None:
     """
-    Delete a jobpack.
-
-    Removes a jobpack from the database by its ID.
+    Delete a document revision status UI behavior.
 
     Args:
-        payload: Jobpack deletion data including jobpack_id.
+        payload: UI behavior deletion data including ui_behavior_id.
 
     Raises:
-        HTTPException: 404 if jobpack not found.
+        HTTPException: 404 if UI behavior not found.
     """
-    jobpack = db.get(Jobpack, payload.jobpack_id)
-    if not jobpack:
-        raise HTTPException(status_code=404, detail="Jobpack not found")
-    db.delete(jobpack)
+    behavior = db.get(DocRevStatusUiBehavior, payload.ui_behavior_id)
+    if not behavior:
+        raise HTTPException(status_code=404, detail="Revision status UI behavior not found")
+    db.delete(behavior)
     db.commit()
 
 
@@ -1834,65 +1150,6 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatusOut
     return _model_list(DocRevStatusOut, statuses)
 
 
-@router.post(
-    "/doc_rev_statuses/insert",
-    summary="Create a new document revision status.",
-    description="Inserts a new document revision status with the specified name.",
-    operation_id="insert_doc_rev_status",
-    tags=["lookups"],
-    response_model=DocRevStatusOut,
-    status_code=201,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def insert_doc_rev_status(
     payload: DocRevStatusCreate = Body(..., openapi_examples=_example_for(DocRevStatusCreate)),
     db: Session = Depends(get_db),
@@ -1911,7 +1168,30 @@ def insert_doc_rev_status(
     Raises:
         HTTPException: 400 on creation failure.
     """
-    status = DocRevStatus(rev_status_name=payload.rev_status_name)
+    if payload.final and payload.next_rev_status_id is not None:
+        raise HTTPException(status_code=400, detail="Final status cannot have next status")
+    if not payload.final and payload.next_rev_status_id is None:
+        raise HTTPException(status_code=400, detail="Non-final status must have next status")
+    if payload.final and ((payload.editable is True) or (payload.revertible is True)):
+        raise HTTPException(
+            status_code=400,
+            detail="Final status cannot be editable or revertible",
+        )
+
+    status_fields = {
+        "rev_status_name": payload.rev_status_name,
+        "ui_behavior_id": payload.ui_behavior_id,
+        "next_rev_status_id": payload.next_rev_status_id,
+        "final": payload.final,
+    }
+    if payload.revertible is not None:
+        status_fields["revertible"] = payload.revertible
+    if payload.editable is not None:
+        status_fields["editable"] = payload.editable
+    if payload.start is not None:
+        status_fields["start"] = payload.start
+
+    status = DocRevStatus(**status_fields)
     db.add(status)
     try:
         db.commit()
@@ -1923,64 +1203,6 @@ def insert_doc_rev_status(
     return _model_out(DocRevStatusOut, status)
 
 
-@router.put(
-    "/doc_rev_statuses/update",
-    summary="Update an existing document revision status.",
-    description="Updates the name of an existing document revision status.",
-    operation_id="update_doc_rev_status",
-    tags=["lookups"],
-    response_model=DocRevStatusOut,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def update_doc_rev_status(
     payload: DocRevStatusUpdate = Body(..., openapi_examples=_example_for(DocRevStatusUpdate)),
     db: Session = Depends(get_db),
@@ -2000,14 +1222,80 @@ def update_doc_rev_status(
         HTTPException: 400 if no fields provided.
         HTTPException: 404 if status not found.
     """
-    if payload.rev_status_name is None:
+    update_fields = {
+        "rev_status_name",
+        "ui_behavior_id",
+        "next_rev_status_id",
+        "revertible",
+        "editable",
+        "final",
+        "start",
+    }
+    if not update_fields.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
     status = db.get(DocRevStatus, payload.rev_status_id)
     if not status:
         raise HTTPException(status_code=404, detail="Revision status not found")
 
-    status.rev_status_name = payload.rev_status_name
+    if "rev_status_name" in payload.model_fields_set and payload.rev_status_name is None:
+        raise HTTPException(status_code=400, detail="Revision status name cannot be null")
+    if "ui_behavior_id" in payload.model_fields_set and payload.ui_behavior_id is None:
+        raise HTTPException(status_code=400, detail="UI behavior ID cannot be null")
+    if "revertible" in payload.model_fields_set and payload.revertible is None:
+        raise HTTPException(status_code=400, detail="Revertible flag cannot be null")
+    if "editable" in payload.model_fields_set and payload.editable is None:
+        raise HTTPException(status_code=400, detail="Editable flag cannot be null")
+    if "final" in payload.model_fields_set and payload.final is None:
+        raise HTTPException(status_code=400, detail="Final flag cannot be null")
+    if "start" in payload.model_fields_set and payload.start is None:
+        raise HTTPException(status_code=400, detail="Start flag cannot be null")
+
+    next_final = status.final
+    next_next_id = status.next_rev_status_id
+    next_editable = status.editable
+    next_revertible = status.revertible
+    if "final" in payload.model_fields_set:
+        assert payload.final is not None
+        next_final = payload.final
+    if "next_rev_status_id" in payload.model_fields_set:
+        next_next_id = payload.next_rev_status_id
+    if "editable" in payload.model_fields_set:
+        assert payload.editable is not None
+        next_editable = payload.editable
+    if "revertible" in payload.model_fields_set:
+        assert payload.revertible is not None
+        next_revertible = payload.revertible
+
+    if next_final and next_next_id is not None:
+        raise HTTPException(status_code=400, detail="Final status cannot have next status")
+    if not next_final and next_next_id is None:
+        raise HTTPException(status_code=400, detail="Non-final status must have next status")
+    if next_final and (next_editable or next_revertible):
+        raise HTTPException(
+            status_code=400, detail="Final status must not be editable or revertible"
+        )
+
+    if "rev_status_name" in payload.model_fields_set:
+        assert payload.rev_status_name is not None
+        status.rev_status_name = payload.rev_status_name
+    if "ui_behavior_id" in payload.model_fields_set:
+        assert payload.ui_behavior_id is not None
+        status.ui_behavior_id = payload.ui_behavior_id
+    if "next_rev_status_id" in payload.model_fields_set:
+        status.next_rev_status_id = payload.next_rev_status_id
+    if "revertible" in payload.model_fields_set:
+        assert payload.revertible is not None
+        status.revertible = payload.revertible
+    if "editable" in payload.model_fields_set:
+        assert payload.editable is not None
+        status.editable = payload.editable
+    if "final" in payload.model_fields_set:
+        assert payload.final is not None
+        status.final = payload.final
+    if "start" in payload.model_fields_set:
+        assert payload.start is not None
+        status.start = payload.start
     try:
         db.commit()
     except IntegrityError as err:
@@ -2018,64 +1306,6 @@ def update_doc_rev_status(
     return _model_out(DocRevStatusOut, status)
 
 
-@router.delete(
-    "/doc_rev_statuses/delete",
-    summary="Delete a document revision status.",
-    description="Removes a document revision status from the database by its ID.",
-    operation_id="delete_doc_rev_status",
-    tags=["lookups"],
-    status_code=204,
-    responses={
-        400: {
-            "description": "Bad Request",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Bad Request",
-                    },
-                },
-            },
-        },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
-        422: {
-            "description": "Validation Error",
-            "content": {
-                "application/json": {
-                    "example": (
-                        {
-                            "detail": [
-                                {
-                                    "loc": ["body", "field"],
-                                    "msg": "Field required",
-                                    "type": "missing",
-                                }
-                            ]
-                        }
-                    ),
-                },
-            },
-        },
-        500: {
-            "description": "Internal Server Error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Internal Server Error",
-                    },
-                },
-            },
-        },
-    },
-)
 def delete_doc_rev_status(
     payload: DocRevStatusDelete = Body(..., openapi_examples=_example_for(DocRevStatusDelete)),
     db: Session = Depends(get_db),
@@ -2096,3 +1326,366 @@ def delete_doc_rev_status(
         raise HTTPException(status_code=404, detail="Revision status not found")
     db.delete(status)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# RESTful aliases (POST collection, PUT/DELETE item)
+# ---------------------------------------------------------------------------
+
+_REST_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {
+        "description": "Bad Request",
+        "content": {"application/json": {"example": {"detail": "Bad Request"}}},
+    },
+    404: {
+        "description": "Not Found",
+        "content": {"application/json": {"example": {"detail": "Not Found"}}},
+    },
+    422: {
+        "description": "Validation Error",
+        "content": {
+            "application/json": {
+                "example": {
+                    "detail": [
+                        {"loc": ["body", "field"], "msg": "Field required", "type": "missing"}
+                    ]
+                }
+            }
+        },
+    },
+    500: {
+        "description": "Internal Server Error",
+        "content": {"application/json": {"example": {"detail": "Internal Server Error"}}},
+    },
+}
+
+
+@router.post(
+    "/areas",
+    summary="Create a new area (REST).",
+    description="Creates a new area with the specified name and acronym.",
+    response_model=AreaOut,
+    status_code=201,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def create_area_rest(
+    payload: AreaCreate = Body(..., openapi_examples=_example_for(AreaCreate)),
+    db: Session = Depends(get_db),
+) -> AreaOut:
+    return insert_area(payload, db)
+
+
+@router.put(
+    "/areas/{area_id}",
+    summary="Update an existing area (REST).",
+    description="Updates the name and/or acronym of an existing area.",
+    response_model=AreaOut,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def update_area_rest(
+    area_id: int,
+    payload: AreaUpdate = Body(..., openapi_examples=_example_for(AreaUpdate)),
+    db: Session = Depends(get_db),
+) -> AreaOut:
+    if payload.area_id != area_id:
+        raise HTTPException(status_code=400, detail="area_id mismatch")
+    return update_area(payload, db)
+
+
+@router.delete(
+    "/areas/{area_id}",
+    summary="Delete an area (REST).",
+    description="Removes an area from the database by its ID.",
+    status_code=204,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def delete_area_rest(area_id: int, db: Session = Depends(get_db)) -> None:
+    return delete_area(AreaDelete(area_id=area_id), db)
+
+
+@router.post(
+    "/disciplines",
+    summary="Create a new discipline (REST).",
+    description="Creates a new discipline with the specified name and acronym.",
+    response_model=DisciplineOut,
+    status_code=201,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def create_discipline_rest(
+    payload: DisciplineCreate = Body(..., openapi_examples=_example_for(DisciplineCreate)),
+    db: Session = Depends(get_db),
+) -> DisciplineOut:
+    return insert_discipline(payload, db)
+
+
+@router.put(
+    "/disciplines/{discipline_id}",
+    summary="Update an existing discipline (REST).",
+    description="Updates the name and/or acronym of an existing discipline.",
+    response_model=DisciplineOut,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def update_discipline_rest(
+    discipline_id: int,
+    payload: DisciplineUpdate = Body(..., openapi_examples=_example_for(DisciplineUpdate)),
+    db: Session = Depends(get_db),
+) -> DisciplineOut:
+    if payload.discipline_id != discipline_id:
+        raise HTTPException(status_code=400, detail="discipline_id mismatch")
+    return update_discipline(payload, db)
+
+
+@router.delete(
+    "/disciplines/{discipline_id}",
+    summary="Delete a discipline (REST).",
+    description="Removes a discipline from the database by its ID.",
+    status_code=204,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def delete_discipline_rest(discipline_id: int, db: Session = Depends(get_db)) -> None:
+    return delete_discipline(DisciplineDelete(discipline_id=discipline_id), db)
+
+
+@router.post(
+    "/projects",
+    summary="Create a new project (REST).",
+    description="Creates a new project with the specified name.",
+    response_model=ProjectOut,
+    status_code=201,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def create_project_rest(
+    payload: ProjectCreate = Body(..., openapi_examples=_example_for(ProjectCreate)),
+    db: Session = Depends(get_db),
+) -> ProjectOut:
+    return insert_project(payload, db)
+
+
+@router.put(
+    "/projects/{project_id}",
+    summary="Update an existing project (REST).",
+    description="Updates the name of an existing project.",
+    response_model=ProjectOut,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def update_project_rest(
+    project_id: int,
+    payload: ProjectUpdate = Body(..., openapi_examples=_example_for(ProjectUpdate)),
+    db: Session = Depends(get_db),
+) -> ProjectOut:
+    if payload.project_id != project_id:
+        raise HTTPException(status_code=400, detail="project_id mismatch")
+    return update_project(payload, db)
+
+
+@router.delete(
+    "/projects/{project_id}",
+    summary="Delete a project (REST).",
+    description="Removes a project from the database by its ID.",
+    status_code=204,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def delete_project_rest(project_id: int, db: Session = Depends(get_db)) -> None:
+    return delete_project(ProjectDelete(project_id=project_id), db)
+
+
+@router.post(
+    "/units",
+    summary="Create a new unit (REST).",
+    description="Creates a new unit with the specified name.",
+    response_model=UnitOut,
+    status_code=201,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def create_unit_rest(
+    payload: UnitCreate = Body(..., openapi_examples=_example_for(UnitCreate)),
+    db: Session = Depends(get_db),
+) -> UnitOut:
+    return insert_unit(payload, db)
+
+
+@router.put(
+    "/units/{unit_id}",
+    summary="Update an existing unit (REST).",
+    description="Updates the name of an existing unit.",
+    response_model=UnitOut,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def update_unit_rest(
+    unit_id: int,
+    payload: UnitUpdate = Body(..., openapi_examples=_example_for(UnitUpdate)),
+    db: Session = Depends(get_db),
+) -> UnitOut:
+    if payload.unit_id != unit_id:
+        raise HTTPException(status_code=400, detail="unit_id mismatch")
+    return update_unit(payload, db)
+
+
+@router.delete(
+    "/units/{unit_id}",
+    summary="Delete a unit (REST).",
+    description="Removes a unit from the database by its ID.",
+    status_code=204,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def delete_unit_rest(unit_id: int, db: Session = Depends(get_db)) -> None:
+    return delete_unit(UnitDelete(unit_id=unit_id), db)
+
+
+@router.post(
+    "/jobpacks",
+    summary="Create a new jobpack (REST).",
+    description="Creates a new jobpack with the specified name.",
+    response_model=JobpackOut,
+    status_code=201,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def create_jobpack_rest(
+    payload: JobpackCreate = Body(..., openapi_examples=_example_for(JobpackCreate)),
+    db: Session = Depends(get_db),
+) -> JobpackOut:
+    return insert_jobpack(payload, db)
+
+
+@router.put(
+    "/jobpacks/{jobpack_id}",
+    summary="Update an existing jobpack (REST).",
+    description="Updates the name of an existing jobpack.",
+    response_model=JobpackOut,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def update_jobpack_rest(
+    jobpack_id: int,
+    payload: JobpackUpdate = Body(..., openapi_examples=_example_for(JobpackUpdate)),
+    db: Session = Depends(get_db),
+) -> JobpackOut:
+    if payload.jobpack_id != jobpack_id:
+        raise HTTPException(status_code=400, detail="jobpack_id mismatch")
+    return update_jobpack(payload, db)
+
+
+@router.delete(
+    "/jobpacks/{jobpack_id}",
+    summary="Delete a jobpack (REST).",
+    description="Removes a jobpack from the database by its ID.",
+    status_code=204,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def delete_jobpack_rest(jobpack_id: int, db: Session = Depends(get_db)) -> None:
+    return delete_jobpack(JobpackDelete(jobpack_id=jobpack_id), db)
+
+
+@router.post(
+    "/doc_rev_status_ui_behaviors",
+    summary="Create a new document revision status UI behavior (REST).",
+    description="Creates a new document revision status UI behavior with the specified name.",
+    response_model=DocRevStatusUiBehaviorOut,
+    status_code=201,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def create_doc_rev_status_ui_behavior_rest(
+    payload: DocRevStatusUiBehaviorCreate = Body(
+        ..., openapi_examples=_example_for(DocRevStatusUiBehaviorCreate)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevStatusUiBehaviorOut:
+    return insert_doc_rev_status_ui_behavior(payload, db)
+
+
+@router.put(
+    "/doc_rev_status_ui_behaviors/{ui_behavior_id}",
+    summary="Update an existing document revision status UI behavior (REST).",
+    description="Updates the name of an existing document revision status UI behavior.",
+    response_model=DocRevStatusUiBehaviorOut,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def update_doc_rev_status_ui_behavior_rest(
+    ui_behavior_id: int,
+    payload: DocRevStatusUiBehaviorUpdate = Body(
+        ..., openapi_examples=_example_for(DocRevStatusUiBehaviorUpdate)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevStatusUiBehaviorOut:
+    if payload.ui_behavior_id != ui_behavior_id:
+        raise HTTPException(status_code=400, detail="ui_behavior_id mismatch")
+    return update_doc_rev_status_ui_behavior(payload, db)
+
+
+@router.delete(
+    "/doc_rev_status_ui_behaviors/{ui_behavior_id}",
+    summary="Delete a document revision status UI behavior (REST).",
+    description="Removes a document revision status UI behavior from the database by its ID.",
+    status_code=204,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def delete_doc_rev_status_ui_behavior_rest(
+    ui_behavior_id: int,
+    db: Session = Depends(get_db),
+) -> None:
+    return delete_doc_rev_status_ui_behavior(
+        DocRevStatusUiBehaviorDelete(ui_behavior_id=ui_behavior_id), db
+    )
+
+
+@router.post(
+    "/doc_rev_statuses",
+    summary="Create a new document revision status (REST).",
+    description="Creates a new document revision status with the specified name.",
+    response_model=DocRevStatusOut,
+    status_code=201,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def create_doc_rev_status_rest(
+    payload: DocRevStatusCreate = Body(..., openapi_examples=_example_for(DocRevStatusCreate)),
+    db: Session = Depends(get_db),
+) -> DocRevStatusOut:
+    return insert_doc_rev_status(payload, db)
+
+
+@router.put(
+    "/doc_rev_statuses/{rev_status_id}",
+    summary="Update an existing document revision status (REST).",
+    description="Updates the name and attributes of an existing document revision status.",
+    response_model=DocRevStatusOut,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def update_doc_rev_status_rest(
+    rev_status_id: int,
+    payload: DocRevStatusUpdate = Body(..., openapi_examples=_example_for(DocRevStatusUpdate)),
+    db: Session = Depends(get_db),
+) -> DocRevStatusOut:
+    if payload.rev_status_id != rev_status_id:
+        raise HTTPException(status_code=400, detail="rev_status_id mismatch")
+    return update_doc_rev_status(payload, db)
+
+
+@router.delete(
+    "/doc_rev_statuses/{rev_status_id}",
+    summary="Delete a document revision status (REST).",
+    description="Removes a document revision status from the database by its ID.",
+    status_code=204,
+    tags=["lookups"],
+    responses=_REST_RESPONSES,
+)
+def delete_doc_rev_status_rest(rev_status_id: int, db: Session = Depends(get_db)) -> None:
+    return delete_doc_rev_status(DocRevStatusDelete(rev_status_id=rev_status_id), db)

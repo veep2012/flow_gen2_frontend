@@ -240,6 +240,37 @@ h1 {
   align-items: center;
 }
 
+.status-create {
+  grid-template-columns: 1.2fr 1fr 1fr 1.6fr 120px;
+}
+
+.status-table .table-head,
+.status-table .table-row {
+  grid-template-columns: 70px 1.2fr 1fr 1fr 1.6fr 180px;
+}
+
+.status-table {
+  overflow-x: auto;
+}
+
+.status-table .table-head,
+.status-table .table-row {
+  min-width: 760px;
+}
+
+.flag-editor {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.flag-field {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .tag {
   display: inline-flex;
   align-items: center;

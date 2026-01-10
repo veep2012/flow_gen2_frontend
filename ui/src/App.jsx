@@ -1,6 +1,7 @@
 import React from "react";
 import { documentGridColumns } from "./grids/documents";
 import { useFetchDocuments } from "./hooks/useFetchDocuments";
+import { resolveBehaviorByFile } from "./components/DocRevStatusBehaviors";
 
 const columns = documentGridColumns.map(({ id, label, field, hidden }) => ({
   key: field,
@@ -30,6 +31,10 @@ const normalizeApiBase = (raw) => {
 
 function App() {
   const apiBase = normalizeApiBase(import.meta.env.VITE_API_BASE_URL);
+  const [revStatuses, setRevStatuses] = React.useState([]);
+  const [revStatusBehaviors, setRevStatusBehaviors] = React.useState([]);
+  const [revStatusError, setRevStatusError] = React.useState(null);
+  const [revStatusLoading, setRevStatusLoading] = React.useState(true);
   const {
     project,
     setProject,
@@ -83,15 +88,19 @@ function App() {
   };
 
   const [infoRatio, setInfoRatio] = React.useState(0.35);
+  const [detailRatio, setDetailRatio] = React.useState(0.25);
   const [columnWidths, setColumnWidths] = React.useState({});
   const [activeDetailTab, setActiveDetailTab] = React.useState("Revisions");
-  const [infoActiveStep, setInfoActiveStep] = React.useState("IDC");
+  const [infoActiveStep, setInfoActiveStep] = React.useState(null);
   const [infoActiveSubTab, setInfoActiveSubTab] = React.useState("Comments");
   const [isDraggingUpload, setIsDraggingUpload] = React.useState(false);
   const [isDraggingBorder, setIsDraggingBorder] = React.useState(false);
+  const [isDraggingRow, setIsDraggingRow] = React.useState(false);
   const [uploadedFiles, setUploadedFiles] = React.useState({});
   const [expandedRevisions, setExpandedRevisions] = React.useState({});
   const containerRef = React.useRef(null);
+  const leftPanelRef = React.useRef(null);
+  const hasInitializedFlowRef = React.useRef(false);
   const uploadInputRef = React.useRef(null);
   const [selectedDocId, setSelectedDocId] = React.useState(null);
   const [editRowId, setEditRowId] = React.useState(null);
@@ -306,6 +315,36 @@ function App() {
     [infoRatio],
   );
 
+  const startRowResize = React.useCallback(
+    (event) => {
+      event.preventDefault();
+      setIsDraggingRow(true);
+      const container = leftPanelRef.current;
+      if (!container) return;
+
+      const containerHeight = container.getBoundingClientRect().height;
+      const startY = event.clientY;
+      const startRatio = detailRatio;
+
+      const handleMove = (moveEvent) => {
+        const delta = startY - moveEvent.clientY;
+        const deltaRatio = delta / containerHeight;
+        const nextRatio = Math.max(0.2, Math.min(0.8, startRatio + deltaRatio));
+        setDetailRatio(nextRatio);
+      };
+
+      const handleUp = () => {
+        setIsDraggingRow(false);
+        window.removeEventListener("mousemove", handleMove);
+        window.removeEventListener("mouseup", handleUp);
+      };
+
+      window.addEventListener("mousemove", handleMove);
+      window.addEventListener("mouseup", handleUp);
+    },
+    [detailRatio],
+  );
+
   const startEdit = React.useCallback((doc) => {
     if (!doc) return;
     const rowId = doc.doc_id || doc.doc_name || doc.doc_name_unique || doc.id;
@@ -350,7 +389,7 @@ function App() {
       setSaveError(null);
 
       try {
-        const res = await fetch(`${apiBase}/documents/update`, {
+        const res = await fetch(`${apiBase}/documents/${payload.doc_id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -372,44 +411,168 @@ function App() {
     [apiBase, editValues, reloadDocuments],
   );
 
-  const handleUploadFiles = (files) => {
+  const handleUploadFiles = React.useCallback((files, statusKey) => {
     const list = Array.from(files || []);
-    if (!list.length) return;
-
-    const step = infoActiveStep;
+    if (!list.length || !statusKey) return;
     const fileNames = list.map((f) => f.name);
 
     setUploadedFiles((prev) => ({
       ...prev,
-      [step]: [...(prev[step] || []), ...fileNames],
+      [statusKey]: [...(prev[statusKey] || []), ...fileNames],
     }));
 
     // Auto-expand the revision tree
     setExpandedRevisions((prev) => ({
       ...prev,
-      [step]: { ...prev[step], isOpen: true },
+      [statusKey]: { ...prev[statusKey], isOpen: true },
     }));
-  };
+  }, []);
 
-  const handleUploadDrop = (e) => {
-    e.preventDefault();
-    setIsDraggingUpload(false);
-    handleUploadFiles(e.dataTransfer?.files);
-  };
-
-  const handleUploadSelect = (e) => {
-    handleUploadFiles(e.target.files);
-    e.target.value = "";
-  };
-
-  const uploadDragProps = {
-    onDragOver: (e) => {
+  const handleUploadDrop = React.useCallback(
+    (e, statusKey) => {
       e.preventDefault();
-      setIsDraggingUpload(true);
+      setIsDraggingUpload(false);
+      handleUploadFiles(e.dataTransfer?.files, statusKey);
     },
-    onDragLeave: () => setIsDraggingUpload(false),
-    onDrop: handleUploadDrop,
-  };
+    [handleUploadFiles],
+  );
+
+  const handleUploadSelect = React.useCallback(
+    (e, statusKey) => {
+      handleUploadFiles(e.target.files, statusKey);
+      e.target.value = "";
+    },
+    [handleUploadFiles],
+  );
+
+  const buildUploadDragProps = React.useCallback(
+    (statusKey) => ({
+      onDragOver: (e) => {
+        e.preventDefault();
+        setIsDraggingUpload(true);
+      },
+      onDragLeave: () => setIsDraggingUpload(false),
+      onDrop: (e) => handleUploadDrop(e, statusKey),
+    }),
+    [handleUploadDrop],
+  );
+
+  const handleRevisionToggle = React.useCallback((revKey) => {
+    setExpandedRevisions((prev) => ({
+      ...prev,
+      [revKey]: { ...prev[revKey], isOpen: !prev[revKey]?.isOpen },
+    }));
+  }, []);
+
+  React.useEffect(() => {
+    let isActive = true;
+    const fetchLookups = async () => {
+      setRevStatusLoading(true);
+      setRevStatusError(null);
+      try {
+        const [statusRes, behaviorRes] = await Promise.all([
+          fetch(`${apiBase}/lookups/doc_rev_statuses`),
+          fetch(`${apiBase}/lookups/doc_rev_status_ui_behaviors`),
+        ]);
+        if (!statusRes.ok && statusRes.status !== 404) {
+          throw new Error(`Failed to load statuses (${statusRes.status})`);
+        }
+        if (!behaviorRes.ok && behaviorRes.status !== 404) {
+          throw new Error(`Failed to load status behaviors (${behaviorRes.status})`);
+        }
+        const statuses = statusRes.status === 404 ? [] : await statusRes.json();
+        const behaviors = behaviorRes.status === 404 ? [] : await behaviorRes.json();
+        if (isActive) {
+          setRevStatuses(Array.isArray(statuses) ? statuses : []);
+          setRevStatusBehaviors(Array.isArray(behaviors) ? behaviors : []);
+        }
+      } catch (err) {
+        if (isActive) {
+          setRevStatusError(err instanceof Error ? err.message : "Failed to load statuses");
+        }
+      } finally {
+        if (isActive) {
+          setRevStatusLoading(false);
+        }
+      }
+    };
+
+    fetchLookups();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  const behaviorNameById = React.useMemo(() => {
+    return Object.fromEntries(
+      (revStatusBehaviors || []).map((behavior) => [
+        behavior.ui_behavior_id,
+        behavior.ui_behavior_name,
+      ]),
+    );
+  }, [revStatusBehaviors]);
+  const behaviorFileById = React.useMemo(() => {
+    return Object.fromEntries(
+      (revStatusBehaviors || []).map((behavior) => [
+        behavior.ui_behavior_id,
+        behavior.ui_behavior_file,
+      ]),
+    );
+  }, [revStatusBehaviors]);
+
+  const orderedStatuses = React.useMemo(() => {
+    if (!Array.isArray(revStatuses) || revStatuses.length === 0) return [];
+
+    const byId = new Map();
+    const referenced = new Set();
+    revStatuses.forEach((status) => {
+      byId.set(status.rev_status_id, status);
+      if (status.next_rev_status_id) {
+        referenced.add(status.next_rev_status_id);
+      }
+    });
+
+    // Prefer explicit start flag if available, fall back to inferred start.
+    let start = revStatuses.find((status) => status.start);
+    if (!start) {
+      start = revStatuses.find((status) => !referenced.has(status.rev_status_id));
+    }
+    if (!start) {
+      return [...revStatuses].sort((a, b) => a.rev_status_name.localeCompare(b.rev_status_name));
+    }
+
+    const ordered = [];
+    const visited = new Set();
+    let current = start;
+    while (current && !visited.has(current.rev_status_id)) {
+      ordered.push(current);
+      visited.add(current.rev_status_id);
+      current = current.next_rev_status_id ? byId.get(current.next_rev_status_id) : null;
+    }
+
+    if (ordered.length !== revStatuses.length) {
+      revStatuses.forEach((status) => {
+        if (!visited.has(status.rev_status_id)) {
+          ordered.push(status);
+        }
+      });
+    }
+    return ordered;
+  }, [revStatuses]);
+
+  React.useEffect(() => {
+    if (orderedStatuses.length === 0) return;
+    if (infoActiveStep === null) {
+      hasInitializedFlowRef.current = true;
+      return;
+    }
+    const exists =
+      orderedStatuses.some((s) => String(s.rev_status_id) === infoActiveStep) ||
+      infoActiveStep === "history";
+    if (exists) return;
+    setInfoActiveStep(null);
+    hasInitializedFlowRef.current = true;
+  }, [orderedStatuses, infoActiveStep]);
 
   return (
     <main className="page" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -712,6 +875,11 @@ function App() {
           flex: 1;
           min-height: 0;
         }
+        .flow-empty {
+          padding: 12px 14px;
+          font-size: 13px;
+          color: var(--color-text-muted);
+        }
         .flow-step {
           display: flex;
           align-items: center;
@@ -728,6 +896,44 @@ function App() {
           text-align: left;
           font: inherit;
         }
+        .flow-step__label {
+          font-weight: 600;
+        }
+        .flow-step__behavior {
+          margin-left: auto;
+          font-size: 11px;
+          color: var(--color-text-subtle);
+          background: var(--color-surface-muted);
+          border: 1px solid var(--color-border);
+          border-radius: 999px;
+          padding: 2px 8px;
+        }
+        .flow-step[data-final="true"] {
+          background: #ecfdf3;
+        }
+        .flow-step[data-final="true"] .dot {
+          border-color: #16a34a;
+          color: #16a34a;
+        }
+        .flow-step[data-final="true"].active .dot {
+          background: #16a34a;
+          box-shadow: 0 0 0 3px rgba(22,163,74,0.2);
+        }
+        .flow-step[data-ui-behavior="HistoryBehavior.jsx"] {
+          background: #fef9c3;
+        }
+        .flow-step[data-ui-behavior="HistoryBehavior.jsx"] .dot {
+          border-color: #d97706;
+          color: #d97706;
+          background: #fff7d6;
+        }
+        .flow-step[data-ui-behavior="HistoryBehavior.jsx"].active .dot {
+          box-shadow: 0 0 0 3px rgba(217,119,6,0.2);
+        }
+        .flow-step[data-ui-behavior="HistoryBehavior.jsx"] .dot__icon {
+          stroke-linecap: square;
+          stroke-linejoin: miter;
+        }
         .flow-step::before {
           content: none;
         }
@@ -743,11 +949,33 @@ function App() {
           font-size: 10px;
           color: var(--color-primary);
           z-index: 1;
+          position: relative;
+        }
+        .flow-step .dot__icon {
+          width: 12px;
+          height: 12px;
+          stroke: currentColor;
+          stroke-width: 2;
+          fill: none;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        .flow-step .dot__inner {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: currentColor;
+          display: inline-block;
         }
         .flow-step.active .dot {
           background: var(--color-primary);
           color: var(--color-surface);
           box-shadow: 0 0 0 3px rgba(15,118,110,0.15);
+        }
+        .flow-step[data-final="true"] .dot {
+          width: 22px;
+          height: 22px;
+          border-width: 3px;
         }
         .flow-inline-content {
           border-left: 4px solid var(--color-primary);
@@ -877,10 +1105,16 @@ function App() {
             minHeight: 0,
             minWidth: 0,
           }}
+          ref={leftPanelRef}
         >
           <div
             className="card"
-            style={{ flex: "4 1 0", minHeight: 0, display: "flex", flexDirection: "column" }}
+            style={{
+              flex: `${1 - detailRatio} 1 0`,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+            }}
           >
             <div className="meta" style={{ display: "none" }}>
               {/* Document register header hidden */}
@@ -1032,9 +1266,33 @@ function App() {
               </table>
             </div>
           </div>
+          <button
+            type="button"
+            onMouseDown={startRowResize}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowUp") {
+                setDetailRatio((prev) => Math.max(0.2, prev - 0.02));
+                event.preventDefault();
+              }
+              if (event.key === "ArrowDown") {
+                setDetailRatio((prev) => Math.min(0.8, prev + 0.02));
+                event.preventDefault();
+              }
+            }}
+            style={{
+              height: "8px",
+              background: isDraggingRow ? "var(--color-info)" : "var(--color-border)",
+              cursor: "row-resize",
+              transition: isDraggingRow ? "none" : "background 0.2s",
+              userSelect: "none",
+              padding: 0,
+            }}
+            title="Drag to resize panels"
+            aria-label="Resize panels"
+          />
           <div
             style={{
-              flex: "1 1 0",
+              flex: `${detailRatio} 1 0`,
               background: "var(--color-surface)",
               border: "1px solid var(--color-border)",
               borderRadius: "12px",
@@ -1074,13 +1332,22 @@ function App() {
         <button
           type="button"
           onMouseDown={startBorderResize}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft") {
+              setInfoRatio((prev) => Math.min(0.85, prev + 0.02));
+              event.preventDefault();
+            }
+            if (event.key === "ArrowRight") {
+              setInfoRatio((prev) => Math.max(0.15, prev - 0.02));
+              event.preventDefault();
+            }
+          }}
           style={{
             width: "8px",
             background: isDraggingBorder ? "var(--color-info)" : "var(--color-border)",
             cursor: "col-resize",
             transition: isDraggingBorder ? "none" : "background 0.2s",
             userSelect: "none",
-            border: "none",
             padding: 0,
           }}
           title="Drag to resize panels"
@@ -1097,259 +1364,135 @@ function App() {
           <div className="flow-card" style={{ flex: 1 }}>
             <div className="flow-header">DOCUMENT FLOW</div>
             <div className="flow-body">
-              {["Official", "Ready for Issue", "IDC", "InDesign", "History"].map((step) => (
-                <React.Fragment key={step}>
+              {revStatusLoading ? (
+                <div className="flow-empty">Loading statuses…</div>
+              ) : revStatusError ? (
+                <div className="flow-empty">{revStatusError}</div>
+              ) : orderedStatuses.length === 0 ? (
+                <div className="flow-empty">No statuses configured.</div>
+              ) : (
+                orderedStatuses.map((status) => {
+                  const behaviorName = behaviorNameById[status.ui_behavior_id];
+                  const behaviorFile = behaviorFileById[status.ui_behavior_id];
+                  const behaviorFileLabel =
+                    typeof behaviorFile === "string"
+                      ? behaviorFile.replace(/\.jsx$/i, "")
+                      : behaviorFile;
+                  const Behavior = resolveBehaviorByFile(behaviorFile);
+                  const statusKey = String(status.rev_status_id);
+                  const isActive = infoActiveStep === statusKey;
+                  const panelId = `flow-panel-${statusKey}`;
+
+                  return (
+                    <React.Fragment key={status.rev_status_id}>
+                      <button
+                        type="button"
+                        className={`flow-step ${isActive ? "active" : ""}`}
+                        aria-expanded={isActive}
+                        aria-controls={panelId}
+                        data-ui-behavior={behaviorFile || "default"}
+                        data-final={status.final ? "true" : "false"}
+                        onClick={() => {
+                          if (isActive) {
+                            setInfoActiveStep(null);
+                            return;
+                          }
+                          setInfoActiveStep(statusKey);
+                          setInfoActiveSubTab("Comments");
+                        }}
+                      >
+                        <span className="dot">
+                          {status.final ? (
+                            <span className="dot__inner" aria-hidden="true" />
+                          ) : (
+                            <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
+                              <path d="M6 7.5 L9 10.5 L12 7.5" />
+                            </svg>
+                          )}
+                        </span>
+                        <span className="flow-step__label">{status.rev_status_name}</span>
+                        <span className="flow-step__behavior">
+                          {behaviorFileLabel || "Default"}
+                        </span>
+                      </button>
+                      {isActive && (
+                        <div
+                          id={panelId}
+                          className="flow-inline-content"
+                          data-ui-behavior={behaviorFile || ""}
+                        >
+                          <React.Suspense
+                            fallback={<div className="flow-empty">Loading behavior…</div>}
+                          >
+                            <Behavior
+                              behaviorName={behaviorName}
+                              behaviorFile={behaviorFile}
+                              statusKey={statusKey}
+                              infoActiveSubTab={infoActiveSubTab}
+                              onSubTabChange={setInfoActiveSubTab}
+                              uploadedFiles={uploadedFiles}
+                              expandedRevisions={expandedRevisions}
+                              onRevisionToggle={handleRevisionToggle}
+                              isDraggingUpload={isDraggingUpload}
+                              uploadDragProps={buildUploadDragProps}
+                              onUploadClick={() => uploadInputRef.current?.click()}
+                              uploadInputRef={uploadInputRef}
+                              onFileSelect={handleUploadSelect}
+                            />
+                          </React.Suspense>
+                        </div>
+                      )}
+                    </React.Fragment>
+                  );
+                })
+              )}
+              {!revStatusLoading && !revStatusError && (
+                <>
                   <button
                     type="button"
-                    className={`flow-step ${infoActiveStep === step ? "active" : ""}`}
-                    aria-expanded={infoActiveStep === step}
+                    className={`flow-step ${infoActiveStep === "history" ? "active" : ""}`}
+                    aria-expanded={infoActiveStep === "history"}
+                    aria-controls="flow-panel-history"
+                    data-ui-behavior="HistoryBehavior.jsx"
+                    data-final="false"
                     onClick={() => {
-                      if (infoActiveStep === step) {
+                      if (infoActiveStep === "history") {
                         setInfoActiveStep(null);
                         return;
                       }
-                      setInfoActiveStep(step);
-                      setInfoActiveSubTab("Comments");
+                      setInfoActiveStep("history");
                     }}
                   >
-                    <span className="dot">⦿</span>
-                    <span>{step}</span>
-                    {infoActiveStep === step && (
-                      <span
-                        style={{
-                          position: "absolute",
-                          right: 10,
-                          color: "var(--color-text-secondary)",
-                        }}
-                      >
-                        ⋮
-                      </span>
-                    )}
+                    <span className="dot">
+                      <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
+                        <path d="M5 4 H13 V14 H5 Z" />
+                        <path d="M7 7 H11" />
+                        <path d="M7 10 H11" />
+                      </svg>
+                    </span>
+                    <span className="flow-step__label">History</span>
+                    <span className="flow-step__behavior">History</span>
                   </button>
-                  {infoActiveStep === step && (
-                    <div className="flow-inline-content">
-                      {step === "IDC" ? (
-                        <>
-                          <div className="flow-subtabs" style={{ display: "flex" }}>
-                            {["Comments", "Distribution list"].map((tab) => (
-                              <button
-                                type="button"
-                                key={tab}
-                                className={`flow-subtab ${infoActiveSubTab === tab ? "active" : ""}`}
-                                aria-pressed={infoActiveSubTab === tab}
-                                onClick={() => setInfoActiveSubTab(tab)}
-                              >
-                                {tab}
-                              </button>
-                            ))}
-                          </div>
-                          <div className="flow-section">
-                            {infoActiveSubTab === "Comments" ? (
-                              <>
-                                <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
-                                  Not document owner or in Distribution list.
-                                </div>
-                                <div className="flow-box">
-                                  <h4>Original Files</h4>
-                                  <div
-                                    style={{ fontSize: "13px", color: "var(--color-text-subtle)" }}
-                                  >
-                                    No original files uploaded yet
-                                  </div>
-                                </div>
-                                <div className="flow-box">
-                                  <div
-                                    style={{ display: "flex", gap: "8px", marginBottom: "10px" }}
-                                  >
-                                    {["Files with Comments", "Written Comments"].map((tab) => (
-                                      <button
-                                        type="button"
-                                        key={tab}
-                                        className="flow-mini-tab"
-                                        style={{
-                                          flex: 1,
-                                          padding: "8px 10px",
-                                          borderBottom:
-                                            infoActiveSubTab === tab
-                                              ? "2px solid var(--color-primary)"
-                                              : "1px solid var(--color-border)",
-                                          fontWeight: infoActiveSubTab === tab ? 700 : 500,
-                                          color:
-                                            infoActiveSubTab === tab
-                                              ? "var(--color-primary)"
-                                              : "var(--color-text)",
-                                          cursor: "pointer",
-                                          textAlign: "center",
-                                          background: "transparent",
-                                          border: "none",
-                                        }}
-                                        aria-pressed={infoActiveSubTab === tab}
-                                        onClick={() => setInfoActiveSubTab(tab)}
-                                      >
-                                        {tab}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  <div
-                                    style={{
-                                      fontSize: "13px",
-                                      color: "var(--color-text-subtle)",
-                                      padding: "12px 0",
-                                    }}
-                                  >
-                                    No files with comments yet
-                                  </div>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="flow-box">
-                                <h4>Distribution List</h4>
-                                <div
-                                  style={{ fontSize: "13px", color: "var(--color-text-subtle)" }}
-                                >
-                                  No distribution list assigned
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      ) : step === "History" ? (
-                        <div
-                          style={{
-                            fontSize: "13px",
-                            color: "var(--color-text-muted)",
-                            padding: "8px 4px",
-                          }}
-                        >
-                          No history available yet.
-                        </div>
-                      ) : step === "Official" || step === "Ready for Issue" ? (
-                        <div
-                          style={{
-                            fontSize: "13px",
-                            color: "var(--color-text-muted)",
-                            padding: "8px 4px",
-                          }}
-                        >
-                          No documents available yet.
-                        </div>
-                      ) : (
-                        <div
-                          style={{ display: "flex", flexDirection: "column", flex: 1, gap: "8px" }}
-                        >
-                          {uploadedFiles[step] && uploadedFiles[step].length > 0 ? (
-                            <div style={{ flex: 1, overflow: "auto", padding: "8px 0" }}>
-                              {["Rev A", "Rev B", "Rev C"].map((revision, revIdx) => {
-                                const revFiles =
-                                  uploadedFiles[step]?.filter(
-                                    (f, idx) => idx >= revIdx * 5 && idx < (revIdx + 1) * 5,
-                                  ) || [];
-
-                                if (!revFiles.length && revIdx > 0) return null;
-
-                                const revKey = `${step}-${revision}`;
-                                const isExpanded = expandedRevisions[revKey]?.isOpen !== false;
-
-                                return (
-                                  <div key={revision} style={{ marginBottom: "4px" }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setExpandedRevisions((prev) => ({
-                                          ...prev,
-                                          [revKey]: { ...prev[revKey], isOpen: !isExpanded },
-                                        }));
-                                      }}
-                                      style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: "6px",
-                                        padding: "6px 8px",
-                                        cursor: "pointer",
-                                        color: "var(--color-text)",
-                                        fontSize: "13px",
-                                        fontWeight: 600,
-                                        userSelect: "none",
-                                        background: "transparent",
-                                        border: "none",
-                                        width: "100%",
-                                        textAlign: "left",
-                                      }}
-                                      aria-expanded={isExpanded}
-                                    >
-                                      <span style={{ fontSize: "12px", width: "16px" }}>
-                                        {isExpanded ? "▼" : "▶"}
-                                      </span>
-                                      <span>{revision}</span>
-                                    </button>
-                                    {isExpanded &&
-                                      revFiles.map((file, idx) => (
-                                        <div
-                                          key={`${revision}-${idx}`}
-                                          style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: "6px",
-                                            padding: "4px 8px 4px 32px",
-                                            color: "var(--color-accent)",
-                                            fontSize: "12px",
-                                          }}
-                                        >
-                                          <span>📄</span>
-                                          <span>{file}</span>
-                                        </div>
-                                      ))}
-                                  </div>
-                                );
-                              })}
-                              <div style={{ flex: 1 }} />
-                              <button
-                                onClick={() => uploadInputRef.current?.click()}
-                                style={{
-                                  padding: "6px 12px",
-                                  background: "var(--color-accent)",
-                                  color: "var(--color-surface)",
-                                  border: "none",
-                                  borderRadius: "6px",
-                                  cursor: "pointer",
-                                  fontSize: "12px",
-                                  marginTop: "8px",
-                                  alignSelf: "flex-start",
-                                }}
-                              >
-                                + Add files
-                              </button>
-                            </div>
-                          ) : (
-                            <>
-                              <div style={{ flex: 1 }} />
-                              <button
-                                type="button"
-                                className={`flow-upload ${isDraggingUpload ? "dragging" : ""}`}
-                                {...uploadDragProps}
-                                onClick={() => uploadInputRef.current?.click()}
-                                aria-label="Upload PDF files"
-                              >
-                                Drag & drop PDF files here
-                                <br />
-                                or click to browse • Multiple files supported
-                              </button>
-                            </>
-                          )}
-                          <input
-                            ref={uploadInputRef}
-                            type="file"
-                            multiple
-                            accept="application/pdf"
-                            style={{ display: "none" }}
-                            onChange={handleUploadSelect}
-                          />
-                        </div>
-                      )}
+                  {infoActiveStep === "history" && (
+                    <div
+                      id="flow-panel-history"
+                      className="flow-inline-content"
+                      data-ui-behavior="HistoryBehavior.jsx"
+                    >
+                      <React.Suspense
+                        fallback={<div className="flow-empty">Loading behavior…</div>}
+                      >
+                        {(() => {
+                          const Behavior = resolveBehaviorByFile("HistoryBehavior.jsx");
+                          return (
+                            <Behavior behaviorName="History" behaviorFile="HistoryBehavior.jsx" />
+                          );
+                        })()}
+                      </React.Suspense>
                     </div>
                   )}
-                </React.Fragment>
-              ))}
+                </>
+              )}
             </div>
           </div>
         </div>

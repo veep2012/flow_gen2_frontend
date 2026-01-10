@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -115,8 +116,29 @@ class DocRevStatus(Base):
 
     rev_status_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     rev_status_name: Mapped[str] = mapped_column(String(45), unique=True, nullable=False)
+    ui_behavior_id: Mapped[int] = mapped_column(
+        ForeignKey("flow.doc_rev_status_ui_behaviors.ui_behavior_id"), nullable=False
+    )
+    next_rev_status_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("flow.doc_rev_statuses.rev_status_id")
+    )
+    revertible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    editable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    final: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    start: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     revisions: Mapped[list["DocRevision"]] = relationship(back_populates="status")
+    ui_behavior: Mapped["DocRevStatusUiBehavior"] = relationship(back_populates="statuses")
+
+
+class DocRevStatusUiBehavior(Base):
+    __tablename__ = "doc_rev_status_ui_behaviors"
+
+    ui_behavior_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    ui_behavior_name: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    ui_behavior_file: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+
+    statuses: Mapped[list[DocRevStatus]] = relationship(back_populates="ui_behavior")
 
 
 class FileAccepted(Base):
