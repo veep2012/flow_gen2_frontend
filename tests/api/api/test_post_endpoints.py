@@ -511,6 +511,26 @@ def test_post_doc_rev_status_constraints():
         )
         assert invalid_update_next["status"] == 400, "next cleared without final should be rejected"
 
+        final_status = next(
+            (s for s in statuses if isinstance(s, dict) and s.get("final")), None
+        )
+        non_final_status = next(
+            (s for s in statuses if isinstance(s, dict) and not s.get("final")), None
+        )
+        if final_status and non_final_status:
+            invalid_final_add_next = _request(
+                client,
+                "PUT",
+                "/lookups/doc_rev_statuses/update",
+                json={
+                    "rev_status_id": final_status.get("rev_status_id"),
+                    "next_rev_status_id": non_final_status.get("rev_status_id"),
+                },
+            )
+            assert (
+                invalid_final_add_next["status"] == 400
+            ), "final status should not accept a next status"
+
         has_final = any(isinstance(s, dict) and s.get("final") for s in statuses)
         valid_update = _request(
             client,

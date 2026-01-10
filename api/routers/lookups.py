@@ -2418,6 +2418,19 @@ def update_doc_rev_status(
     if "start" in payload.model_fields_set and payload.start is None:
         raise HTTPException(status_code=400, detail="Start flag cannot be null")
 
+    next_final = status.final
+    next_next_id = status.next_rev_status_id
+    if "final" in payload.model_fields_set:
+        assert payload.final is not None
+        next_final = payload.final
+    if "next_rev_status_id" in payload.model_fields_set:
+        next_next_id = payload.next_rev_status_id
+
+    if next_final and next_next_id is not None:
+        raise HTTPException(status_code=400, detail="Final status cannot have next status")
+    if not next_final and next_next_id is None:
+        raise HTTPException(status_code=400, detail="Non-final status must have next status")
+
     if "rev_status_name" in payload.model_fields_set:
         assert payload.rev_status_name is not None
         status.rev_status_name = payload.rev_status_name
