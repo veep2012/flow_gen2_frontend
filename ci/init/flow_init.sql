@@ -84,6 +84,12 @@ CREATE TABLE doc_rev_statuses (
     )
 );
 
+-- Enforce a single global "final" status:
+-- - chk_doc_rev_statuses_final_next_eq ties final = (next_rev_status_id IS NULL)
+-- - This partial unique index ensures only one row can have next_rev_status_id IS NULL,
+--   and therefore only one final status can exist in the entire system.
+-- Application / API logic must be aware that creating or updating a second final
+-- status will fail due to this constraint.
 CREATE UNIQUE INDEX ux_doc_rev_statuses_single_final
     ON doc_rev_statuses ((next_rev_status_id IS NULL))
     WHERE next_rev_status_id IS NULL;
