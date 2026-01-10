@@ -2279,9 +2279,7 @@ def insert_doc_rev_status(
         raise HTTPException(status_code=400, detail="Final status cannot have next status")
     if not payload.final and payload.next_rev_status_id is None:
         raise HTTPException(status_code=400, detail="Non-final status must have next status")
-    if payload.final and (
-        (payload.editable is True) or (payload.revertible is True)
-    ):
+    if payload.final and ((payload.editable is True) or (payload.revertible is True)):
         raise HTTPException(
             status_code=400,
             detail="Final status cannot be editable or revertible",
@@ -2420,16 +2418,28 @@ def update_doc_rev_status(
 
     next_final = status.final
     next_next_id = status.next_rev_status_id
+    next_editable = status.editable
+    next_revertible = status.revertible
     if "final" in payload.model_fields_set:
         assert payload.final is not None
         next_final = payload.final
     if "next_rev_status_id" in payload.model_fields_set:
         next_next_id = payload.next_rev_status_id
+    if "editable" in payload.model_fields_set:
+        assert payload.editable is not None
+        next_editable = payload.editable
+    if "revertible" in payload.model_fields_set:
+        assert payload.revertible is not None
+        next_revertible = payload.revertible
 
     if next_final and next_next_id is not None:
         raise HTTPException(status_code=400, detail="Final status cannot have next status")
     if not next_final and next_next_id is None:
         raise HTTPException(status_code=400, detail="Non-final status must have next status")
+    if next_final and (next_editable or next_revertible):
+        raise HTTPException(
+            status_code=400, detail="Final status must not be editable or revertible"
+        )
 
     if "rev_status_name" in payload.model_fields_set:
         assert payload.rev_status_name is not None
