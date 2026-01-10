@@ -2290,6 +2290,8 @@ def insert_doc_rev_status(
         status_fields["revertible"] = payload.revertible
     if payload.editable is not None:
         status_fields["editable"] = payload.editable
+    if payload.start is not None:
+        status_fields["start"] = payload.start
 
     status = DocRevStatus(**status_fields)
     db.add(status)
@@ -2387,6 +2389,7 @@ def update_doc_rev_status(
         "revertible",
         "editable",
         "final",
+        "start",
     }
     if not update_fields.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -2405,6 +2408,8 @@ def update_doc_rev_status(
         raise HTTPException(status_code=400, detail="Editable flag cannot be null")
     if "final" in payload.model_fields_set and payload.final is None:
         raise HTTPException(status_code=400, detail="Final flag cannot be null")
+    if "start" in payload.model_fields_set and payload.start is None:
+        raise HTTPException(status_code=400, detail="Start flag cannot be null")
 
     if "rev_status_name" in payload.model_fields_set:
         assert payload.rev_status_name is not None
@@ -2423,6 +2428,9 @@ def update_doc_rev_status(
     if "final" in payload.model_fields_set:
         assert payload.final is not None
         status.final = payload.final
+    if "start" in payload.model_fields_set:
+        assert payload.start is not None
+        status.start = payload.start
     try:
         db.commit()
     except IntegrityError as err:

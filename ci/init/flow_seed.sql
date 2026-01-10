@@ -78,12 +78,13 @@ INSERT INTO doc_rev_statuses (
     next_rev_status_id,
     revertible,
     editable,
-    final
+    final,
+    start
 ) VALUES 
-(1,'InDesign',1,2,FALSE,TRUE,FALSE),
-(2,'IDC',2,3,TRUE,TRUE,FALSE),
-(3,'Ready for Issue',3,4,TRUE,FALSE,FALSE),
-(4,'Official',4,NULL,FALSE,FALSE,TRUE);
+(1,'InDesign',1,2,FALSE,TRUE,FALSE,TRUE),
+(2,'IDC',2,3,TRUE,TRUE,FALSE,FALSE),
+(3,'Ready for Issue',3,4,TRUE,FALSE,FALSE,FALSE),
+(4,'Official',4,NULL,FALSE,FALSE,TRUE,FALSE);
 
 -- Roles
 INSERT INTO roles (role_id, role_name) VALUES 

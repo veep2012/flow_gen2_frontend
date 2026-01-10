@@ -225,6 +225,7 @@ class DocRevStatusOut(BaseModel):
     revertible: bool = Field(..., description="Whether status is revertible.", examples=[True])
     editable: bool = Field(..., description="Whether status is editable.", examples=[True])
     final: bool = Field(..., description="Whether status is final.", examples=[False])
+    start: bool = Field(..., description="Whether status is the start.", examples=[False])
 
 
 class DocRevStatusUpdate(BaseModel):
@@ -241,6 +242,7 @@ class DocRevStatusUpdate(BaseModel):
     )
     editable: bool | None = Field(None, description="Whether status is editable.", examples=[True])
     final: bool | None = Field(None, description="Whether status is final.", examples=[False])
+    start: bool | None = Field(None, description="Whether status is the start.", examples=[False])
 
 
 class DocRevStatusCreate(BaseModel):
@@ -256,6 +258,7 @@ class DocRevStatusCreate(BaseModel):
     )
     editable: bool | None = Field(None, description="Whether status is editable.", examples=[True])
     final: bool = Field(..., description="Whether status is final.", examples=[False])
+    start: bool | None = Field(None, description="Whether status is the start.", examples=[False])
 
 
 class DocRevStatusDelete(BaseModel):

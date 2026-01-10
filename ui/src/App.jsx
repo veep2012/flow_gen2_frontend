@@ -563,8 +563,8 @@ function App() {
       return;
     }
     const exists =
-      orderedStatuses.some((s) => String(s.rev_status_id) === infoActiveStep)
-      || infoActiveStep === "history";
+      orderedStatuses.some((s) => String(s.rev_status_id) === infoActiveStep) ||
+      infoActiveStep === "history";
     if (exists) return;
     setInfoActiveStep(null);
     hasInitializedFlowRef.current = true;

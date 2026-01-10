@@ -266,6 +266,7 @@ def test_post_documents_metadata():
             "revertible": True,
             "editable": True,
             "final": False,
+            "start": False,
         }
         created = _request(
             client,
@@ -473,3 +474,67 @@ def test_post_doc_rev_status_constraints():
             json={"ui_behavior_id": behavior_id},
         )
         assert 200 <= deleted["status"] < 300, f"ui behavior delete failed: {deleted['status']}"
+
+
+@pytest.mark.api_smoke
+def test_post_doc_rev_status_start_constraint():
+    suffix = uuid.uuid4().hex[:6]
+    with httpx.Client(timeout=10) as client:
+        behaviors = _ensure_list(_request(client, "GET", "/lookups/doc_rev_status_ui_behaviors"))
+        behavior_id = _extract_first_id(behaviors, ["ui_behavior_id"])
+        if behavior_id is None:
+            pytest.skip("No UI behavior available for start constraint test")
+
+        statuses = _ensure_list(_request(client, "GET", "/lookups/doc_rev_statuses"))
+        final_status_id = _extract_first_id(
+            [s for s in statuses if isinstance(s, dict) and s.get("final")],
+            ["rev_status_id"],
+        )
+        if final_status_id is None:
+            pytest.skip("No final status available for start constraint test")
+
+        has_start = any(isinstance(s, dict) and s.get("start") for s in statuses)
+        created = _request(
+            client,
+            "POST",
+            "/lookups/doc_rev_statuses/insert",
+            json={
+                "rev_status_name": f"Status {suffix} Start",
+                "ui_behavior_id": behavior_id,
+                "next_rev_status_id": final_status_id,
+                "revertible": True,
+                "editable": True,
+                "final": False,
+                "start": True,
+            },
+        )
+        if has_start:
+            assert created["status"] == 400, "start status should be unique"
+            return
+        assert created["status"] in (200, 201), "start status insert failed"
+        created_id = created["payload"].get("rev_status_id")
+        assert created_id is not None, "start status insert missing id"
+
+        duplicate = _request(
+            client,
+            "POST",
+            "/lookups/doc_rev_statuses/insert",
+            json={
+                "rev_status_name": f"Status {suffix} Start Duplicate",
+                "ui_behavior_id": behavior_id,
+                "next_rev_status_id": final_status_id,
+                "revertible": True,
+                "editable": True,
+                "final": False,
+                "start": True,
+            },
+        )
+        assert duplicate["status"] == 400, "second start status should be rejected"
+
+        deleted = _request(
+            client,
+            "DELETE",
+            "/lookups/doc_rev_statuses/delete",
+            json={"rev_status_id": created_id},
+        )
+        assert 200 <= deleted["status"] < 300, f"start status delete failed: {deleted['status']}"

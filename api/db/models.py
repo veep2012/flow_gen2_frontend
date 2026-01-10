@@ -125,6 +125,7 @@ class DocRevStatus(Base):
     revertible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     editable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     final: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    start: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     revisions: Mapped[list["DocRevision"]] = relationship(back_populates="status")
     ui_behavior: Mapped["DocRevStatusUiBehavior"] = relationship(back_populates="statuses")

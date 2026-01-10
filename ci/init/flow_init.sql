@@ -72,6 +72,7 @@ CREATE TABLE doc_rev_statuses (
     revertible BOOLEAN NOT NULL DEFAULT TRUE,
     editable BOOLEAN NOT NULL DEFAULT TRUE,
     final BOOLEAN NOT NULL DEFAULT FALSE,
+    start BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT chk_doc_rev_statuses_no_self_ref CHECK (
         next_rev_status_id IS NULL OR next_rev_status_id <> rev_status_id
     ),
@@ -86,6 +87,10 @@ CREATE TABLE doc_rev_statuses (
 CREATE UNIQUE INDEX ux_doc_rev_statuses_single_final
     ON doc_rev_statuses ((next_rev_status_id IS NULL))
     WHERE next_rev_status_id IS NULL;
+
+CREATE UNIQUE INDEX ux_doc_rev_statuses_single_start
+    ON doc_rev_statuses (start)
+    WHERE start = TRUE;
 
 CREATE OR REPLACE FUNCTION doc_rev_statuses_prevent_cycle()
 RETURNS trigger
