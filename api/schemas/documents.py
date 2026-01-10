@@ -229,7 +229,11 @@ class DocRevStatusOut(BaseModel):
         description="Whether status is final (global workflow allows only one final status).",
         examples=[False],
     )
-    start: bool = Field(..., description="Whether status is the start.", examples=[False])
+    start: bool = Field(
+        ...,
+        description="Whether status is the start (global workflow allows only one start status).",
+        examples=[False],
+    )
 
 
 class DocRevStatusUpdate(BaseModel):
@@ -250,7 +254,11 @@ class DocRevStatusUpdate(BaseModel):
         description="Whether status is final (global workflow allows only one final status).",
         examples=[False],
     )
-    start: bool | None = Field(None, description="Whether status is the start.", examples=[False])
+    start: bool | None = Field(
+        None,
+        description="Whether status is the start (global workflow allows only one start status).",
+        examples=[False],
+    )
 
 
 class DocRevStatusCreate(BaseModel):
@@ -270,7 +278,11 @@ class DocRevStatusCreate(BaseModel):
         description="Whether status is final (global workflow allows only one final status).",
         examples=[False],
     )
-    start: bool | None = Field(None, description="Whether status is the start.", examples=[False])
+    start: bool | None = Field(
+        None,
+        description="Whether status is the start (global workflow allows only one start status).",
+        examples=[False],
+    )
 
 
 class DocRevStatusDelete(BaseModel):
