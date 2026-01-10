@@ -532,7 +532,11 @@ function App() {
       }
     });
 
-    const start = revStatuses.find((status) => !referenced.has(status.rev_status_id));
+    // Prefer explicit start flag if available, fall back to inferred start.
+    let start = revStatuses.find((status) => status.start);
+    if (!start) {
+      start = revStatuses.find((status) => !referenced.has(status.rev_status_id));
+    }
     if (!start) {
       return [...revStatuses].sort((a, b) => a.rev_status_name.localeCompare(b.rev_status_name));
     }
