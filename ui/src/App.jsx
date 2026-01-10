@@ -1269,13 +1269,22 @@ function App() {
           <button
             type="button"
             onMouseDown={startRowResize}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowUp") {
+                setDetailRatio((prev) => Math.max(0.2, prev - 0.02));
+                event.preventDefault();
+              }
+              if (event.key === "ArrowDown") {
+                setDetailRatio((prev) => Math.min(0.8, prev + 0.02));
+                event.preventDefault();
+              }
+            }}
             style={{
               height: "8px",
               background: isDraggingRow ? "var(--color-info)" : "var(--color-border)",
               cursor: "row-resize",
               transition: isDraggingRow ? "none" : "background 0.2s",
               userSelect: "none",
-              border: "none",
               padding: 0,
             }}
             title="Drag to resize panels"
@@ -1323,13 +1332,22 @@ function App() {
         <button
           type="button"
           onMouseDown={startBorderResize}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft") {
+              setInfoRatio((prev) => Math.min(0.85, prev + 0.02));
+              event.preventDefault();
+            }
+            if (event.key === "ArrowRight") {
+              setInfoRatio((prev) => Math.max(0.15, prev - 0.02));
+              event.preventDefault();
+            }
+          }}
           style={{
             width: "8px",
             background: isDraggingBorder ? "var(--color-info)" : "var(--color-border)",
             cursor: "col-resize",
             transition: isDraggingBorder ? "none" : "background 0.2s",
             userSelect: "none",
-            border: "none",
             padding: 0,
           }}
           title="Drag to resize panels"
@@ -1363,6 +1381,7 @@ function App() {
                   const Behavior = resolveBehaviorByFile(behaviorFile);
                   const statusKey = String(status.rev_status_id);
                   const isActive = infoActiveStep === statusKey;
+                  const panelId = `flow-panel-${statusKey}`;
 
                   return (
                     <React.Fragment key={status.rev_status_id}>
@@ -1370,6 +1389,7 @@ function App() {
                         type="button"
                         className={`flow-step ${isActive ? "active" : ""}`}
                         aria-expanded={isActive}
+                        aria-controls={panelId}
                         data-ui-behavior={behaviorFile || "default"}
                         data-final={status.final ? "true" : "false"}
                         onClick={() => {
@@ -1396,21 +1416,30 @@ function App() {
                         </span>
                       </button>
                       {isActive && (
-                        <div className="flow-inline-content" data-ui-behavior={behaviorFile || ""}>
-                          <Behavior
-                            behaviorName={behaviorName}
-                            statusKey={statusKey}
-                            infoActiveSubTab={infoActiveSubTab}
-                            onSubTabChange={setInfoActiveSubTab}
-                            uploadedFiles={uploadedFiles}
-                            expandedRevisions={expandedRevisions}
-                            onRevisionToggle={handleRevisionToggle}
-                            isDraggingUpload={isDraggingUpload}
-                            uploadDragProps={buildUploadDragProps}
-                            onUploadClick={() => uploadInputRef.current?.click()}
-                            uploadInputRef={uploadInputRef}
-                            onFileSelect={handleUploadSelect}
-                          />
+                        <div
+                          id={panelId}
+                          className="flow-inline-content"
+                          data-ui-behavior={behaviorFile || ""}
+                        >
+                          <React.Suspense
+                            fallback={<div className="flow-empty">Loading behavior…</div>}
+                          >
+                            <Behavior
+                              behaviorName={behaviorName}
+                              behaviorFile={behaviorFile}
+                              statusKey={statusKey}
+                              infoActiveSubTab={infoActiveSubTab}
+                              onSubTabChange={setInfoActiveSubTab}
+                              uploadedFiles={uploadedFiles}
+                              expandedRevisions={expandedRevisions}
+                              onRevisionToggle={handleRevisionToggle}
+                              isDraggingUpload={isDraggingUpload}
+                              uploadDragProps={buildUploadDragProps}
+                              onUploadClick={() => uploadInputRef.current?.click()}
+                              uploadInputRef={uploadInputRef}
+                              onFileSelect={handleUploadSelect}
+                            />
+                          </React.Suspense>
                         </div>
                       )}
                     </React.Fragment>
@@ -1423,6 +1452,7 @@ function App() {
                     type="button"
                     className={`flow-step ${infoActiveStep === "history" ? "active" : ""}`}
                     aria-expanded={infoActiveStep === "history"}
+                    aria-controls="flow-panel-history"
                     data-ui-behavior="HistoryBehavior.jsx"
                     data-final="false"
                     onClick={() => {
@@ -1444,11 +1474,21 @@ function App() {
                     <span className="flow-step__behavior">History</span>
                   </button>
                   {infoActiveStep === "history" && (
-                    <div className="flow-inline-content" data-ui-behavior="HistoryBehavior.jsx">
-                      {(() => {
-                        const Behavior = resolveBehaviorByFile("HistoryBehavior.jsx");
-                        return <Behavior behaviorName="History" />;
-                      })()}
+                    <div
+                      id="flow-panel-history"
+                      className="flow-inline-content"
+                      data-ui-behavior="HistoryBehavior.jsx"
+                    >
+                      <React.Suspense
+                        fallback={<div className="flow-empty">Loading behavior…</div>}
+                      >
+                        {(() => {
+                          const Behavior = resolveBehaviorByFile("HistoryBehavior.jsx");
+                          return (
+                            <Behavior behaviorName="History" behaviorFile="HistoryBehavior.jsx" />
+                          );
+                        })()}
+                      </React.Suspense>
                     </div>
                   )}
                 </>

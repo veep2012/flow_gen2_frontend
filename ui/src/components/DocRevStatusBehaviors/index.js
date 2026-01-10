@@ -1,9 +1,11 @@
+import React from "react";
 import DefaultBehavior from "./DefaultBehavior";
-import HistoryBehavior from "./HistoryBehavior";
-import IDCBehavior from "./IDCBehavior";
-import InDesignBehavior from "./InDesignBehavior";
-import OfficialBehavior from "./OfficialBehavior";
-import ReadyForIssueBehavior from "./ReadyForIssueBehavior";
+
+const HistoryBehavior = React.lazy(() => import("./HistoryBehavior"));
+const IDCBehavior = React.lazy(() => import("./IDCBehavior"));
+const InDesignBehavior = React.lazy(() => import("./InDesignBehavior"));
+const OfficialBehavior = React.lazy(() => import("./OfficialBehavior"));
+const ReadyForIssueBehavior = React.lazy(() => import("./ReadyForIssueBehavior"));
 
 const behaviorByExactFile = {
   InDesignBehavior,
