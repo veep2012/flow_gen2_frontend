@@ -100,6 +100,7 @@ function App() {
   const [uploadedFiles, setUploadedFiles] = React.useState({});
   const [expandedRevisions, setExpandedRevisions] = React.useState({});
   const [statusMenuOpen, setStatusMenuOpen] = React.useState({});
+  const [isFlowPanelHidden, setIsFlowPanelHidden] = React.useState(false);
   const containerRef = React.useRef(null);
   const leftPanelRef = React.useRef(null);
   const hasInitializedFlowRef = React.useRef(false);
@@ -1325,7 +1326,7 @@ function App() {
       >
         <div
           style={{
-            flex: `${1 - infoRatio} 1 0`,
+            flex: isFlowPanelHidden ? "1 1 0" : `${1 - infoRatio} 1 0`,
             display: "flex",
             flexDirection: "column",
             gap: "4px",
@@ -1529,6 +1530,7 @@ function App() {
               display: hideWindowsOnDrag ? "none" : "flex",
               flexDirection: "column",
               overflow: "hidden",
+              position: "relative",
             }}
           >
             <div className="detail-tabs">
@@ -1587,37 +1589,155 @@ function App() {
               )}
             </div>
           </div>
-        </div>
-        <button
-          type="button"
-          onMouseDown={startBorderResize}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowLeft") {
-              setInfoRatio((prev) => Math.min(0.85, prev + 0.02));
-              event.preventDefault();
-            }
-            if (event.key === "ArrowRight") {
-              setInfoRatio((prev) => Math.max(0.15, prev - 0.02));
-              event.preventDefault();
-            }
-          }}
-          style={{
-            width: "8px",
-            background: isDraggingBorder ? "var(--color-info)" : "var(--color-border)",
-            cursor: "col-resize",
-            transition: isDraggingBorder ? "none" : "background 0.2s",
-            userSelect: "none",
-            padding: 0,
-          }}
-          title="Drag to resize panels"
-          aria-label="Resize panels"
-        />
+          {isFlowPanelHidden && (
+            <div
+              style={{
+                position: "absolute",
+                right: "0px",
+                top: "0",
+                width: "8px",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 100,
+              }}
+            >
+              <button
+                type="button"
+                onMouseDown={startBorderResize}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  background: isDraggingBorder ? "var(--color-info)" : "var(--color-border)",
+                  cursor: "col-resize",
+                  transition: isDraggingBorder ? "none" : "background 0.2s",
+                  userSelect: "none",
+                  padding: 0,
+                  border: "none",
+                }}
+                title="Drag to resize panels"
+                aria-label="Resize panels"
+              />
+            </div>
+          )}
+          </div>
         <div
           style={{
-            flex: `${infoRatio} 1 0`,
-            display: hideWindowsOnDrag ? "none" : "flex",
+            position: "relative",
+            width: isFlowPanelHidden ? "0px" : "8px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <button
+            type="button"
+            onMouseDown={startBorderResize}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowLeft") {
+                setInfoRatio((prev) => Math.min(0.85, prev + 0.02));
+                event.preventDefault();
+              }
+              if (event.key === "ArrowRight") {
+                setInfoRatio((prev) => Math.max(0.15, prev - 0.02));
+                event.preventDefault();
+              }
+            }}
+            style={{
+              width: "100%",
+              height: "100%",
+              background: isDraggingBorder ? "var(--color-info)" : "var(--color-border)",
+              cursor: "col-resize",
+              transition: isDraggingBorder ? "none" : "background 0.2s",
+              userSelect: "none",
+              padding: 0,
+              border: "none",
+              position: "absolute",
+            }}
+            title="Drag to resize panels"
+            aria-label="Resize panels"
+          />
+          {!isFlowPanelHidden && (
+            <button
+              type="button"
+              onClick={() => setIsFlowPanelHidden(!isFlowPanelHidden)}
+              style={{
+                position: "relative",
+                zIndex: 101,
+                width: "24px",
+                height: "40px",
+                padding: "0",
+                background: "var(--color-info)",
+                border: "1px solid var(--color-info)",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "12px",
+                color: "white",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--color-info-dark)";
+                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--color-info)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+              title="Hide document flow"
+              aria-label="Hide document flow"
+            >
+              ❮
+            </button>
+          )}
+          {isFlowPanelHidden && (
+            <button
+              type="button"
+              onClick={() => setIsFlowPanelHidden(!isFlowPanelHidden)}
+              style={{
+                position: "relative",
+                zIndex: 101,
+                width: "24px",
+                height: "40px",
+                padding: "0",
+                background: "var(--color-info)",
+                border: "1px solid var(--color-info)",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "12px",
+                color: "white",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--color-info-dark)";
+                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--color-info)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+              title="Show document flow"
+              aria-label="Show document flow"
+            >
+              ❯
+            </button>
+          )}
+        </div>
+        <div
+          style={{
+            flex: isFlowPanelHidden ? "0 0 0" : `${infoRatio} 1 0`,
+            display: hideWindowsOnDrag || isFlowPanelHidden ? "none" : "flex",
             flexDirection: "column",
             minWidth: 0,
+            overflow: "visible",
           }}
         >
           <div className="flow-card" style={{ flex: 1 }}>
