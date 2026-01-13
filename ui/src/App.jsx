@@ -71,13 +71,14 @@ function App() {
     color: "var(--color-accent-contrast)",
     border: "none",
     borderRadius: "4px",
-    padding: "6px 12px",
+    padding: "4px 8px",
     marginRight: "2px",
-    fontSize: "13px",
+    fontSize: "14px",
     fontWeight: 500,
     cursor: "pointer",
     display: "inline-flex",
     alignItems: "center",
+    height: "32px",
     boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
     transition: "background 0.2s",
   };
@@ -183,10 +184,10 @@ function App() {
           <span style={iconStyle}>⬇</span>
           Export to...
         </button>
-        <button style={{ ...buttonStyle, padding: "6px 10px" }} title="Undo" onClick={handleUndo}>
+        <button style={buttonStyle} title="Undo" onClick={handleUndo}>
           <span style={iconStyle}>↶</span>
         </button>
-        <button style={{ ...buttonStyle, padding: "6px 10px" }} title="Redo" onClick={handleRedo}>
+        <button style={buttonStyle} title="Redo" onClick={handleRedo}>
           <span style={iconStyle}>↷</span>
         </button>
       </div>
@@ -808,41 +809,45 @@ function App() {
       <style>
         {`
         :root {
-          --color-bg: #f5f7fb;
+          --color-bg: #f0f2f5;
           --color-surface: #ffffff;
-          --color-surface-alt: #f8fafc;
-          --color-surface-muted: #f1f5f9;
-          --color-surface-muted-strong: #e5e7eb;
-          --color-surface-subtle: #f7fafc;
-          --color-border: #e2e8f0;
-          --color-border-soft: #d9e2ec;
-          --color-border-strong: #cbd5e0;
-          --color-text: #1f2933;
-          --color-text-muted: #52606d;
-          --color-text-subtle: #98a2b3;
-          --color-text-strong: #344155;
-          --color-text-secondary: #4a5568;
-          --color-primary: #0f766e;
+          --color-surface-alt: #fafbfc;
+          --color-surface-muted: #f5f6f8;
+          --color-surface-muted-strong: #e8eaed;
+          --color-surface-subtle: #f9fafb;
+          --color-border: #d5d9de;
+          --color-border-soft: #dadde0;
+          --color-border-strong: #cdd0d5;
+          --color-text: #0a0e27;
+          --color-text-muted: #65676b;
+          --color-text-subtle: #8a8d91;
+          --color-text-strong: #1d1f26;
+          --color-text-secondary: #484a4f;
+          --color-primary: #1a5f7a;
           --color-primary-contrast: #ffffff;
-          --color-primary-soft: #eef6f4;
-          --color-primary-outline: rgba(15, 118, 110, 0.15);
-          --color-accent: #4d6b8a;
+          --color-primary-soft: #e7f3f7;
+          --color-primary-outline: rgba(26, 95, 122, 0.15);
+          --color-accent: #3d5a80;
           --color-accent-contrast: #ffffff;
-          --color-info: #3b82f6;
-          --color-info-strong: #1e3a8a;
-          --color-info-soft: #ecf4ff;
-          --color-warning: #dd6b20;
-          --color-danger: #c53030;
-          --color-danger-soft: #fff5f5;
-          --color-success: #16a34a;
-          --color-success-soft: #f0fbf4;
-          --color-success-border: #b6e3c8;
-          --color-success-border-strong: #8fd19e;
-          --color-success-text: #22543d;
+          --color-info: #2563eb;
+          --color-info-dark: #1d4ed8;
+          --color-info-strong: #1e40af;
+          --color-info-soft: #eff6ff;
+          --color-warning: #d97706;
+          --color-danger: #dc2626;
+          --color-danger-soft: #fef2f2;
+          --color-success: #059669;
+          --color-success-dark: #047857;
+          --color-success-soft: #ecfdf5;
+          --color-success-border: #a7f3d0;
+          --color-success-border-strong: #6ee7b7;
+          --color-success-text: #065f46;
           --color-row-selected: #f0f4ff;
-          --color-focus: #2563eb;
-          --color-spinner-start: #2f80ed;
-          --color-spinner-end: #4ea1ff;
+          --color-focus: #1d4ed8;
+          --color-error: #dc2626;
+          --color-error-dark: #b91c1c;
+          --color-spinner-start: #2563eb;
+          --color-spinner-end: #3b82f6;
           color: var(--color-text);
           background: var(--color-bg);
           font-family: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
@@ -996,12 +1001,12 @@ function App() {
         }
         .meta h1 {
           margin: 0;
-          font-size: 18px;
+          font-size: 20px;
           font-weight: 700;
           color: var(--color-text);
         }
         .meta .count {
-          font-size: 13px;
+          font-size: 14px;
           color: var(--color-text-muted);
         }
         .table-wrapper {
@@ -1016,7 +1021,7 @@ function App() {
           padding: 8px 10px;
         }
         .task-cabinet__label {
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 600;
           color: var(--color-success-text);
           min-width: 92px;
@@ -1029,7 +1034,7 @@ function App() {
           border: 1px solid var(--color-success-border-strong);
           border-radius: 8px;
           padding: 7px 10px;
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 600;
           color: var(--color-text);
           box-shadow: none;
@@ -1060,7 +1065,7 @@ function App() {
           border-bottom: none;
           border-radius: 10px 10px 0 0;
           background: var(--color-surface-muted);
-          font-size: 13px;
+          font-size: 14px;
           cursor: pointer;
           color: var(--color-text);
         }
@@ -1093,7 +1098,7 @@ function App() {
         }
         .flow-header {
           padding: 12px 14px;
-          font-size: 14px;
+          font-size: 16px;
           font-weight: 700;
           color: var(--color-text-strong);
           border-bottom: 1px solid var(--color-border);
@@ -1106,7 +1111,7 @@ function App() {
         }
         .flow-empty {
           padding: 12px 14px;
-          font-size: 13px;
+          font-size: 14px;
           color: var(--color-text-muted);
         }
         .flow-step {
@@ -1116,7 +1121,7 @@ function App() {
           padding: 12px 14px 12px 30px;
           cursor: pointer;
           color: var(--color-text);
-          font-size: 13px;
+          font-size: 14px;
           position: relative;
           background: var(--color-surface);
           border: none;
