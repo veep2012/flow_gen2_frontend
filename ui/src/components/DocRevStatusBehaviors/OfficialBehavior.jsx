@@ -10,17 +10,8 @@ const OfficialBehavior = ({ selectedDoc }) => {
     );
   }
 
-  const docName = `${selectedDoc.doc_name_unique || selectedDoc.title || "Document"}`;
-  const revisionInfo = selectedDoc.rev_code_name || "N/A";
-
   return (
     <div style={{ fontSize: "13px", color: "var(--color-text-muted)", padding: "8px 4px" }}>
-      <div style={{ marginBottom: "12px" }}>
-        <strong>{docName}</strong>
-        <div style={{ fontSize: "11px", marginTop: "4px" }}>
-          Revision: {revisionInfo}
-        </div>
-      </div>
       <div style={{ fontSize: "12px", color: "var(--color-text-subtle)" }}>
         No official documents available yet.
       </div>

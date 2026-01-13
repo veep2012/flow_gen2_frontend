@@ -10,17 +10,8 @@ const HistoryBehavior = ({ selectedDoc }) => {
     );
   }
 
-  const docName = `${selectedDoc.doc_name_unique || selectedDoc.title || "Document"}`;
-  const currentRevision = selectedDoc.rev_seq_num || "1";
-
   return (
     <div style={{ fontSize: "13px", color: "var(--color-text-muted)", padding: "8px 4px" }}>
-      <div style={{ marginBottom: "12px" }}>
-        <strong>{docName}</strong>
-        <div style={{ fontSize: "11px", marginTop: "4px" }}>
-          Current Revision: {currentRevision}
-        </div>
-      </div>
       <div style={{ fontSize: "12px", color: "var(--color-text-subtle)" }}>
         No revision history available yet.
       </div>

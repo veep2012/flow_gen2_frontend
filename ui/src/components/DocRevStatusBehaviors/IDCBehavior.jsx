@@ -25,9 +25,6 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange }) => {
         ))}
       </div>
       <div className="flow-section">
-        <div style={{ fontSize: "12px", color: "var(--color-text-muted)", marginBottom: "12px" }}>
-          <strong>{docName}</strong>
-        </div>
         {docInfo && (
           <div style={{ fontSize: "11px", color: "var(--color-text-subtle)", marginBottom: "12px" }}>
             <div>Type: {docInfo.type}</div>

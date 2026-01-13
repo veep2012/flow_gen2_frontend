@@ -421,27 +421,64 @@ function App() {
   const handleUploadFiles = React.useCallback(
     async (files, statusKey) => {
       const list = Array.from(files || []);
-      if (!list.length || !statusKey || !selectedDocId) return;
+      if (!list.length || !statusKey || !selectedDocId || !selectedDoc) return;
+
+      // Get the revision ID from the selected document
+      const revisionId = selectedDoc.rev_current_id;
+      if (!revisionId) {
+        alert("No current revision found. Please create a revision first.");
+        return;
+      }
 
       // Get the document number from the selected document
-      const documentNumber = selectedDoc?.doc_name_unique || selectedDoc?.title || "";
-      if (!documentNumber) return;
+      const documentNumber = selectedDoc.doc_name_unique || selectedDoc.title || "";
 
-      // Create file objects with document number
-      const fileObjects = list.map((f) => ({
-        name: f.name,
-        documentNumber,
-        uploadedAt: new Date().toISOString(),
-      }));
+      // Upload each file to the API
+      for (const file of list) {
+        try {
+          const formData = new FormData();
+          formData.append("rev_id", revisionId);
+          formData.append("file", file);
 
-      // Store files by document ID and status key
-      setUploadedFiles((prev) => ({
-        ...prev,
-        [selectedDocId]: {
-          ...(prev[selectedDocId] || {}),
-          [statusKey]: [...((prev[selectedDocId]?.[statusKey]) || []), ...fileObjects],
-        },
-      }));
+          const response = await fetch(`${apiBase}/files/`, {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Upload failed for ${file.name}:`, errorText);
+            alert(`Failed to upload ${file.name}: ${errorText || response.statusText}`);
+            continue;
+          }
+
+          const fileData = await response.json();
+
+          // Store the file object with document number and API response
+          setUploadedFiles((prev) => {
+            const currentFiles = (prev[selectedDocId]?.[statusKey]) || [];
+            const fileObject = {
+              name: file.name,
+              documentNumber,
+              uploadedAt: new Date().toISOString(),
+              fileId: fileData.id,
+              s3_uid: fileData.s3_uid,
+              mimetype: fileData.mimetype,
+              revId: fileData.rev_id,
+            };
+            return {
+              ...prev,
+              [selectedDocId]: {
+                ...(prev[selectedDocId] || {}),
+                [statusKey]: [...currentFiles, fileObject],
+              },
+            };
+          });
+        } catch (err) {
+          console.error(`Error uploading ${file.name}:`, err);
+          alert(`Error uploading ${file.name}: ${err.message}`);
+        }
+      }
 
       // Auto-expand the revision tree
       setExpandedRevisions((prev) => ({
@@ -449,7 +486,7 @@ function App() {
         [statusKey]: { ...prev[statusKey], isOpen: true },
       }));
     },
-    [selectedDocId, selectedDoc],
+    [selectedDocId, selectedDoc, apiBase],
   );
 
   const handleUploadDrop = React.useCallback(
@@ -482,18 +519,104 @@ function App() {
   );
 
   const handleOpenFile = React.useCallback(
-    (file) => {
+    async (file) => {
       // Handle both string and object file formats
       const fileName = typeof file === "string" ? file : file.name;
+      const fileId = typeof file === "object" ? file.fileId : null;
       const documentNumber = typeof file === "object" ? file.documentNumber : null;
       const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
 
-      // For now, open a message since files are stored locally
-      // In production, this would download from the API using file_id
-      // Format: /api/v1/files/download?file_id={id}
-      alert(`Opening file: ${displayName}\n\nNote: File download would be implemented when files are uploaded to the server.`);
+      if (!fileId) {
+        alert(`File not uploaded yet: ${displayName}\n\nPlease wait for the upload to complete.`);
+        return;
+      }
+
+      try {
+        // Download file from API
+        const downloadUrl = `${apiBase}/files/download?file_id=${fileId}`;
+        const response = await fetch(downloadUrl);
+
+        if (!response.ok) {
+          throw new Error(`Download failed: ${response.statusText}`);
+        }
+
+        // Get the blob and create a download link
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (err) {
+        console.error(`Error downloading file ${displayName}:`, err);
+        alert(`Failed to download ${displayName}: ${err.message}`);
+      }
     },
-    [],
+    [apiBase],
+  );
+
+  const handleDeleteFile = React.useCallback(
+    async (file) => {
+      // Handle both string and object file formats
+      const fileName = typeof file === "string" ? file : file.name;
+      const fileId = typeof file === "object" ? file.fileId : null;
+      const documentNumber = typeof file === "object" ? file.documentNumber : null;
+      const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
+
+      if (!fileId) {
+        alert(`File not uploaded yet: ${displayName}\n\nCannot delete local files.`);
+        return;
+      }
+
+      if (!window.confirm(`Are you sure you want to delete "${displayName}"?`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${apiBase}/files/${fileId}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `Delete failed: ${response.statusText}`);
+        }
+
+        // Remove from state
+        setUploadedFiles((prev) => {
+          const updated = { ...prev };
+          if (updated[selectedDocId]) {
+            // Remove from API files
+            if (updated[selectedDocId]["$api"]) {
+              updated[selectedDocId]["$api"] = updated[selectedDocId]["$api"].filter(
+                (f) => f.fileId !== fileId,
+              );
+            }
+            // Remove from status-specific files
+            Object.keys(updated[selectedDocId]).forEach((statusKey) => {
+              if (statusKey !== "$api" && Array.isArray(updated[selectedDocId][statusKey])) {
+                updated[selectedDocId][statusKey] = updated[selectedDocId][statusKey].filter(
+                  (f) => {
+                    const fId = typeof f === "object" ? f.fileId : null;
+                    return fId !== fileId;
+                  },
+                );
+              }
+            });
+          }
+          return updated;
+        });
+
+        alert(`File "${displayName}" deleted successfully.`);
+      } catch (err) {
+        console.error(`Error deleting file ${displayName}:`, err);
+        alert(`Failed to delete ${displayName}: ${err.message}`);
+      }
+    },
+    [apiBase, selectedDocId],
   );
 
   const handleRevisionToggle = React.useCallback((revKey) => {
@@ -505,13 +628,66 @@ function App() {
 
   // Sync document selection with uploaded files and revisions
   React.useEffect(() => {
-    if (!selectedDocId) {
+    if (!selectedDocId || !selectedDoc) {
       setInfoActiveStep(null);
       return;
     }
+
+    // Fetch files from API for the selected document's current revision
+    const fetchFilesForRevision = async () => {
+      const revisionId = selectedDoc.rev_current_id;
+      if (!revisionId) return;
+
+      try {
+        const response = await fetch(`${apiBase}/files/list?rev_id=${revisionId}`);
+        if (!response.ok) {
+          if (response.status === 404) {
+            // No files for this revision yet - keep existing local files
+            return;
+          }
+          throw new Error(`Failed to load files (${response.status})`);
+        }
+
+        const files = await response.json();
+        
+        // Convert API files to our file object format
+        // Store all API files in a special "$api" key to keep them persistent across all statuses
+        const apiFiles = [];
+        if (Array.isArray(files) && files.length > 0) {
+          files.forEach((apiFile) => {
+            apiFiles.push({
+              name: apiFile.filename,
+              documentNumber: selectedDoc.doc_name_unique || selectedDoc.title,
+              uploadedAt: new Date().toISOString(),
+              fileId: apiFile.id,
+              s3_uid: apiFile.s3_uid,
+              mimetype: apiFile.mimetype,
+              revId: apiFile.rev_id,
+              isFromApi: true, // Mark as from API for distinction
+            });
+          });
+
+          // Update uploadedFiles with fetched files in a persistent location
+          setUploadedFiles((prev) => {
+            const existingFiles = prev[selectedDocId] || {};
+            return {
+              ...prev,
+              [selectedDocId]: {
+                ...existingFiles,
+                $api: apiFiles, // Store API files in special $api key
+              },
+            };
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch files for revision:", err);
+      }
+    };
+
+    fetchFilesForRevision();
     // When a document is selected, reset the flow step to let user explore
     // The flow will show all statuses; the document's current state isn't filtered
-  }, [selectedDocId]);
+  }, [selectedDocId, selectedDoc, apiBase]);
 
   React.useEffect(() => {
     let isActive = true;
@@ -1367,9 +1543,41 @@ function App() {
             </div>
             <div className="detail-tab-panel" style={{ flex: 1 }}>
               {activeDetailTab === "Revisions" ? (
-                <div style={{ color: "var(--color-text-muted)", fontSize: "13px" }}>
-                  No revisions yet. A revision will be created automatically when you save a new
-                  document.
+                <div style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}>
+                  {selectedDoc ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <div>
+                        <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>
+                          Current Revision ID
+                        </div>
+                        <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-accent)", padding: "8px 12px", background: "var(--color-accent-soft)", borderRadius: "6px" }}>
+                          {selectedDoc.rev_current_id || "N/A"}
+                        </div>
+                      </div>
+                      {selectedDoc.rev_seq_num && (
+                        <div>
+                          <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>
+                            Sequence Number
+                          </div>
+                          <div style={{ fontSize: "14px" }}>
+                            {selectedDoc.rev_seq_num}
+                          </div>
+                        </div>
+                      )}
+                      {selectedDoc.rev_code_name && (
+                        <div>
+                          <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>
+                            Revision Code
+                          </div>
+                          <div style={{ fontSize: "14px" }}>
+                            {selectedDoc.rev_code_name}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>Select a document to view revisions.</div>
+                  )}
                 </div>
               ) : (
                 <div style={{ color: "var(--color-text-muted)", fontSize: "13px" }}>
@@ -1499,6 +1707,7 @@ function App() {
                               uploadInputRef={uploadInputRef}
                               onFileSelect={handleUploadSelect}
                               onOpenFile={handleOpenFile}
+                              onDeleteFile={handleDeleteFile}
                             />
                           </React.Suspense>
                         </div>

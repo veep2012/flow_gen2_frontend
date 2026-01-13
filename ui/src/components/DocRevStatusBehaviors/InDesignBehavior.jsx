@@ -1,5 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
+import { getFileIcon, getFileTypeLabel } from "../../utils/fileIcons";
 
 const InDesignBehavior = ({
   selectedDoc,
@@ -13,32 +14,38 @@ const InDesignBehavior = ({
   uploadInputRef,
   onFileSelect,
   onOpenFile,
+  onDeleteFile,
 }) => {
   // Get files for the current document and status
   const docId = selectedDoc?.doc_id;
-  const files = (docId && uploadedFiles[docId]?.[statusKey]) || [];
+  // Get API-persisted files (single source of truth from database)
+  const apiFiles = (docId && uploadedFiles[docId]?.["$api"]) || [];
+  // Get local status files (not yet synced to API)
+  const statusFiles = (docId && uploadedFiles[docId]?.[statusKey]) || [];
+  
+  // Deduplicate: only include status files that aren't already in API files
+  const apiFileIds = new Set(apiFiles.map(f => f.fileId).filter(Boolean));
+  const apiFileNames = new Set(apiFiles.map(f => f.name));
+  const localOnlyFiles = statusFiles.filter(f => {
+    const fileId = typeof f === "object" ? f.fileId : null;
+    const fileName = typeof f === "object" ? f.name : f;
+    // Include only if not in API by fileId or filename
+    return fileId ? !apiFileIds.has(fileId) : !apiFileNames.has(fileName);
+  });
+  
+  const allFiles = [...apiFiles, ...localOnlyFiles];
   const dragProps = uploadDragProps(statusKey);
   const docName = selectedDoc ? `${selectedDoc.doc_name_unique || selectedDoc.title || "Document"}` : "No document selected";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "8px", minHeight: 0 }}>
-      {/* Document info header */}
-      <div style={{ fontSize: "11px", color: "var(--color-text-subtle)", padding: "8px 0", borderBottom: "1px solid var(--color-border)" }}>
-        <strong>{docName}</strong>
-        {selectedDoc && (
-          <>
-            <div>Revision: {selectedDoc.rev_code_name || "N/A"}</div>
-            <div>Progress: {selectedDoc.percentage !== null ? `${selectedDoc.percentage}%` : "N/A"}</div>
-          </>
-        )}
-      </div>
       {/* File list area - takes remaining space and scrolls */}
       <div style={{ flex: 1, overflow: "auto", padding: "8px 0", minHeight: 0 }}>
-        {files.length > 0 ? (
+        {allFiles.length > 0 ? (
           <>
             {["Rev A", "Rev B", "Rev C"].map((revision, revIdx) => {
               const revFiles =
-                files.filter((_, idx) => idx >= revIdx * 5 && idx < (revIdx + 1) * 5) || [];
+                allFiles.filter((_, idx) => idx >= revIdx * 5 && idx < (revIdx + 1) * 5) || [];
 
               if (!revFiles.length && revIdx > 0) return null;
 
@@ -78,24 +85,19 @@ const InDesignBehavior = ({
                       const fileName = typeof file === "string" ? file : file.name;
                       const documentNumber = typeof file === "object" ? file.documentNumber : null;
                       const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
+                      const fileIcon = getFileIcon(fileName);
+                      const fileTypeLabel = getFileTypeLabel(fileName);
 
                       return (
-                        <button
+                        <div
                           key={`${revision}-${idx}`}
-                          type="button"
-                          onClick={() => onOpenFile(file)}
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "6px",
+                            gap: "4px",
                             padding: "4px 8px 4px 32px",
-                            color: "var(--color-accent)",
                             fontSize: "12px",
                             background: "transparent",
-                            border: "none",
-                            cursor: "pointer",
-                            textAlign: "left",
-                            width: "100%",
                             transition: "background 0.2s",
                           }}
                           onMouseEnter={(e) => {
@@ -104,11 +106,66 @@ const InDesignBehavior = ({
                           onMouseLeave={(e) => {
                             e.currentTarget.style.background = "transparent";
                           }}
-                          title={`Click to open ${displayName}`}
                         >
-                          <span>📄</span>
-                          <span style={{ textDecoration: "underline" }}>{displayName}</span>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => onOpenFile(file)}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "4px 8px",
+                              color: "var(--color-accent)",
+                              background: "transparent",
+                              border: "none",
+                              cursor: "pointer",
+                              textAlign: "left",
+                              flex: 1,
+                              transition: "color 0.2s",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = "var(--color-accent-hover)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = "var(--color-accent)";
+                            }}
+                            title={`${fileTypeLabel} - Click to open ${displayName}`}
+                          >
+                            <span>{fileIcon}</span>
+                            <span style={{ textDecoration: "underline" }}>{displayName}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteFile(file);
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: "20px",
+                              height: "20px",
+                              padding: "0",
+                              color: "var(--color-danger)",
+                              background: "transparent",
+                              border: "none",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              transition: "opacity 0.2s",
+                              opacity: "0.6",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.opacity = "1";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.opacity = "0.6";
+                            }}
+                            title={`Delete ${displayName}`}
+                          >
+                            ✕
+                          </button>
+                        </div>
                       );
                     })}
                 </div>
@@ -170,6 +227,7 @@ InDesignBehavior.propTypes = {
   uploadInputRef: PropTypes.shape({ current: PropTypes.instanceOf(Element) }),
   onFileSelect: PropTypes.func.isRequired,
   onOpenFile: PropTypes.func.isRequired,
+  onDeleteFile: PropTypes.func.isRequired,
 };
 
 export default InDesignBehavior;
