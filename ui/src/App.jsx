@@ -1860,6 +1860,7 @@ function App() {
                         style={{
                           display: "flex",
                           alignItems: "center",
+                          justifyContent: "space-between",
                           gap: "4px",
                           position: "relative",
                         }}
@@ -1891,7 +1892,7 @@ function App() {
                             )}
                           </span>
                           <span className="flow-step__label">{status.rev_status_name}</span>
-                          <span className="flow-step__behavior">
+                          <span className="flow-step__behavior" style={{ display: "none" }}>
                             {behaviorFileLabel || "Default"}
                           </span>
                         </button>
@@ -1914,8 +1915,8 @@ function App() {
                                 background: "transparent",
                                 border: "none",
                                 cursor: "pointer",
-                                padding: "6px 4px",
-                                fontSize: "16px",
+                                padding: "6px 12px",
+                                fontSize: "20px",
                                 color: "var(--color-text-muted)",
                                 transition: "color 0.2s",
                               }}
