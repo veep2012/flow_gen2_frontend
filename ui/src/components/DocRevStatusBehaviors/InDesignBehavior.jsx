@@ -23,9 +23,12 @@ const InDesignBehavior = ({
   // Get local status files (not yet synced to API)
   const statusFiles = (docId && uploadedFiles[docId]?.[statusKey]) || [];
   
+  // Filter API files that haven't been issued to other statuses
+  const availableApiFiles = apiFiles.filter(f => !f.issuedStatus || f.issuedStatus === statusKey);
+  
   // Deduplicate: only include status files that aren't already in API files
-  const apiFileIds = new Set(apiFiles.map(f => f.fileId).filter(Boolean));
-  const apiFileNames = new Set(apiFiles.map(f => f.name));
+  const apiFileIds = new Set(availableApiFiles.map(f => f.fileId).filter(Boolean));
+  const apiFileNames = new Set(availableApiFiles.map(f => f.name));
   const localOnlyFiles = statusFiles.filter(f => {
     const fileId = typeof f === "object" ? f.fileId : null;
     const fileName = typeof f === "object" ? f.name : f;
@@ -33,9 +36,37 @@ const InDesignBehavior = ({
     return fileId ? !apiFileIds.has(fileId) : !apiFileNames.has(fileName);
   });
   
-  const allFiles = [...apiFiles, ...localOnlyFiles];
+  const allFiles = [...availableApiFiles, ...localOnlyFiles];
+  
+  // Debug logging
+  React.useEffect(() => {
+    console.log("InDesignBehavior - statusKey:", statusKey, "allFiles:", allFiles, "apiFiles:", apiFiles, "statusFiles:", statusFiles);
+  }, [allFiles, statusKey, apiFiles, statusFiles]);
+  
   const dragProps = uploadDragProps(statusKey);
   const docName = selectedDoc ? `${selectedDoc.doc_name_unique || selectedDoc.title || "Document"}` : "No document selected";
+
+  // Organize files by revision letter (RevA, RevB, RevC) - case insensitive
+  const filesByRevision = {
+    "Rev A": [],
+    "Rev B": [],
+    "Rev C": [],
+    "Other": [],
+  };
+
+  allFiles.forEach((file) => {
+    const fileName = typeof file === "string" ? file : file.name;
+    const fileNameLower = fileName.toLowerCase();
+    if (fileNameLower.includes("reva")) {
+      filesByRevision["Rev A"].push(file);
+    } else if (fileNameLower.includes("revb")) {
+      filesByRevision["Rev B"].push(file);
+    } else if (fileNameLower.includes("revc")) {
+      filesByRevision["Rev C"].push(file);
+    } else {
+      filesByRevision["Other"].push(file);
+    }
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "8px", minHeight: 0 }}>
@@ -43,11 +74,10 @@ const InDesignBehavior = ({
       <div style={{ flex: 1, overflow: "auto", padding: "8px 0", minHeight: 0 }}>
         {allFiles.length > 0 ? (
           <>
-            {["Rev A", "Rev B", "Rev C"].map((revision, revIdx) => {
-              const revFiles =
-                allFiles.filter((_, idx) => idx >= revIdx * 5 && idx < (revIdx + 1) * 5) || [];
+            {["Rev A", "Rev B", "Rev C", "Other"].map((revision) => {
+              const revFiles = filesByRevision[revision] || [];
 
-              if (!revFiles.length && revIdx > 0) return null;
+              if (!revFiles.length) return null;
 
               const revKey = `${statusKey}-${revision}`;
               const isExpanded = expandedRevisions[revKey]?.isOpen !== false;
@@ -74,19 +104,22 @@ const InDesignBehavior = ({
                     }}
                     aria-expanded={isExpanded}
                   >
-                    <span style={{ fontSize: "12px", width: "16px" }}>
-                      {isExpanded ? "▼" : "▶"}
+                    <span style={{ fontSize: "16px", width: "20px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {isExpanded ? "📂" : "📁"}
                     </span>
-                    <span>{revision}</span>
+                    <span style={{ display: "flex", alignItems: "center" }}>{revision}</span>
                   </button>
-                  {isExpanded &&
-                    revFiles.map((file, idx) => {
+                  <div style={{ position: "relative" }}>
+                    {isExpanded &&
+                      revFiles.map((file, idx) => {
                       // Handle both string and object file formats
                       const fileName = typeof file === "string" ? file : file.name;
                       const documentNumber = typeof file === "object" ? file.documentNumber : null;
                       const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
                       const fileIcon = getFileIcon(fileName);
                       const fileTypeLabel = getFileTypeLabel(fileName);
+                      const isLastFile = idx === revFiles.length - 1;
+                      const treeChar = isLastFile ? "└─ ─ " : "├─ ─ ";
 
                       return (
                         <div
@@ -94,11 +127,13 @@ const InDesignBehavior = ({
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "4px",
-                            padding: "4px 8px 4px 32px",
+                            gap: "0px",
+                            padding: "4px 8px 4px 8px",
                             fontSize: "12px",
                             background: "transparent",
                             transition: "background 0.2s",
+                            marginLeft: "8px",
+                            overflow: "hidden",
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.background = "rgba(0,0,0,0.05)";
@@ -107,6 +142,23 @@ const InDesignBehavior = ({
                             e.currentTarget.style.background = "transparent";
                           }}
                         >
+                          {!isLastFile && (
+                            <div
+                              style={{
+                                width: "1px",
+                                height: "28px",
+                                background: "var(--color-border)",
+                                position: "absolute",
+                                left: "25px",
+                                top: "100%",
+                                zIndex: "1",
+                                clipPath: "inset(0 0 0 10px)",
+                              }}
+                            />
+                          )}
+                          <span style={{ color: "var(--color-text-muted)", fontSize: "12px", fontFamily: "monospace", minWidth: "20px" }}>
+                            {treeChar}
+                          </span>
                           <button
                             type="button"
                             onClick={() => onOpenFile(file)}
@@ -131,7 +183,17 @@ const InDesignBehavior = ({
                             }}
                             title={`${fileTypeLabel} - Click to open ${displayName}`}
                           >
-                            <span>{fileIcon}</span>
+                            <span>
+                              {typeof fileIcon === "string" && !fileIcon.includes(".") ? (
+                                fileIcon
+                              ) : (
+                                <img 
+                                  src={fileIcon} 
+                                  alt="file icon" 
+                                  style={{ width: "16px", height: "16px" }} 
+                                />
+                              )}
+                            </span>
                             <span style={{ textDecoration: "underline" }}>{displayName}</span>
                           </button>
                           <button
@@ -168,6 +230,7 @@ const InDesignBehavior = ({
                         </div>
                       );
                     })}
+                  </div>
                 </div>
               );
             })}
