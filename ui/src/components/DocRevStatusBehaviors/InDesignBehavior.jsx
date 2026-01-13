@@ -73,37 +73,44 @@ const InDesignBehavior = ({
                     <span>{revision}</span>
                   </button>
                   {isExpanded &&
-                    revFiles.map((file, idx) => (
-                      <button
-                        key={`${revision}-${idx}`}
-                        type="button"
-                        onClick={() => onOpenFile(file)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          padding: "4px 8px 4px 32px",
-                          color: "var(--color-accent)",
-                          fontSize: "12px",
-                          background: "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                          textAlign: "left",
-                          width: "100%",
-                          transition: "background 0.2s",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = "rgba(0,0,0,0.05)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = "transparent";
-                        }}
-                        title={`Click to open ${file}`}
-                      >
-                        <span>📄</span>
-                        <span style={{ textDecoration: "underline" }}>{file}</span>
-                      </button>
-                    ))}
+                    revFiles.map((file, idx) => {
+                      // Handle both string and object file formats
+                      const fileName = typeof file === "string" ? file : file.name;
+                      const documentNumber = typeof file === "object" ? file.documentNumber : null;
+                      const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
+
+                      return (
+                        <button
+                          key={`${revision}-${idx}`}
+                          type="button"
+                          onClick={() => onOpenFile(file)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "4px 8px 4px 32px",
+                            color: "var(--color-accent)",
+                            fontSize: "12px",
+                            background: "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            width: "100%",
+                            transition: "background 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "rgba(0,0,0,0.05)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                          }}
+                          title={`Click to open ${displayName}`}
+                        >
+                          <span>📄</span>
+                          <span style={{ textDecoration: "underline" }}>{displayName}</span>
+                        </button>
+                      );
+                    })}
                 </div>
               );
             })}

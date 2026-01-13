@@ -423,16 +423,23 @@ function App() {
       const list = Array.from(files || []);
       if (!list.length || !statusKey || !selectedDocId) return;
 
-      // TODO: This would require knowing the current revision ID to upload
-      // For now, store file names locally (not uploaded to backend yet)
-      const fileNames = list.map((f) => f.name);
+      // Get the document number from the selected document
+      const documentNumber = selectedDoc?.doc_name_unique || selectedDoc?.title || "";
+      if (!documentNumber) return;
+
+      // Create file objects with document number
+      const fileObjects = list.map((f) => ({
+        name: f.name,
+        documentNumber,
+        uploadedAt: new Date().toISOString(),
+      }));
 
       // Store files by document ID and status key
       setUploadedFiles((prev) => ({
         ...prev,
         [selectedDocId]: {
           ...(prev[selectedDocId] || {}),
-          [statusKey]: [...((prev[selectedDocId]?.[statusKey]) || []), ...fileNames],
+          [statusKey]: [...((prev[selectedDocId]?.[statusKey]) || []), ...fileObjects],
         },
       }));
 
@@ -442,7 +449,7 @@ function App() {
         [statusKey]: { ...prev[statusKey], isOpen: true },
       }));
     },
-    [selectedDocId],
+    [selectedDocId, selectedDoc],
   );
 
   const handleUploadDrop = React.useCallback(
@@ -475,11 +482,16 @@ function App() {
   );
 
   const handleOpenFile = React.useCallback(
-    (fileName) => {
+    (file) => {
+      // Handle both string and object file formats
+      const fileName = typeof file === "string" ? file : file.name;
+      const documentNumber = typeof file === "object" ? file.documentNumber : null;
+      const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
+
       // For now, open a message since files are stored locally
       // In production, this would download from the API using file_id
       // Format: /api/v1/files/download?file_id={id}
-      alert(`Opening file: ${fileName}\n\nNote: File download would be implemented when files are uploaded to the server.`);
+      alert(`Opening file: ${displayName}\n\nNote: File download would be implemented when files are uploaded to the server.`);
     },
     [],
   );
