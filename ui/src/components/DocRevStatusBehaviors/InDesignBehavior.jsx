@@ -11,102 +11,112 @@ const InDesignBehavior = ({
   onUploadClick,
   uploadInputRef,
   onFileSelect,
+  onOpenFile,
 }) => {
   const files = uploadedFiles[statusKey] || [];
   const dragProps = uploadDragProps(statusKey);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "8px" }}>
-      {files.length > 0 ? (
-        <div style={{ flex: 1, overflow: "auto", padding: "8px 0" }}>
-          {["Rev A", "Rev B", "Rev C"].map((revision, revIdx) => {
-            const revFiles =
-              files.filter((_, idx) => idx >= revIdx * 5 && idx < (revIdx + 1) * 5) || [];
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "8px", minHeight: 0 }}>
+      {/* File list area - takes remaining space and scrolls */}
+      <div style={{ flex: 1, overflow: "auto", padding: "8px 0", minHeight: 0 }}>
+        {files.length > 0 ? (
+          <>
+            {["Rev A", "Rev B", "Rev C"].map((revision, revIdx) => {
+              const revFiles =
+                files.filter((_, idx) => idx >= revIdx * 5 && idx < (revIdx + 1) * 5) || [];
 
-            if (!revFiles.length && revIdx > 0) return null;
+              if (!revFiles.length && revIdx > 0) return null;
 
-            const revKey = `${statusKey}-${revision}`;
-            const isExpanded = expandedRevisions[revKey]?.isOpen !== false;
+              const revKey = `${statusKey}-${revision}`;
+              const isExpanded = expandedRevisions[revKey]?.isOpen !== false;
 
-            return (
-              <div key={revision} style={{ marginBottom: "4px" }}>
-                <button
-                  type="button"
-                  onClick={() => onRevisionToggle(revKey)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    padding: "6px 8px",
-                    cursor: "pointer",
-                    color: "var(--color-text)",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    userSelect: "none",
-                    background: "transparent",
-                    border: "none",
-                    width: "100%",
-                    textAlign: "left",
-                  }}
-                  aria-expanded={isExpanded}
-                >
-                  <span style={{ fontSize: "12px", width: "16px" }}>{isExpanded ? "▼" : "▶"}</span>
-                  <span>{revision}</span>
-                </button>
-                {isExpanded &&
-                  revFiles.map((file, idx) => (
-                    <div
-                      key={`${revision}-${idx}`}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        padding: "4px 8px 4px 32px",
-                        color: "var(--color-accent)",
-                        fontSize: "12px",
-                      }}
-                    >
-                      <span>📄</span>
-                      <span>{file}</span>
-                    </div>
-                  ))}
-              </div>
-            );
-          })}
-          <div style={{ flex: 1 }} />
-          <button
-            onClick={onUploadClick}
-            style={{
-              padding: "6px 12px",
-              background: "var(--color-accent)",
-              color: "var(--color-surface)",
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "12px",
-              marginTop: "8px",
-              alignSelf: "flex-start",
-            }}
-          >
-            + Add files
-          </button>
-        </div>
-      ) : (
-        <>
-          <div style={{ flex: 1 }} />
-          <button
-            type="button"
-            className={`flow-upload ${isDraggingUpload ? "dragging" : ""}`}
-            {...dragProps}
-            onClick={onUploadClick}
-            aria-label="Upload PDF files"
-          >
-            Drag & drop PDF files here
-            <br />
-            or click to browse • Multiple files supported
-          </button>
-        </>
-      )}
+              return (
+                <div key={revision} style={{ marginBottom: "4px" }}>
+                  <button
+                    type="button"
+                    onClick={() => onRevisionToggle(revKey)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "6px 8px",
+                      cursor: "pointer",
+                      color: "var(--color-text)",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      userSelect: "none",
+                      background: "transparent",
+                      border: "none",
+                      width: "100%",
+                      textAlign: "left",
+                    }}
+                    aria-expanded={isExpanded}
+                  >
+                    <span style={{ fontSize: "12px", width: "16px" }}>
+                      {isExpanded ? "▼" : "▶"}
+                    </span>
+                    <span>{revision}</span>
+                  </button>
+                  {isExpanded &&
+                    revFiles.map((file, idx) => (
+                      <button
+                        key={`${revision}-${idx}`}
+                        type="button"
+                        onClick={() => onOpenFile(file)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "4px 8px 4px 32px",
+                          color: "var(--color-accent)",
+                          fontSize: "12px",
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          width: "100%",
+                          transition: "background 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "rgba(0,0,0,0.05)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "transparent";
+                        }}
+                        title={`Click to open ${file}`}
+                      >
+                        <span>📄</span>
+                        <span style={{ textDecoration: "underline" }}>{file}</span>
+                      </button>
+                    ))}
+                </div>
+              );
+            })}
+          </>
+        ) : (
+          <div style={{ color: "var(--color-text-muted)", fontSize: "13px", padding: "8px" }}>
+            No files added yet
+          </div>
+        )}
+      </div>
+
+      {/* Drag and drop area - always at bottom */}
+      <button
+        type="button"
+        className={`flow-upload ${isDraggingUpload ? "dragging" : ""}`}
+        {...dragProps}
+        onClick={onUploadClick}
+        aria-label="Upload PDF files"
+        style={{
+          padding: "16px",
+          flexShrink: 0,
+        }}
+      >
+        Drag & drop PDF files here
+        <br />
+        or click to browse • Multiple files supported
+      </button>
       <input
         ref={uploadInputRef}
         type="file"
@@ -133,6 +143,7 @@ InDesignBehavior.propTypes = {
   onUploadClick: PropTypes.func.isRequired,
   uploadInputRef: PropTypes.shape({ current: PropTypes.instanceOf(Element) }),
   onFileSelect: PropTypes.func.isRequired,
+  onOpenFile: PropTypes.func.isRequired,
 };
 
 export default InDesignBehavior;

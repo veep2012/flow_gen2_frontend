@@ -96,6 +96,7 @@ function App() {
   const [isDraggingUpload, setIsDraggingUpload] = React.useState(false);
   const [isDraggingBorder, setIsDraggingBorder] = React.useState(false);
   const [isDraggingRow, setIsDraggingRow] = React.useState(false);
+  const [hideWindowsOnDrag, setHideWindowsOnDrag] = React.useState(false);
   const [uploadedFiles, setUploadedFiles] = React.useState({});
   const [expandedRevisions, setExpandedRevisions] = React.useState({});
   const containerRef = React.useRef(null);
@@ -289,6 +290,7 @@ function App() {
     (event) => {
       event.preventDefault();
       setIsDraggingBorder(true);
+      setHideWindowsOnDrag(true);
       const container = containerRef.current;
       if (!container) return;
 
@@ -305,6 +307,7 @@ function App() {
 
       const handleUp = () => {
         setIsDraggingBorder(false);
+        setHideWindowsOnDrag(false);
         window.removeEventListener("mousemove", handleMove);
         window.removeEventListener("mouseup", handleUp);
       };
@@ -367,26 +370,28 @@ function App() {
   const applyEdit = React.useCallback(
     async (doc) => {
       if (!doc) return;
-      const toNumber = (value) => {
-        const num = Number(value);
-        return Number.isFinite(num) ? num : 0;
+      
+      // Build minimal payload - only include fields that are actually being changed
+      const payload = {
+        doc_id: Number(doc.doc_id || doc.id),
       };
 
-      const payload = {
-        doc_id: toNumber(doc.doc_id ?? doc.id ?? 0),
-        doc_name_unique: editValues.doc_name_unique || doc.doc_name_unique || doc.doc_name || "",
-        title: editValues.title ?? doc.title ?? "",
-        project_id: toNumber(doc.project_id ?? doc.project ?? 0),
-        jobpack_id: toNumber(doc.jobpack_id ?? 0),
-        type_id: toNumber(doc.type_id ?? doc.doc_type_id ?? doc.doc_type ?? 0),
-        area_id: toNumber(doc.area_id ?? 0),
-        unit_id: toNumber(doc.unit_id ?? 0),
-        rev_actual_id: toNumber(doc.rev_actual_id ?? 0),
-        rev_current_id: toNumber(doc.rev_current_id ?? 0),
-      };
+      // Add edited fields only if they have actual content
+      const docName = String(editValues.doc_name_unique || "").trim();
+      const docTitle = String(editValues.title || "").trim();
+
+      if (docName) {
+        payload.doc_name_unique = docName;
+      }
+      if (docTitle) {
+        payload.title = docTitle;
+      }
 
       setSaveStatus("saving");
       setSaveError(null);
+
+      console.log("Final payload keys:", Object.keys(payload));
+      console.log("Final payload:", payload);
 
       try {
         const res = await fetch(`${apiBase}/documents/${payload.doc_id}`, {
@@ -396,14 +401,16 @@ function App() {
         });
 
         if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || `Update failed (${res.status})`);
+          const errorText = await res.text();
+          console.error("API Error Response:", errorText);
+          throw new Error(errorText || `Update failed (${res.status})`);
         }
 
         setSaveStatus("saved");
         setEditRowId(null);
         reloadDocuments();
       } catch (err) {
+        console.error("Save error:", err);
         setSaveStatus("error");
         setSaveError(err.message || "Unknown error while saving");
       }
@@ -411,22 +418,28 @@ function App() {
     [apiBase, editValues, reloadDocuments],
   );
 
-  const handleUploadFiles = React.useCallback((files, statusKey) => {
-    const list = Array.from(files || []);
-    if (!list.length || !statusKey) return;
-    const fileNames = list.map((f) => f.name);
+  const handleUploadFiles = React.useCallback(
+    async (files, statusKey) => {
+      const list = Array.from(files || []);
+      if (!list.length || !statusKey) return;
 
-    setUploadedFiles((prev) => ({
-      ...prev,
-      [statusKey]: [...(prev[statusKey] || []), ...fileNames],
-    }));
+      // TODO: This would require knowing the current revision ID to upload
+      // For now, store file names locally (not uploaded to backend yet)
+      const fileNames = list.map((f) => f.name);
 
-    // Auto-expand the revision tree
-    setExpandedRevisions((prev) => ({
-      ...prev,
-      [statusKey]: { ...prev[statusKey], isOpen: true },
-    }));
-  }, []);
+      setUploadedFiles((prev) => ({
+        ...prev,
+        [statusKey]: [...(prev[statusKey] || []), ...fileNames],
+      }));
+
+      // Auto-expand the revision tree
+      setExpandedRevisions((prev) => ({
+        ...prev,
+        [statusKey]: { ...prev[statusKey], isOpen: true },
+      }));
+    },
+    [],
+  );
 
   const handleUploadDrop = React.useCallback(
     (e, statusKey) => {
@@ -457,12 +470,32 @@ function App() {
     [handleUploadDrop],
   );
 
+  const handleOpenFile = React.useCallback(
+    (fileName) => {
+      // For now, open a message since files are stored locally
+      // In production, this would download from the API using file_id
+      // Format: /api/v1/files/download?file_id={id}
+      alert(`Opening file: ${fileName}\n\nNote: File download would be implemented when files are uploaded to the server.`);
+    },
+    [],
+  );
+
   const handleRevisionToggle = React.useCallback((revKey) => {
     setExpandedRevisions((prev) => ({
       ...prev,
       [revKey]: { ...prev[revKey], isOpen: !prev[revKey]?.isOpen },
     }));
   }, []);
+
+  // Sync document selection with uploaded files and revisions
+  React.useEffect(() => {
+    if (!selectedDocId) {
+      setInfoActiveStep(null);
+      return;
+    }
+    // When a document is selected, reset the flow step to let user explore
+    // The flow will show all statuses; the document's current state isn't filtered
+  }, [selectedDocId]);
 
   React.useEffect(() => {
     let isActive = true;
@@ -521,6 +554,7 @@ function App() {
   }, [revStatusBehaviors]);
 
   const orderedStatuses = React.useMemo(() => {
+    // Always use global revisions for the flow - each document follows the same workflow
     if (!Array.isArray(revStatuses) || revStatuses.length === 0) return [];
 
     const byId = new Map();
@@ -1299,7 +1333,7 @@ function App() {
               padding: 0,
               boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
               minHeight: 0,
-              display: "flex",
+              display: hideWindowsOnDrag ? "none" : "flex",
               flexDirection: "column",
               overflow: "hidden",
             }}
@@ -1356,18 +1390,27 @@ function App() {
         <div
           style={{
             flex: `${infoRatio} 1 0`,
-            display: "flex",
+            display: hideWindowsOnDrag ? "none" : "flex",
             flexDirection: "column",
             minWidth: 0,
           }}
         >
           <div className="flow-card" style={{ flex: 1 }}>
-            <div className="flow-header">DOCUMENT FLOW</div>
+            <div className="flow-header">
+              DOCUMENT FLOW
+              {selectedDoc && (
+                <div style={{ fontSize: "12px", fontWeight: "normal", marginTop: "4px" }}>
+                  {selectedDoc.doc_name_unique || selectedDoc.title || "Document"}
+                </div>
+              )}
+            </div>
             <div className="flow-body">
               {revStatusLoading ? (
                 <div className="flow-empty">Loading statuses…</div>
               ) : revStatusError ? (
                 <div className="flow-empty">{revStatusError}</div>
+              ) : !selectedDocId ? (
+                <div className="flow-empty">Select a document to view its flow</div>
               ) : orderedStatuses.length === 0 ? (
                 <div className="flow-empty">No statuses configured.</div>
               ) : (
@@ -1438,6 +1481,7 @@ function App() {
                               onUploadClick={() => uploadInputRef.current?.click()}
                               uploadInputRef={uploadInputRef}
                               onFileSelect={handleUploadSelect}
+                              onOpenFile={handleOpenFile}
                             />
                           </React.Suspense>
                         </div>
