@@ -1428,7 +1428,16 @@ function App() {
                       return (
                         <tr
                           key={rowId}
-                          onClick={() => setSelectedDocId(rowId)}
+                          onClick={() => {
+                            setSelectedDocId(rowId);
+                            // Find and expand InDesign tab
+                            const inDesignStatus = orderedStatuses.find(
+                              (s) => s.rev_status_name?.toLowerCase() === "indesign"
+                            );
+                            if (inDesignStatus) {
+                              setInfoActiveStep(String(inDesignStatus.rev_status_id));
+                            }
+                          }}
                           onDoubleClick={() => startEdit(doc)}
                           style={{
                             background:
