@@ -101,6 +101,7 @@ function App() {
   const [expandedRevisions, setExpandedRevisions] = React.useState({});
   const [statusMenuOpen, setStatusMenuOpen] = React.useState({});
   const [isFlowPanelHidden, setIsFlowPanelHidden] = React.useState(false);
+  const [isDetailPanelHidden, setIsDetailPanelHidden] = React.useState(false);
   const containerRef = React.useRef(null);
   const leftPanelRef = React.useRef(null);
   const hasInitializedFlowRef = React.useRef(false);
@@ -1338,7 +1339,7 @@ function App() {
           <div
             className="card"
             style={{
-              flex: `${1 - detailRatio} 1 0`,
+              flex: isDetailPanelHidden ? "1 1 0" : `${1 - detailRatio} 1 0`,
               minHeight: 0,
               display: "flex",
               flexDirection: "column",
@@ -1494,40 +1495,123 @@ function App() {
               </table>
             </div>
           </div>
-          <button
-            type="button"
-            onMouseDown={startRowResize}
-            onKeyDown={(event) => {
-              if (event.key === "ArrowUp") {
-                setDetailRatio((prev) => Math.max(0.2, prev - 0.02));
-                event.preventDefault();
-              }
-              if (event.key === "ArrowDown") {
-                setDetailRatio((prev) => Math.min(0.8, prev + 0.02));
-                event.preventDefault();
-              }
-            }}
-            style={{
-              height: "8px",
-              background: isDraggingRow ? "var(--color-info)" : "var(--color-border)",
-              cursor: "row-resize",
-              transition: isDraggingRow ? "none" : "background 0.2s",
-              userSelect: "none",
-              padding: 0,
-            }}
-            title="Drag to resize panels"
-            aria-label="Resize panels"
-          />
           <div
             style={{
-              flex: `${detailRatio} 1 0`,
+              position: "relative",
+              height: "8px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-start",
+            }}
+          >
+            <button
+              type="button"
+              onMouseDown={startRowResize}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowUp") {
+                  setDetailRatio((prev) => Math.max(0.2, prev - 0.02));
+                  event.preventDefault();
+                }
+                if (event.key === "ArrowDown") {
+                  setDetailRatio((prev) => Math.min(0.8, prev + 0.02));
+                  event.preventDefault();
+                }
+              }}
+              style={{
+                width: "100%",
+                height: "100%",
+                background: isDraggingRow ? "var(--color-info)" : "var(--color-border)",
+                cursor: "row-resize",
+                transition: isDraggingRow ? "none" : "background 0.2s",
+                userSelect: "none",
+                padding: 0,
+                border: "none",
+                position: "absolute",
+              }}
+              title="Drag to resize panels"
+              aria-label="Resize panels"
+            />
+            {!isDetailPanelHidden && (
+              <button
+                type="button"
+                onClick={() => setIsDetailPanelHidden(!isDetailPanelHidden)}
+                style={{
+                  position: "relative",
+                  zIndex: 101,
+                  width: "80px",
+                  height: "8px",
+                  padding: "0",
+                  background: "var(--color-info)",
+                  border: "1px solid var(--color-info)",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: "white",
+                  fontWeight: "bold",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-info-dark)";
+                  e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "var(--color-info)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+                title="Hide revisions"
+                aria-label="Hide revisions"
+              >
+              </button>
+            )}
+            {isDetailPanelHidden && (
+              <button
+                type="button"
+                onClick={() => setIsDetailPanelHidden(!isDetailPanelHidden)}
+                style={{
+                  position: "relative",
+                  zIndex: 101,
+                  width: "80px",
+                  height: "8px",
+                  padding: "0",
+                  background: "var(--color-success)",
+                  border: "1px solid var(--color-success)",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: "white",
+                  fontWeight: "bold",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-success-dark)";
+                  e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "var(--color-success)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+                title="Show revisions"
+                aria-label="Show revisions"
+              >
+              </button>
+            )}
+          </div>
+          <div
+            style={{
+              flex: isDetailPanelHidden ? "0 0 0" : `${detailRatio} 1 0`,
               background: "var(--color-surface)",
               border: "1px solid var(--color-border)",
               borderRadius: "12px",
               padding: 0,
               boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
               minHeight: 0,
-              display: hideWindowsOnDrag ? "none" : "flex",
+              display: hideWindowsOnDrag || isDetailPanelHidden ? "none" : "flex",
               flexDirection: "column",
               overflow: "hidden",
               position: "relative",
@@ -1625,9 +1709,9 @@ function App() {
         <div
           style={{
             position: "relative",
-            width: isFlowPanelHidden ? "0px" : "8px",
+            width: "8px",
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
           }}
         >
@@ -1665,7 +1749,7 @@ function App() {
               style={{
                 position: "relative",
                 zIndex: 101,
-                width: "24px",
+                width: "8px",
                 height: "40px",
                 padding: "0",
                 background: "var(--color-info)",
@@ -1691,7 +1775,6 @@ function App() {
               title="Hide document flow"
               aria-label="Hide document flow"
             >
-              ❮
             </button>
           )}
           {isFlowPanelHidden && (
@@ -1701,11 +1784,11 @@ function App() {
               style={{
                 position: "relative",
                 zIndex: 101,
-                width: "24px",
+                width: "8px",
                 height: "40px",
                 padding: "0",
-                background: "var(--color-info)",
-                border: "1px solid var(--color-info)",
+                background: "var(--color-success)",
+                border: "1px solid var(--color-success)",
                 borderRadius: "4px",
                 cursor: "pointer",
                 fontSize: "12px",
@@ -1717,17 +1800,16 @@ function App() {
                 transition: "all 0.2s",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--color-info-dark)";
+                e.currentTarget.style.background = "var(--color-success-dark)";
                 e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--color-info)";
+                e.currentTarget.style.background = "var(--color-success)";
                 e.currentTarget.style.boxShadow = "none";
               }}
               title="Show document flow"
               aria-label="Show document flow"
             >
-              ❯
             </button>
           )}
         </div>
