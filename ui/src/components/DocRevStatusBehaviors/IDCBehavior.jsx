@@ -1,7 +1,14 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-const IDCBehavior = ({ infoActiveSubTab, onSubTabChange }) => {
+const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange }) => {
+  const docName = selectedDoc ? `${selectedDoc.doc_name_unique || selectedDoc.title || "Document"}` : "No document selected";
+  const docInfo = selectedDoc ? {
+    type: selectedDoc.doc_type_name || "N/A",
+    area: selectedDoc.area_name || "N/A",
+    discipline: selectedDoc.discipline_name || "N/A",
+  } : null;
+
   return (
     <>
       <div className="flow-subtabs" style={{ display: "flex" }}>
@@ -18,11 +25,18 @@ const IDCBehavior = ({ infoActiveSubTab, onSubTabChange }) => {
         ))}
       </div>
       <div className="flow-section">
+        <div style={{ fontSize: "12px", color: "var(--color-text-muted)", marginBottom: "12px" }}>
+          <strong>{docName}</strong>
+        </div>
+        {docInfo && (
+          <div style={{ fontSize: "11px", color: "var(--color-text-subtle)", marginBottom: "12px" }}>
+            <div>Type: {docInfo.type}</div>
+            <div>Area: {docInfo.area}</div>
+            <div>Discipline: {docInfo.discipline}</div>
+          </div>
+        )}
         {infoActiveSubTab === "Comments" ? (
           <>
-            <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
-              Not document owner or in Distribution list.
-            </div>
             <div className="flow-box">
               <h4>Original Files</h4>
               <div style={{ fontSize: "13px", color: "var(--color-text-subtle)" }}>
@@ -83,6 +97,14 @@ const IDCBehavior = ({ infoActiveSubTab, onSubTabChange }) => {
 };
 
 IDCBehavior.propTypes = {
+  selectedDoc: PropTypes.shape({
+    doc_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    doc_name_unique: PropTypes.string,
+    title: PropTypes.string,
+    doc_type_name: PropTypes.string,
+    area_name: PropTypes.string,
+    discipline_name: PropTypes.string,
+  }),
   infoActiveSubTab: PropTypes.string.isRequired,
   onSubTabChange: PropTypes.func.isRequired,
 };

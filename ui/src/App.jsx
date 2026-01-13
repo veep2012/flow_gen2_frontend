@@ -421,15 +421,19 @@ function App() {
   const handleUploadFiles = React.useCallback(
     async (files, statusKey) => {
       const list = Array.from(files || []);
-      if (!list.length || !statusKey) return;
+      if (!list.length || !statusKey || !selectedDocId) return;
 
       // TODO: This would require knowing the current revision ID to upload
       // For now, store file names locally (not uploaded to backend yet)
       const fileNames = list.map((f) => f.name);
 
+      // Store files by document ID and status key
       setUploadedFiles((prev) => ({
         ...prev,
-        [statusKey]: [...(prev[statusKey] || []), ...fileNames],
+        [selectedDocId]: {
+          ...(prev[selectedDocId] || {}),
+          [statusKey]: [...((prev[selectedDocId]?.[statusKey]) || []), ...fileNames],
+        },
       }));
 
       // Auto-expand the revision tree
@@ -438,7 +442,7 @@ function App() {
         [statusKey]: { ...prev[statusKey], isOpen: true },
       }));
     },
-    [],
+    [selectedDocId],
   );
 
   const handleUploadDrop = React.useCallback(
@@ -1468,6 +1472,7 @@ function App() {
                             fallback={<div className="flow-empty">Loading behavior…</div>}
                           >
                             <Behavior
+                              selectedDoc={selectedDoc}
                               behaviorName={behaviorName}
                               behaviorFile={behaviorFile}
                               statusKey={statusKey}

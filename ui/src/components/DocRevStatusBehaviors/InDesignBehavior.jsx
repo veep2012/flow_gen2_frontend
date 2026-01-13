@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 
 const InDesignBehavior = ({
+  selectedDoc,
   statusKey,
   uploadedFiles,
   expandedRevisions,
@@ -13,11 +14,24 @@ const InDesignBehavior = ({
   onFileSelect,
   onOpenFile,
 }) => {
-  const files = uploadedFiles[statusKey] || [];
+  // Get files for the current document and status
+  const docId = selectedDoc?.doc_id;
+  const files = (docId && uploadedFiles[docId]?.[statusKey]) || [];
   const dragProps = uploadDragProps(statusKey);
+  const docName = selectedDoc ? `${selectedDoc.doc_name_unique || selectedDoc.title || "Document"}` : "No document selected";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "8px", minHeight: 0 }}>
+      {/* Document info header */}
+      <div style={{ fontSize: "11px", color: "var(--color-text-subtle)", padding: "8px 0", borderBottom: "1px solid var(--color-border)" }}>
+        <strong>{docName}</strong>
+        {selectedDoc && (
+          <>
+            <div>Revision: {selectedDoc.rev_code_name || "N/A"}</div>
+            <div>Progress: {selectedDoc.percentage !== null ? `${selectedDoc.percentage}%` : "N/A"}</div>
+          </>
+        )}
+      </div>
       {/* File list area - takes remaining space and scrolls */}
       <div style={{ flex: 1, overflow: "auto", padding: "8px 0", minHeight: 0 }}>
         {files.length > 0 ? (
@@ -130,6 +144,11 @@ const InDesignBehavior = ({
 };
 
 InDesignBehavior.propTypes = {
+  selectedDoc: PropTypes.shape({
+    doc_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    doc_name_unique: PropTypes.string,
+    title: PropTypes.string,
+  }),
   statusKey: PropTypes.string.isRequired,
   uploadedFiles: PropTypes.objectOf(PropTypes.arrayOf(PropTypes.string)).isRequired,
   expandedRevisions: PropTypes.objectOf(
