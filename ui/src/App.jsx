@@ -99,6 +99,7 @@ function App() {
   const [hideWindowsOnDrag, setHideWindowsOnDrag] = React.useState(false);
   const [uploadedFiles, setUploadedFiles] = React.useState({});
   const [expandedRevisions, setExpandedRevisions] = React.useState({});
+  const [statusMenuOpen, setStatusMenuOpen] = React.useState({});
   const containerRef = React.useRef(null);
   const leftPanelRef = React.useRef(null);
   const hasInitializedFlowRef = React.useRef(false);
@@ -1649,39 +1650,133 @@ function App() {
                   const statusKey = String(status.rev_status_id);
                   const isActive = infoActiveStep === statusKey;
                   const panelId = `flow-panel-${statusKey}`;
+                  const isMenuOpen = statusMenuOpen[statusKey] || false;
 
                   return (
                     <React.Fragment key={status.rev_status_id}>
-                      <button
-                        type="button"
-                        className={`flow-step ${isActive ? "active" : ""}`}
-                        aria-expanded={isActive}
-                        aria-controls={panelId}
-                        data-ui-behavior={behaviorFile || "default"}
-                        data-final={status.final ? "true" : "false"}
-                        onClick={() => {
-                          if (isActive) {
-                            setInfoActiveStep(null);
-                            return;
-                          }
-                          setInfoActiveStep(statusKey);
-                          setInfoActiveSubTab("Comments");
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          position: "relative",
                         }}
                       >
-                        <span className="dot">
-                          {status.final ? (
-                            <span className="dot__inner" aria-hidden="true" />
-                          ) : (
-                            <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-                              <path d="M6 7.5 L9 10.5 L12 7.5" />
-                            </svg>
-                          )}
-                        </span>
-                        <span className="flow-step__label">{status.rev_status_name}</span>
-                        <span className="flow-step__behavior">
-                          {behaviorFileLabel || "Default"}
-                        </span>
-                      </button>
+                        <button
+                          type="button"
+                          className={`flow-step ${isActive ? "active" : ""}`}
+                          aria-expanded={isActive}
+                          aria-controls={panelId}
+                          data-ui-behavior={behaviorFile || "default"}
+                          data-final={status.final ? "true" : "false"}
+                          onClick={() => {
+                            if (isActive) {
+                              setInfoActiveStep(null);
+                              return;
+                            }
+                            setInfoActiveStep(statusKey);
+                            setInfoActiveSubTab("Comments");
+                          }}
+                          style={{ flex: 1 }}
+                        >
+                          <span className="dot">
+                            {status.final ? (
+                              <span className="dot__inner" aria-hidden="true" />
+                            ) : (
+                              <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
+                                <path d="M6 7.5 L9 10.5 L12 7.5" />
+                              </svg>
+                            )}
+                          </span>
+                          <span className="flow-step__label">{status.rev_status_name}</span>
+                          <span className="flow-step__behavior">
+                            {behaviorFileLabel || "Default"}
+                          </span>
+                        </button>
+                        {isActive && (
+                          <div
+                            style={{
+                              position: "relative",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setStatusMenuOpen((prev) => ({
+                                  ...prev,
+                                  [statusKey]: !isMenuOpen,
+                                }));
+                              }}
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: "6px 4px",
+                                fontSize: "16px",
+                                color: "var(--color-text-muted)",
+                                transition: "color 0.2s",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.color = "var(--color-text)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.color = "var(--color-text-muted)";
+                              }}
+                              title="Status menu"
+                              aria-label="Status menu"
+                            >
+                              ⋮
+                            </button>
+                            {isMenuOpen && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "100%",
+                                  right: 0,
+                                  background: "var(--color-surface)",
+                                  border: "1px solid var(--color-border)",
+                                  borderRadius: "6px",
+                                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                                  minWidth: "180px",
+                                  zIndex: 1000,
+                                  marginTop: "4px",
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm(`Issue "${status.rev_status_name}" to IDC?`)) {
+                                      alert(`Status "${status.rev_status_name}" issued to IDC`);
+                                    }
+                                    setStatusMenuOpen((prev) => ({ ...prev, [statusKey]: false }));
+                                  }}
+                                  style={{
+                                    display: "block",
+                                    width: "100%",
+                                    padding: "10px 16px",
+                                    background: "transparent",
+                                    border: "none",
+                                    textAlign: "left",
+                                    cursor: "pointer",
+                                    fontSize: "13px",
+                                    color: "var(--color-text)",
+                                    transition: "background 0.2s",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = "var(--color-background)";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = "transparent";
+                                  }}
+                                >
+                                  📤 Issue to IDC
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                       {isActive && (
                         <div
                           id={panelId}
