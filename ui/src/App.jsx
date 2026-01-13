@@ -1825,11 +1825,6 @@ function App() {
           <div className="flow-card" style={{ flex: 1 }}>
             <div className="flow-header">
               DOCUMENT FLOW
-              {selectedDoc && (
-                <div style={{ fontSize: "12px", fontWeight: "normal", marginTop: "4px" }}>
-                  {selectedDoc.doc_name_unique || selectedDoc.title || "Document"}
-                </div>
-              )}
             </div>
             <div className="flow-body">
               {revStatusLoading ? (
@@ -1921,10 +1916,13 @@ function App() {
                                 transition: "color 0.2s",
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.color = "var(--color-text)";
+                                e.currentTarget.style.color = "white";
+                                e.currentTarget.style.background = "var(--color-info)";
+                                e.currentTarget.style.borderRadius = "4px";
                               }}
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.color = "var(--color-text-muted)";
+                                e.currentTarget.style.background = "transparent";
                               }}
                               title="Status menu"
                               aria-label="Status menu"
