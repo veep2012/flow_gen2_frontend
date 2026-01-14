@@ -259,11 +259,7 @@ def insert_commented_file(
         HTTPException: 404 if file or user not found.
         HTTPException: 413 if file exceeds size limit.
     """
-    try:
-        file_row = db.get(File, file_id)
-    except DataError:
-        db.rollback()
-        raise HTTPException(status_code=404, detail="File not found")
+    file_row = db.get(File, file_id)
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
 
