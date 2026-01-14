@@ -116,7 +116,7 @@ def _validate_mimetype(file_extension: str, content_type: str, expected_mimetype
 
 
 @router.get(
-    "/list",
+    "",
     summary="List all files for a specific revision.",
     description="Returns a list of all files associated with the specified document revision.",
     operation_id="list_files_for_revision",
@@ -528,7 +528,7 @@ def delete_file_rest(id: int, request: Request, db: Session = Depends(get_db)) -
 
 
 @router.get(
-    "/download",
+    "/{file_id}/download",
     summary="Download a file.",
     description=(
         "Streams a file from MinIO object storage to the client with proper headers for download "
@@ -596,8 +596,8 @@ def delete_file_rest(id: int, request: Request, db: Session = Depends(get_db)) -
     },
 )
 def download_file(
+    file_id: int,
     request: Request,
-    file_id: int = Query(..., description="File ID to download"),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     """
