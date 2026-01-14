@@ -99,6 +99,12 @@ class DocOut(BaseModel):
     rev_code_acronym: str | None = Field(
         None, description="Revision code acronym.", examples=["ABC"], min_length=1
     )
+    rev_status_id: int | None = Field(
+        None, description="Revision status ID.", examples=[1], gt=0
+    )
+    rev_status_name: str | None = Field(
+        None, description="Revision status name.", examples=["Issued"], min_length=1
+    )
     percentage: int | None = Field(
         None, description="Completion percentage.", examples=[50], ge=0, le=100
     )

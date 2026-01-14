@@ -11,6 +11,7 @@ from api.db.models import (
     Discipline,
     Doc,
     DocRevision,
+    DocRevStatus,
     DocRevMilestone,
     DocType,
     Jobpack,
@@ -332,7 +333,16 @@ def list_documents_for_project(
     rev_current = aliased(DocRevision)
     docs = (
         db.query(
-            Doc, DocType, Discipline, Project, Jobpack, Area, Unit, rev_current, RevisionOverview
+            Doc,
+            DocType,
+            Discipline,
+            Project,
+            Jobpack,
+            Area,
+            Unit,
+            rev_current,
+            RevisionOverview,
+            DocRevStatus,
         )
         .join(DocType, Doc.type_id == DocType.type_id)
         .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
@@ -342,6 +352,7 @@ def list_documents_for_project(
         .outerjoin(Unit, Doc.unit_id == Unit.unit_id)
         .outerjoin(rev_current, Doc.rev_current_id == rev_current.rev_id)
         .outerjoin(RevisionOverview, rev_current.rev_code_id == RevisionOverview.rev_code_id)
+        .outerjoin(DocRevStatus, rev_current.rev_status_id == DocRevStatus.rev_status_id)
         .filter(Doc.project_id == project_id)
         .order_by(Doc.doc_name_unique)
         .all()
@@ -373,6 +384,8 @@ def list_documents_for_project(
             discipline_acronym=discipline.discipline_acronym,
             rev_code_name=revision_overview.rev_code_name if revision_overview else None,
             rev_code_acronym=revision_overview.rev_code_acronym if revision_overview else None,
+            rev_status_id=rev_status.rev_status_id if rev_status else None,
+            rev_status_name=rev_status.rev_status_name if rev_status else None,
             percentage=revision_overview.percentage if revision_overview else None,
         )
         for (
@@ -385,6 +398,7 @@ def list_documents_for_project(
             unit,
             rev_current_row,
             revision_overview,
+            rev_status,
         ) in docs
     ]
 
@@ -548,6 +562,7 @@ def update_document(
     unit = doc_row.unit
     rev_current_row = doc_row.current_revision
     revision_overview = rev_current_row.revision_overview if rev_current_row else None
+    rev_status = rev_current_row.status if rev_current_row else None
 
     return DocOut(
         doc_id=doc_row.doc_id,
@@ -573,6 +588,8 @@ def update_document(
         discipline_acronym=discipline.discipline_acronym if discipline else None,
         rev_code_name=revision_overview.rev_code_name if revision_overview else None,
         rev_code_acronym=revision_overview.rev_code_acronym if revision_overview else None,
+        rev_status_id=rev_status.rev_status_id if rev_status else None,
+        rev_status_name=rev_status.rev_status_name if rev_status else None,
         percentage=revision_overview.percentage if revision_overview else None,
     )
 
