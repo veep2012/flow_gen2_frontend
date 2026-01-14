@@ -14,13 +14,13 @@ Shape (single item):
 { "area_id": 1, "area_name": "Newfoundland", "area_acronym": "NFLD" }
 ```
 ### List
-- `GET /api/v1/lookups/areas` — 200 sorted by `area_name`; 404 if empty.
+- `GET /api/v1/lookups/areas` — 200 sorted by `area_name`; empty list if no areas.
 - Example response:
 ```json
 [ { "area_id": 1, "area_name": "Newfoundland", "area_acronym": "NFLD" } ]
 ```
-### Insert
-- `POST /api/v1/lookups/areas/insert` — 201; 400 on uniqueness.
+### Create
+- `POST /api/v1/lookups/areas` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "area_name": "Newfoundland", "area_acronym": "NFLD" }
@@ -30,17 +30,13 @@ Shape (single item):
 { "area_id": 1, "area_name": "Newfoundland", "area_acronym": "NFLD" }
 ```
 ### Update
-- `PUT /api/v1/lookups/areas/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- `PUT /api/v1/lookups/areas/{area_id}` — 200; 400 if no fields/uniqueness/ID mismatch; 404 if not found.
 - Body (at least one optional field):
 ```json
 { "area_id": 1, "area_name": "Updated Name", "area_acronym": "UPD" }
 ```
 ### Delete
-- `DELETE /api/v1/lookups/areas/delete` — 204; 404 if not found.
-- Body:
-```json
-{ "area_id": 1 }
-```
+- `DELETE /api/v1/lookups/areas/{area_id}` — 204; 404 if not found.
 
 ## Disciplines
 Shape (single item):
@@ -53,24 +49,20 @@ Shape (single item):
 ```json
 [ { "discipline_id": 2, "discipline_name": "Piping", "discipline_acronym": "PIP" } ]
 ```
-### Insert
-- `POST /api/v1/lookups/disciplines/insert` — 201; 400 on uniqueness.
+### Create
+- `POST /api/v1/lookups/disciplines` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "discipline_name": "Structural", "discipline_acronym": "STR" }
 ```
 ### Update
-- `PUT /api/v1/lookups/disciplines/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- `PUT /api/v1/lookups/disciplines/{discipline_id}` — 200; 400 if no fields/uniqueness/ID mismatch; 404 if not found.
 - Body:
 ```json
 { "discipline_id": 2, "discipline_name": "Piping", "discipline_acronym": "PIP" }
 ```
 ### Delete
-- `DELETE /api/v1/lookups/disciplines/delete` — 204; 404 if not found.
-- Body:
-```json
-{ "discipline_id": 2 }
-```
+- `DELETE /api/v1/lookups/disciplines/{discipline_id}` — 204; 404 if not found.
 
 ## Projects
 Shape (single item):
@@ -83,24 +75,20 @@ Shape (single item):
 ```json
 [ { "project_id": 3, "project_name": "Delta Expansion" } ]
 ```
-### Insert
-- `POST /api/v1/lookups/projects/insert` — 201; 400 on uniqueness.
+### Create
+- `POST /api/v1/lookups/projects` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "project_name": "Delta Expansion" }
 ```
 ### Update
-- `PUT /api/v1/lookups/projects/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+- `PUT /api/v1/lookups/projects/{project_id}` — 200; 400 if no fields/uniqueness/ID mismatch; 404 if not found.
 - Body:
 ```json
 { "project_id": 3, "project_name": "Updated Project" }
 ```
 ### Delete
-- `DELETE /api/v1/lookups/projects/delete` — 204; 404 if not found.
-- Body:
-```json
-{ "project_id": 3 }
-```
+- `DELETE /api/v1/lookups/projects/{project_id}` — 204; 404 if not found.
 
 ## Units
 Shape (single item):
@@ -113,24 +101,20 @@ Shape (single item):
 ```json
 [ { "unit_id": 2, "unit_name": "North Wing" } ]
 ```
-### Insert
-- `POST /api/v1/lookups/units/insert` — 201; 400 on uniqueness.
+### Create
+- `POST /api/v1/lookups/units` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "unit_name": "North Wing" }
 ```
 ### Update
-- `PUT /api/v1/lookups/units/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+- `PUT /api/v1/lookups/units/{unit_id}` — 200; 400 if no fields/uniqueness/ID mismatch; 404 if not found.
 - Body:
 ```json
 { "unit_id": 2, "unit_name": "Main Floor" }
 ```
 ### Delete
-- `DELETE /api/v1/lookups/units/delete` — 204; 404 if not found.
-- Body:
-```json
-{ "unit_id": 2 }
-```
+- `DELETE /api/v1/lookups/units/{unit_id}` — 204; 404 if not found.
 
 ## Jobpacks
 Shape (single item):
@@ -143,24 +127,20 @@ Shape (single item):
 ```json
 [ { "jobpack_id": 5, "jobpack_name": "JP-01" } ]
 ```
-### Insert
-- `POST /api/v1/lookups/jobpacks/insert` — 201; 400 on uniqueness.
+### Create
+- `POST /api/v1/lookups/jobpacks` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "jobpack_name": "JP-01" }
 ```
 ### Update
-- `PUT /api/v1/lookups/jobpacks/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+- `PUT /api/v1/lookups/jobpacks/{jobpack_id}` — 200; 400 if no fields/uniqueness/ID mismatch; 404 if not found.
 - Body:
 ```json
 { "jobpack_id": 5, "jobpack_name": "JP-01B" }
 ```
 ### Delete
-- `DELETE /api/v1/lookups/jobpacks/delete` — 204; 404 if not found.
-- Body:
-```json
-{ "jobpack_id": 5 }
-```
+- `DELETE /api/v1/lookups/jobpacks/{jobpack_id}` — 204; 404 if not found.
 
 ## Doc revision milestones
 Shape (single item):
@@ -173,24 +153,20 @@ Shape (single item):
 ```json
 [ { "milestone_id": 4, "milestone_name": "IFC", "progress": 90 } ]
 ```
-### Insert
-- `POST /api/v1/documents/doc_rev_milestones/insert` — 201; 400 on uniqueness.
+### Create
+- `POST /api/v1/documents/doc_rev_milestones` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "milestone_name": "Issued for Construction", "progress": 80 }
 ```
 ### Update
-- `PUT /api/v1/documents/doc_rev_milestones/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- `PUT /api/v1/documents/doc_rev_milestones/{milestone_id}` — 200; 400 if no fields/uniqueness/ID mismatch; 404 if not found.
 - Body:
 ```json
 { "milestone_id": 4, "milestone_name": "IFC", "progress": 90 }
 ```
 ### Delete
-- `DELETE /api/v1/documents/doc_rev_milestones/delete` — 204; 404 if not found.
-- Body:
-```json
-{ "milestone_id": 4 }
-```
+- `DELETE /api/v1/documents/doc_rev_milestones/{milestone_id}` — 204; 404 if not found.
 
 ## Revision overview
 Shape (single item):
@@ -209,8 +185,8 @@ Shape (single item):
 ```json
 [ { "rev_code_id": 5, "rev_code_name": "IFC", "rev_code_acronym": "E", "rev_description": "Issued for Construction", "percentage": 90 } ]
 ```
-### Insert
-- `POST /api/v1/documents/revision_overview/insert` — 201; 400 on uniqueness.
+### Create
+- `POST /api/v1/documents/revision_overview` — 201; 400 on uniqueness.
 - Body:
 ```json
 {
@@ -221,7 +197,7 @@ Shape (single item):
 }
 ```
 ### Update
-- `PUT /api/v1/documents/revision_overview/update` — 200; 400 if no fields/uniqueness; 404 if not found.
+- `PUT /api/v1/documents/revision_overview/{rev_code_id}` — 200; 400 if no fields/uniqueness/ID mismatch; 404 if not found.
 - Body:
 ```json
 {
@@ -233,11 +209,33 @@ Shape (single item):
 }
 ```
 ### Delete
-- `DELETE /api/v1/documents/revision_overview/delete` — 204; 404 if not found.
+- `DELETE /api/v1/documents/revision_overview/{rev_code_id}` — 204; 404 if not found.
+
+## Doc revision status UI behaviors
+Shape (single item):
+```json
+{ "ui_behavior_id": 1, "ui_behavior_name": "Default", "ui_behavior_file": "default.json" }
+```
+### List
+- `GET /api/v1/lookups/doc_rev_status_ui_behaviors` — 200 sorted by `ui_behavior_name`; 404 if empty.
+- Example response:
+```json
+[ { "ui_behavior_id": 1, "ui_behavior_name": "Default", "ui_behavior_file": "default.json" } ]
+```
+### Create
+- `POST /api/v1/lookups/doc_rev_status_ui_behaviors` — 201; 400 on uniqueness.
 - Body:
 ```json
-{ "rev_code_id": 5 }
+{ "ui_behavior_name": "Default", "ui_behavior_file": "default.json" }
 ```
+### Update
+- `PUT /api/v1/lookups/doc_rev_status_ui_behaviors/{ui_behavior_id}` — 200; 400 if no fields/uniqueness/ID mismatch; 404 if not found.
+- Body:
+```json
+{ "ui_behavior_id": 1, "ui_behavior_name": "Updated Behavior", "ui_behavior_file": "updated.json" }
+```
+### Delete
+- `DELETE /api/v1/lookups/doc_rev_status_ui_behaviors/{ui_behavior_id}` — 204; 404 if not found.
 
 ## Doc revision statuses
 Shape (single item):
@@ -250,14 +248,20 @@ Shape (single item):
 ```json
 [ { "rev_status_id": 2, "rev_status_name": "In review" } ]
 ```
-### Insert
-- `POST /api/v1/lookups/doc_rev_statuses/insert` — 201; 400 on uniqueness.
+### Create
+- `POST /api/v1/lookups/doc_rev_statuses` — 201; 400 on uniqueness or invalid state (final status with next_status, non-final without next_status, final with editable/revertible).
 - Body:
 ```json
 { "rev_status_name": "In review" }
 ```
 ### Update
-- `PUT /api/v1/lookups/doc_rev_statuses/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+- `PUT /api/v1/lookups/doc_rev_statuses/{rev_status_id}` — 200; 400 if no fields/uniqueness/ID mismatch/invalid state; 404 if not found.
+- Body:
+```json
+{ "rev_status_id": 2, "rev_status_name": "In progress" }
+```
+### Delete
+- `DELETE /api/v1/lookups/doc_rev_statuses/{rev_status_id}` — 204; 404 if not found.
 
 # Files
 
@@ -273,26 +277,25 @@ Shape (single item):
 ```
 
 ### List
-- `GET /api/v1/files/list?rev_id=45` — 200 sorted by `filename`; empty list if none.
+- `GET /api/v1/files?rev_id=45` — 200 sorted by `filename`; empty list if none.
 
-### Insert (multipart)
-- `POST /api/v1/files/insert` — 201; multipart form.
+### Create (multipart)
+- `POST /api/v1/files` — 201; multipart form.
 - Form fields: `rev_id` (int), `file` (binary).
 - Response: file shape.
 
-### Delete
-- `DELETE /api/v1/files/delete` — 204; deletes MinIO object and DB row.
+### Update
+- `PUT /api/v1/files/{id}` — 200; updates filename; 404 if not found.
 - Body:
 ```json
-{ "id": 12 }
+{ "id": 12, "filename": "new_report.pdf" }
 ```
 
+### Delete
+- `DELETE /api/v1/files/{id}` — 204; deletes MinIO object and DB row; 404 if not found.
+
 ### Download
-- `GET /api/v1/files/download?file_id=12` — streams the file with `Content-Disposition: attachment` and `ETag`/`Last-Modified`.
-- Body:
-```json
-{ "rev_status_id": 2, "rev_status_name": "In progress" }
-```
+- `GET /api/v1/files/{file_id}/download` — streams the file with `Content-Disposition: attachment` and `ETag`/`Last-Modified`.
 
 # Files (commented)
 
@@ -312,27 +315,17 @@ Shape (single item):
 ### List
 - `GET /api/v1/files/commented/list?file_id=12` — 200; optional `user_id` filter.
 
-### Insert (multipart)
-- `POST /api/v1/files/commented/insert` — 201; multipart form.
+### Create (multipart)
+- `POST /api/v1/files/commented` — 201; multipart form.
 - Form fields: `file_id` (int), `user_id` (int), `file` (binary).
 - Validates mimetype against the original file; rejects duplicates per `(file_id, user_id)`.
 
 ### Delete
-- `DELETE /api/v1/files/commented/delete` — 204; deletes MinIO object and DB row.
-- Body:
-```json
-{ "id": 3 }
-```
+- `DELETE /api/v1/files/commented/{id}` — 204; deletes MinIO object and DB row; 404 if not found.
 
 ### Download
 - `GET /api/v1/files/commented/download?file_id=3` — streams the commented file.
 - `Content-Disposition` filename is `<original>_commented_by_<user_acronym>`.
-### Delete
-- `DELETE /api/v1/lookups/doc_rev_statuses/delete` — 204; 404 if not found.
-- Body:
-```json
-{ "rev_status_id": 2 }
-```
 
 # Persons/users/permissions
 
@@ -347,24 +340,20 @@ Shape (single item):
 ```json
 [ { "role_id": 10, "role_name": "Coordinator" } ]
 ```
-### Insert
-- `POST /api/v1/people/roles/insert` — 201; 400 on uniqueness.
+### Create
+- `POST /api/v1/people/roles` — 201; 400 on uniqueness.
 - Body:
 ```json
 { "role_name": "Coordinator" }
 ```
 ### Update
-- `PUT /api/v1/people/roles/update` — 200; 400 if missing fields/uniqueness; 404 if not found.
+- `PUT /api/v1/people/roles/{role_id}` — 200; 400 if no fields/uniqueness/ID mismatch; 404 if not found.
 - Body:
 ```json
 { "role_id": 10, "role_name": "Lead Coordinator" }
 ```
 ### Delete
-- `DELETE /api/v1/people/roles/delete` — 204; 404 if not found.
-- Body:
-```json
-{ "role_id": 10 }
-```
+- `DELETE /api/v1/people/roles/{role_id}` — 204; 404 if not found.
 
 ## People
 Shape (single item):
@@ -377,24 +366,20 @@ Shape (single item):
 ```json
 [ { "person_id": 12, "person_name": "Ada Lovelace", "photo_s3_uid": "s3-key-123" } ]
 ```
-### Insert
-- `POST /api/v1/people/persons/insert` — 201; 400 on insert failure.
+### Create
+- `POST /api/v1/people/persons` — 201; 400 on insert failure.
 - Body:
 ```json
 { "person_name": "Ada Lovelace", "photo_s3_uid": "s3-key-123" }
 ```
 ### Update
-- `PUT /api/v1/people/persons/update` — 200; 400 if no fields; 404 if not found.
+- `PUT /api/v1/people/persons/{person_id}` — 200; 400 if no fields/ID mismatch; 404 if not found.
 - Body:
 ```json
 { "person_id": 12, "person_name": "Grace Hopper", "photo_s3_uid": null }
 ```
 ### Delete
-- `DELETE /api/v1/people/persons/delete` — 204; 404 if not found.
-- Body:
-```json
-{ "person_id": 12 }
-```
+- `DELETE /api/v1/people/persons/{person_id}` — 204; 404 if not found.
 
 ## Users
 Shape (single item):
@@ -414,24 +399,20 @@ Shape (single item):
 ```json
 [ { "user_id": 7, "person_id": 12, "user_acronym": "ALV", "role_id": 3, "person_name": "Ada Lovelace", "role_name": "Coordinator" } ]
 ```
-### Insert
-- `POST /api/v1/people/users/insert` — 201; 400 on insert failure; 404 if person/role missing.
+### Create
+- `POST /api/v1/people/users` — 201; 400 on insert failure; 404 if person/role missing.
 - Body:
 ```json
 { "person_id": 12, "user_acronym": "ALV", "role_id": 3 }
 ```
 ### Update
-- `PUT /api/v1/people/users/update` — 200; 400 if no fields/update fails; 404 if user/person/role missing.
+- `PUT /api/v1/people/users/{user_id}` — 200; 400 if no fields/update fails/ID mismatch; 404 if user/person/role missing.
 - Body:
 ```json
 { "user_id": 7, "person_id": 12, "user_acronym": "ALV2", "role_id": 4 }
 ```
 ### Delete
-- `DELETE /api/v1/people/users/delete` — 204; 404 if not found.
-- Body:
-```json
-{ "user_id": 7 }
-```
+- `DELETE /api/v1/people/users/{user_id}` — 204; 404 if not found.
 
 ## Permissions
 Shape (single item):
@@ -454,14 +435,14 @@ At least one of `project_id` or `discipline_id` is required.
 ```json
 [ { "permission_id": 42, "user_id": 7, "project_id": 3, "discipline_id": 2, "user_acronym": "ALV", "person_name": "Ada Lovelace", "project_name": "Delta Expansion", "discipline_name": "Piping" } ]
 ```
-### Insert
-- `POST /api/v1/people/permissions/insert` — 201; 400 if duplicate or scope missing; 404 if user/project/discipline missing.
+### Create
+- `POST /api/v1/people/permissions` — 201; 400 if duplicate or scope missing; 404 if user/project/discipline missing.
 - Body (at least one scope):
 ```json
 { "user_id": 7, "project_id": 3, "discipline_id": 2 }
 ```
 ### Update
-- `PUT /api/v1/people/permissions/update` — 200; 400 if no new scope/duplicate; 404 if missing references or permission.
+- `PUT /api/v1/people/permissions/{permission_id}` — 200; 400 if no new scope/duplicate/ID mismatch; 404 if missing references or permission.
 - Body (permission_id or current scope plus new scope):
 ```json
 {
@@ -474,7 +455,7 @@ At least one of `project_id` or `discipline_id` is required.
 }
 ```
 ### Delete
-- `DELETE /api/v1/people/permissions/delete` — 204; 400 if scope missing; 404 if not found.
+- `DELETE /api/v1/people/permissions/{permission_id}` — 204; 400 if scope missing; 404 if not found.
 - Body (permission_id or scope):
 ```json
 { "permission_id": 42, "user_id": 7, "project_id": 3, "discipline_id": 2 }
@@ -500,14 +481,14 @@ Shape (single item):
 ```json
 [ { "type_id": 7, "doc_type_name": "Piping Iso", "ref_discipline_id": 2, "doc_type_acronym": "ISO", "discipline_name": "Piping", "discipline_acronym": "PIP" } ]
 ```
-### Insert
-- `POST /api/v1/documents/doc_types/insert` — 201; 400 on uniqueness; 404 if discipline missing.
+### Create
+- `POST /api/v1/documents/doc_types` — 201; 400 on uniqueness; 404 if discipline missing.
 - Body:
 ```json
 { "doc_type_name": "Piping Iso", "ref_discipline_id": 2, "doc_type_acronym": "ISO" }
 ```
 ### Update
-- `PUT /api/v1/documents/doc_types/update` — 200; 400 if no fields/uniqueness; 404 if doc type or discipline missing.
+- `PUT /api/v1/documents/doc_types/{type_id}` — 200; 400 if no fields/uniqueness/ID mismatch; 404 if doc type or discipline missing.
 - Body:
 ```json
 {
@@ -518,17 +499,13 @@ Shape (single item):
 }
 ```
 ### Delete
-- `DELETE /api/v1/documents/doc_types/delete` — 204; 404 if not found.
-- Body:
-```json
-{ "type_id": 7 }
-```
+- `DELETE /api/v1/documents/doc_types/{type_id}` — 204; 404 if not found.
 
 ## Documents
 Shape (single item) includes doc, linked names, and discipline/progress pointers:
 `doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `rev_seq_num`, `discipline_id`/`discipline_name`/`discipline_acronym`, `rev_code_name`, `rev_code_acronym`, `percentage`.
-- `GET /api/v1/documents/list?project_id=` — 200 ordered by `doc_name_unique`; 404 if none for the project. Requires `project_id` query param.
-- `PUT /api/v1/documents/update` — updates a document; body includes `doc_id` plus any of: `doc_name_unique`, `title`, `project_id`, `jobpack_id`, `type_id`, `area_id`, `unit_id`, `rev_actual_id`, `rev_current_id`. Requires at least one updatable field. Validates references (project, jobpack, type, area, unit, revisions) and uniqueness of `doc_name_unique`. Returns the updated document.
+### List
+- `GET /api/v1/documents?project_id=` — 200 ordered by `doc_name_unique`; 404 if none for the project. Requires `project_id` query param.
 - Example response:
 ```json
 [
@@ -561,6 +538,10 @@ Shape (single item) includes doc, linked names, and discipline/progress pointers
   }
 ]
 ```
+### Update
+- `PUT /api/v1/documents/{doc_id}` — 200; updates a document; 400 if no fields/uniqueness/ID mismatch; 404 if doc or references not found.
+- Body includes `doc_id` plus any of: `doc_name_unique`, `title`, `project_id`, `jobpack_id`, `type_id`, `area_id`, `unit_id`, `rev_actual_id`, `rev_current_id`. 
+- Requires at least one updatable field. Validates references (project, jobpack, type, area, unit, revisions) and uniqueness of `doc_name_unique`. Returns the updated document.
 
 ## Error responses
 - `400` — Validation failed (missing required fields, duplicate/uniqueness, duplicate permissions, etc.).
