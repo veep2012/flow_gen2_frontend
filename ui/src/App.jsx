@@ -112,6 +112,7 @@ function App() {
   const [editValues, setEditValues] = React.useState({ doc_name_unique: "", title: "" });
   const [saveError, setSaveError] = React.useState(null);
   const [saveStatus, setSaveStatus] = React.useState("idle");
+  const [selectedFileId, setSelectedFileId] = React.useState(null);
 
   const editingDoc = React.useMemo(
     () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === editRowId),
@@ -522,7 +523,21 @@ function App() {
     [handleUploadDrop],
   );
 
-  const handleOpenFile = React.useCallback(
+  // Handle file selection (single click)
+  const handleSelectFile = React.useCallback((file) => {
+    // Handle both string and object file formats
+    const fileName = typeof file === "string" ? file : file.name;
+    const fileId = typeof file === "object" ? file.fileId : null;
+    const documentNumber = typeof file === "object" ? file.documentNumber : null;
+    const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
+    
+    // Set the selected file ID for visual indication
+    setSelectedFileId(fileId ? `${fileId}-${fileName}` : fileName);
+    console.log(`File selected: ${displayName}`);
+  }, []);
+
+  // Handle file download (double click)
+  const handleDownloadFile = React.useCallback(
     async (file) => {
       // Handle both string and object file formats
       const fileName = typeof file === "string" ? file : file.name;
@@ -561,6 +576,9 @@ function App() {
     },
     [apiBase],
   );
+
+  // Keep handleOpenFile for backward compatibility, now just selects
+  const handleOpenFile = handleSelectFile;
 
   const handleDeleteFile = React.useCallback(
     async (file) => {
@@ -2016,8 +2034,10 @@ function App() {
                               onUploadClick={() => uploadInputRef.current?.click()}
                               uploadInputRef={uploadInputRef}
                               onFileSelect={handleUploadSelect}
-                              onOpenFile={handleOpenFile}
+                              onSelectFile={handleSelectFile}
+                              onDownloadFile={handleDownloadFile}
                               onDeleteFile={handleDeleteFile}
+                              selectedFileId={selectedFileId}
                             />
                           </React.Suspense>
                         </div>

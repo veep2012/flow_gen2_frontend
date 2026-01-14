@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { getFileIcon, getFileTypeLabel } from "../../utils/fileIcons";
 
-const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFiles, expandedRevisions, onRevisionToggle, onOpenFile }) => {
+const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFiles, expandedRevisions, onRevisionToggle, onSelectFile, onDownloadFile, selectedFileId }) => {
   const docName = selectedDoc ? `${selectedDoc.doc_name_unique || selectedDoc.title || "Document"}` : "No document selected";
   const docId = selectedDoc?.doc_id;
   const docInfo = selectedDoc ? {
@@ -157,27 +157,35 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={() => onOpenFile(file)}
+                                  onClick={() => onSelectFile(file)}
+                                  onDoubleClick={() => onDownloadFile(file)}
                                   style={{
                                     display: "flex",
                                     alignItems: "center",
                                     gap: "6px",
                                     padding: "4px 8px",
-                                    color: "var(--color-accent)",
-                                    background: "transparent",
-                                    border: "none",
+                                    color: selectedFileId === `${file.fileId}-${file.name}` || selectedFileId === fileName ? "var(--color-accent-hover)" : "var(--color-accent)",
+                                    background: selectedFileId === `${file.fileId}-${file.name}` || selectedFileId === fileName ? "rgba(59, 130, 246, 0.1)" : "transparent",
+                                    border: selectedFileId === `${file.fileId}-${file.name}` || selectedFileId === fileName ? "1px solid var(--color-accent)" : "none",
                                     cursor: "pointer",
                                     textAlign: "left",
                                     flex: 1,
-                                    transition: "color 0.2s",
+                                    transition: "all 0.2s",
+                                    borderRadius: "4px",
                                   }}
                                   onMouseEnter={(e) => {
-                                    e.currentTarget.style.color = "var(--color-accent-hover)";
+                                    if (selectedFileId !== `${file.fileId}-${file.name}` && selectedFileId !== fileName) {
+                                      e.currentTarget.style.color = "var(--color-accent-hover)";
+                                      e.currentTarget.style.background = "rgba(0,0,0,0.05)";
+                                    }
                                   }}
                                   onMouseLeave={(e) => {
-                                    e.currentTarget.style.color = "var(--color-accent)";
+                                    if (selectedFileId !== `${file.fileId}-${file.name}` && selectedFileId !== fileName) {
+                                      e.currentTarget.style.color = "var(--color-accent)";
+                                      e.currentTarget.style.background = "transparent";
+                                    }
                                   }}
-                                  title={`${fileTypeLabel} - Click to open ${displayName}`}
+                                  title={`${fileTypeLabel} - Click to select, double-click to download ${displayName}`}
                                 >
                                   <span>
                                     {typeof fileIcon === "string" && !fileIcon.includes(".") ? (
@@ -273,7 +281,9 @@ IDCBehavior.propTypes = {
   uploadedFiles: PropTypes.object,
   expandedRevisions: PropTypes.object,
   onRevisionToggle: PropTypes.func,
-  onOpenFile: PropTypes.func,
+  onSelectFile: PropTypes.func,
+  onDownloadFile: PropTypes.func,
+  selectedFileId: PropTypes.string,
 };
 
 export default IDCBehavior;
