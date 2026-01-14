@@ -36,8 +36,8 @@ app.add_middleware(
 app.include_router(system.router)
 app.include_router(lookups.router)
 app.include_router(documents.router)
-app.include_router(files.router)
 app.include_router(files_commented.router)
+app.include_router(files.router)
 app.include_router(people.router)
 
 

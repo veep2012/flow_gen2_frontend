@@ -12,7 +12,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, UploadFile
 from fastapi import File as UploadFileField
 from fastapi.responses import StreamingResponse
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
@@ -259,10 +259,19 @@ def insert_commented_file(
         HTTPException: 404 if file or user not found.
         HTTPException: 413 if file exceeds size limit.
     """
-    file_row = db.get(File, file_id)
+    try:
+        file_row = db.get(File, file_id)
+    except DataError:
+        db.rollback()
+        raise HTTPException(status_code=404, detail="File not found")
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
-    user_row = db.get(User, user_id)
+
+    try:
+        user_row = db.get(User, user_id)
+    except DataError:
+        db.rollback()
+        raise HTTPException(status_code=404, detail="User not found")
     if not user_row:
         raise HTTPException(status_code=404, detail="User not found")
 
