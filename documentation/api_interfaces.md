@@ -8,6 +8,11 @@ Current FastAPI surface (version 0.1.0). All endpoints are JSON unless noted, li
 
 # Lookups
 
+Create conventions:
+- `POST` (Create) returns `201 Created`.
+- Response body includes the created resource (or at least the new id).
+- `Location` header points to the new resource, e.g. `Location: /api/v1/lookups/areas/{area_id}`.
+
 ## Areas
 Shape (single item):
 ```json
@@ -265,6 +270,11 @@ Shape (single item):
 
 # Files
 
+Create conventions:
+- `POST` (Create) returns `201 Created`.
+- Response body includes the created resource (or at least the new id).
+- `Location` header points to the new resource, e.g. `Location: /api/v1/files/{id}`.
+
 Shape (single item):
 ```json
 {
@@ -299,6 +309,11 @@ Shape (single item):
 
 # Files (commented)
 
+Create conventions:
+- `POST` (Create) returns `201 Created`.
+- Response body includes the created resource (or at least the new id).
+- `Location` header points to the new resource, e.g. `Location: /api/v1/files/commented/{id}`.
+
 Shape (single item):
 ```json
 {
@@ -328,6 +343,11 @@ Shape (single item):
 - `Content-Disposition` filename is `<original>_commented_by_<user_acronym>`.
 
 # Persons/users/permissions
+
+Create conventions:
+- `POST` (Create) returns `201 Created`.
+- Response body includes the created resource (or at least the new id).
+- `Location` header points to the new resource, e.g. `Location: /api/v1/people/users/{user_id}`.
 
 ## Roles
 Shape (single item):
@@ -462,6 +482,11 @@ At least one of `project_id` or `discipline_id` is required.
 ```
 
 # Docs
+
+Create conventions:
+- `POST` (Create) returns `201 Created`.
+- Response body includes the created resource (or at least the new id).
+- `Location` header points to the new resource, e.g. `Location: /api/v1/documents/{doc_id}`.
 
 ## Doc types
 Shape (single item):
