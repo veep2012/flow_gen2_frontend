@@ -2,6 +2,7 @@
 
 import logging
 import os
+from datetime import datetime
 from typing import Any, Iterable, TypeVar
 
 from fastapi import HTTPException
@@ -12,6 +13,33 @@ ModelT = TypeVar("ModelT", bound=BaseModel)
 
 logger = logging.getLogger(__name__)
 DEBUG_MODE = os.getenv("DEBUG", "").lower() in {"1", "true", "yes", "on", "debug"}
+
+
+def _normalize_dt(value: datetime | str | None) -> datetime | None:
+    """
+    Normalize datetime values to timezone-naive datetime objects.
+
+    Handles both datetime objects and ISO format strings. If the input has timezone
+    information, it is removed (converted to naive datetime).
+
+    Args:
+        value: A datetime object, ISO format string, or None.
+
+    Returns:
+        Timezone-naive datetime object or None.
+
+    Raises:
+        HTTPException: If the datetime string format is invalid.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid datetime format") from exc
+        return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
+    return value.replace(tzinfo=None) if value.tzinfo else value
 
 
 def _example_for(model_cls: type[ModelT]) -> dict[str, Any]:
