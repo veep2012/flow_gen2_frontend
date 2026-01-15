@@ -305,6 +305,7 @@ class Doc(Base):
     rev_current_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("flow.doc_revision.rev_id", use_alter=True, name="fk_doc_rev_current")
     )
+    voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     project: Mapped[Optional[Project]] = relationship(back_populates="docs")
     jobpack: Mapped[Optional[Jobpack]] = relationship(back_populates="docs")

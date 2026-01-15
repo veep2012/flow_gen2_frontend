@@ -371,6 +371,7 @@ def list_documents_for_project(
             rev_status_id=rev_status.rev_status_id if rev_status else None,
             rev_status_name=rev_status.rev_status_name if rev_status else None,
             percentage=revision_overview.percentage if revision_overview else None,
+            voided=doc.voided,
         )
         for (
             doc,
@@ -916,6 +917,7 @@ def update_document(
         rev_status_id=rev_status.rev_status_id if rev_status else None,
         rev_status_name=rev_status.rev_status_name if rev_status else None,
         percentage=revision_overview.percentage if revision_overview else None,
+        voided=doc_row.voided,
     )
 
 
@@ -1084,6 +1086,7 @@ def insert_document(
         rev_status_id=rev_status.rev_status_id if rev_status else None,
         rev_status_name=rev_status.rev_status_name if rev_status else None,
         percentage=revision_overview.percentage if revision_overview else None,
+        voided=doc_row.voided,
     )
 
 
@@ -1671,3 +1674,144 @@ def create_document_rest(
     db: Session = Depends(get_db),
 ) -> DocOut:
     return insert_document(payload, db)
+
+
+@router.patch(
+    "/revisions/{rev_id}/cancel",
+    summary="Cancel a document revision.",
+    description="Sets the cancelled_date to the current datetime for the specified revision.",
+    response_model=DocRevisionOut,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def cancel_revision(
+    rev_id: int = Path(..., description="Revision ID to cancel", gt=0),
+    db: Session = Depends(get_db),
+) -> DocRevisionOut:
+    """
+    Cancel a document revision.
+
+    Sets the cancelled_date to the current datetime for the specified revision.
+
+    Args:
+        rev_id: The revision ID to cancel.
+
+    Returns:
+        Updated document revision with cancelled_date set.
+
+    Raises:
+        HTTPException: 404 if revision not found.
+    """
+    revision = db.get(DocRevision, rev_id)
+    if not revision:
+        raise HTTPException(status_code=404, detail="Revision not found")
+
+    revision.canceled_date = datetime.now(timezone.utc).replace(tzinfo=None)
+    
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Failed to cancel revision", err, "cancel_revision")
+
+    row = (
+        db.query(DocRevision, RevisionOverview, DocRevStatus, DocRevMilestone)
+        .outerjoin(RevisionOverview, DocRevision.rev_code_id == RevisionOverview.rev_code_id)
+        .outerjoin(DocRevStatus, DocRevision.rev_status_id == DocRevStatus.rev_status_id)
+        .outerjoin(DocRevMilestone, DocRevision.milestone_id == DocRevMilestone.milestone_id)
+        .filter(DocRevision.rev_id == revision.rev_id)
+        .one_or_none()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Revision not found after cancel")
+
+    rev, overview, status, milestone = row
+    response_payload = {
+        "rev_id": rev.rev_id,
+        "doc_id": rev.doc_id,
+        "seq_num": rev.seq_num,
+        "rev_code_id": rev.rev_code_id,
+        "rev_code_name": overview.rev_code_name if overview else None,
+        "rev_code_acronym": overview.rev_code_acronym if overview else None,
+        "rev_description": overview.rev_description if overview else None,
+        "rev_date": rev.rev_date,
+        "rev_author_id": rev.rev_author_id,
+        "rev_originator_id": rev.rev_originator_id,
+        "rev_modifier_id": rev.rev_modifier_id,
+        "transmital_current_revision": rev.transmital_current_revision,
+        "milestone_id": rev.milestone_id,
+        "milestone_name": milestone.milestone_name if milestone else None,
+        "planned_start_date": rev.planned_start_date,
+        "planned_finish_date": rev.planned_finish_date,
+        "actual_start_date": rev.actual_start_date,
+        "actual_finish_date": rev.actual_finish_date,
+        "canceled_date": rev.canceled_date,
+        "rev_status_id": rev.rev_status_id,
+        "rev_status_name": status.rev_status_name if status else None,
+        "as_built": rev.as_built,
+        "superseded": rev.superseded,
+        "voided": rev.voided,
+        "modified_doc_date": rev.modified_doc_date,
+    }
+    return _model_out(DocRevisionOut, response_payload)
+
+
+@router.delete(
+    "/{doc_id}",
+    summary="Delete a document.",
+    description=(
+        "Deletes a document if it has only one revision with start status. "
+        "Otherwise, sets the voided field to true."
+    ),
+    status_code=204,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def delete_document(
+    doc_id: int = Path(..., description="Document ID to delete", gt=0),
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a document.
+
+    If the document has only one revision with a status equal to the start status,
+    the document is deleted (cascading to revisions). Otherwise, the document's
+    voided field is set to true.
+
+    Args:
+        doc_id: The document ID to delete.
+
+    Raises:
+        HTTPException: 404 if document not found.
+    """
+    doc = db.get(Doc, doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Get all revisions for this document
+    revisions = (
+        db.query(DocRevision)
+        .filter(DocRevision.doc_id == doc_id)
+        .all()
+    )
+
+    # Check if we should delete or void
+    should_delete = False
+    if len(revisions) == 1:
+        # Get the start status
+        start_status = db.query(DocRevStatus).filter(DocRevStatus.start.is_(True)).first()
+        if start_status and revisions[0].rev_status_id == start_status.rev_status_id:
+            should_delete = True
+
+    if should_delete:
+        # Delete the document (cascade will delete revisions)
+        db.delete(doc)
+    else:
+        # Set voided to true
+        doc.voided = True
+
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Failed to delete/void document", err, "delete_document")
