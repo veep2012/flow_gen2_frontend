@@ -23,6 +23,7 @@ from api.db.models import (
     Unit,
 )
 from api.schemas.documents import (
+    DocCreate,
     DocOut,
     DocRevisionCreate,
     DocRevisionOut,
@@ -922,6 +923,185 @@ def update_document(
     )
 
 
+def insert_document(
+    payload: DocCreate = Body(..., openapi_examples=_example_for(DocCreate)),
+    db: Session = Depends(get_db),
+) -> DocOut:
+    """
+    Create a new document with an initial revision.
+
+    Creates a new document and automatically creates an initial revision with the
+    status that has start=true from doc_rev_statuses. The sequence number is set to 1.
+
+    Args:
+        payload: Document creation data including document details and initial revision details.
+
+    Returns:
+        Newly created document with metadata.
+
+    Raises:
+        HTTPException: 400 if document name already exists or no start status found.
+        HTTPException: 404 if referenced entities not found.
+    """
+    # Validate foreign key references for document
+    if payload.project_id is not None and not db.get(Project, payload.project_id):
+        raise HTTPException(status_code=404, detail="Project not found")
+    if payload.jobpack_id is not None and not db.get(Jobpack, payload.jobpack_id):
+        raise HTTPException(status_code=404, detail="Jobpack not found")
+    if not db.get(DocType, payload.type_id):
+        raise HTTPException(status_code=404, detail="Doc type not found")
+    if not db.get(Area, payload.area_id):
+        raise HTTPException(status_code=404, detail="Area not found")
+    if not db.get(Unit, payload.unit_id):
+        raise HTTPException(status_code=404, detail="Unit not found")
+
+    # Validate foreign key references for revision
+    if not db.get(RevisionOverview, payload.rev_code_id):
+        raise HTTPException(status_code=404, detail="Revision code not found")
+    if payload.milestone_id is not None and not db.get(DocRevMilestone, payload.milestone_id):
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    if not db.get(Person, payload.rev_author_id):
+        raise HTTPException(status_code=404, detail="Revision author not found")
+    if not db.get(Person, payload.rev_originator_id):
+        raise HTTPException(status_code=404, detail="Revision originator not found")
+    if not db.get(Person, payload.rev_modifier_id):
+        raise HTTPException(status_code=404, detail="Revision modifier not found")
+
+    # Get the start status
+    start_status = db.query(DocRevStatus).filter(DocRevStatus.start == True).first()
+    if not start_status:
+        raise HTTPException(
+            status_code=400, detail="No start status found in doc_rev_statuses"
+        )
+
+    # Create the document
+    new_doc = Doc(
+        doc_name_unique=payload.doc_name_unique,
+        title=payload.title,
+        project_id=payload.project_id,
+        jobpack_id=payload.jobpack_id,
+        type_id=payload.type_id,
+        area_id=payload.area_id,
+        unit_id=payload.unit_id,
+    )
+    db.add(new_doc)
+    try:
+        db.flush()  # Flush to get the doc_id without committing
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Document name must be unique", err, "insert_document")
+
+    # Helper function to normalize datetime (same as in insert_document_revision)
+    def _normalize_dt(value: datetime | str | None) -> datetime | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            try:
+                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail="Invalid datetime format") from exc
+            return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
+        return value.replace(tzinfo=None) if value.tzinfo else value
+
+    # Create the initial revision with start status
+    new_revision = DocRevision(
+        doc_id=new_doc.doc_id,
+        seq_num=1,
+        rev_code_id=payload.rev_code_id,
+        rev_date=datetime.utcnow(),
+        rev_author_id=payload.rev_author_id,
+        rev_originator_id=payload.rev_originator_id,
+        rev_modifier_id=payload.rev_modifier_id,
+        transmital_current_revision=payload.transmital_current_revision,
+        milestone_id=payload.milestone_id,
+        planned_start_date=_normalize_dt(payload.planned_start_date),
+        planned_finish_date=_normalize_dt(payload.planned_finish_date),
+        actual_start_date=None,
+        actual_finish_date=None,
+        canceled_date=None,
+        rev_status_id=start_status.rev_status_id,
+        as_built=None,
+        superseded=None,
+        voided=None,
+        modified_doc_date=datetime.utcnow(),
+    )
+    db.add(new_revision)
+    try:
+        db.flush()  # Flush to get the rev_id
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Failed to create initial revision", err, "insert_document")
+    except Exception as err:
+        db.rollback()
+        logger.exception("Failed to create initial revision for doc_id=%s", new_doc.doc_id)
+        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+
+    # Set the current revision to the newly created revision
+    new_doc.rev_current_id = new_revision.rev_id
+    try:
+        db.commit()
+    except Exception as err:
+        db.rollback()
+        logger.exception("Failed to commit document doc_id=%s", new_doc.doc_id)
+        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+
+    # Fetch the complete document with all relationships
+    doc_row = (
+        db.query(Doc)
+        .options(
+            joinedload(Doc.doc_type).joinedload(DocType.discipline),
+            joinedload(Doc.project),
+            joinedload(Doc.jobpack),
+            joinedload(Doc.area),
+            joinedload(Doc.unit),
+            joinedload(Doc.current_revision).joinedload(DocRevision.revision_overview),
+        )
+        .filter(Doc.doc_id == new_doc.doc_id)
+        .one_or_none()
+    )
+    if not doc_row:
+        raise HTTPException(status_code=404, detail="Document not found after insert")
+
+    doc_type = doc_row.doc_type
+    discipline = doc_type.discipline if doc_type else None
+    project = doc_row.project
+    jobpack = doc_row.jobpack
+    area = doc_row.area
+    unit = doc_row.unit
+    rev_current_row = doc_row.current_revision
+    revision_overview = rev_current_row.revision_overview if rev_current_row else None
+    rev_status = rev_current_row.status if rev_current_row else None
+
+    return DocOut(
+        doc_id=doc_row.doc_id,
+        doc_name_unique=doc_row.doc_name_unique,
+        title=doc_row.title,
+        project_id=doc_row.project_id,
+        project_name=project.project_name if project else None,
+        jobpack_id=doc_row.jobpack_id,
+        jobpack_name=jobpack.jobpack_name if jobpack else None,
+        type_id=doc_row.type_id,
+        doc_type_name=doc_type.doc_type_name if doc_type else None,
+        doc_type_acronym=doc_type.doc_type_acronym if doc_type else None,
+        area_id=doc_row.area_id,
+        area_name=area.area_name if area else None,
+        area_acronym=area.area_acronym if area else None,
+        unit_id=doc_row.unit_id,
+        unit_name=unit.unit_name if unit else None,
+        rev_actual_id=doc_row.rev_actual_id,
+        rev_current_id=doc_row.rev_current_id,
+        rev_seq_num=rev_current_row.seq_num if rev_current_row else None,
+        discipline_id=discipline.discipline_id if discipline else None,
+        discipline_name=discipline.discipline_name if discipline else None,
+        discipline_acronym=discipline.discipline_acronym if discipline else None,
+        rev_code_name=revision_overview.rev_code_name if revision_overview else None,
+        rev_code_acronym=revision_overview.rev_code_acronym if revision_overview else None,
+        rev_status_id=rev_status.rev_status_id if rev_status else None,
+        rev_status_name=rev_status.rev_status_name if rev_status else None,
+        percentage=revision_overview.percentage if revision_overview else None,
+    )
+
+
 @router.get(
     "/doc_rev_milestones",
     summary="List all document revision milestones.",
@@ -1487,3 +1667,22 @@ def create_document_revision_rest(
     db: Session = Depends(get_db),
 ) -> DocRevisionOut:
     return insert_document_revision(doc_id, payload, db)
+
+
+@router.post(
+    "",
+    summary="Create a new document (REST).",
+    description=(
+        "Creates a new document with an initial revision. The initial revision automatically "
+        "uses the status with start=true from doc_rev_statuses."
+    ),
+    response_model=DocOut,
+    status_code=201,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def create_document_rest(
+    payload: DocCreate = Body(..., openapi_examples=_example_for(DocCreate)),
+    db: Session = Depends(get_db),
+) -> DocOut:
+    return insert_document(payload, db)
