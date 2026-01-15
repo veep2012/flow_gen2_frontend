@@ -1297,6 +1297,19 @@ function App() {
           align-items: center;
           justify-content: center;
         }
+        .flow-upload:focus,
+        .flow-upload:focus-visible {
+          background: var(--color-info-soft);
+          border-color: var(--color-info);
+          color: var(--color-info-strong);
+          outline: 2px solid var(--color-focus);
+          outline-offset: 2px;
+        }
+        .flow-upload:hover {
+          background: var(--color-info-soft);
+          border-color: var(--color-info);
+          color: var(--color-info-strong);
+        }
         .flow-step:focus-visible,
         .flow-subtab:focus-visible,
         .flow-upload:focus-visible,
