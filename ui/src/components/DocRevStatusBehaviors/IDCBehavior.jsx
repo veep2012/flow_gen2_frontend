@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { getFileIcon, getFileTypeLabel } from "../../utils/fileIcons";
 
-const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFiles, expandedRevisions, onRevisionToggle, onSelectFile, onDownloadFile, selectedFileId }) => {
+const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFiles = {}, expandedRevisions = {}, onRevisionToggle, onSelectFile, onDownloadFile, selectedFileId }) => {
   const docName = selectedDoc ? `${selectedDoc.doc_name_unique || selectedDoc.title || "Document"}` : "No document selected";
   const docId = selectedDoc?.doc_id;
   const docInfo = selectedDoc ? {
@@ -16,9 +16,9 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
   
   // Also get API files that have been issued to IDC (issuedStatus = "2")
   const apiFiles = (docId && uploadedFiles[docId]?.["$api"]) || [];
-  const issuedApiFiles = apiFiles.filter(f => f.issuedStatus === "2");
+  const issuedApiFiles = Array.isArray(apiFiles) ? apiFiles.filter(f => f.issuedStatus === "2") : [];
   
-  const idcFiles = [...issuedApiFiles, ...idcLocalFiles];
+  const idcFiles = [...issuedApiFiles, ...(Array.isArray(idcLocalFiles) ? idcLocalFiles : [])];
 
   // Organize files by revision letter (RevA, RevB, RevC) - case insensitive
   const filesByRevision = {
@@ -30,7 +30,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
 
   idcFiles.forEach((file) => {
     const fileName = typeof file === "string" ? file : file.name;
-    const fileNameLower = fileName.toLowerCase();
+    const fileNameLower = (fileName || "").toLowerCase();
     if (fileNameLower.includes("reva")) {
       filesByRevision["Rev A"].push(file);
     } else if (fileNameLower.includes("revb")) {
@@ -45,17 +45,31 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
   return (
     <>
       <div className="flow-subtabs" style={{ display: "flex" }}>
-        {["Comments", "Distribution list"].map((tab) => (
-          <button
-            type="button"
-            key={tab}
-            className={`flow-subtab ${infoActiveSubTab === tab ? "active" : ""}`}
-            aria-pressed={infoActiveSubTab === tab}
-            onClick={() => onSubTabChange(tab)}
-          >
-            {tab}
-          </button>
-        ))}
+        {["Comments", "Distribution list"].map((tab) => {
+          const isActive = tab === "Comments" 
+            ? (infoActiveSubTab === "Comments" || infoActiveSubTab === "Files with Comments" || infoActiveSubTab === "Written Comments")
+            : infoActiveSubTab === tab;
+          return (
+            <button
+              type="button"
+              key={tab}
+              className={`flow-subtab ${isActive ? "active" : ""}`}
+              aria-pressed={isActive}
+              onClick={() => {
+                if (tab === "Comments") {
+                  // If already in a mini-tab state, keep it; otherwise set to Comments
+                  if (!["Files with Comments", "Written Comments"].includes(infoActiveSubTab)) {
+                    onSubTabChange("Comments");
+                  }
+                } else {
+                  onSubTabChange(tab);
+                }
+              }}
+            >
+              {tab}
+            </button>
+          );
+        })}
       </div>
       <div className="flow-section">
         {docInfo && (
@@ -65,7 +79,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
             <div>Discipline: {docInfo.discipline}</div>
           </div>
         )}
-        {infoActiveSubTab === "Comments" ? (
+        {infoActiveSubTab === "Comments" || infoActiveSubTab === "Files with Comments" || infoActiveSubTab === "Written Comments" ? (
           <>
             <div className="flow-box">
               <h4>Original Files</h4>
@@ -216,32 +230,37 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
             </div>
             <div className="flow-box">
               <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
-                {["Files with Comments", "Written Comments"].map((tab) => (
-                  <button
-                    type="button"
-                    key={tab}
-                    className="flow-mini-tab"
-                    style={{
-                      flex: 1,
-                      padding: "8px 10px",
-                      borderBottom:
-                        infoActiveSubTab === tab
-                          ? "2px solid var(--color-primary)"
-                          : "1px solid var(--color-border)",
-                      fontWeight: infoActiveSubTab === tab ? 700 : 500,
-                      color:
-                        infoActiveSubTab === tab ? "var(--color-primary)" : "var(--color-text)",
-                      cursor: "pointer",
-                      textAlign: "center",
-                      background: "transparent",
-                      border: "none",
-                    }}
-                    aria-pressed={infoActiveSubTab === tab}
-                    onClick={() => onSubTabChange(tab)}
-                  >
-                    {tab}
-                  </button>
-                ))}
+                {["Files with Comments", "Written Comments"].map((tab) => {
+                  const isActive = infoActiveSubTab === tab;
+                  return (
+                    <button
+                      type="button"
+                      key={tab}
+                      className={`flow-mini-tab ${isActive ? "active" : ""}`}
+                      style={{
+                        flex: 1,
+                        padding: "8px 10px",
+                        borderBottom:
+                          isActive
+                            ? "3px solid var(--color-primary)"
+                            : "1px solid var(--color-border)",
+                        fontWeight: isActive ? 700 : 500,
+                        color:
+                          isActive ? "var(--color-primary)" : "var(--color-text)",
+                        cursor: "pointer",
+                        textAlign: "center",
+                        background: isActive ? "rgba(59, 130, 246, 0.05)" : "transparent",
+                        border: "none",
+                      }}
+                      aria-pressed={isActive}
+                      onClick={() => {
+                        onSubTabChange(tab);
+                      }}
+                    >
+                      {tab}
+                    </button>
+                  );
+                })}
               </div>
               <div
                 style={{
