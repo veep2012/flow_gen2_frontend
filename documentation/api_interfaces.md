@@ -8,6 +8,10 @@ Update conventions (PUT/PATCH):
 ```json
 { "detail": "<id_field> mismatch" }
 ```
+- Example (id mismatch):
+```json
+{ "detail": "area_id mismatch" }
+```
 - `PATCH` endpoints are not currently provided; consider adding `PATCH` for partial updates if needed.
 
 Delete conventions:
