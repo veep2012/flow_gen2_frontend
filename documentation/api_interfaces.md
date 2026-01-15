@@ -2,6 +2,14 @@
 
 Current FastAPI surface (version 0.1.0). All endpoints are JSON unless noted, live under the backend root (no global prefix), and are CORS-open for any origin. Default database URL is `postgresql+psycopg://flow_user:flow_pass@postgres:5432/flow_db`; override via `DATABASE_URL`. Object storage defaults to `MINIO_ENDPOINT=minio:9000` and `MINIO_BUCKET=flow-default`; override with `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_SECURE`.
 
+Update conventions (PUT/PATCH):
+- `PUT` is idempotent and used for updates; this API accepts partial updates via `PUT` (fields may be omitted unless noted).
+- If the request body includes an id field, it must match the path id; on mismatch return `400 Bad Request` with body:
+```json
+{ "detail": "<id_field> mismatch" }
+```
+- `PATCH` endpoints are not currently provided; consider adding `PATCH` for partial updates if needed.
+
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
 - `GET /health` — Returns `{"status": "ok"}`.
