@@ -1363,35 +1363,42 @@ function App() {
           display: flex;
           gap: 2px;
           border-bottom: 1px solid var(--color-border);
-          background: var(--color-surface-alt);
-          padding: 4px 6px 0;
+          background: transparent;
+          padding: 0;
         }
         .detail-tab {
-          padding: 8px 12px;
+          padding: 6px 12px;
           border: 1px solid var(--color-border);
           border-bottom: none;
-          border-radius: 10px 10px 0 0;
-          background: var(--color-surface-muted);
-          font-size: 14px;
+          border-radius: 6px 6px 0 0;
+          background: var(--color-border);
+          font-size: 12px;
+          font-weight: 500;
           cursor: pointer;
           color: var(--color-text);
+          transition: all 0.2s ease;
+          line-height: 1.4;
+          height: 28px;
+          display: flex;
+          align-items: center;
+        }
+        .detail-tab:hover {
+          background: var(--color-border-strong);
         }
         .detail-tab.active {
-          background: var(--color-surface);
-          font-weight: 600;
-          color: var(--color-text);
+          background: var(--color-accent);
+          color: var(--color-accent-contrast);
+          border-color: var(--color-accent);
         }
         .detail-tab-panel {
           border: 1px solid var(--color-border);
           border-top: none;
-          border-radius: 0 0 12px 12px;
+          border-radius: 0;
           padding: 16px;
           background: var(--color-surface);
-          min-height: 180px;
           display: flex;
           flex-direction: column;
           flex: 1;
-          height: 100%;
         }
         .flow-card {
           background: var(--color-surface-alt);
@@ -1524,36 +1531,80 @@ function App() {
           border: 1px solid var(--color-border);
           border-radius: 10px;
           margin: 4px 8px 10px 8px;
-          padding: 10px 12px;
+          padding: 0;
           display: flex;
           flex-direction: column;
           flex: 1;
         }
         .flow-subtabs {
-          margin: 0 0 8px 0;
-          border: 1px solid var(--color-border);
-          border-radius: 8px;
-          overflow: hidden;
+          display: flex;
+          gap: 2px;
+          border-bottom: 1px solid var(--color-border);
+          background: transparent;
+          padding: 8px 12px 0;
         }
         .flow-subtab {
-          flex: 1;
-          padding: 10px;
-          text-align: center;
-          font-size: 13px;
+          padding: 6px 12px;
+          border: 1px solid var(--color-border);
+          border-bottom: none;
+          border-radius: 6px 6px 0 0;
+          background: var(--color-border);
+          font-size: 12px;
+          font-weight: 500;
           cursor: pointer;
           color: var(--color-text);
-          background: var(--color-surface);
-          border: none;
-          border-right: 1px solid var(--color-border);
-          font: inherit;
+          transition: all 0.2s ease;
+          line-height: 1.4;
+          height: 28px;
+          display: flex;
+          align-items: center;
+        }
+        .flow-subtab:hover {
+          background: var(--color-border-strong);
         }
         .flow-subtab.active {
-          font-weight: 700;
-          color: var(--color-primary);
-          box-shadow: inset 0 -3px 0 var(--color-primary);
-          background: var(--color-primary-soft);
+          background: var(--color-accent);
+          color: var(--color-accent-contrast);
+          border-color: var(--color-accent);
         }
         .flow-subtab:last-child { border-right: none; }
+        .flow-mini-tabs {
+          display: flex;
+          gap: 2px;
+          border-bottom: 1px solid var(--color-border);
+          background: transparent;
+          padding: 0 12px 0;
+          margin-bottom: 8px;
+          margin-left: -12px;
+          margin-right: -12px;
+        }
+        .flow-mini-tab {
+          padding: 6px 12px;
+          border: 1px solid var(--color-border);
+          border-bottom: none;
+          border-radius: 6px 6px 0 0;
+          background: var(--color-border);
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          color: var(--color-text);
+          flex: 1;
+          text-align: center;
+          transition: all 0.2s ease;
+          line-height: 1.4;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .flow-mini-tab:hover {
+          background: var(--color-border-strong);
+        }
+        .flow-mini-tab.active {
+          background: var(--color-accent);
+          color: var(--color-accent-contrast);
+          border-color: var(--color-accent);
+        }
         .flow-section {
           padding: 6px 0 0 0;
           background: transparent;
@@ -1568,6 +1619,7 @@ function App() {
           border-radius: 10px;
           background: var(--color-surface);
           padding: 12px;
+          margin: 0 12px;
         }
         .flow-upload {
           border: 2px dashed var(--color-border-strong);

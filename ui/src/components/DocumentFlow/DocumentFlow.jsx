@@ -44,30 +44,15 @@ const DocumentFlow = ({
               );
             })}
           </div>
-          <div className="flow-section">
+          <div className="detail-tab-panel">
             {infoActiveSubTab === "Comments" || infoActiveSubTab === "Files with Comments" || infoActiveSubTab === "Written Comments" ? (
               <div className="flow-box">
-                <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                <div className="flow-mini-tabs">
                   {["Files with Comments", "Written Comments"].map((tab) => (
                     <button
                       type="button"
                       key={tab}
-                      className="flow-mini-tab"
-                      style={{
-                        flex: 1,
-                        padding: "8px 10px",
-                        borderBottom:
-                          infoActiveSubTab === tab
-                            ? "2px solid var(--color-primary)"
-                            : "1px solid var(--color-border)",
-                        fontWeight: infoActiveSubTab === tab ? 700 : 500,
-                        color:
-                          infoActiveSubTab === tab ? "var(--color-primary)" : "var(--color-text)",
-                        cursor: "pointer",
-                        textAlign: "center",
-                        background: "transparent",
-                        border: "none",
-                      }}
+                      className={`flow-mini-tab ${infoActiveSubTab === tab ? "active" : ""}`}
                       aria-pressed={infoActiveSubTab === tab}
                       onClick={() => onSubTabChange(tab)}
                     >

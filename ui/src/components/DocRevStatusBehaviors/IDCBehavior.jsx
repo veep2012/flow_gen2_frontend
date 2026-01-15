@@ -71,7 +71,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
           );
         })}
       </div>
-      <div className="flow-section">
+      <div className="detail-tab-panel">
         {docInfo && (
           <div style={{ fontSize: "11px", color: "var(--color-text-subtle)", marginBottom: "12px" }}>
             <div>Type: {docInfo.type}</div>
@@ -229,7 +229,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
               )}
             </div>
             <div className="flow-box">
-              <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+              <div className="flow-mini-tabs">
                 {["Files with Comments", "Written Comments"].map((tab) => {
                   const isActive = infoActiveSubTab === tab;
                   return (
@@ -237,21 +237,6 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                       type="button"
                       key={tab}
                       className={`flow-mini-tab ${isActive ? "active" : ""}`}
-                      style={{
-                        flex: 1,
-                        padding: "8px 10px",
-                        borderBottom:
-                          isActive
-                            ? "3px solid var(--color-primary)"
-                            : "1px solid var(--color-border)",
-                        fontWeight: isActive ? 700 : 500,
-                        color:
-                          isActive ? "var(--color-primary)" : "var(--color-text)",
-                        cursor: "pointer",
-                        textAlign: "center",
-                        background: isActive ? "rgba(59, 130, 246, 0.05)" : "transparent",
-                        border: "none",
-                      }}
                       aria-pressed={isActive}
                       onClick={() => {
                         onSubTabChange(tab);
