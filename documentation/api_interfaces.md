@@ -95,6 +95,11 @@ Shape (single item):
 ```json
 { "area_id": 1, "area_name": "Newfoundland", "area_acronym": "NFLD" }
 ```
+Schema references:
+- Response: `api/schemas/lookups.py` `AreaOut`
+- Create: `api/schemas/lookups.py` `AreaCreate`
+- Update: `api/schemas/lookups.py` `AreaUpdate`
+- Delete: `api/schemas/lookups.py` `AreaDelete`
 ### List
 - `GET /api/v1/lookups/areas` — 200 sorted by `area_name`; empty list if no areas.
 - Headers: `Accept: application/json`
@@ -153,6 +158,11 @@ Shape (single item):
 ```json
 { "discipline_id": 2, "discipline_name": "Piping", "discipline_acronym": "PIP" }
 ```
+Schema references:
+- Response: `api/schemas/lookups.py` `DisciplineOut`
+- Create: `api/schemas/lookups.py` `DisciplineCreate`
+- Update: `api/schemas/lookups.py` `DisciplineUpdate`
+- Delete: `api/schemas/lookups.py` `DisciplineDelete`
 ### List
 - `GET /api/v1/lookups/disciplines` — 200 sorted by `discipline_name`; empty list if none.
 - Headers: `Accept: application/json`
@@ -208,6 +218,11 @@ Shape (single item):
 ```json
 { "project_id": 3, "project_name": "Delta Expansion" }
 ```
+Schema references:
+- Response: `api/schemas/lookups.py` `ProjectOut`
+- Create: `api/schemas/lookups.py` `ProjectCreate`
+- Update: `api/schemas/lookups.py` `ProjectUpdate`
+- Delete: `api/schemas/lookups.py` `ProjectDelete`
 ### List
 - `GET /api/v1/lookups/projects` — 200 sorted by `project_name`; empty list if none.
 - Headers: `Accept: application/json`
@@ -263,6 +278,11 @@ Shape (single item):
 ```json
 { "unit_id": 2, "unit_name": "North Wing" }
 ```
+Schema references:
+- Response: `api/schemas/lookups.py` `UnitOut`
+- Create: `api/schemas/lookups.py` `UnitCreate`
+- Update: `api/schemas/lookups.py` `UnitUpdate`
+- Delete: `api/schemas/lookups.py` `UnitDelete`
 ### List
 - `GET /api/v1/lookups/units` — 200 sorted by `unit_name`; empty list if none.
 - Headers: `Accept: application/json`
@@ -318,6 +338,11 @@ Shape (single item):
 ```json
 { "jobpack_id": 5, "jobpack_name": "JP-01" }
 ```
+Schema references:
+- Response: `api/schemas/lookups.py` `JobpackOut`
+- Create: `api/schemas/lookups.py` `JobpackCreate`
+- Update: `api/schemas/lookups.py` `JobpackUpdate`
+- Delete: `api/schemas/lookups.py` `JobpackDelete`
 ### List
 - `GET /api/v1/lookups/jobpacks` — 200 sorted by `jobpack_name`; empty list if none.
 - Headers: `Accept: application/json`
@@ -373,6 +398,11 @@ Shape (single item):
 ```json
 { "milestone_id": 4, "milestone_name": "IFC", "progress": 90 }
 ```
+Schema references:
+- Response: `api/schemas/documents.py` `DocRevMilestoneOut`
+- Create: `api/schemas/documents.py` `DocRevMilestoneCreate`
+- Update: `api/schemas/documents.py` `DocRevMilestoneUpdate`
+- Delete: `api/schemas/documents.py` `DocRevMilestoneDelete`
 ### List
 - `GET /api/v1/documents/doc_rev_milestones` — 200 sorted by `milestone_name`; empty list if none.
 - Headers: `Accept: application/json`
@@ -438,6 +468,11 @@ Shape (single item):
   "percentage": 90
 }
 ```
+Schema references:
+- Response: `api/schemas/documents.py` `RevisionOverviewOut`
+- Create: `api/schemas/documents.py` `RevisionOverviewCreate`
+- Update: `api/schemas/documents.py` `RevisionOverviewUpdate`
+- Delete: `api/schemas/documents.py` `RevisionOverviewDelete`
 ### List
 - `GET /api/v1/documents/revision_overview` — 200 sorted by `rev_code_name`; empty list if none.
 - Headers: `Accept: application/json`
@@ -530,6 +565,11 @@ Shape (single item):
 ```json
 { "ui_behavior_id": 1, "ui_behavior_name": "Default", "ui_behavior_file": "default.json" }
 ```
+Schema references:
+- Response: `api/schemas/documents.py` `DocRevStatusUiBehaviorOut`
+- Create: `api/schemas/documents.py` `DocRevStatusUiBehaviorCreate`
+- Update: `api/schemas/documents.py` `DocRevStatusUiBehaviorUpdate`
+- Delete: `api/schemas/documents.py` `DocRevStatusUiBehaviorDelete`
 ### List
 - `GET /api/v1/lookups/doc_rev_status_ui_behaviors` — 200 sorted by `ui_behavior_name`; empty list if none.
 - Headers: `Accept: application/json`
@@ -585,6 +625,10 @@ Shape (single item):
 ```json
 { "rev_status_id": 2, "rev_status_name": "In review" }
 ```
+Schema references:
+- Response: `api/schemas/files.py` `FileOut`
+- Update: `api/schemas/files.py` `FileUpdate`
+- Delete: `api/schemas/files.py` `FileDelete`
 ### List
 - `GET /api/v1/lookups/doc_rev_statuses` — 200 sorted by `rev_status_name`; empty list if none.
 - Headers: `Accept: application/json`
@@ -656,6 +700,9 @@ Shape (single item):
   "rev_id": 45
 }
 ```
+Schema references:
+- Response: `api/schemas/files.py` `FileCommentedOut`
+- Delete: `api/schemas/files.py` `FileCommentedDelete`
 
 ### List
 - `GET /api/v1/files?rev_id=45` — 200 sorted by `filename`; empty list if none.
@@ -760,6 +807,11 @@ Shape (single item):
   "rev_id": 45
 }
 ```
+Schema references:
+- Response: `api/schemas/documents.py` `DocRevStatusOut`
+- Create: `api/schemas/documents.py` `DocRevStatusCreate`
+- Update: `api/schemas/documents.py` `DocRevStatusUpdate`
+- Delete: `api/schemas/documents.py` `DocRevStatusDelete`
 
 ### List
 - `GET /api/v1/files/commented/list?file_id=12` — 200; optional `user_id` filter.
@@ -835,6 +887,11 @@ Shape (single item):
 ```json
 { "role_id": 10, "role_name": "Coordinator" }
 ```
+Schema references:
+- Response: `api/schemas/lookups.py` `RoleOut`
+- Create: `api/schemas/lookups.py` `RoleCreate`
+- Update: `api/schemas/lookups.py` `RoleUpdate`
+- Delete: `api/schemas/lookups.py` `RoleDelete`
 ### List
 - `GET /api/v1/people/roles` — 200 sorted by `role_name`; empty list if none.
 - Headers: `Accept: application/json`
@@ -890,6 +947,11 @@ Shape (single item):
 ```json
 { "person_id": 12, "person_name": "Ada Lovelace", "photo_s3_uid": "s3-key-123" }
 ```
+Schema references:
+- Response: `api/schemas/people.py` `PersonOut`
+- Create: `api/schemas/people.py` `PersonCreate`
+- Update: `api/schemas/people.py` `PersonUpdate`
+- Delete: `api/schemas/people.py` `PersonDelete`
 ### List
 - `GET /api/v1/people/persons` — 200 sorted by `person_name`; empty list if none.
 - Headers: `Accept: application/json`
@@ -956,6 +1018,11 @@ Shape (single item):
   "role_name": "Coordinator"
 }
 ```
+Schema references:
+- Response: `api/schemas/people.py` `UserOut`
+- Create: `api/schemas/people.py` `UserCreate`
+- Update: `api/schemas/people.py` `UserUpdate`
+- Delete: `api/schemas/people.py` `UserDelete`
 ### List
 - `GET /api/v1/people/users` — 200 sorted by `user_acronym`; empty list if none.
 - Headers: `Accept: application/json`
@@ -1024,6 +1091,11 @@ Shape (single item):
   "discipline_name": "Piping"
 }
 ```
+Schema references:
+- Response: `api/schemas/people.py` `PermissionOut`
+- Create: `api/schemas/people.py` `PermissionCreate`
+- Update: `api/schemas/people.py` `PermissionUpdate`
+- Delete: `api/schemas/people.py` `PermissionDelete`
 At least one of `project_id` or `discipline_id` is required.
 ### List
 - `GET /api/v1/people/permissions` — 200 sorted by `user_id`; empty list if none.
@@ -1123,6 +1195,11 @@ Shape (single item):
   "discipline_acronym": "PIP"
 }
 ```
+Schema references:
+- Response: `api/schemas/documents.py` `DocTypeOut`
+- Create: `api/schemas/documents.py` `DocTypeCreate`
+- Update: `api/schemas/documents.py` `DocTypeUpdate`
+- Delete: `api/schemas/documents.py` `DocTypeDelete`
 ### List
 - `GET /api/v1/documents/doc_types` — 200 sorted by `doc_type_name`; includes discipline info; empty list if none.
 - Headers: `Accept: application/json`
@@ -1183,15 +1260,6 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "doc_type_acronym": "ISO-U"
 }
 ```
-- Example response:
-```json
-{
-  "type_id": 7,
-  "doc_type_name": "Piping Iso Updated",
-  "ref_discipline_id": 3,
-  "doc_type_acronym": "ISO-U"
-}
-```
 ### Delete
 - `DELETE /api/v1/documents/doc_types/{type_id}` — 204; 404 if not found.
 - Headers: `Accept: application/json`
@@ -1204,6 +1272,9 @@ curl -i -H "Accept: application/json" -X DELETE http://localhost:4175/api/v1/doc
 ## Documents
 Shape (single item) includes doc, linked names, and discipline/progress pointers:
 `doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `rev_seq_num`, `discipline_id`/`discipline_name`/`discipline_acronym`, `rev_code_name`, `rev_code_acronym`, `percentage`.
+Schema references:
+- Response: `api/schemas/documents.py` `DocOut`
+- Update: `api/schemas/documents.py` `DocUpdate`
 ### List
 - `GET /api/v1/documents?project_id=` — 200 ordered by `doc_name_unique`; empty list if none for the project. Requires `project_id` query param.
 - Headers: `Accept: application/json`
