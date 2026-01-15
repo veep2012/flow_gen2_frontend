@@ -148,7 +148,20 @@ DECLARE
     v_unit_id INT;
     v_doc_name TEXT;
     v_author INT;
+    v_rev_code_id INT;
+    v_status_id INT;
+    v_seq_num INT;
+    v_rev_date TIMESTAMP;
 BEGIN
+    SELECT rev_code_id INTO v_rev_code_id
+    FROM revision_overview
+    WHERE rev_code_acronym = 'A'
+    ORDER BY rev_code_id
+    LIMIT 1;
+    IF v_rev_code_id IS NULL THEN
+        v_rev_code_id := 6;
+    END IF;
+
     FOR i IN 1..50 LOOP
         -- 1. Randomly select FKs
         SELECT project_id INTO v_project_id FROM projects ORDER BY random() LIMIT 1;
@@ -169,45 +182,38 @@ BEGIN
             v_project_id, v_jobpack_id, v_type_id, v_area_id, v_unit_id
         ) RETURNING doc_id INTO v_doc_id;
 
-        -- 4. Insert Initial Revision (Rev A)
-        -- Note: The trigger 'tr_doc_revision_after_insert' defined in the schema 
-        -- will automatically update 'doc.rev_current_id' to point to this new revision.
-        INSERT INTO doc_revision (
-            rev_code_id, rev_date, rev_author_id, rev_originator_id, 
-            transmital_current_revision, milestone_id, 
-            planned_start_date, planned_finish_date, 
-            rev_status_id, doc_id, seq_num
-        ) VALUES (
-            6, -- INDESIGN (A)
-            NOW() - (random() * interval '30 days'),
-            v_author, v_author,
-            'TR-00' || i,
-            1, -- Issued for Construction
-            NOW(), NOW() + interval '5 days',
-            1, -- InDesign
-            v_doc_id,
-            1
-        );
+        -- 4. Insert revisions with a random status per revision.
+        -- Note: The trigger 'tr_doc_revision_after_insert' defined in the schema
+        -- will automatically update 'doc.rev_current_id' to point to the latest revision.
+        v_seq_num := 1;
+        v_rev_date := NOW() - (random() * interval '30 days');
 
-        -- 5. Randomly add a second revision (Rev B) for some docs
-        IF (random() > 0.5) THEN
+        WHILE v_seq_num <= 4 LOOP
+            SELECT rev_status_id INTO v_status_id
+            FROM doc_rev_statuses
+            ORDER BY random()
+            LIMIT 1;
+
             INSERT INTO doc_revision (
                 rev_code_id, rev_date, rev_author_id, rev_originator_id, 
                 transmital_current_revision, milestone_id, 
                 planned_start_date, planned_finish_date, 
-                rev_status_id, doc_id, seq_num
+                rev_status_id, doc_id, seq_num, rev_modifier_id
             ) VALUES (
-                1, -- IDC (B)
-                NOW(),
+                v_rev_code_id,
+                v_rev_date + ((v_seq_num - 1) * interval '2 days'),
                 v_author, v_author,
-                'TR-01' || i,
-                2, 
-                NOW(), NOW() + interval '10 days',
-                4, -- Official
+                'TR-' || lpad(i::text, 2, '0') || '-' || v_seq_num,
+                1,
+                NOW() + ((v_seq_num - 1) * interval '1 day'),
+                NOW() + ((v_seq_num - 1) * interval '1 day') + interval '5 days',
+                v_status_id,
                 v_doc_id,
-                2
+                v_seq_num,
+                v_author
             );
-        END IF;
+            v_seq_num := v_seq_num + 1;
+        END LOOP;
 
     END LOOP;
 END $$;

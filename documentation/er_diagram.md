@@ -31,11 +31,11 @@ erDiagram
         timestamp planned_finish_date
         timestamp actual_start_date
         timestamp actual_finish_date
-        string canceled_date
+        datetime canceled_date
         smallint rev_status_id FK
         integer doc_id FK
         smallint seq_num
-        smallint rev_modifier_id
+        smallint rev_modifier_id FK "NOT NULL"
         timestamp modified_doc_date
     }
 
@@ -55,7 +55,7 @@ erDiagram
         timestamp planned_finish_date
         timestamp actual_start_date
         timestamp actual_finish_date
-        string canceled_date
+        datetime canceled_date
         smallint rev_status_id
         integer doc_id
         smallint seq_num
@@ -78,7 +78,7 @@ erDiagram
         timestamp planned_finish_date
         timestamp actual_start_date
         timestamp actual_finish_date
-        string canceled_date
+        datetime canceled_date
         smallint rev_status_id
         integer doc_id
     }
@@ -257,4 +257,3 @@ erDiagram
     UNITS ||--o{ DOC_CACHE : "cached"
 
 ```
-

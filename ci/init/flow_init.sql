@@ -259,11 +259,11 @@ CREATE TABLE doc_revision (
     planned_finish_date TIMESTAMP NOT NULL,
     actual_start_date TIMESTAMP,
     actual_finish_date TIMESTAMP,
-    canceled_date VARCHAR(45),
+    canceled_date TIMESTAMP,
     rev_status_id SMALLINT NOT NULL REFERENCES doc_rev_statuses(rev_status_id),
     doc_id INTEGER NOT NULL REFERENCES doc(doc_id) ON DELETE CASCADE,
     seq_num SMALLINT NOT NULL DEFAULT 1,
-    rev_modifier_id SMALLINT,
+    rev_modifier_id SMALLINT NOT NULL REFERENCES person(person_id),
     modified_doc_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
@@ -286,7 +286,7 @@ CREATE TABLE doc_revision_history (
     planned_finish_date TIMESTAMP NOT NULL,
     actual_start_date TIMESTAMP,
     actual_finish_date TIMESTAMP,
-    canceled_date VARCHAR(45),
+    canceled_date TIMESTAMP,
     rev_status_id SMALLINT NOT NULL,
     doc_id INTEGER NOT NULL,
     seq_num SMALLINT NOT NULL,
