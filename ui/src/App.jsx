@@ -71,21 +71,21 @@ function App() {
     color: "var(--color-accent-contrast)",
     border: "none",
     borderRadius: "4px",
-    padding: "4px 8px",
+    padding: "3px 6px",
     marginRight: "2px",
-    fontSize: "14px",
+    fontSize: "12px",
     fontWeight: 500,
     cursor: "pointer",
     display: "inline-flex",
     alignItems: "center",
-    height: "32px",
+    height: "26px",
     boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
     transition: "background 0.2s",
   };
 
   const iconStyle = {
-    marginRight: "5px",
-    fontSize: "14px",
+    marginRight: "3px",
+    fontSize: "12px",
   };
 
   const [infoRatio, setInfoRatio] = React.useState(0.35);
@@ -204,13 +204,13 @@ function App() {
           background: "var(--color-success-soft)",
           border: "1px solid var(--color-success-border)",
           borderRadius: "8px",
-          padding: "12px 14px",
-          marginBottom: "4px",
+          padding: "6px 10px",
+          marginBottom: "2px",
           boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", position: "relative" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", position: "relative" }}>
             <button
               type="button"
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -1172,12 +1172,12 @@ function App() {
         .task-tab {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
+          gap: 4px;
           background: var(--color-surface);
           border: 1px solid var(--color-success-border-strong);
-          border-radius: 8px;
-          padding: 7px 10px;
-          font-size: 14px;
+          border-radius: 6px;
+          padding: 4px 8px;
+          font-size: 12px;
           font-weight: 600;
           color: var(--color-text);
           box-shadow: none;
@@ -1187,12 +1187,12 @@ function App() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          min-width: 22px;
-          height: 22px;
-          padding: 0 6px;
-          border-radius: 6px;
+          min-width: 16px;
+          height: 16px;
+          padding: 0 4px;
+          border-radius: 4px;
           font-weight: 700;
-          font-size: 12px;
+          font-size: 10px;
           color: var(--color-surface);
         }
         .detail-tabs {
