@@ -10,6 +10,12 @@ Update conventions (PUT/PATCH):
 ```
 - `PATCH` endpoints are not currently provided; consider adding `PATCH` for partial updates if needed.
 
+Delete conventions:
+- `DELETE /resource/{id}` does not accept a request body.
+- Success returns `204 No Content`.
+- If the resource does not exist, return `404 Not Found`.
+- Idempotent delete (returning `204` when the resource is already deleted) is not currently documented; implement and document if desired.
+
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
 - `GET /health` — Returns `{"status": "ok"}`.
