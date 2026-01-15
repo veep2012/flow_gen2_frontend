@@ -1707,7 +1707,7 @@ def cancel_revision(
         raise HTTPException(status_code=404, detail="Revision not found")
 
     revision.canceled_date = datetime.now(timezone.utc).replace(tzinfo=None)
-    
+
     try:
         db.commit()
     except IntegrityError as err:
