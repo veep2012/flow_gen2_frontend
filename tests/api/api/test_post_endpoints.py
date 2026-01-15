@@ -642,7 +642,6 @@ def test_post_documents_create_with_start_status():
         ), "initial revision seq_num should be 1"
 
         # Clean up: delete the document
-        doc_id = created["payload"]["doc_id"]
         # Note: Document deletion endpoint may not exist, so we'll skip cleanup
         # If there's a delete endpoint, uncomment the following line:
-        # _request(client, "DELETE", f"/documents/{doc_id}")
+        # _request(client, "DELETE", f"/documents/{created['payload']['doc_id']}")

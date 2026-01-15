@@ -968,7 +968,7 @@ def insert_document(
         raise HTTPException(status_code=404, detail="Revision modifier not found")
 
     # Get the start status
-    start_status = db.query(DocRevStatus).filter(DocRevStatus.start == True).first()
+    start_status = db.query(DocRevStatus).filter(DocRevStatus.start.is_(True)).first()
     if not start_status:
         raise HTTPException(
             status_code=400, detail="No start status found in doc_rev_statuses"
