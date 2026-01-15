@@ -1286,9 +1286,12 @@ function App() {
           caret-color: transparent; /* Hide blinking text cursor in header filters */
         }
         .table td {
-          padding: 6px 8px;
+          padding: 8px 12px;
           border-bottom: 1px solid var(--color-border);
           position: relative;
+          font-size: 13px;
+          color: var(--color-text);
+          line-height: 1.5;
         }
         .table td:not(:first-child) {
           border-left: 1px solid var(--color-border);

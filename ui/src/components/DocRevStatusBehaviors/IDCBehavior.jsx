@@ -53,7 +53,6 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
           const isActive = tab === "Comments" 
             ? (infoActiveSubTab === "Comments" || infoActiveSubTab === "Files with Comments" || infoActiveSubTab === "Written Comments")
             : infoActiveSubTab === tab;
-          const tabIcon = tab === "Comments" ? "💬" : "📋";
           return (
             <button
               type="button"
@@ -72,7 +71,6 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
               }}
               style={{ fontWeight: 600, letterSpacing: "0.3px", textTransform: "capitalize", display: "flex", alignItems: "center", gap: "6px", fontSize: "13px" }}
             >
-              <span>{tabIcon}</span>
               {tab}
             </button>
           );
@@ -305,16 +303,15 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                           }}
                           style={{
                             flex: 1,
-                            padding: "10px 20px",
+                            padding: "6px 12px",
                             background: "#6b7280",
                             color: "white",
                             border: "none",
-                            borderRadius: "6px",
-                            fontSize: "14px",
-                            fontWeight: 700,
+                            borderRadius: "4px",
+                            fontSize: "13px",
+                            fontWeight: 600,
                             cursor: "pointer",
                             transition: "all 0.2s",
-                            boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.background = "#4b5563";
@@ -343,16 +340,15 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                           }}
                           style={{
                             flex: 1,
-                            padding: "10px 20px",
+                            padding: "6px 12px",
                             background: "#16a34a",
                             color: "white",
                             border: "none",
-                            borderRadius: "6px",
-                            fontSize: "14px",
-                            fontWeight: 700,
+                            borderRadius: "4px",
+                            fontSize: "13px",
+                            fontWeight: 600,
                             cursor: "pointer",
                             transition: "all 0.2s",
-                            boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.background = "#15803d";
@@ -385,12 +381,12 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                                       setComments(comments.filter((c) => c.id !== comment.id));
                                     }}
                                     style={{
-                                      padding: "4px 8px",
+                                      padding: "3px 6px",
                                       background: "#ef4444",
                                       color: "white",
                                       border: "none",
-                                      borderRadius: "4px",
-                                      fontSize: "12px",
+                                      borderRadius: "3px",
+                                      fontSize: "11px",
                                       fontWeight: 600,
                                       cursor: "pointer",
                                       transition: "all 0.2s",
