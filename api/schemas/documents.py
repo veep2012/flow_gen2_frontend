@@ -129,6 +129,40 @@ class DocUpdate(BaseModel):
     rev_current_id: int | None = Field(None, description="Rev Current ID.", examples=[1], gt=0)
 
 
+class DocCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    doc_name_unique: str = Field(
+        ..., description="Document unique name.", examples=["DOC-001"], min_length=1
+    )
+    title: str = Field(
+        ..., description="Document title.", examples=["Document Title"], min_length=1
+    )
+    project_id: int | None = Field(None, description="Project ID.", examples=[1], gt=0)
+    jobpack_id: int | None = Field(None, description="Jobpack ID.", examples=[1], gt=0)
+    type_id: int = Field(..., description="Type ID.", examples=[1], gt=0)
+    area_id: int = Field(..., description="Area ID.", examples=[1], gt=0)
+    unit_id: int = Field(..., description="Unit ID.", examples=[1], gt=0)
+    rev_code_id: int = Field(..., description="Revision code ID.", examples=[1], gt=0)
+    rev_author_id: int = Field(..., description="Revision author person ID.", examples=[1], gt=0)
+    rev_originator_id: int = Field(
+        ..., description="Revision originator person ID.", examples=[1], gt=0
+    )
+    rev_modifier_id: int = Field(
+        ..., description="Revision modifier person ID.", examples=[1], gt=0
+    )
+    transmital_current_revision: str = Field(
+        ..., description="Transmittal current revision.", examples=["TR-001"], min_length=1
+    )
+    milestone_id: int | None = Field(None, description="Milestone ID.", examples=[1], gt=0)
+    planned_start_date: datetime = Field(
+        ..., description="Planned start date.", examples=["2024-01-02T12:00:00Z"]
+    )
+    planned_finish_date: datetime = Field(
+        ..., description="Planned finish date.", examples=["2024-01-05T12:00:00Z"]
+    )
+
+
 class DocRevMilestoneOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
