@@ -226,7 +226,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                     })}
                   </div>
                 ) : (
-                  <div style={{ fontSize: "13px", color: "var(--color-text-subtle)" }}>
+                  <div style={{ fontSize: "16px", color: "var(--color-text-subtle)", minHeight: "120px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     No original files uploaded yet
                   </div>
                 )}
