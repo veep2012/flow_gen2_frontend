@@ -108,6 +108,7 @@ class DocOut(BaseModel):
     percentage: int | None = Field(
         None, description="Completion percentage.", examples=[50], ge=0, le=100
     )
+    voided: bool = Field(False, description="Whether document is voided.", examples=[False])
 
 
 class DocUpdate(BaseModel):
