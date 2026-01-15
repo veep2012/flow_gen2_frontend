@@ -1276,22 +1276,23 @@ function App() {
         }
         .table thead input {
           width: 100%;
-          margin-top: 4px;
-          padding: 6px 8px;
+          margin-top: 2px;
+          padding: 4px 8px;
           border: 1px solid var(--color-border-soft);
           border-radius: 8px;
           font-size: 13px;
           color: var(--color-text-muted);
           background: var(--color-surface);
           caret-color: transparent; /* Hide blinking text cursor in header filters */
+          line-height: 1.4;
         }
         .table td {
-          padding: 8px 12px;
+          padding: 4px 8px;
           border-bottom: 1px solid var(--color-border);
           position: relative;
           font-size: 13px;
           color: var(--color-text);
-          line-height: 1.5;
+          line-height: 1.4;
         }
         .table td:not(:first-child) {
           border-left: 1px solid var(--color-border);
