@@ -370,7 +370,7 @@ class DocRevision(Base):
     planned_finish_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     actual_start_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
     actual_finish_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    canceled_date: Mapped[Optional[str]] = mapped_column(String(45))
+    canceled_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
     rev_status_id: Mapped[int] = mapped_column(
         ForeignKey("flow.doc_rev_statuses.rev_status_id"), nullable=False
     )
@@ -378,7 +378,9 @@ class DocRevision(Base):
         ForeignKey("flow.doc.doc_id", ondelete="CASCADE"), nullable=False
     )
     seq_num: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)
-    rev_modifier_id: Mapped[Optional[int]] = mapped_column(SmallInteger)
+    rev_modifier_id: Mapped[int] = mapped_column(
+        ForeignKey("flow.person.person_id"), nullable=False
+    )
     modified_doc_date: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
     )
@@ -423,7 +425,7 @@ class DocRevisionHistory(Base):
     planned_finish_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     actual_start_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
     actual_finish_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    canceled_date: Mapped[Optional[str]] = mapped_column(String(45))
+    canceled_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
     rev_status_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     doc_id: Mapped[int] = mapped_column(Integer, nullable=False)
     seq_num: Mapped[int] = mapped_column(SmallInteger, nullable=False)
@@ -484,7 +486,7 @@ class DocRevisionHistoryView(Base):
     planned_finish_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     actual_start_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
     actual_finish_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    canceled_date: Mapped[Optional[str]] = mapped_column(String(45))
+    canceled_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
     rev_status_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     doc_id: Mapped[int] = mapped_column(Integer, nullable=False)
     seq_num: Mapped[int] = mapped_column(SmallInteger, nullable=False)
