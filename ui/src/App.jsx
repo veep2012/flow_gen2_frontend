@@ -1281,15 +1281,21 @@ function App() {
           padding: 12px;
         }
         .flow-upload {
-          border: 1px dashed var(--color-border-strong);
+          border: 2px dashed var(--color-border-strong);
           border-radius: 12px;
-          padding: 18px;
+          padding: 60px 40px;
           text-align: center;
           color: var(--color-accent);
-          font-size: 13px;
+          font-size: 18px;
+          line-height: 1.8;
           background: var(--color-surface);
           transition: background 0.15s, border-color 0.15s, color 0.15s;
           font: inherit;
+          min-height: 180px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
         }
         .flow-step:focus-visible,
         .flow-subtab:focus-visible,
