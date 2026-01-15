@@ -75,6 +75,7 @@ def test_cancel_revision():
         
         # Check initial state - cancelled_date should be None
         initial_canceled_date = revisions["payload"][0].get("canceled_date")
+        assert initial_canceled_date is None, "canceled_date should be None initially"
         
         # Cancel the revision
         result = _request(client, "PATCH", f"/documents/revisions/{rev_id}/cancel")
@@ -140,6 +141,7 @@ def test_delete_document_void():
         doc = next((d for d in docs["payload"] if d["doc_id"] == doc_id), None)
         if doc:
             initial_voided = doc.get("voided", False)
+            assert initial_voided is False, "Document should not be voided initially"
         
         # Delete the document (should void it)
         result = _request(client, "DELETE", f"/documents/{doc_id}")
