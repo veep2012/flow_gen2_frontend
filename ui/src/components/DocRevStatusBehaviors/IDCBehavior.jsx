@@ -48,7 +48,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
 
   return (
     <>
-      <div className="flow-subtabs" style={{ display: "flex" }}>
+      <div className="detail-tabs" style={{ display: "flex" }}>
         {["Comments", "Distribution list"].map((tab) => {
           const isActive = tab === "Comments" 
             ? (infoActiveSubTab === "Comments" || infoActiveSubTab === "Files with Comments" || infoActiveSubTab === "Written Comments")
@@ -57,7 +57,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
             <button
               type="button"
               key={tab}
-              className={`flow-subtab ${isActive ? "active" : ""}`}
+              className={`detail-tab ${isActive ? "active" : ""}`}
               aria-pressed={isActive}
               onClick={() => {
                 if (tab === "Comments") {
@@ -69,7 +69,6 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                   onSubTabChange(tab);
                 }
               }}
-              style={{ fontWeight: 600, letterSpacing: "0.3px", textTransform: "capitalize", display: "flex", alignItems: "center", gap: "6px", fontSize: "13px" }}
             >
               {tab}
             </button>
@@ -238,19 +237,18 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
               </div>
             </div>
             <div className="flow-box" style={{ flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", borderRadius: "0px", margin: "0", padding: "12px", marginTop: "-1px" }}>
-              <div className="flow-mini-tabs" style={{ flex: "0 0 auto" }}>
+              <div className="detail-tabs" style={{ flex: "0 0 auto" }}>
                 {["Files with Comments", "Written Comments"].map((tab) => {
                   const isActive = infoActiveSubTab === tab;
                   return (
                     <button
                       type="button"
                       key={tab}
-                      className={`flow-mini-tab ${isActive ? "active" : ""}`}
+                      className={`detail-tab ${isActive ? "active" : ""}`}
                       aria-pressed={isActive}
                       onClick={() => {
                         onSubTabChange(tab);
                       }}
-                      style={{ fontWeight: 600, letterSpacing: "0.3px", textTransform: "capitalize", fontSize: "13px" }}
                     >
                       {tab}
                     </button>
