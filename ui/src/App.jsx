@@ -115,6 +115,7 @@ function App() {
   const [selectedFileId, setSelectedFileId] = React.useState(null);
   const [projectMenuOpen, setProjectMenuOpen] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
   const editingDoc = React.useMemo(
     () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === editRowId),
@@ -359,6 +360,169 @@ function App() {
                 </span>
               </div>
             ))}
+          </div>
+          
+          {/* User Avatar */}
+          <div style={{ position: "relative", marginLeft: "12px", display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+            <input
+              type="file"
+              id="avatar-upload"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    const img = document.querySelector('[id="avatar-img"]');
+                    if (img) {
+                      img.src = event.target?.result;
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => document.getElementById("avatar-upload").click()}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                background: "transparent",
+                border: "2px solid var(--color-primary-soft)",
+                cursor: "pointer",
+                padding: "0",
+                transition: "all 0.3s ease",
+                overflow: "hidden",
+                flexShrink: 0,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                e.currentTarget.style.transform = "scale(1.08)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.08)";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+              title="Change avatar"
+              aria-label="Change avatar"
+            >
+              <img
+                id="avatar-img"
+                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Konstantin"
+                alt="User avatar"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  borderRadius: "50%",
+                }}
+              />
+            </button>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "1px", justifyContent: "center", cursor: "pointer" }} onClick={() => setUserMenuOpen(!userMenuOpen)}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text)", lineHeight: "1.3", letterSpacing: "-0.3px" }}>
+                Konstantin Ni
+              </div>
+              <div style={{ fontSize: "10px", color: "var(--color-text-muted)", lineHeight: "1.2", fontWeight: 500 }}>
+                Manager
+              </div>
+            </div>
+            
+            {userMenuOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  right: "0",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "8px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+                  minWidth: "200px",
+                  zIndex: 1000,
+                  marginTop: "8px",
+                  overflow: "hidden",
+                  animation: "slideDown 0.2s ease"
+                }}
+              >
+                <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border-soft)" }}>
+                  <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>John Doe</div>
+                  <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>john.doe@example.com</div>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => { console.log("Profile"); setUserMenuOpen(false); }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "10px 16px",
+                    background: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    color: "var(--color-text)",
+                    transition: "background 0.2s",
+                    borderBottom: "1px solid var(--color-border-soft)",
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-muted)"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                >
+                  👤 My Profile
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => { console.log("Settings"); setUserMenuOpen(false); }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "10px 16px",
+                    background: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    color: "var(--color-text)",
+                    transition: "background 0.2s",
+                    borderBottom: "1px solid var(--color-border-soft)",
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-muted)"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                >
+                  ⚙ Settings
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => { console.log("Logout"); setUserMenuOpen(false); }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "10px 16px",
+                    background: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    color: "var(--color-danger)",
+                    transition: "background 0.2s",
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-danger-soft)"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                >
+                  🚪 Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1640,7 +1804,11 @@ function App() {
           minHeight: "40px",
         }}
       >
-        <ToolbarMenu />
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}>
+          <ToolbarMenu />
+        </div>
+        
+        {/* Save Status */}
         {saveStatus === "saving" ? (
           <span className="status" style={{ marginLeft: 8 }}>
             Saving...
