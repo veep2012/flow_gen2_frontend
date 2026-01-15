@@ -198,7 +198,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                                       />
                                     )}
                                   </span>
-                                  <span style={{ textDecoration: "underline" }}>{displayName}</span>
+                                  <span>{displayName}</span>
                                 </button>
                               </div>
                             );

@@ -204,7 +204,7 @@ const InDesignBehavior = ({
                                 />
                               )}
                             </span>
-                            <span style={{ textDecoration: "underline" }}>{displayName}</span>
+                            <span>{displayName}</span>
                           </button>
                           <button
                             type="button"
