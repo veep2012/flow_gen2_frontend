@@ -431,7 +431,7 @@ function App() {
                 Konstantin Ni
               </div>
               <div style={{ fontSize: "10px", color: "var(--color-text-muted)", lineHeight: "1.2", fontWeight: 500 }}>
-                Manager
+                Designer
               </div>
             </div>
             
@@ -523,6 +523,26 @@ function App() {
                 </button>
               </div>
             )}
+          </div>
+          
+          {/* FLOW Logo */}
+          <div style={{ 
+            marginLeft: "16px",
+            paddingLeft: "12px",
+            borderLeft: "1px solid var(--color-success-border-strong)",
+            display: "flex",
+            alignItems: "center",
+            gap: "4px"
+          }}>
+            <span style={{
+              fontSize: "14px",
+              fontWeight: 800,
+              color: "var(--color-success-text)",
+              letterSpacing: "0.5px",
+              textTransform: "uppercase"
+            }}>
+              FLOW
+            </span>
           </div>
         </div>
       </div>
