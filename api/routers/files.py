@@ -133,16 +133,6 @@ def _validate_mimetype(file_extension: str, content_type: str, expected_mimetype
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {

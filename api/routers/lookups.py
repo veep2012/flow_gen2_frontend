@@ -71,16 +71,6 @@ router = APIRouter(prefix="/api/v1/lookups", tags=["lookups"])
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -120,10 +110,6 @@ def list_areas(db: Session = Depends(get_db)) -> list[AreaOut]:
     Returns:
         List of areas with id, name, and acronym.
 
-    Notes:
-        Unlike some other list endpoints, this endpoint intentionally returns an empty list
-        with HTTP 200 when no areas exist, rather than raising a 404. This behavior is
-        preserved for lookup consistency and backward compatibility.
     """
     areas = db.query(Area).order_by(Area.area_name).all()
     return _model_list(AreaOut, areas)
@@ -239,16 +225,6 @@ def delete_area(
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -287,13 +263,8 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[DisciplineOut]:
 
     Returns:
         List of disciplines with id, name, and acronym.
-
-    Raises:
-        HTTPException: 404 if no disciplines are found.
     """
     disciplines = db.query(Discipline).order_by(Discipline.discipline_name).all()
-    if not disciplines:
-        raise HTTPException(status_code=404, detail="No disciplines found")
     return _model_list(DisciplineOut, disciplines)
 
 
@@ -418,16 +389,6 @@ def delete_discipline(
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -466,13 +427,8 @@ def list_projects(db: Session = Depends(get_db)) -> list[ProjectOut]:
 
     Returns:
         List of projects with id and name.
-
-    Raises:
-        HTTPException: 404 if no projects are found.
     """
     projects = db.query(Project).order_by(Project.project_name).all()
-    if not projects:
-        raise HTTPException(status_code=404, detail="No projects found")
     return _model_list(ProjectOut, projects)
 
 
@@ -584,16 +540,6 @@ def delete_project(
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -632,13 +578,8 @@ def list_units(db: Session = Depends(get_db)) -> list[UnitOut]:
 
     Returns:
         List of units with id and name.
-
-    Raises:
-        HTTPException: 404 if no units are found.
     """
     units = db.query(Unit).order_by(Unit.unit_name).all()
-    if not units:
-        raise HTTPException(status_code=404, detail="No units found")
     return _model_list(UnitOut, units)
 
 
@@ -750,16 +691,6 @@ def delete_unit(
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -798,13 +729,8 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[JobpackOut]:
 
     Returns:
         List of jobpacks with id and name.
-
-    Raises:
-        HTTPException: 404 if no jobpacks are found.
     """
     jobpacks = db.query(Jobpack).order_by(Jobpack.jobpack_name).all()
-    if not jobpacks:
-        raise HTTPException(status_code=404, detail="No jobpacks found")
     return _model_list(JobpackOut, jobpacks)
 
 
@@ -915,16 +841,6 @@ def delete_jobpack(
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -963,15 +879,10 @@ def list_doc_rev_status_ui_behaviors(
 
     Returns:
         List of document revision status UI behaviors with id and name.
-
-    Raises:
-        HTTPException: 404 if no UI behaviors are found.
     """
     behaviors = (
         db.query(DocRevStatusUiBehavior).order_by(DocRevStatusUiBehavior.ui_behavior_name).all()
     )
-    if not behaviors:
-        raise HTTPException(status_code=404, detail="No doc revision status UI behaviors found")
     return _model_list(DocRevStatusUiBehaviorOut, behaviors)
 
 
@@ -1092,16 +1003,6 @@ def delete_doc_rev_status_ui_behavior(
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -1140,13 +1041,8 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatusOut
 
     Returns:
         List of document revision statuses with id and name.
-
-    Raises:
-        HTTPException: 404 if no statuses are found.
     """
     statuses = db.query(DocRevStatus).order_by(DocRevStatus.rev_status_name).all()
-    if not statuses:
-        raise HTTPException(status_code=404, detail="No doc revision statuses found")
     return _model_list(DocRevStatusOut, statuses)
 
 

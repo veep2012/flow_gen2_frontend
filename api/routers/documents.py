@@ -11,8 +11,8 @@ from api.db.models import (
     Discipline,
     Doc,
     DocRevision,
-    DocRevStatus,
     DocRevMilestone,
+    DocRevStatus,
     DocType,
     Jobpack,
     Project,
@@ -74,16 +74,6 @@ def _build_doc_type_out(doc_type: DocType, discipline: Discipline | None = None)
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -123,9 +113,6 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocTypeOut]:
 
     Returns:
         List of document types with id, name, acronym, and associated discipline details.
-
-    Raises:
-        HTTPException: 404 if no document types are found.
     """
     doc_types = (
         db.query(DocType, Discipline)
@@ -133,8 +120,6 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocTypeOut]:
         .order_by(DocType.doc_type_name)
         .all()
     )
-    if not doc_types:
-        raise HTTPException(status_code=404, detail="No doc types found")
     return [_build_doc_type_out(dt, disc) for dt, disc in doc_types]
 
 
@@ -271,16 +256,6 @@ def delete_doc_type(
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -326,9 +301,6 @@ def list_documents_for_project(
 
     Returns:
         List of documents with comprehensive metadata.
-
-    Raises:
-        HTTPException: 404 if no documents are found for the project.
     """
     rev_current = aliased(DocRevision)
     docs = (
@@ -357,8 +329,6 @@ def list_documents_for_project(
         .order_by(Doc.doc_name_unique)
         .all()
     )
-    if not docs:
-        raise HTTPException(status_code=404, detail="No documents found for project")
     return [
         DocOut(
             doc_id=doc.doc_id,
@@ -612,16 +582,6 @@ def update_document(
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -660,13 +620,8 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
 
     Returns:
         List of milestones with id, name, and progress percentage.
-
-    Raises:
-        HTTPException: 404 if no milestones are found.
     """
     milestones = db.query(DocRevMilestone).order_by(DocRevMilestone.milestone_name).all()
-    if not milestones:
-        raise HTTPException(status_code=404, detail="No milestones found")
     return _model_list(DocRevMilestoneOut, milestones)
 
 
@@ -786,16 +741,6 @@ def delete_doc_rev_milestone(
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -834,13 +779,8 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
 
     Returns:
         List of revision codes with id, name, acronym, description, and percentage.
-
-    Raises:
-        HTTPException: 404 if no revision overview entries are found.
     """
     revisions = db.query(RevisionOverview).order_by(RevisionOverview.rev_code_name).all()
-    if not revisions:
-        raise HTTPException(status_code=404, detail="No revision overview entries found")
     return _model_list(RevisionOverviewOut, revisions)
 
 

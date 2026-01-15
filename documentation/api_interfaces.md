@@ -16,6 +16,9 @@ Delete conventions:
 - If the resource does not exist, return `404 Not Found`.
 - Idempotent delete (returning `204` when the resource is already deleted) is not currently documented; implement and document if desired.
 
+List conventions:
+- List endpoints return `200 OK` with an empty list when no records match.
+
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
 - `GET /health` — Returns `{"status": "ok"}`.
@@ -63,7 +66,7 @@ Shape (single item):
 { "discipline_id": 2, "discipline_name": "Piping", "discipline_acronym": "PIP" }
 ```
 ### List
-- `GET /api/v1/lookups/disciplines` — 200 sorted by `discipline_name`; 404 if empty.
+- `GET /api/v1/lookups/disciplines` — 200 sorted by `discipline_name`; empty list if none.
 - Example response:
 ```json
 [ { "discipline_id": 2, "discipline_name": "Piping", "discipline_acronym": "PIP" } ]
@@ -89,7 +92,7 @@ Shape (single item):
 { "project_id": 3, "project_name": "Delta Expansion" }
 ```
 ### List
-- `GET /api/v1/lookups/projects` — 200 sorted by `project_name`; 404 if empty.
+- `GET /api/v1/lookups/projects` — 200 sorted by `project_name`; empty list if none.
 - Example response:
 ```json
 [ { "project_id": 3, "project_name": "Delta Expansion" } ]
@@ -115,7 +118,7 @@ Shape (single item):
 { "unit_id": 2, "unit_name": "North Wing" }
 ```
 ### List
-- `GET /api/v1/lookups/units` — 200 sorted by `unit_name`; 404 if empty.
+- `GET /api/v1/lookups/units` — 200 sorted by `unit_name`; empty list if none.
 - Example response:
 ```json
 [ { "unit_id": 2, "unit_name": "North Wing" } ]
@@ -141,7 +144,7 @@ Shape (single item):
 { "jobpack_id": 5, "jobpack_name": "JP-01" }
 ```
 ### List
-- `GET /api/v1/lookups/jobpacks` — 200 sorted by `jobpack_name`; 404 if empty.
+- `GET /api/v1/lookups/jobpacks` — 200 sorted by `jobpack_name`; empty list if none.
 - Example response:
 ```json
 [ { "jobpack_id": 5, "jobpack_name": "JP-01" } ]
@@ -167,7 +170,7 @@ Shape (single item):
 { "milestone_id": 4, "milestone_name": "IFC", "progress": 90 }
 ```
 ### List
-- `GET /api/v1/documents/doc_rev_milestones` — 200 sorted by `milestone_name`; 404 if empty.
+- `GET /api/v1/documents/doc_rev_milestones` — 200 sorted by `milestone_name`; empty list if none.
 - Example response:
 ```json
 [ { "milestone_id": 4, "milestone_name": "IFC", "progress": 90 } ]
@@ -199,7 +202,7 @@ Shape (single item):
 }
 ```
 ### List
-- `GET /api/v1/documents/revision_overview` — 200 sorted by `rev_code_name`; 404 if empty.
+- `GET /api/v1/documents/revision_overview` — 200 sorted by `rev_code_name`; empty list if none.
 - Example response:
 ```json
 [ { "rev_code_id": 5, "rev_code_name": "IFC", "rev_code_acronym": "E", "rev_description": "Issued for Construction", "percentage": 90 } ]
@@ -236,7 +239,7 @@ Shape (single item):
 { "ui_behavior_id": 1, "ui_behavior_name": "Default", "ui_behavior_file": "default.json" }
 ```
 ### List
-- `GET /api/v1/lookups/doc_rev_status_ui_behaviors` — 200 sorted by `ui_behavior_name`; 404 if empty.
+- `GET /api/v1/lookups/doc_rev_status_ui_behaviors` — 200 sorted by `ui_behavior_name`; empty list if none.
 - Example response:
 ```json
 [ { "ui_behavior_id": 1, "ui_behavior_name": "Default", "ui_behavior_file": "default.json" } ]
@@ -262,7 +265,7 @@ Shape (single item):
 { "rev_status_id": 2, "rev_status_name": "In review" }
 ```
 ### List
-- `GET /api/v1/lookups/doc_rev_statuses` — 200 sorted by `rev_status_name`; 404 if empty.
+- `GET /api/v1/lookups/doc_rev_statuses` — 200 sorted by `rev_status_name`; empty list if none.
 - Example response:
 ```json
 [ { "rev_status_id": 2, "rev_status_name": "In review" } ]
@@ -369,7 +372,7 @@ Shape (single item):
 { "role_id": 10, "role_name": "Coordinator" }
 ```
 ### List
-- `GET /api/v1/people/roles` — 200 sorted by `role_name`; 404 if empty.
+- `GET /api/v1/people/roles` — 200 sorted by `role_name`; empty list if none.
 - Example response:
 ```json
 [ { "role_id": 10, "role_name": "Coordinator" } ]
@@ -395,7 +398,7 @@ Shape (single item):
 { "person_id": 12, "person_name": "Ada Lovelace", "photo_s3_uid": "s3-key-123" }
 ```
 ### List
-- `GET /api/v1/people/persons` — 200 sorted by `person_name`; 404 if empty.
+- `GET /api/v1/people/persons` — 200 sorted by `person_name`; empty list if none.
 - Example response:
 ```json
 [ { "person_id": 12, "person_name": "Ada Lovelace", "photo_s3_uid": "s3-key-123" } ]
@@ -428,7 +431,7 @@ Shape (single item):
 }
 ```
 ### List
-- `GET /api/v1/people/users` — 200 sorted by `user_acronym`; 404 if empty.
+- `GET /api/v1/people/users` — 200 sorted by `user_acronym`; empty list if none.
 - Example response:
 ```json
 [ { "user_id": 7, "person_id": 12, "user_acronym": "ALV", "role_id": 3, "person_name": "Ada Lovelace", "role_name": "Coordinator" } ]
@@ -464,7 +467,7 @@ Shape (single item):
 ```
 At least one of `project_id` or `discipline_id` is required.
 ### List
-- `GET /api/v1/people/permissions` — 200 sorted by `user_id`; 404 if empty.
+- `GET /api/v1/people/permissions` — 200 sorted by `user_id`; empty list if none.
 - Example response:
 ```json
 [ { "permission_id": 42, "user_id": 7, "project_id": 3, "discipline_id": 2, "user_acronym": "ALV", "person_name": "Ada Lovelace", "project_name": "Delta Expansion", "discipline_name": "Piping" } ]
@@ -515,7 +518,7 @@ Shape (single item):
 }
 ```
 ### List
-- `GET /api/v1/documents/doc_types` — 200 sorted by `doc_type_name`; includes discipline info; 404 if empty.
+- `GET /api/v1/documents/doc_types` — 200 sorted by `doc_type_name`; includes discipline info; empty list if none.
 - Example response:
 ```json
 [ { "type_id": 7, "doc_type_name": "Piping Iso", "ref_discipline_id": 2, "doc_type_acronym": "ISO", "discipline_name": "Piping", "discipline_acronym": "PIP" } ]
@@ -544,7 +547,7 @@ Shape (single item):
 Shape (single item) includes doc, linked names, and discipline/progress pointers:
 `doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `rev_seq_num`, `discipline_id`/`discipline_name`/`discipline_acronym`, `rev_code_name`, `rev_code_acronym`, `percentage`.
 ### List
-- `GET /api/v1/documents?project_id=` — 200 ordered by `doc_name_unique`; 404 if none for the project. Requires `project_id` query param.
+- `GET /api/v1/documents?project_id=` — 200 ordered by `doc_name_unique`; empty list if none for the project. Requires `project_id` query param.
 - Example response:
 ```json
 [
