@@ -113,6 +113,8 @@ function App() {
   const [saveError, setSaveError] = React.useState(null);
   const [saveStatus, setSaveStatus] = React.useState("idle");
   const [selectedFileId, setSelectedFileId] = React.useState(null);
+  const [projectMenuOpen, setProjectMenuOpen] = React.useState(false);
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   const editingDoc = React.useMemo(
     () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === editRowId),
@@ -207,13 +209,118 @@ function App() {
           boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <label
-            htmlFor="project-select"
-            style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-success-text)" }}
-          >
-            Project:
-          </label>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              style={{
+                fontSize: "18px",
+                fontWeight: 700,
+                lineHeight: "1",
+                color: "var(--color-success-text)",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                padding: "4px 8px",
+                transition: "transform 0.3s ease",
+                transform: sidebarOpen ? "rotate(90deg)" : "rotate(0deg)",
+              }}
+              title="Toggle menu"
+              aria-label="Toggle menu"
+            >
+              ≣
+            </button>
+            
+            {projectMenuOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: "0",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-success-border-strong)",
+                  borderRadius: "8px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+                  minWidth: "200px",
+                  zIndex: 1000,
+                  marginTop: "8px",
+                  overflow: "hidden",
+                  animation: "slideDown 0.2s ease"
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => { console.log("New project"); setProjectMenuOpen(false); }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    color: "var(--color-text)",
+                    transition: "background 0.2s",
+                    borderBottom: "1px solid var(--color-border-soft)",
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-muted)"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                >
+                  + New Project
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { console.log("Manage projects"); setProjectMenuOpen(false); }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    color: "var(--color-text)",
+                    transition: "background 0.2s",
+                    borderBottom: "1px solid var(--color-border-soft)",
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-muted)"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                >
+                  ⚙ Manage Projects
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { console.log("Project settings"); setProjectMenuOpen(false); }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    color: "var(--color-text)",
+                    transition: "background 0.2s",
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-muted)"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                >
+                  ⬚ Settings
+                </button>
+              </div>
+            )}
+            
+            <label
+              htmlFor="project-select"
+              style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-success-text)" }}
+            >
+              Project:
+            </label>
+          </div>
           <select
             id="project-select"
             value={project}
@@ -957,6 +1064,24 @@ function App() {
             transform: rotate(360deg);
           }
         }
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
         .card {
           background: var(--color-surface);
           border: 1px solid var(--color-border);
@@ -1337,6 +1462,173 @@ function App() {
         }
       `}
       </style>
+      
+      {/* Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.4)",
+            zIndex: 998,
+            animation: "fadeIn 0.2s ease"
+          }}
+        />
+      )}
+      
+      {/* Sidebar Menu */}
+      <div
+        style={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: "280px",
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "0 12px 12px 0",
+          boxShadow: sidebarOpen ? "4px 0 12px rgba(0,0,0,0.15)" : "none",
+          zIndex: 999,
+          transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform 0.3s ease",
+          overflow: "auto",
+          padding: "20px 0",
+        }}
+      >
+        <div style={{ paddingBottom: "20px", borderBottom: "1px solid var(--color-border)" }}>
+          <div style={{ padding: "0 20px", marginBottom: "20px", fontSize: "18px", fontWeight: 700, color: "var(--color-text)" }}>
+            Menu
+          </div>
+        </div>
+        
+        <div style={{ padding: "12px 12px" }}>
+          <button
+            onClick={() => { console.log("Projects"); setSidebarOpen(false); }}
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "12px 16px",
+              background: "transparent",
+              border: "1px solid var(--color-border-soft)",
+              borderRadius: "8px",
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: "14px",
+              color: "var(--color-text)",
+              marginBottom: "8px",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--color-primary-soft)";
+              e.currentTarget.style.borderColor = "var(--color-primary)";
+              e.currentTarget.style.color = "var(--color-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.borderColor = "var(--color-border-soft)";
+              e.currentTarget.style.color = "var(--color-text)";
+            }}
+          >
+            📁 Projects
+          </button>
+          
+          <button
+            onClick={() => { console.log("Documents"); setSidebarOpen(false); }}
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "12px 16px",
+              background: "transparent",
+              border: "1px solid var(--color-border-soft)",
+              borderRadius: "8px",
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: "14px",
+              color: "var(--color-text)",
+              marginBottom: "8px",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--color-primary-soft)";
+              e.currentTarget.style.borderColor = "var(--color-primary)";
+              e.currentTarget.style.color = "var(--color-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.borderColor = "var(--color-border-soft)";
+              e.currentTarget.style.color = "var(--color-text)";
+            }}
+          >
+            📄 Documents
+          </button>
+          
+          <button
+            onClick={() => { console.log("Workflows"); setSidebarOpen(false); }}
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "12px 16px",
+              background: "transparent",
+              border: "1px solid var(--color-border-soft)",
+              borderRadius: "8px",
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: "14px",
+              color: "var(--color-text)",
+              marginBottom: "8px",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--color-primary-soft)";
+              e.currentTarget.style.borderColor = "var(--color-primary)";
+              e.currentTarget.style.color = "var(--color-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.borderColor = "var(--color-border-soft)";
+              e.currentTarget.style.color = "var(--color-text)";
+            }}
+          >
+            🔄 Workflows
+          </button>
+          
+          <button
+            onClick={() => { console.log("Settings"); setSidebarOpen(false); }}
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "12px 16px",
+              background: "transparent",
+              border: "1px solid var(--color-border-soft)",
+              borderRadius: "8px",
+              textAlign: "left",
+              cursor: "pointer",
+              fontSize: "14px",
+              color: "var(--color-text)",
+              marginBottom: "8px",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--color-primary-soft)";
+              e.currentTarget.style.borderColor = "var(--color-primary)";
+              e.currentTarget.style.color = "var(--color-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.borderColor = "var(--color-border-soft)";
+              e.currentTarget.style.color = "var(--color-text)";
+            }}
+          >
+            ⚙ Settings
+          </button>
+        </div>
+      </div>
+      
+      {/* Main Content */}
       <ProjectsPanel />
       <div
         style={{
