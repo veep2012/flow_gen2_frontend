@@ -3,6 +3,9 @@ import PropTypes from "prop-types";
 import { getFileIcon, getFileTypeLabel } from "../../utils/fileIcons";
 
 const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFiles = {}, expandedRevisions = {}, onRevisionToggle, onSelectFile, onDownloadFile, selectedFileId }) => {
+  const [commentText, setCommentText] = React.useState("");
+  const [comments, setComments] = React.useState([]);
+  
   const docName = selectedDoc ? `${selectedDoc.doc_name_unique || selectedDoc.title || "Document"}` : "No document selected";
   const docId = selectedDoc?.doc_id;
   const docInfo = selectedDoc ? {
@@ -17,6 +20,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
   // Also get API files that have been issued to IDC (issuedStatus = "2")
   const apiFiles = (docId && uploadedFiles[docId]?.["$api"]) || [];
   const issuedApiFiles = Array.isArray(apiFiles) ? apiFiles.filter(f => f.issuedStatus === "2") : [];
+  
   
   const idcFiles = [...issuedApiFiles, ...(Array.isArray(idcLocalFiles) ? idcLocalFiles : [])];
 
@@ -49,6 +53,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
           const isActive = tab === "Comments" 
             ? (infoActiveSubTab === "Comments" || infoActiveSubTab === "Files with Comments" || infoActiveSubTab === "Written Comments")
             : infoActiveSubTab === tab;
+          const tabIcon = tab === "Comments" ? "💬" : "📋";
           return (
             <button
               type="button"
@@ -65,13 +70,15 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                   onSubTabChange(tab);
                 }
               }}
+              style={{ fontWeight: 600, letterSpacing: "0.3px", textTransform: "capitalize", display: "flex", alignItems: "center", gap: "6px", fontSize: "13px" }}
             >
+              <span>{tabIcon}</span>
               {tab}
             </button>
           );
         })}
       </div>
-      <div className="detail-tab-panel" style={{ display: "flex", flexDirection: "column", gap: "0", padding: "0", borderBottomLeftRadius: "10px", borderBottomRightRadius: "10px", overflow: "hidden" }}>
+      <div className="detail-tab-panel" style={{ display: "flex", flexDirection: "column", gap: "0", padding: "12px", borderBottomLeftRadius: "10px", borderBottomRightRadius: "10px", overflow: "hidden", fontSize: "13px", color: "var(--color-text-muted)" }}>
         {infoActiveSubTab === "Comments" || infoActiveSubTab === "Files with Comments" || infoActiveSubTab === "Written Comments" ? (
           <>
             {docInfo && (
@@ -81,7 +88,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                 <div>Discipline: {docInfo.discipline}</div>
               </div>
             )}
-            <div className="flow-box" style={{ flex: "0 0 auto", borderRadius: "0px", margin: "0", padding: "0", marginBottom: "-1px", display: "flex", flexDirection: "column" }}>
+            <div className="flow-box" style={{ flex: "0 0 25%", borderRadius: "0px", margin: "0", padding: "0", marginBottom: "-1px", display: "flex", flexDirection: "column" }}>
               <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)", padding: "12px", background: "var(--color-surface-alt)", borderBottom: "1px solid rgba(0, 0, 0, 0.08)", margin: "0" }}>
                 Original Files
               </div>
@@ -226,7 +233,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                     })}
                   </div>
                 ) : (
-                  <div style={{ fontSize: "16px", color: "var(--color-text-subtle)", minHeight: "120px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ fontSize: "13px", color: "var(--color-text-subtle)", minHeight: "auto", maxHeight: "25%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     No original files uploaded yet
                   </div>
                 )}
@@ -245,6 +252,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                       onClick={() => {
                         onSubTabChange(tab);
                       }}
+                      style={{ fontWeight: 600, letterSpacing: "0.3px", textTransform: "capitalize", fontSize: "13px" }}
                     >
                       {tab}
                     </button>
@@ -255,19 +263,138 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                 style={{
                   fontSize: "13px",
                   color: "var(--color-text-subtle)",
-                  padding: "12px 0",
+                  padding: "12px",
                   flex: "1 1 auto",
                   minHeight: 0,
-                  overflow: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
                 }}
               >
-                No files with comments yet
+                {infoActiveSubTab === "Written Comments" ? (
+                  <>
+                    <div>
+                      <label style={{ display: "block", fontWeight: 600, marginBottom: "6px", color: "var(--color-text)" }}>
+                        Your Comment
+                      </label>
+                      <textarea
+                        placeholder="Write your comment here..."
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: "4px",
+                          fontSize: "13px",
+                          fontFamily: "inherit",
+                          resize: "none",
+                          minHeight: "60px",
+                          boxSizing: "border-box",
+                          color: "var(--color-text)",
+                          backgroundColor: "var(--color-surface)",
+                        }}
+                      />
+                    </div>
+                    {commentText.trim() && (
+                      <div style={{ display: "flex", gap: "8px", flex: "0 0 auto" }}>
+                        <button
+                          onClick={() => {
+                            setCommentText("");
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: "8px 16px",
+                            background: "var(--color-surface-alt)",
+                            color: "var(--color-text)",
+                            border: "1px solid var(--color-border)",
+                            borderRadius: "4px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            transition: "background 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "rgba(0,0,0,0.05)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "var(--color-surface-alt)";
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            const now = new Date();
+                            const dateStr = now.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+                            const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+                            const newComment = {
+                              id: Date.now(),
+                              text: commentText,
+                              user: "Current User",
+                              date: `${dateStr} at ${timeStr}`,
+                            };
+                            setComments([newComment, ...comments]);
+                            setCommentText("");
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: "8px 16px",
+                            background: "var(--color-accent)",
+                            color: "var(--color-accent-contrast)",
+                            border: "none",
+                            borderRadius: "4px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            transition: "background 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "var(--color-accent-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "var(--color-accent)";
+                          }}
+                        >
+                          Add Comment
+                        </button>
+                      </div>
+                    )}
+                    <div style={{ flex: "1 1 auto", minHeight: 0, overflow: "auto", paddingRight: "6px" }}>
+                      {comments.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                          {comments.map((comment) => (
+                            <div key={comment.id} style={{ padding: "12px", background: "var(--color-surface-alt)", borderRadius: "4px", borderLeft: "3px solid var(--color-accent)" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                                <div style={{ fontWeight: 600, color: "var(--color-text)", fontSize: "13px" }}>
+                                  {comment.user}
+                                </div>
+                                <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                                  {comment.date}
+                                </div>
+                              </div>
+                              <div style={{ fontSize: "13px", color: "var(--color-text)", lineHeight: "1.5", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                                {comment.text}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: "12px", color: "var(--color-text-muted)", textAlign: "center", paddingTop: "12px" }}>
+                          No comments yet
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ overflow: "auto" }}>No files with comments yet</div>
+                )}
               </div>
             </div>
           </>
         ) : (
-          <div className="flow-box" style={{ borderRadius: "0px", margin: "0" }}>
-            <h4>Distribution List</h4>
+            <div className="flow-box" style={{ borderRadius: "0px", margin: "0", padding: "12px" }}>
+            <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "12px", color: "var(--color-text)" }}>Distribution List</div>
             <div style={{ fontSize: "13px", color: "var(--color-text-subtle)" }}>
               No distribution list assigned
             </div>
