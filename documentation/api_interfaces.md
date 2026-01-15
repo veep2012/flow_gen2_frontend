@@ -55,6 +55,12 @@ Common status codes (by endpoint and context):
 - `422 Unprocessable Entity` — FastAPI/Pydantic request validation errors.
 - `500 Internal Server Error` — Unhandled server errors.
 
+OpenAPI/Swagger:
+- Swagger UI (FastAPI): `/docs`
+- OpenAPI JSON: `/openapi.json`
+- OpenAPI YAML: `/openapi.yaml` (if enabled)
+- This document is maintained manually; verify against the OpenAPI schema when updating endpoints.
+
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
 - Headers: `Accept: application/json`
