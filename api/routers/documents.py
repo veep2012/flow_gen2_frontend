@@ -1,5 +1,7 @@
 """Documents endpoints for managing documents, revisions, milestones, and overviews."""
 
+import logging
+from datetime import datetime
 from typing import Any, TypeVar
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
@@ -22,6 +24,7 @@ from api.db.models import (
 )
 from api.schemas.documents import (
     DocOut,
+    DocRevisionCreate,
     DocRevisionOut,
     DocRevisionUpdate,
     DocRevMilestoneCreate,
@@ -42,6 +45,7 @@ from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
+logger = logging.getLogger(__name__)
 
 
 def _build_doc_type_out(doc_type: DocType, discipline: Discipline | None = None) -> DocTypeOut:
@@ -565,6 +569,136 @@ def update_document_revision(
     )
     if not row:
         raise HTTPException(status_code=404, detail="Revision not found after update")
+
+    rev, overview, status, milestone = row
+    response_payload = {
+        "rev_id": rev.rev_id,
+        "doc_id": rev.doc_id,
+        "seq_num": rev.seq_num,
+        "rev_code_id": rev.rev_code_id,
+        "rev_code_name": overview.rev_code_name if overview else None,
+        "rev_code_acronym": overview.rev_code_acronym if overview else None,
+        "rev_description": overview.rev_description if overview else None,
+        "rev_date": rev.rev_date,
+        "rev_author_id": rev.rev_author_id,
+        "rev_originator_id": rev.rev_originator_id,
+        "rev_modifier_id": rev.rev_modifier_id,
+        "transmital_current_revision": rev.transmital_current_revision,
+        "milestone_id": rev.milestone_id,
+        "milestone_name": milestone.milestone_name if milestone else None,
+        "planned_start_date": rev.planned_start_date,
+        "planned_finish_date": rev.planned_finish_date,
+        "actual_start_date": rev.actual_start_date,
+        "actual_finish_date": rev.actual_finish_date,
+        "canceled_date": rev.canceled_date,
+        "rev_status_id": rev.rev_status_id,
+        "rev_status_name": status.rev_status_name if status else None,
+        "as_built": rev.as_built,
+        "superseded": rev.superseded,
+        "voided": rev.voided,
+        "modified_doc_date": rev.modified_doc_date,
+    }
+    return _model_out(DocRevisionOut, response_payload)
+
+
+def insert_document_revision(
+    doc_id: int,
+    payload: DocRevisionCreate = Body(..., openapi_examples=_example_for(DocRevisionCreate)),
+    db: Session = Depends(get_db),
+) -> DocRevisionOut:
+    """
+    Create a new document revision.
+
+    Creates a revision for the specified document. The sequence number is auto-assigned as
+    max(seq_num)+1 for the document.
+
+    Args:
+        doc_id: Document ID to attach the revision to.
+        payload: Revision creation data.
+
+    Returns:
+        Newly created document revision with metadata.
+
+    Raises:
+        HTTPException: 404 if document or referenced entities not found.
+    """
+    if not db.get(Doc, doc_id):
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not db.get(RevisionOverview, payload.rev_code_id):
+        raise HTTPException(status_code=404, detail="Revision code not found")
+    if not db.get(DocRevStatus, payload.rev_status_id):
+        raise HTTPException(status_code=404, detail="Revision status not found")
+    if payload.milestone_id is not None and not db.get(DocRevMilestone, payload.milestone_id):
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    if not db.get(Person, payload.rev_author_id):
+        raise HTTPException(status_code=404, detail="Revision author not found")
+    if not db.get(Person, payload.rev_originator_id):
+        raise HTTPException(status_code=404, detail="Revision originator not found")
+    if not db.get(Person, payload.rev_modifier_id):
+        raise HTTPException(status_code=404, detail="Revision modifier not found")
+
+    max_seq = (
+        db.query(DocRevision.seq_num)
+        .filter(DocRevision.doc_id == doc_id)
+        .order_by(DocRevision.seq_num.desc())
+        .limit(1)
+        .scalar()
+    )
+    seq_num = 1 if max_seq is None else max_seq + 1
+
+    def _normalize_dt(value: datetime | str | None) -> datetime | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            try:
+                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail="Invalid datetime format") from exc
+            return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
+        return value.replace(tzinfo=None) if value.tzinfo else value
+
+    new_revision = DocRevision(
+        doc_id=doc_id,
+        seq_num=seq_num,
+        rev_code_id=payload.rev_code_id,
+        rev_date=_normalize_dt(payload.rev_date) or datetime.utcnow(),
+        rev_author_id=payload.rev_author_id,
+        rev_originator_id=payload.rev_originator_id,
+        rev_modifier_id=payload.rev_modifier_id,
+        transmital_current_revision=payload.transmital_current_revision,
+        milestone_id=payload.milestone_id,
+        planned_start_date=_normalize_dt(payload.planned_start_date),
+        planned_finish_date=_normalize_dt(payload.planned_finish_date),
+        actual_start_date=_normalize_dt(payload.actual_start_date),
+        actual_finish_date=_normalize_dt(payload.actual_finish_date),
+        canceled_date=_normalize_dt(payload.canceled_date),
+        rev_status_id=payload.rev_status_id,
+        as_built=payload.as_built,
+        superseded=payload.superseded,
+        voided=payload.voided,
+        modified_doc_date=_normalize_dt(payload.modified_doc_date) or datetime.utcnow(),
+    )
+    db.add(new_revision)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Failed to create revision", err, "insert_document_revision")
+    except Exception as err:
+        db.rollback()
+        logger.exception("Failed to create revision doc_id=%s", doc_id)
+        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+
+    row = (
+        db.query(DocRevision, RevisionOverview, DocRevStatus, DocRevMilestone)
+        .outerjoin(RevisionOverview, DocRevision.rev_code_id == RevisionOverview.rev_code_id)
+        .outerjoin(DocRevStatus, DocRevision.rev_status_id == DocRevStatus.rev_status_id)
+        .outerjoin(DocRevMilestone, DocRevision.milestone_id == DocRevMilestone.milestone_id)
+        .filter(DocRevision.rev_id == new_revision.rev_id)
+        .one_or_none()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Revision not found after insert")
 
     rev, overview, status, milestone = row
     response_payload = {
@@ -1336,3 +1470,20 @@ def update_document_revision_rest(
     if payload.rev_id != rev_id:
         raise HTTPException(status_code=400, detail="rev_id mismatch")
     return update_document_revision(payload, db)
+
+
+@router.post(
+    "/{doc_id}/revisions",
+    summary="Create a document revision (REST).",
+    description="Creates a revision for the specified document.",
+    response_model=DocRevisionOut,
+    status_code=201,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def create_document_revision_rest(
+    doc_id: int,
+    payload: DocRevisionCreate = Body(..., openapi_examples=_example_for(DocRevisionCreate)),
+    db: Session = Depends(get_db),
+) -> DocRevisionOut:
+    return insert_document_revision(doc_id, payload, db)

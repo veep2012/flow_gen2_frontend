@@ -105,3 +105,29 @@ def test_documents_revisions_update():
         assert 200 <= updated["status"] < 300
         assert updated["payload"]["rev_id"] == rev_id
         assert updated["payload"]["transmital_current_revision"].startswith("TR-TEST-")
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_create():
+    with httpx.Client(timeout=10) as client:
+        doc_id = _get_doc_id(client)
+        if doc_id is None:
+            pytest.skip("No document available for revisions create test")
+        revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
+            pytest.skip("No revisions available for revisions create test")
+        base_revision = revisions["payload"][0]
+        payload = {
+            "rev_code_id": base_revision["rev_code_id"],
+            "rev_author_id": base_revision["rev_author_id"],
+            "rev_originator_id": base_revision["rev_originator_id"],
+            "rev_modifier_id": base_revision["rev_modifier_id"],
+            "transmital_current_revision": f"TR-NEW-{doc_id}",
+            "planned_start_date": base_revision["planned_start_date"],
+            "planned_finish_date": base_revision["planned_finish_date"],
+            "rev_status_id": base_revision["rev_status_id"],
+        }
+        created = _request(client, "POST", f"/documents/{doc_id}/revisions", json=payload)
+        assert created["status"] == 201
+        assert created["payload"]["doc_id"] == doc_id
+        assert created["payload"]["seq_num"] >= base_revision["seq_num"]
