@@ -343,7 +343,7 @@ CREATE OR REPLACE VIEW doc_revision_history_view AS
 
 CREATE OR REPLACE FUNCTION fn_doc_revision_after_insert() RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE doc SET rev_current_id = NEW.rev_id WHERE doc_id = NEW.doc_id;
+    UPDATE flow.doc SET rev_current_id = NEW.rev_id WHERE doc_id = NEW.doc_id;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -394,7 +394,7 @@ FOR EACH ROW EXECUTE FUNCTION fn_doc_revision_before_delete();
 
 CREATE OR REPLACE FUNCTION fn_doc_revision_after_delete() RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE doc SET rev_current_id = rev_actual_id WHERE doc_id = OLD.doc_id;
+    UPDATE flow.doc SET rev_current_id = rev_actual_id WHERE doc_id = OLD.doc_id;
     RETURN OLD;
 END;
 $$ LANGUAGE plpgsql;
