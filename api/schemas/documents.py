@@ -1,5 +1,7 @@
 """Pydantic schemas for document-related entities."""
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -99,9 +101,7 @@ class DocOut(BaseModel):
     rev_code_acronym: str | None = Field(
         None, description="Revision code acronym.", examples=["ABC"], min_length=1
     )
-    rev_status_id: int | None = Field(
-        None, description="Revision status ID.", examples=[1], gt=0
-    )
+    rev_status_id: int | None = Field(None, description="Revision status ID.", examples=[1], gt=0)
     rev_status_name: str | None = Field(
         None, description="Revision status name.", examples=["Issued"], min_length=1
     )
@@ -162,6 +162,69 @@ class DocRevMilestoneCreate(BaseModel):
 
 class DocRevMilestoneDelete(BaseModel):
     milestone_id: int = Field(..., description="Milestone ID.", examples=[1], gt=0)
+
+
+class DocRevisionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    rev_id: int = Field(..., description="Revision ID.", examples=[1], gt=0)
+    doc_id: int = Field(..., description="Doc ID.", examples=[1], gt=0)
+    seq_num: int = Field(..., description="Revision sequence number.", examples=[1], gt=0)
+    rev_code_id: int = Field(..., description="Revision code ID.", examples=[1], gt=0)
+    rev_code_name: str | None = Field(
+        None, description="Revision code name.", examples=["IFC"], min_length=1
+    )
+    rev_code_acronym: str | None = Field(
+        None, description="Revision code acronym.", examples=["E"], min_length=1
+    )
+    rev_description: str | None = Field(
+        None,
+        description="Revision description.",
+        examples=["Issued for Construction."],
+        min_length=1,
+    )
+    rev_date: datetime = Field(..., description="Revision date.", examples=["2024-01-01T12:00:00Z"])
+    rev_author_id: int = Field(..., description="Revision author person ID.", examples=[1], gt=0)
+    rev_originator_id: int = Field(
+        ..., description="Revision originator person ID.", examples=[1], gt=0
+    )
+    rev_modifier_id: int = Field(
+        ..., description="Revision modifier person ID.", examples=[1], gt=0
+    )
+    transmital_current_revision: str = Field(
+        ..., description="Transmittal current revision.", examples=["TR-001"], min_length=1
+    )
+    milestone_id: int | None = Field(None, description="Milestone ID.", examples=[1], gt=0)
+    milestone_name: str | None = Field(
+        None, description="Milestone name.", examples=["IFC"], min_length=1
+    )
+    planned_start_date: datetime = Field(
+        ..., description="Planned start date.", examples=["2024-01-02T12:00:00Z"]
+    )
+    planned_finish_date: datetime = Field(
+        ..., description="Planned finish date.", examples=["2024-01-05T12:00:00Z"]
+    )
+    actual_start_date: datetime | None = Field(
+        None, description="Actual start date.", examples=["2024-01-03T12:00:00Z"]
+    )
+    actual_finish_date: datetime | None = Field(
+        None, description="Actual finish date.", examples=["2024-01-06T12:00:00Z"]
+    )
+    canceled_date: datetime | None = Field(
+        None, description="Canceled date.", examples=["2024-01-04T12:00:00Z"]
+    )
+    rev_status_id: int = Field(..., description="Revision status ID.", examples=[1], gt=0)
+    rev_status_name: str | None = Field(
+        None, description="Revision status name.", examples=["InDesign"], min_length=1
+    )
+    as_built: str | None = Field(None, description="As-built flag.", examples=["Y"], min_length=1)
+    superseded: str | None = Field(
+        None, description="Superseded flag.", examples=["Y"], min_length=1
+    )
+    voided: str | None = Field(None, description="Voided flag.", examples=["Y"], min_length=1)
+    modified_doc_date: datetime = Field(
+        ..., description="Modified document date.", examples=["2024-01-05T12:00:00Z"]
+    )
 
 
 class RevisionOverviewOut(BaseModel):

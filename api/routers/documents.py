@@ -2,7 +2,7 @@
 
 from typing import Any, TypeVar
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased, joinedload
 
@@ -21,6 +21,7 @@ from api.db.models import (
 )
 from api.schemas.documents import (
     DocOut,
+    DocRevisionOut,
     DocRevMilestoneCreate,
     DocRevMilestoneDelete,
     DocRevMilestoneOut,
@@ -371,6 +372,132 @@ def list_documents_for_project(
             rev_status,
         ) in docs
     ]
+
+
+@router.get(
+    "/{doc_id}/revisions",
+    summary="List all revisions for a document.",
+    description=(
+        "Returns a list of all revisions for the specified document, including revision code and "
+        "status details."
+    ),
+    operation_id="list_document_revisions",
+    tags=["documents"],
+    response_model=list[DocRevisionOut],
+    responses={
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Bad Request",
+                    },
+                },
+            },
+        },
+        404: {
+            "description": "Not Found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Not Found",
+                    },
+                },
+            },
+        },
+        422: {
+            "description": "Validation Error",
+            "content": {
+                "application/json": {
+                    "example": (
+                        {
+                            "detail": [
+                                {
+                                    "loc": ["body", "field"],
+                                    "msg": "Field required",
+                                    "type": "missing",
+                                }
+                            ]
+                        }
+                    ),
+                },
+            },
+        },
+        500: {
+            "description": "Internal Server Error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Internal Server Error",
+                    },
+                },
+            },
+        },
+    },
+)
+def list_document_revisions(
+    doc_id: int = Path(..., description="Document ID to list revisions for", gt=0),
+    db: Session = Depends(get_db),
+) -> list[DocRevisionOut]:
+    """
+    List all revisions for a document.
+
+    Returns a list of all revisions for the specified document, including revision code and
+    status details.
+
+    Args:
+        doc_id: The document ID to list revisions for.
+
+    Returns:
+        List of document revisions with metadata.
+
+    Raises:
+        HTTPException: 404 if the document is not found.
+    """
+    if not db.get(Doc, doc_id):
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    rows = (
+        db.query(DocRevision, RevisionOverview, DocRevStatus, DocRevMilestone)
+        .outerjoin(RevisionOverview, DocRevision.rev_code_id == RevisionOverview.rev_code_id)
+        .outerjoin(DocRevStatus, DocRevision.rev_status_id == DocRevStatus.rev_status_id)
+        .outerjoin(DocRevMilestone, DocRevision.milestone_id == DocRevMilestone.milestone_id)
+        .filter(DocRevision.doc_id == doc_id)
+        .order_by(DocRevision.seq_num, DocRevision.rev_id)
+        .all()
+    )
+
+    revisions = [
+        {
+            "rev_id": rev.rev_id,
+            "doc_id": rev.doc_id,
+            "seq_num": rev.seq_num,
+            "rev_code_id": rev.rev_code_id,
+            "rev_code_name": overview.rev_code_name if overview else None,
+            "rev_code_acronym": overview.rev_code_acronym if overview else None,
+            "rev_description": overview.rev_description if overview else None,
+            "rev_date": rev.rev_date,
+            "rev_author_id": rev.rev_author_id,
+            "rev_originator_id": rev.rev_originator_id,
+            "rev_modifier_id": rev.rev_modifier_id,
+            "transmital_current_revision": rev.transmital_current_revision,
+            "milestone_id": rev.milestone_id,
+            "milestone_name": milestone.milestone_name if milestone else None,
+            "planned_start_date": rev.planned_start_date,
+            "planned_finish_date": rev.planned_finish_date,
+            "actual_start_date": rev.actual_start_date,
+            "actual_finish_date": rev.actual_finish_date,
+            "canceled_date": rev.canceled_date,
+            "rev_status_id": rev.rev_status_id,
+            "rev_status_name": status.rev_status_name if status else None,
+            "as_built": rev.as_built,
+            "superseded": rev.superseded,
+            "voided": rev.voided,
+            "modified_doc_date": rev.modified_doc_date,
+        }
+        for rev, overview, status, milestone in rows
+    ]
+    return _model_list(DocRevisionOut, revisions)
 
 
 def update_document(
