@@ -43,7 +43,13 @@ from api.schemas.documents import (
     RevisionOverviewUpdate,
 )
 from api.utils.database import get_db
-from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
+from api.utils.helpers import (
+    _example_for,
+    _handle_integrity_error,
+    _model_list,
+    _model_out,
+    _normalize_dt,
+)
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -647,17 +653,6 @@ def insert_document_revision(
     )
     seq_num = 1 if max_seq is None else max_seq + 1
 
-    def _normalize_dt(value: datetime | str | None) -> datetime | None:
-        if value is None:
-            return None
-        if isinstance(value, str):
-            try:
-                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            except ValueError as exc:
-                raise HTTPException(status_code=400, detail="Invalid datetime format") from exc
-            return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
-        return value.replace(tzinfo=None) if value.tzinfo else value
-
     new_revision = DocRevision(
         doc_id=doc_id,
         seq_num=seq_num,
@@ -991,18 +986,6 @@ def insert_document(
         db.rollback()
         _handle_integrity_error("Document name must be unique", err, "insert_document")
 
-    # Helper function to normalize datetime (same as in insert_document_revision)
-    def _normalize_dt(value: datetime | str | None) -> datetime | None:
-        if value is None:
-            return None
-        if isinstance(value, str):
-            try:
-                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            except ValueError as exc:
-                raise HTTPException(status_code=400, detail="Invalid datetime format") from exc
-            return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
-        return value.replace(tzinfo=None) if value.tzinfo else value
-
     # Create the initial revision with start status
     new_revision = DocRevision(
         doc_id=new_doc.doc_id,
@@ -1055,6 +1038,7 @@ def insert_document(
             joinedload(Doc.area),
             joinedload(Doc.unit),
             joinedload(Doc.current_revision).joinedload(DocRevision.revision_overview),
+            joinedload(Doc.current_revision).joinedload(DocRevision.status),
         )
         .filter(Doc.doc_id == new_doc.doc_id)
         .one_or_none()
