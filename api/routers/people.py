@@ -90,16 +90,6 @@ def _permission_filter(query: Query[Permission], payload) -> Query[Permission]:
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -138,13 +128,8 @@ def list_roles(db: Session = Depends(get_db)) -> list[RoleOut]:
 
     Returns:
         List of roles with id and name.
-
-    Raises:
-        HTTPException: 404 if no roles are found.
     """
     roles = db.query(Role).order_by(Role.role_name).all()
-    if not roles:
-        raise HTTPException(status_code=404, detail="No roles found")
     return _model_list(RoleOut, roles)
 
 
@@ -253,16 +238,6 @@ def delete_role(
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -301,13 +276,8 @@ def list_persons(db: Session = Depends(get_db)) -> list[PersonOut]:
 
     Returns:
         List of persons with id, name, and photo S3 UID.
-
-    Raises:
-        HTTPException: 404 if no persons are found.
     """
     persons = db.query(Person).order_by(Person.person_name).all()
-    if not persons:
-        raise HTTPException(status_code=404, detail="No persons found")
     return _model_list(PersonOut, persons)
 
 
@@ -424,16 +394,6 @@ def delete_person(
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -472,9 +432,6 @@ def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
 
     Returns:
         List of users with id, person details, acronym, and role information.
-
-    Raises:
-        HTTPException: 404 if no users are found.
     """
     users = (
         db.query(User)
@@ -483,8 +440,6 @@ def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
         .order_by(User.user_acronym)
         .all()
     )
-    if not users:
-        raise HTTPException(status_code=404, detail="No users found")
     return [_build_user_out(user) for user in users]
 
 
@@ -620,16 +575,6 @@ def delete_user(
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -669,13 +614,8 @@ def list_permissions(db: Session = Depends(get_db)) -> list[PermissionOut]:
 
     Returns:
         List of permissions with comprehensive metadata.
-
-    Raises:
-        HTTPException: 404 if no permissions are found.
     """
     permissions = db.query(Permission).order_by(Permission.user_id).all()
-    if not permissions:
-        raise HTTPException(status_code=404, detail="No permissions found")
     return [_build_permission_out(p) for p in permissions]
 
 

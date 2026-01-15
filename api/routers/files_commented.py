@@ -149,16 +149,6 @@ def _handle_commented_file_integrity_error(err: IntegrityError) -> None:
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
