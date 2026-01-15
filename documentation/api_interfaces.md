@@ -1332,6 +1332,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/11
 ```
 - Schema references:
   - Response: `api/schemas/documents.py` `DocRevisionOut`
+  - Update: `api/schemas/documents.py` `DocRevisionUpdate`
 - Example response:
 ```json
 [
@@ -1363,6 +1364,45 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/11
     "modified_doc_date": "2024-01-05T12:00:00Z"
   }
 ]
+```
+### Revision update
+- `PUT /api/v1/documents/revisions/{rev_id}` — 200; 400 if no fields/ID mismatch; 404 if revision not found.
+- Headers: `Accept: application/json`, `Content-Type: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{ "rev_id": 1, "transmital_current_revision": "TR-UPDATED-001" }' \
+  http://localhost:4175/api/v1/documents/revisions/1
+```
+- Example response:
+```json
+{
+  "rev_id": 1,
+  "doc_id": 11,
+  "seq_num": 1,
+  "rev_code_id": 6,
+  "rev_code_name": "INDESIGN",
+  "rev_code_acronym": "A",
+  "rev_description": "IN-DESIGN",
+  "rev_date": "2024-01-01T12:00:00Z",
+  "rev_author_id": 1,
+  "rev_originator_id": 1,
+  "rev_modifier_id": 1,
+  "transmital_current_revision": "TR-UPDATED-001",
+  "milestone_id": 1,
+  "milestone_name": "Issued for Construction",
+  "planned_start_date": "2024-01-02T12:00:00Z",
+  "planned_finish_date": "2024-01-05T12:00:00Z",
+  "actual_start_date": null,
+  "actual_finish_date": null,
+  "canceled_date": null,
+  "rev_status_id": 1,
+  "rev_status_name": "InDesign",
+  "as_built": null,
+  "superseded": null,
+  "voided": null,
+  "modified_doc_date": "2024-01-05T12:00:00Z"
+}
 ```
 ### Update
 - `PUT /api/v1/documents/{doc_id}` — 200; updates a document; 400 if no fields/uniqueness/ID mismatch; 404 if doc or references not found.

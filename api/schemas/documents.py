@@ -227,6 +227,53 @@ class DocRevisionOut(BaseModel):
     )
 
 
+class DocRevisionUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rev_id: int = Field(..., description="Revision ID.", examples=[1], gt=0)
+    doc_id: int | None = Field(None, description="Doc ID.", examples=[1], gt=0)
+    seq_num: int | None = Field(None, description="Revision sequence number.", examples=[1], gt=0)
+    rev_code_id: int | None = Field(None, description="Revision code ID.", examples=[1], gt=0)
+    rev_date: datetime | None = Field(
+        None, description="Revision date.", examples=["2024-01-01T12:00:00Z"]
+    )
+    rev_author_id: int | None = Field(
+        None, description="Revision author person ID.", examples=[1], gt=0
+    )
+    rev_originator_id: int | None = Field(
+        None, description="Revision originator person ID.", examples=[1], gt=0
+    )
+    rev_modifier_id: int | None = Field(
+        None, description="Revision modifier person ID.", examples=[1], gt=0
+    )
+    transmital_current_revision: str | None = Field(
+        None, description="Transmittal current revision.", examples=["TR-001"], min_length=1
+    )
+    milestone_id: int | None = Field(None, description="Milestone ID.", examples=[1], gt=0)
+    planned_start_date: datetime | None = Field(
+        None, description="Planned start date.", examples=["2024-01-02T12:00:00Z"]
+    )
+    planned_finish_date: datetime | None = Field(
+        None, description="Planned finish date.", examples=["2024-01-05T12:00:00Z"]
+    )
+    actual_start_date: datetime | None = Field(
+        None, description="Actual start date.", examples=["2024-01-03T12:00:00Z"]
+    )
+    actual_finish_date: datetime | None = Field(
+        None, description="Actual finish date.", examples=["2024-01-06T12:00:00Z"]
+    )
+    canceled_date: datetime | None = Field(
+        None, description="Canceled date.", examples=["2024-01-04T12:00:00Z"]
+    )
+    rev_status_id: int | None = Field(None, description="Revision status ID.", examples=[1], gt=0)
+    as_built: str | None = Field(None, description="As-built flag.", examples=["Y"])
+    superseded: str | None = Field(None, description="Superseded flag.", examples=["Y"])
+    voided: str | None = Field(None, description="Voided flag.", examples=["Y"])
+    modified_doc_date: datetime | None = Field(
+        None, description="Modified document date.", examples=["2024-01-05T12:00:00Z"]
+    )
+
+
 class RevisionOverviewOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
