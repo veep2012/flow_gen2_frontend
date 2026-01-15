@@ -65,6 +65,11 @@ OpenAPI/Swagger:
 - OpenAPI YAML: `/openapi.yaml` (if enabled)
 - This document is maintained manually; verify against the OpenAPI schema when updating endpoints.
 
+Edge cases:
+- Invalid path/query IDs: FastAPI validation returns `422 Unprocessable Entity` for non-integer values; valid-but-missing IDs return `404 Not Found`.
+- Malformed JSON bodies: FastAPI returns `422 Unprocessable Entity` with a validation error payload.
+- Concurrent modification: optimistic locking is not implemented; `409 Conflict` is reserved and not currently returned.
+
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
 - Headers: `Accept: application/json`
