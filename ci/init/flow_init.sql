@@ -229,7 +229,8 @@ CREATE TABLE doc (
     area_id SMALLINT NOT NULL REFERENCES areas(area_id),
     unit_id SMALLINT NOT NULL REFERENCES units(unit_id),
     rev_actual_id INTEGER,
-    rev_current_id INTEGER
+    rev_current_id INTEGER,
+    voided BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE doc_cache (
