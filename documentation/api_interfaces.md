@@ -1283,6 +1283,7 @@ Shape (single item) includes doc, linked names, and discipline/progress pointers
 `doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `rev_seq_num`, `discipline_id`/`discipline_name`/`discipline_acronym`, `rev_code_name`, `rev_code_acronym`, `percentage`.
 Schema references:
 - Response: `api/schemas/documents.py` `DocOut`
+- Create: `api/schemas/documents.py` `DocCreate`
 - Update: `api/schemas/documents.py` `DocUpdate`
 ### List
 - `GET /api/v1/documents?project_id=` — 200 ordered by `doc_name_unique`; empty list if none for the project. Requires `project_id` query param.
@@ -1323,6 +1324,66 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents?pr
   }
 ]
 ```
+### Create
+- `POST /api/v1/documents` — 201; creates a new document with an initial revision using the start status from doc_rev_statuses; 400 on uniqueness or no start status; 404 if referenced entities not found.
+- Headers: `Accept: application/json`, `Content-Type: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{
+  "doc_name_unique": "PRJ-ISO-002",
+  "title": "Piping Iso 002",
+  "project_id": 3,
+  "jobpack_id": 5,
+  "type_id": 7,
+  "area_id": 1,
+  "unit_id": 2,
+  "rev_code_id": 6,
+  "rev_author_id": 1,
+  "rev_originator_id": 1,
+  "rev_modifier_id": 1,
+  "transmital_current_revision": "TR-002",
+  "milestone_id": 1,
+  "planned_start_date": "2024-01-02T12:00:00Z",
+  "planned_finish_date": "2024-01-05T12:00:00Z"
+}' \
+  http://localhost:4175/api/v1/documents
+```
+- Example response:
+```json
+{
+  "doc_id": 12,
+  "doc_name_unique": "PRJ-ISO-002",
+  "title": "Piping Iso 002",
+  "project_id": 3,
+  "project_name": "Delta Expansion",
+  "jobpack_id": 5,
+  "jobpack_name": "JP-01",
+  "type_id": 7,
+  "doc_type_name": "Piping Iso",
+  "doc_type_acronym": "ISO",
+  "area_id": 1,
+  "area_name": "Newfoundland",
+  "area_acronym": "NFLD",
+  "unit_id": 2,
+  "unit_name": "North Wing",
+  "rev_actual_id": null,
+  "rev_current_id": 1,
+  "rev_seq_num": 1,
+  "discipline_id": 2,
+  "discipline_name": "Piping",
+  "discipline_acronym": "PIP",
+  "rev_code_name": "INDESIGN",
+  "rev_code_acronym": "A",
+  "rev_status_id": 1,
+  "rev_status_name": "InDesign",
+  "percentage": 0
+}
+```
+- Body:
+  - Required fields: `doc_name_unique`, `title`, `type_id`, `area_id`, `unit_id`, `rev_code_id`, `rev_author_id`, `rev_originator_id`, `rev_modifier_id`, `transmital_current_revision`, `planned_start_date`, `planned_finish_date`
+  - Optional fields: `project_id`, `jobpack_id`, `milestone_id`
+  - Note: The initial revision automatically uses the status with `start=true` from `doc_rev_statuses`.
 ### Revisions
 - `GET /api/v1/documents/{doc_id}/revisions` — 200 ordered by `seq_num`; empty list if none. 404 if document not found.
 - Headers: `Accept: application/json`
