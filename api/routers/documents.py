@@ -1,7 +1,7 @@
 """Documents endpoints for managing documents, revisions, milestones, and overviews."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, TypeVar
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
@@ -657,7 +657,7 @@ def insert_document_revision(
         doc_id=doc_id,
         seq_num=seq_num,
         rev_code_id=payload.rev_code_id,
-        rev_date=_normalize_dt(payload.rev_date) or datetime.utcnow(),
+        rev_date=_normalize_dt(payload.rev_date) or datetime.now(timezone.utc).replace(tzinfo=None),
         rev_author_id=payload.rev_author_id,
         rev_originator_id=payload.rev_originator_id,
         rev_modifier_id=payload.rev_modifier_id,
@@ -672,7 +672,8 @@ def insert_document_revision(
         as_built=payload.as_built,
         superseded=payload.superseded,
         voided=payload.voided,
-        modified_doc_date=_normalize_dt(payload.modified_doc_date) or datetime.utcnow(),
+        modified_doc_date=_normalize_dt(payload.modified_doc_date)
+        or datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(new_revision)
     try:
@@ -991,7 +992,7 @@ def insert_document(
         doc_id=new_doc.doc_id,
         seq_num=1,
         rev_code_id=payload.rev_code_id,
-        rev_date=datetime.utcnow(),
+        rev_date=datetime.now(timezone.utc).replace(tzinfo=None),
         rev_author_id=payload.rev_author_id,
         rev_originator_id=payload.rev_originator_id,
         rev_modifier_id=payload.rev_modifier_id,
@@ -1006,7 +1007,7 @@ def insert_document(
         as_built=None,
         superseded=None,
         voided=None,
-        modified_doc_date=datetime.utcnow(),
+        modified_doc_date=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(new_revision)
     try:
