@@ -19,6 +19,37 @@ Delete conventions:
 List conventions:
 - List endpoints return `200 OK` with an empty list when no records match.
 
+Error response schema:
+- Unless noted, errors return a JSON object with a `detail` field.
+- FastAPI validation errors use a `detail` array with `loc`, `msg`, and `type` entries.
+
+Example error responses:
+```json
+{ "detail": "Not Found" }
+```
+```json
+{ "detail": "Discipline name or acronym already exists" }
+```
+```json
+{
+  "detail": [
+    { "loc": ["body", "field"], "msg": "Field required", "type": "missing" }
+  ]
+}
+```
+
+Common status codes (by endpoint and context):
+- `200 OK` — Successful read/update responses.
+- `201 Created` — Successful create responses (with `Location` header).
+- `204 No Content` — Successful delete responses.
+- `400 Bad Request` — Domain validation, id mismatch, or duplicate/uniqueness violations.
+- `401 Unauthorized` — Authentication required (not currently enforced in this API surface).
+- `403 Forbidden` — Authenticated but not authorized (not currently enforced in this API surface).
+- `404 Not Found` — Resource does not exist.
+- `409 Conflict` — Reserved for future use; not currently returned by these endpoints.
+- `422 Unprocessable Entity` — FastAPI/Pydantic request validation errors.
+- `500 Internal Server Error` — Unhandled server errors.
+
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
 - `GET /health` — Returns `{"status": "ok"}`.
