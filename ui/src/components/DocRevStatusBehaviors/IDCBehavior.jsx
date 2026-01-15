@@ -269,6 +269,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                   display: "flex",
                   flexDirection: "column",
                   gap: "12px",
+                  overflow: "auto",
                 }}
               >
                 {infoActiveSubTab === "Written Comments" ? (
@@ -304,21 +305,24 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                           }}
                           style={{
                             flex: 1,
-                            padding: "8px 16px",
-                            background: "var(--color-surface-alt)",
-                            color: "var(--color-text)",
-                            border: "1px solid var(--color-border)",
-                            borderRadius: "4px",
-                            fontSize: "13px",
-                            fontWeight: 600,
+                            padding: "10px 20px",
+                            background: "#6b7280",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                            fontWeight: 700,
                             cursor: "pointer",
-                            transition: "background 0.2s",
+                            transition: "all 0.2s",
+                            boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "rgba(0,0,0,0.05)";
+                            e.currentTarget.style.background = "#4b5563";
+                            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "var(--color-surface-alt)";
+                            e.currentTarget.style.background = "#6b7280";
+                            e.currentTarget.style.boxShadow = "0 2px 6px rgba(0, 0, 0, 0.2)";
                           }}
                         >
                           Cancel
@@ -339,21 +343,24 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                           }}
                           style={{
                             flex: 1,
-                            padding: "8px 16px",
-                            background: "var(--color-accent)",
-                            color: "var(--color-accent-contrast)",
+                            padding: "10px 20px",
+                            background: "#16a34a",
+                            color: "white",
                             border: "none",
-                            borderRadius: "4px",
-                            fontSize: "13px",
-                            fontWeight: 600,
+                            borderRadius: "6px",
+                            fontSize: "14px",
+                            fontWeight: 700,
                             cursor: "pointer",
-                            transition: "background 0.2s",
+                            transition: "all 0.2s",
+                            boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "var(--color-accent-hover)";
+                            e.currentTarget.style.background = "#15803d";
+                            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "var(--color-accent)";
+                            e.currentTarget.style.background = "#16a34a";
+                            e.currentTarget.style.boxShadow = "0 2px 6px rgba(0, 0, 0, 0.2)";
                           }}
                         >
                           Add Comment
@@ -364,13 +371,40 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                       {comments.length > 0 ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                           {comments.map((comment) => (
-                            <div key={comment.id} style={{ padding: "12px", background: "var(--color-surface-alt)", borderRadius: "4px", borderLeft: "3px solid var(--color-accent)" }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                            <div key={comment.id} style={{ padding: "12px", background: "var(--color-surface-alt)", borderRadius: "4px", borderLeft: "3px solid var(--color-accent)", position: "relative" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", alignItems: "flex-start" }}>
                                 <div style={{ fontWeight: 600, color: "var(--color-text)", fontSize: "13px" }}>
                                   {comment.user}
                                 </div>
-                                <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
-                                  {comment.date}
+                                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                  <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                                    {comment.date}
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      setComments(comments.filter((c) => c.id !== comment.id));
+                                    }}
+                                    style={{
+                                      padding: "4px 8px",
+                                      background: "#ef4444",
+                                      color: "white",
+                                      border: "none",
+                                      borderRadius: "4px",
+                                      fontSize: "12px",
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                      transition: "all 0.2s",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = "#dc2626";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = "#ef4444";
+                                    }}
+                                    title="Delete this comment"
+                                  >
+                                    ✕ Delete
+                                  </button>
                                 </div>
                               </div>
                               <div style={{ fontSize: "13px", color: "var(--color-text)", lineHeight: "1.5", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
