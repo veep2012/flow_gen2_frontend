@@ -1469,7 +1469,7 @@ function App() {
           padding: 12px 14px 12px 30px;
           cursor: pointer;
           color: var(--color-text);
-          font-size: 14px;
+          font-size: 13px;
           position: relative;
           background: var(--color-surface);
           border: none;
@@ -1480,6 +1480,8 @@ function App() {
         }
         .flow-step__label {
           font-weight: 600;
+          text-transform: uppercase;
+          font-size: 13px;
         }
         .flow-step__behavior {
           margin-left: auto;
