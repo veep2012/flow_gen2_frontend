@@ -998,8 +998,7 @@ function App() {
     };
 
     fetchFilesForRevision();
-    // When a document is selected, reset the flow step to let user explore
-    // The flow will show all statuses; the document's current state isn't filtered
+    // When a document is selected, automatically show the current flow step
   }, [selectedDocId, selectedDoc, apiBase]);
 
   React.useEffect(() => {
@@ -1101,6 +1100,17 @@ function App() {
 
   React.useEffect(() => {
     if (orderedStatuses.length === 0) return;
+    
+    // Auto-select first status when document is selected and no step is active
+    if (selectedDoc && selectedDoc.rev_current_id && infoActiveStep === null && !hasInitializedFlowRef.current) {
+      const firstStatus = orderedStatuses[0];
+      if (firstStatus) {
+        setInfoActiveStep(String(firstStatus.rev_status_id));
+        hasInitializedFlowRef.current = true;
+        return;
+      }
+    }
+    
     if (infoActiveStep === null) {
       hasInitializedFlowRef.current = true;
       return;
@@ -1111,7 +1121,7 @@ function App() {
     if (exists) return;
     setInfoActiveStep(null);
     hasInitializedFlowRef.current = true;
-  }, [orderedStatuses, infoActiveStep]);
+  }, [orderedStatuses, infoActiveStep, selectedDoc]);
 
   return (
     <main className="page" style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
