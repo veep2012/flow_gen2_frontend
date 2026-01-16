@@ -1419,9 +1419,9 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/11
     "canceled_date": null,
     "rev_status_id": 1,
     "rev_status_name": "InDesign",
-    "as_built": null,
-    "superseded": null,
-    "voided": null,
+    "as_built": false,
+    "superseded": false,
+    "voided": false,
     "modified_doc_date": "2024-01-05T12:00:00Z"
   }
 ]
@@ -1432,7 +1432,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/11
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
-  -d '{ "rev_code_id": 6, "rev_date": "2024-01-01T12:00:00Z", "rev_author_id": 1, "rev_originator_id": 1, "rev_modifier_id": 1, "transmital_current_revision": "TR-NEW-001", "milestone_id": 1, "planned_start_date": "2024-01-02T12:00:00Z", "planned_finish_date": "2024-01-05T12:00:00Z", "actual_start_date": null, "actual_finish_date": null, "canceled_date": null, "rev_status_id": 1, "as_built": null, "superseded": null, "voided": null, "modified_doc_date": "2024-01-05T12:00:00Z" }' \
+  -d '{ "rev_code_id": 6, "rev_date": "2024-01-01T12:00:00Z", "rev_author_id": 1, "rev_originator_id": 1, "rev_modifier_id": 1, "transmital_current_revision": "TR-NEW-001", "milestone_id": 1, "planned_start_date": "2024-01-02T12:00:00Z", "planned_finish_date": "2024-01-05T12:00:00Z", "actual_start_date": null, "actual_finish_date": null, "canceled_date": null, "rev_status_id": 1, "as_built": false, "superseded": false, "voided": false, "modified_doc_date": "2024-01-05T12:00:00Z" }' \
   http://localhost:4175/api/v1/documents/11/revisions
 ```
 - Example response:
@@ -1459,9 +1459,9 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "canceled_date": null,
   "rev_status_id": 1,
   "rev_status_name": "InDesign",
-  "as_built": null,
-  "superseded": null,
-  "voided": null,
+  "as_built": false,
+  "superseded": false,
+  "voided": false,
   "modified_doc_date": "2024-01-05T12:00:00Z"
 }
 ```
@@ -1498,9 +1498,9 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "canceled_date": null,
   "rev_status_id": 1,
   "rev_status_name": "InDesign",
-  "as_built": null,
-  "superseded": null,
-  "voided": null,
+  "as_built": false,
+  "superseded": false,
+  "voided": false,
   "modified_doc_date": "2024-01-05T12:00:00Z"
 }
 ```

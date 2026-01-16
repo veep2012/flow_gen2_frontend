@@ -252,11 +252,9 @@ class DocRevisionOut(BaseModel):
     rev_status_name: str | None = Field(
         None, description="Revision status name.", examples=["InDesign"], min_length=1
     )
-    as_built: str | None = Field(None, description="As-built flag.", examples=["Y"], min_length=1)
-    superseded: str | None = Field(
-        None, description="Superseded flag.", examples=["Y"], min_length=1
-    )
-    voided: str | None = Field(None, description="Voided flag.", examples=["Y"], min_length=1)
+    as_built: bool = Field(False, description="As-built flag.", examples=[False])
+    superseded: bool = Field(False, description="Superseded flag.", examples=[False])
+    voided: bool = Field(False, description="Voided flag.", examples=[False])
     modified_doc_date: datetime = Field(
         ..., description="Modified document date.", examples=["2024-01-05T12:00:00Z"]
     )
@@ -301,9 +299,9 @@ class DocRevisionUpdate(BaseModel):
         None, description="Canceled date.", examples=["2024-01-04T12:00:00Z"]
     )
     rev_status_id: int | None = Field(None, description="Revision status ID.", examples=[1], gt=0)
-    as_built: str | None = Field(None, description="As-built flag.", examples=["Y"])
-    superseded: str | None = Field(None, description="Superseded flag.", examples=["Y"])
-    voided: str | None = Field(None, description="Voided flag.", examples=["Y"])
+    as_built: bool | None = Field(None, description="As-built flag.", examples=[False])
+    superseded: bool | None = Field(None, description="Superseded flag.", examples=[False])
+    voided: bool | None = Field(None, description="Voided flag.", examples=[False])
     modified_doc_date: datetime | None = Field(
         None, description="Modified document date.", examples=["2024-01-05T12:00:00Z"]
     )
@@ -343,9 +341,9 @@ class DocRevisionCreate(BaseModel):
         None, description="Canceled date.", examples=["2024-01-04T12:00:00Z"]
     )
     rev_status_id: int = Field(..., description="Revision status ID.", examples=[1], gt=0)
-    as_built: str | None = Field(None, description="As-built flag.", examples=["Y"])
-    superseded: str | None = Field(None, description="Superseded flag.", examples=["Y"])
-    voided: str | None = Field(None, description="Voided flag.", examples=["Y"])
+    as_built: bool = Field(False, description="As-built flag.", examples=[False])
+    superseded: bool = Field(False, description="Superseded flag.", examples=[False])
+    voided: bool = Field(False, description="Voided flag.", examples=[False])
     modified_doc_date: datetime | None = Field(
         None, description="Modified document date.", examples=["2024-01-05T12:00:00Z"]
     )

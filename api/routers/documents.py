@@ -968,9 +968,7 @@ def insert_document(
     # Get the start status
     start_status = db.query(DocRevStatus).filter(DocRevStatus.start.is_(True)).first()
     if not start_status:
-        raise HTTPException(
-            status_code=400, detail="No start status found in doc_rev_statuses"
-        )
+        raise HTTPException(status_code=400, detail="No start status found in doc_rev_statuses")
 
     # Create the document
     new_doc = Doc(
@@ -1006,9 +1004,9 @@ def insert_document(
         actual_finish_date=None,
         canceled_date=None,
         rev_status_id=start_status.rev_status_id,
-        as_built=None,
-        superseded=None,
-        voided=None,
+        as_built=False,
+        superseded=False,
+        voided=False,
         modified_doc_date=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(new_revision)
@@ -1789,11 +1787,7 @@ def delete_document(
         raise HTTPException(status_code=404, detail="Document not found")
 
     # Get all revisions for this document
-    revisions = (
-        db.query(DocRevision)
-        .filter(DocRevision.doc_id == doc_id)
-        .all()
-    )
+    revisions = db.query(DocRevision).filter(DocRevision.doc_id == doc_id).all()
 
     # Check if we should delete or void
     should_delete = False
