@@ -36,6 +36,59 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  const reloadDocuments = useCallback(() => {
+    if (!project) return;
+    
+    const controller = new AbortController();
+    const { signal } = controller;
+    setDocuments([]);
+    setDocumentsLoading(true);
+    setDocumentsError(null);
+
+    fetch(`${normalizedBase}/documents/list?project_id=${encodeURIComponent(project)}`, { signal })
+      .then((res) => {
+        if (res.status === 404) {
+          return [];
+        }
+        if (!res.ok) {
+          const err = new Error(`Failed to load documents (${res.status})`);
+          err.type = "api";
+          err.status = res.status;
+          throw err;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        const normalized = Array.isArray(data) ? data : [];
+        const mapped = normalized.map((doc, index) => {
+          const row = mapDocumentRow(doc);
+          if (!row.doc_id && row.doc_name_unique) {
+            row.doc_id = row.doc_name_unique;
+          }
+          if (!row.doc_id) {
+            row.doc_id = `row-${index}`;
+          }
+          return row;
+        });
+        setDocuments(mapped);
+        setDocumentsError(mapped.length === 0 ? "No documents found for project" : null);
+      })
+      .catch((err) => {
+        if (signal.aborted || err.name === "AbortError") return;
+        const message =
+          err.type === "api"
+            ? err.message
+            : `Network error while loading documents: ${err.message || "Unknown error"}`;
+        setDocumentsError(message);
+      })
+      .finally(() => {
+        if (signal.aborted) return;
+        setDocumentsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [project, normalizedBase]);
+
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) =>
       visibleColumns.every((col) => {
@@ -176,5 +229,6 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
     filteredDocuments,
     documentsError,
     documentsLoading,
+    reloadDocuments,
   };
 }

@@ -1904,10 +1904,6 @@ function App() {
           <span className="status" style={{ marginLeft: 8 }}>
             Saving...
           </span>
-        ) : saveStatus === "saved" ? (
-          <span className="status" style={{ marginLeft: 8, color: "var(--color-success)" }}>
-            Saved
-          </span>
         ) : saveStatus === "error" ? (
           <span className="status" style={{ marginLeft: 8, color: "var(--color-danger)" }}>
             {saveError}
