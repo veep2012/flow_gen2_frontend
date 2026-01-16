@@ -820,10 +820,10 @@ Shape (single item):
 }
 ```
 Schema references:
-- Response: `api/schemas/documents.py` `DocRevStatusOut`
-- Create: `api/schemas/documents.py` `DocRevStatusCreate`
-- Update: `api/schemas/documents.py` `DocRevStatusUpdate`
-- Delete: `api/schemas/documents.py` `DocRevStatusDelete`
+- Response: `api/schemas/files.py` `FileCommentedOut`
+- Create: `api/schemas/files.py` `FileCommentedOut`
+- Update: `api/schemas/files.py` `FileCommentedOut`
+- Delete: `api/schemas/files.py` `FileCommentedDelete`
 
 ### List
 - `GET /api/v1/files/commented/list?file_id=12` — 200; optional `user_id` filter.
