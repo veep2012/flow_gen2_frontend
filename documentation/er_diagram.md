@@ -14,6 +14,7 @@ erDiagram
         smallint unit_id FK
         integer rev_actual_id FK "Pointer to Actual Revision"
         integer rev_current_id FK "Pointer to Current Revision"
+        boolean voided
     }
 
     DOC_REVISION {
@@ -22,20 +23,20 @@ erDiagram
         timestamp rev_date
         smallint rev_author_id FK
         smallint rev_originator_id FK
-        string as_built
-        string superseded
-        string voided
+        boolean as_built
+        boolean superseded
+        boolean voided
         string transmital_current_revision
         smallint milestone_id FK
         timestamp planned_start_date
         timestamp planned_finish_date
         timestamp actual_start_date
         timestamp actual_finish_date
-        string canceled_date
+        datetime canceled_date
         smallint rev_status_id FK
         integer doc_id FK
         smallint seq_num
-        smallint rev_modifier_id
+        smallint rev_modifier_id FK "NOT NULL"
         timestamp modified_doc_date
     }
 
@@ -46,16 +47,16 @@ erDiagram
         timestamp rev_date
         smallint rev_author_id
         smallint rev_originator_id
-        string as_built
-        string superseded
-        string voided
+        boolean as_built
+        boolean superseded
+        boolean voided
         string transmital_current_revision
         smallint milestone_id
         timestamp planned_start_date
         timestamp planned_finish_date
         timestamp actual_start_date
         timestamp actual_finish_date
-        string canceled_date
+        datetime canceled_date
         smallint rev_status_id
         integer doc_id
         smallint seq_num
@@ -69,16 +70,16 @@ erDiagram
         timestamp rev_date
         smallint rev_author_id
         smallint rev_originator_id
-        string as_built
-        string superseded
-        string voided
+        boolean as_built
+        boolean superseded
+        boolean voided
         string transmital_current_revision
         smallint milestone_id
         timestamp planned_start_date
         timestamp planned_finish_date
         timestamp actual_start_date
         timestamp actual_finish_date
-        string canceled_date
+        datetime canceled_date
         smallint rev_status_id
         integer doc_id
     }
@@ -257,4 +258,3 @@ erDiagram
     UNITS ||--o{ DOC_CACHE : "cached"
 
 ```
-

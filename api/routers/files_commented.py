@@ -12,7 +12,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, UploadFile
 from fastapi import File as UploadFileField
 from fastapi.responses import StreamingResponse
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
@@ -149,16 +149,6 @@ def _handle_commented_file_integrity_error(err: IntegrityError) -> None:
                 },
             },
         },
-        404: {
-            "description": "Not Found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Not Found",
-                    },
-                },
-            },
-        },
         422: {
             "description": "Validation Error",
             "content": {
@@ -262,7 +252,12 @@ def insert_commented_file(
     file_row = db.get(File, file_id)
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
-    user_row = db.get(User, user_id)
+
+    try:
+        user_row = db.get(User, user_id)
+    except DataError:
+        db.rollback()
+        raise HTTPException(status_code=404, detail="User not found")
     if not user_row:
         raise HTTPException(status_code=404, detail="User not found")
 

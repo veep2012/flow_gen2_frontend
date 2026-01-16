@@ -30,8 +30,10 @@ export function mapDocumentRow(doc) {
     : "";
   const unitDisplay = doc.unit_name || (doc.unit_id ? `Unit ${doc.unit_id}` : "");
   const revCodeDisplay = doc.rev_code_acronym
-    ? `${doc.rev_code_acronym}${doc.rev_code_name ? ` (${doc.rev_code_name})` : ""}`
-    : doc.rev_code_name || "—";
+    ? `${doc.rev_code_acronym}${doc.rev_status_name ? ` (${doc.rev_status_name})` : ""}`
+    : doc.rev_status_name || "—";
+  const revStatusDisplay =
+    doc.rev_status_name || (doc.rev_status_id ? `Status ${doc.rev_status_id}` : "—");
   const revPercentDisplay =
     doc.percentage === null || doc.percentage === undefined ? "—" : `${doc.percentage}%`;
 
@@ -44,6 +46,7 @@ export function mapDocumentRow(doc) {
     area_display: areaDisplay,
     unit_display: unitDisplay,
     rev_code_display: revCodeDisplay,
+    rev_status_display: revStatusDisplay,
     rev_percent_display: revPercentDisplay,
   };
 

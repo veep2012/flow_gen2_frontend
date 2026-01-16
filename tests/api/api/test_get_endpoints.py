@@ -75,9 +75,9 @@ def test_all_get_endpoints():
         ]
 
         if project_id is not None:
-            endpoints.append(("/documents/list", {"project_id": project_id}))
+            endpoints.append(("/documents", {"project_id": project_id}))
         else:
-            pytest.skip("No project_id available for /documents/list")
+            pytest.skip("No project_id available for /documents")
 
         for path, params in endpoints:
             result = _request(client, f"{base}{prefix}{path}", params=params)

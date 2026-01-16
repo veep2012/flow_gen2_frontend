@@ -305,6 +305,7 @@ class Doc(Base):
     rev_current_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("flow.doc_revision.rev_id", use_alter=True, name="fk_doc_rev_current")
     )
+    voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     project: Mapped[Optional[Project]] = relationship(back_populates="docs")
     jobpack: Mapped[Optional[Jobpack]] = relationship(back_populates="docs")
@@ -359,9 +360,9 @@ class DocRevision(Base):
     rev_originator_id: Mapped[int] = mapped_column(
         ForeignKey("flow.person.person_id"), nullable=False
     )
-    as_built: Mapped[Optional[str]] = mapped_column(String(3))
-    superseded: Mapped[Optional[str]] = mapped_column(String(3))
-    voided: Mapped[Optional[str]] = mapped_column(String(3))
+    as_built: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    superseded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     transmital_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
     milestone_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("flow.doc_rev_milestones.milestone_id")
@@ -370,7 +371,7 @@ class DocRevision(Base):
     planned_finish_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     actual_start_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
     actual_finish_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    canceled_date: Mapped[Optional[str]] = mapped_column(String(45))
+    canceled_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
     rev_status_id: Mapped[int] = mapped_column(
         ForeignKey("flow.doc_rev_statuses.rev_status_id"), nullable=False
     )
@@ -378,7 +379,9 @@ class DocRevision(Base):
         ForeignKey("flow.doc.doc_id", ondelete="CASCADE"), nullable=False
     )
     seq_num: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)
-    rev_modifier_id: Mapped[Optional[int]] = mapped_column(SmallInteger)
+    rev_modifier_id: Mapped[int] = mapped_column(
+        ForeignKey("flow.person.person_id"), nullable=False
+    )
     modified_doc_date: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
     )
@@ -414,16 +417,16 @@ class DocRevisionHistory(Base):
     rev_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     rev_author_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     rev_originator_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    as_built: Mapped[Optional[str]] = mapped_column(String(3))
-    superseded: Mapped[Optional[str]] = mapped_column(String(3))
-    voided: Mapped[Optional[str]] = mapped_column(String(3))
+    as_built: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    superseded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     transmital_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
     milestone_id: Mapped[Optional[int]] = mapped_column(SmallInteger)
     planned_start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     planned_finish_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     actual_start_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
     actual_finish_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    canceled_date: Mapped[Optional[str]] = mapped_column(String(45))
+    canceled_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
     rev_status_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     doc_id: Mapped[int] = mapped_column(Integer, nullable=False)
     seq_num: Mapped[int] = mapped_column(SmallInteger, nullable=False)
@@ -475,16 +478,16 @@ class DocRevisionHistoryView(Base):
     rev_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     rev_author_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     rev_originator_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    as_built: Mapped[Optional[str]] = mapped_column(String(3))
-    superseded: Mapped[Optional[str]] = mapped_column(String(3))
-    voided: Mapped[Optional[str]] = mapped_column(String(3))
+    as_built: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    superseded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     transmital_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
     milestone_id: Mapped[Optional[int]] = mapped_column(SmallInteger)
     planned_start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     planned_finish_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     actual_start_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
     actual_finish_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    canceled_date: Mapped[Optional[str]] = mapped_column(String(45))
+    canceled_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
     rev_status_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     doc_id: Mapped[int] = mapped_column(Integer, nullable=False)
     seq_num: Mapped[int] = mapped_column(SmallInteger, nullable=False)
