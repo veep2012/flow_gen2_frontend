@@ -233,6 +233,8 @@ CREATE TABLE doc (
     voided BOOLEAN NOT NULL DEFAULT FALSE
 );
 
+CREATE INDEX idx_doc_voided ON doc (voided);
+
 CREATE TABLE doc_cache (
     user_id SMALLINT NOT NULL,
     project_id SMALLINT NOT NULL REFERENCES projects(project_id),

@@ -108,6 +108,55 @@ def test_documents_revisions_update():
 
 
 @pytest.mark.api_smoke
+def test_documents_revisions_update_missing_fields():
+    with httpx.Client(timeout=10) as client:
+        doc_id = _get_doc_id(client)
+        if doc_id is None:
+            pytest.skip("No document available for revisions update missing-fields test")
+        revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
+            pytest.skip("No revisions available for revisions update missing-fields test")
+        rev_id = revisions["payload"][0].get("rev_id")
+        if rev_id is None:
+            pytest.skip("No rev_id available for revisions update missing-fields test")
+        updated = _request(client, "PUT", f"/documents/revisions/{rev_id}", json={"rev_id": rev_id})
+        assert updated["status"] == 400
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_update_mismatch_id():
+    with httpx.Client(timeout=10) as client:
+        doc_id = _get_doc_id(client)
+        if doc_id is None:
+            pytest.skip("No document available for revisions update mismatch-id test")
+        revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
+            pytest.skip("No revisions available for revisions update mismatch-id test")
+        rev_id = revisions["payload"][0].get("rev_id")
+        if rev_id is None:
+            pytest.skip("No rev_id available for revisions update mismatch-id test")
+        updated = _request(
+            client,
+            "PUT",
+            f"/documents/revisions/{rev_id}",
+            json={"rev_id": rev_id + 1, "transmital_current_revision": "TR-MISMATCH"},
+        )
+        assert updated["status"] == 400
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_update_missing_revision():
+    with httpx.Client(timeout=10) as client:
+        updated = _request(
+            client,
+            "PUT",
+            "/documents/revisions/999999",
+            json={"rev_id": 999999, "transmital_current_revision": "TR-MISSING"},
+        )
+        assert updated["status"] == 404
+
+
+@pytest.mark.api_smoke
 def test_documents_revisions_create():
     with httpx.Client(timeout=10) as client:
         doc_id = _get_doc_id(client)
@@ -117,6 +166,7 @@ def test_documents_revisions_create():
         if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
             pytest.skip("No revisions available for revisions create test")
         base_revision = revisions["payload"][0]
+        max_seq_num = max(rev.get("seq_num", 0) for rev in revisions["payload"])
         payload = {
             "rev_code_id": base_revision["rev_code_id"],
             "rev_author_id": base_revision["rev_author_id"],
@@ -130,4 +180,28 @@ def test_documents_revisions_create():
         created = _request(client, "POST", f"/documents/{doc_id}/revisions", json=payload)
         assert created["status"] == 201
         assert created["payload"]["doc_id"] == doc_id
-        assert created["payload"]["seq_num"] >= base_revision["seq_num"]
+        assert created["payload"]["seq_num"] == max_seq_num + 1
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_create_missing_doc():
+    with httpx.Client(timeout=10) as client:
+        payload = {
+            "rev_code_id": 1,
+            "rev_author_id": 1,
+            "rev_originator_id": 1,
+            "rev_modifier_id": 1,
+            "transmital_current_revision": "TR-NEW-999999",
+            "planned_start_date": "2024-01-02T12:00:00Z",
+            "planned_finish_date": "2024-01-05T12:00:00Z",
+            "rev_status_id": 1,
+        }
+        created = _request(client, "POST", "/documents/999999/revisions", json=payload)
+        assert created["status"] == 404
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_create_missing_required_fields():
+    with httpx.Client(timeout=10) as client:
+        created = _request(client, "POST", "/documents/1/revisions", json={})
+        assert created["status"] == 422
