@@ -711,6 +711,8 @@ Shape (single item):
 }
 ```
 Schema references:
+- Create: `api/schemas/files.py` `FileCreate`
+- Update: `api/schemas/files.py` `FileUpdate`
 - Response: `api/schemas/files.py` `FileCommentedOut`
 - Delete: `api/schemas/files.py` `FileCommentedDelete`
 
