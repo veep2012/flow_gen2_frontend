@@ -1283,7 +1283,7 @@ curl -i -H "Accept: application/json" -X DELETE http://localhost:4175/api/v1/doc
 
 ## Documents
 Shape (single item) includes doc, linked names, and discipline/progress pointers:
-`doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `rev_seq_num`, `discipline_id`/`discipline_name`/`discipline_acronym`, `rev_code_name`, `rev_code_acronym`, `percentage`.
+`doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `rev_seq_num`, `discipline_id`/`discipline_name`/`discipline_acronym`, `rev_code_name`, `rev_code_acronym`, `percentage`, `voided`.
 Schema references:
 - Response: `api/schemas/documents.py` `DocOut`
 - Create: `api/schemas/documents.py` `DocCreate`
@@ -1324,7 +1324,8 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents?pr
     "discipline_acronym": "PIP",
     "rev_code_name": "IFC",
     "rev_code_acronym": "E",
-    "percentage": 90
+    "percentage": 90,
+    "voided": false
   }
 ]
 ```
@@ -1508,6 +1509,10 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "modified_doc_date": "2024-01-05T12:00:00Z"
 }
 ```
+### Revision cancel
+- `PATCH /api/v1/documents/revisions/{rev_id}/cancel` — 200; 404 if revision/document not found (or voided); 409 if revision status is final. Idempotent: if already canceled, returns existing state.
+- Permissions: none enforced by API (auth TBD).
+- Side effects: sets `canceled_date` on the revision.
 ### Update
 - `PUT /api/v1/documents/{doc_id}` — 200; updates a document; 400 if no fields/uniqueness/ID mismatch; 404 if doc or references not found.
 - Headers: `Accept: application/json`, `Content-Type: application/json`
@@ -1525,6 +1530,8 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Requires at least one updatable field. Validates references (project, jobpack, type, area, unit, revisions) and uniqueness of `doc_name_unique`. Returns the updated document.
 ### Delete
 - `DELETE /api/v1/documents/{doc_id}` — 200 with `{ "result": "deleted" }` or `{ "result": "voided" }`; deletes a document if only one revision in start status, otherwise voids. 404 if not found.
+- Permissions: none enforced by API (auth TBD).
+- Side effects: hard delete cascades to revisions/files/comments; voiding updates document and all revisions.
 
 ## Error responses
 - `400` — Validation failed (missing required fields, duplicate/uniqueness, duplicate permissions, etc.).

@@ -24,6 +24,7 @@ from api.db.models import (
     Unit,
 )
 from api.schemas.documents import (
+    DeleteResult,
     DocCreate,
     DocOut,
     DocRevisionCreate,
@@ -1695,7 +1696,12 @@ def create_document_rest(
 @router.patch(
     "/revisions/{rev_id}/cancel",
     summary="Cancel a document revision.",
-    description="Sets the canceled_date to the current datetime for the specified revision.",
+    description=(
+        "Sets the canceled_date to the current datetime for the specified revision. "
+        "Idempotent: if already canceled, returns the existing state. "
+        "Cancellation is rejected for final revision statuses. "
+        "Permissions: none enforced by API (auth TBD)."
+    ),
     response_model=DocRevisionOut,
     tags=["documents"],
     responses=_REST_RESPONSES,
@@ -1786,15 +1792,18 @@ def cancel_revision(
     summary="Delete a document.",
     description=(
         "Deletes a document if it has only one revision with start status. "
-        "Otherwise, sets the voided field to true."
+        "Otherwise, sets the voided field to true. Returns a result indicating "
+        "whether the document was deleted or voided. "
+        "Permissions: none enforced by API (auth TBD)."
     ),
+    response_model=DeleteResult,
     tags=["documents"],
     responses=_REST_RESPONSES,
 )
 def delete_document(
     doc_id: int = Path(..., description="Document ID to delete", gt=0),
     db: Session = Depends(get_db),
-) -> dict[str, str]:
+) -> DeleteResult:
     """
     Delete a document.
 
@@ -1853,4 +1862,4 @@ def delete_document(
     except IntegrityError as err:
         db.rollback()
         _handle_integrity_error("Failed to delete/void document", err, "delete_document")
-    return {"result": result}
+    return DeleteResult(result=result)

@@ -111,6 +111,15 @@ class DocOut(BaseModel):
     voided: bool = Field(False, description="Whether document is voided.", examples=[False])
 
 
+class DeleteResult(BaseModel):
+    result: str = Field(
+        ...,
+        description="Delete outcome.",
+        examples=["deleted", "voided"],
+        pattern="^(deleted|voided)$",
+    )
+
+
 class DocUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
