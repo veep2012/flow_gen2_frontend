@@ -635,9 +635,10 @@ Shape (single item):
 { "rev_status_id": 2, "rev_status_name": "In review" }
 ```
 Schema references:
-- Response: `api/schemas/files.py` `FileOut`
-- Update: `api/schemas/files.py` `FileUpdate`
-- Delete: `api/schemas/files.py` `FileDelete`
+- Response: `api/schemas/documents.py` `DocRevStatusOut`
+- Create: `api/schemas/documents.py` `DocRevStatusCreate`
+- Update: `api/schemas/documents.py` `DocRevStatusUpdate`
+- Delete: `api/schemas/documents.py` `DocRevStatusDelete`
 ### List
 - `GET /api/v1/lookups/doc_rev_statuses` — 200 sorted by `rev_status_name`; empty list if none.
 - Headers: `Accept: application/json`
