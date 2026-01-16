@@ -93,7 +93,7 @@ function App() {
   const [columnWidths, setColumnWidths] = React.useState({});
   const [activeDetailTab, setActiveDetailTab] = React.useState("Revisions");
   const [infoActiveStep, setInfoActiveStep] = React.useState(null);
-  const [infoActiveSubTab, setInfoActiveSubTab] = React.useState("Comments");
+  const [infoActiveSubTab, setInfoActiveSubTab] = React.useState("Files with Comments");
   const [isDraggingUpload, setIsDraggingUpload] = React.useState(false);
   const [isDraggingBorder, setIsDraggingBorder] = React.useState(false);
   const [isDraggingRow, setIsDraggingRow] = React.useState(false);
@@ -2463,7 +2463,7 @@ function App() {
                               return;
                             }
                             setInfoActiveStep(statusKey);
-                            setInfoActiveSubTab("Comments");
+                            setInfoActiveSubTab("Files with Comments");
                           }}
                           style={{ flex: 1 }}
                         >
@@ -2561,7 +2561,7 @@ function App() {
                                     e.currentTarget.style.background = "transparent";
                                   }}
                                 >
-                                  📤 Issue to IDC
+                                  Issue to IDC
                                 </button>
                               </div>
                             )}
