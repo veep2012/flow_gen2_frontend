@@ -91,7 +91,7 @@ function App() {
   const [infoRatio, setInfoRatio] = React.useState(0.35);
   const [detailRatio, setDetailRatio] = React.useState(0.25);
   const [columnWidths, setColumnWidths] = React.useState({});
-  const [activeDetailTab, setActiveDetailTab] = React.useState("Revisions");
+  const [activeDetailTab, setActiveDetailTab] = React.useState("Details");
   const [infoActiveStep, setInfoActiveStep] = React.useState(null);
   const [infoActiveSubTab, setInfoActiveSubTab] = React.useState("Files with Comments");
   const [isDraggingUpload, setIsDraggingUpload] = React.useState(false);
@@ -1916,7 +1916,7 @@ function App() {
       >
         <div
           style={{
-            flex: isFlowPanelHidden ? "1 1 0" : `${1 - infoRatio} 1 0`,
+            flex: `${1 - infoRatio} 1 0`,
             display: "flex",
             flexDirection: "column",
             gap: "4px",
@@ -2216,7 +2216,7 @@ function App() {
             }}
           >
             <div className="detail-tabs">
-              {["Revisions", "TAGs", "References", "Plan", "Information"].map((tab) => (
+              {["Details", "TAGs", "References", "Plan", "Information"].map((tab) => (
                 <button
                   key={tab}
                   className={`detail-tab ${activeDetailTab === tab ? "active" : ""}`}
@@ -2227,7 +2227,7 @@ function App() {
               ))}
             </div>
             <div className="detail-tab-panel" style={{ flex: 1 }}>
-              {activeDetailTab === "Revisions" ? (
+              {activeDetailTab === "Details" ? (
                 <div style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}>
                   {selectedDoc ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -2271,38 +2271,6 @@ function App() {
               )}
             </div>
           </div>
-          {isFlowPanelHidden && (
-            <div
-              style={{
-                position: "absolute",
-                right: "0px",
-                top: "0",
-                width: "8px",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 100,
-              }}
-            >
-              <button
-                type="button"
-                onMouseDown={startBorderResize}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  background: isDraggingBorder ? "var(--color-info)" : "var(--color-border)",
-                  cursor: "col-resize",
-                  transition: isDraggingBorder ? "none" : "background 0.2s",
-                  userSelect: "none",
-                  padding: 0,
-                  border: "none",
-                }}
-                title="Drag to resize panels"
-                aria-label="Resize panels"
-              />
-            </div>
-          )}
           </div>
         <div
           style={{
@@ -2340,81 +2308,11 @@ function App() {
             title="Drag to resize panels"
             aria-label="Resize panels"
           />
-          {!isFlowPanelHidden && (
-            <button
-              type="button"
-              onClick={() => setIsFlowPanelHidden(!isFlowPanelHidden)}
-              style={{
-                position: "relative",
-                zIndex: 101,
-                width: "8px",
-                height: "40px",
-                padding: "0",
-                background: "var(--color-info)",
-                border: "1px solid var(--color-info)",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontSize: "12px",
-                color: "white",
-                fontWeight: "bold",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--color-info-dark)";
-                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--color-info)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-              title="Hide document flow"
-              aria-label="Hide document flow"
-            >
-            </button>
-          )}
-          {isFlowPanelHidden && (
-            <button
-              type="button"
-              onClick={() => setIsFlowPanelHidden(!isFlowPanelHidden)}
-              style={{
-                position: "relative",
-                zIndex: 101,
-                width: "8px",
-                height: "40px",
-                padding: "0",
-                background: "var(--color-success)",
-                border: "1px solid var(--color-success)",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontSize: "12px",
-                color: "white",
-                fontWeight: "bold",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--color-success-dark)";
-                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--color-success)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-              title="Show document flow"
-              aria-label="Show document flow"
-            >
-            </button>
-          )}
         </div>
         <div
           style={{
-            flex: isFlowPanelHidden ? "0 0 0" : `${infoRatio} 1 0`,
-            display: hideWindowsOnDrag || isFlowPanelHidden ? "none" : "flex",
+            flex: `${infoRatio} 1 0`,
+            display: "flex",
             flexDirection: "column",
             minWidth: 0,
             overflow: "visible",
@@ -2429,8 +2327,6 @@ function App() {
                 <div className="flow-empty">Loading statuses…</div>
               ) : revStatusError ? (
                 <div className="flow-empty">{revStatusError}</div>
-              ) : !selectedDocId ? (
-                <div className="flow-empty">Select a document to view its flow</div>
               ) : orderedStatuses.length === 0 ? (
                 <div className="flow-empty">No statuses configured.</div>
               ) : (
