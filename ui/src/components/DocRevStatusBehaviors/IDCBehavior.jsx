@@ -1,6 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { getFileIcon, getFileTypeLabel } from "../../utils/fileIcons";
+import DistributionList from "../DistributionList/DistributionList";
 
 const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFiles = {}, expandedRevisions = {}, onRevisionToggle, onSelectFile, onDownloadFile, selectedFileId }) => {
   const [commentText, setCommentText] = React.useState("");
@@ -85,8 +86,8 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                 <div>Discipline: {docInfo.discipline}</div>
               </div>
             )}
-            <div className="flow-box" style={{ flex: "0 0 25%", borderRadius: "0px", margin: "0", padding: "0", marginBottom: "-1px", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
-              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)", padding: "12px", background: "var(--color-surface-alt)", borderBottom: "1px solid rgba(0, 0, 0, 0.08)", margin: "0", flex: "0 0 auto" }}>
+            <div className="flow-box" style={{ flex: "0 0 25%", borderRadius: "0px", marginTop: "0", marginRight: "0", marginLeft: "0", marginBottom: "-1px", padding: "0", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)", padding: "12px", background: "var(--color-surface-alt)", borderBottom: "1px solid rgba(0, 0, 0, 0.08)", marginTop: "0", marginRight: "0", marginBottom: "0", marginLeft: "0", flex: "0 0 auto" }}>
                 Original Files
               </div>
               <div style={{ padding: "12px", flex: "1", minHeight: 0, overflow: "auto" }}>
@@ -421,12 +422,10 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
             </div>
           </>
         ) : (
-            <div className="flow-box" style={{ borderRadius: "0px", margin: "0", padding: "12px" }}>
-            <div style={{ fontSize: "13px", fontWeight: 600, marginBottom: "12px", color: "var(--color-text)" }}>Distribution List</div>
-            <div style={{ fontSize: "13px", color: "var(--color-text-subtle)" }}>
-              No distribution list assigned
-            </div>
-          </div>
+          <DistributionList 
+            docId={docId}
+            apiBase="http://localhost:8000/api"
+          />
         )}
       </div>
     </>
