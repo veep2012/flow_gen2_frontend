@@ -380,6 +380,10 @@ def list_documents_for_project(
             rev_status_name=rev_status.rev_status_name if rev_status else None,
             percentage=revision_overview.percentage if revision_overview else None,
             voided=doc.voided,
+            created_at=doc.created_at,
+            updated_at=doc.updated_at,
+            created_by=doc.created_by,
+            updated_by=doc.updated_by,
         )
         for (
             doc,
@@ -517,6 +521,10 @@ def list_document_revisions(
             "superseded": rev.superseded,
             "voided": rev.voided,
             "modified_doc_date": rev.modified_doc_date,
+            "created_at": rev.created_at,
+            "updated_at": rev.updated_at,
+            "created_by": rev.created_by,
+            "updated_by": rev.updated_by,
         }
         for rev, overview, status, milestone in rows
     ]
@@ -619,6 +627,10 @@ def update_document_revision(
         "superseded": rev.superseded,
         "voided": rev.voided,
         "modified_doc_date": rev.modified_doc_date,
+        "created_at": rev.created_at,
+        "updated_at": rev.updated_at,
+        "created_by": rev.created_by,
+        "updated_by": rev.updated_by,
     }
     return _model_out(DocRevisionOut, response_payload)
 
@@ -740,6 +752,10 @@ def insert_document_revision(
         "superseded": rev.superseded,
         "voided": rev.voided,
         "modified_doc_date": rev.modified_doc_date,
+        "created_at": rev.created_at,
+        "updated_at": rev.updated_at,
+        "created_by": rev.created_by,
+        "updated_by": rev.updated_by,
     }
     return _model_out(DocRevisionOut, response_payload)
 
@@ -933,6 +949,10 @@ def update_document(
         rev_status_name=rev_status.rev_status_name if rev_status else None,
         percentage=revision_overview.percentage if revision_overview else None,
         voided=doc_row.voided,
+        created_at=doc_row.created_at,
+        updated_at=doc_row.updated_at,
+        created_by=doc_row.created_by,
+        updated_by=doc_row.updated_by,
     )
 
 
@@ -1100,6 +1120,10 @@ def insert_document(
         rev_status_name=rev_status.rev_status_name if rev_status else None,
         percentage=revision_overview.percentage if revision_overview else None,
         voided=doc_row.voided,
+        created_at=doc_row.created_at,
+        updated_at=doc_row.updated_at,
+        created_by=doc_row.created_by,
+        updated_by=doc_row.updated_by,
     )
 
 
@@ -1783,6 +1807,10 @@ def cancel_revision(
         "superseded": rev.superseded,
         "voided": rev.voided,
         "modified_doc_date": rev.modified_doc_date,
+        "created_at": rev.created_at,
+        "updated_at": rev.updated_at,
+        "created_by": rev.created_by,
+        "updated_by": rev.updated_by,
     }
     return _model_out(DocRevisionOut, response_payload)
 

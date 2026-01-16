@@ -230,7 +230,11 @@ CREATE TABLE doc (
     unit_id SMALLINT NOT NULL REFERENCES flow.units(unit_id),
     rev_actual_id INTEGER,
     rev_current_id INTEGER,
-    voided BOOLEAN NOT NULL DEFAULT FALSE
+    voided BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_by SMALLINT REFERENCES flow.users(user_id),
+    updated_by SMALLINT REFERENCES flow.users(user_id)
 );
 
 CREATE INDEX idx_doc_voided ON flow.doc (voided);
@@ -267,7 +271,11 @@ CREATE TABLE doc_revision (
     doc_id INTEGER NOT NULL REFERENCES flow.doc(doc_id) ON DELETE CASCADE,
     seq_num SMALLINT NOT NULL DEFAULT 1,
     rev_modifier_id SMALLINT NOT NULL REFERENCES flow.person(person_id),
-    modified_doc_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+    modified_doc_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_by SMALLINT REFERENCES flow.users(user_id),
+    updated_by SMALLINT REFERENCES flow.users(user_id)
 );
 
 ALTER TABLE doc 
@@ -301,7 +309,11 @@ CREATE TABLE files (
     filename VARCHAR(90) NOT NULL,
     s3_uid TEXT NOT NULL,
     mimetype VARCHAR(90) NOT NULL,
-    rev_id INTEGER NOT NULL REFERENCES flow.doc_revision(rev_id) ON DELETE CASCADE
+    rev_id INTEGER NOT NULL REFERENCES flow.doc_revision(rev_id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_by SMALLINT REFERENCES flow.users(user_id),
+    updated_by SMALLINT REFERENCES flow.users(user_id)
 );
 
 CREATE TABLE files_commented (
@@ -310,6 +322,10 @@ CREATE TABLE files_commented (
     user_id SMALLINT NOT NULL REFERENCES flow.users(user_id),
     s3_uid TEXT NOT NULL,
     mimetype VARCHAR(90) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_by SMALLINT REFERENCES flow.users(user_id),
+    updated_by SMALLINT REFERENCES flow.users(user_id),
     UNIQUE(file_id, user_id)
 );
 
@@ -428,3 +444,30 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER tr_files_commented_check_mimetype
 BEFORE INSERT OR UPDATE ON flow.files_commented
 FOR EACH ROW EXECUTE FUNCTION fn_files_commented_check_mimetype();
+
+-- ========================================================
+-- 7. Audit Triggers for updated_at
+-- ========================================================
+
+CREATE OR REPLACE FUNCTION fn_update_timestamp() RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_doc_update_timestamp
+BEFORE UPDATE ON flow.doc
+FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();
+
+CREATE TRIGGER tr_doc_revision_update_timestamp
+BEFORE UPDATE ON flow.doc_revision
+FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();
+
+CREATE TRIGGER tr_files_update_timestamp
+BEFORE UPDATE ON flow.files
+FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();
+
+CREATE TRIGGER tr_files_commented_update_timestamp
+BEFORE UPDATE ON flow.files_commented
+FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();
