@@ -1,5 +1,4 @@
 """Pydantic schemas for file-related entities."""
-
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
