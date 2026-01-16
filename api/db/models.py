@@ -306,8 +306,8 @@ class Doc(Base):
         ForeignKey("flow.doc_revision.rev_id", use_alter=True, name="fk_doc_rev_current")
     )
     voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("flow.users.user_id"))
     updated_by: Mapped[Optional[int]] = mapped_column(ForeignKey("flow.users.user_id"))
 
@@ -389,8 +389,8 @@ class DocRevision(Base):
     modified_doc_date: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("flow.users.user_id"))
     updated_by: Mapped[Optional[int]] = mapped_column(ForeignKey("flow.users.user_id"))
 
@@ -456,8 +456,8 @@ class File(Base):
     rev_id: Mapped[int] = mapped_column(
         ForeignKey("flow.doc_revision.rev_id", ondelete="CASCADE"), nullable=False
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("flow.users.user_id"))
     updated_by: Mapped[Optional[int]] = mapped_column(ForeignKey("flow.users.user_id"))
 
@@ -476,8 +476,8 @@ class FileCommented(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("flow.users.user_id"), nullable=False)
     s3_uid: Mapped[str] = mapped_column(Text, nullable=False)
     mimetype: Mapped[str] = mapped_column(String(90), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))
     created_by: Mapped[Optional[int]] = mapped_column(ForeignKey("flow.users.user_id"))
     updated_by: Mapped[Optional[int]] = mapped_column(ForeignKey("flow.users.user_id"))
 

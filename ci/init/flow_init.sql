@@ -322,11 +322,11 @@ CREATE TABLE files_commented (
     user_id SMALLINT NOT NULL REFERENCES flow.users(user_id),
     s3_uid TEXT NOT NULL,
     mimetype VARCHAR(90) NOT NULL,
+    UNIQUE(file_id, user_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_by SMALLINT REFERENCES flow.users(user_id),
-    updated_by SMALLINT REFERENCES flow.users(user_id),
-    UNIQUE(file_id, user_id)
+    updated_by SMALLINT REFERENCES flow.users(user_id)
 );
 
 CREATE INDEX idx_files_commented_file_id ON flow.files_commented (file_id);
