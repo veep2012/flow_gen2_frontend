@@ -1289,7 +1289,8 @@ Schema references:
 - Create: `api/schemas/documents.py` `DocCreate`
 - Update: `api/schemas/documents.py` `DocUpdate`
 ### List
-- `GET /api/v1/documents?project_id=` — 200 ordered by `doc_name_unique`; empty list if none for the project. Requires `project_id` query param.
+- `GET /api/v1/documents?project_id=` — 200 ordered by `doc_name_unique`; empty list if none for the project. Excludes voided documents by default. Requires `project_id` query param.
+- Optional query param: `show_voided=true` to include voided documents in the response.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
@@ -1388,7 +1389,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   - Optional fields: `project_id`, `jobpack_id`, `milestone_id`
   - Note: The initial revision automatically uses the status with `start=true` from `doc_rev_statuses`.
 ### Revisions
-- `GET /api/v1/documents/{doc_id}/revisions` — 200 ordered by `seq_num`; empty list if none. 404 if document not found.
+- `GET /api/v1/documents/{doc_id}/revisions` — 200 ordered by `seq_num`; empty list if none. 404 if document not found or voided.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash

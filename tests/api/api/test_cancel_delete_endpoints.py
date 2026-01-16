@@ -63,26 +63,26 @@ def test_cancel_revision():
         doc_id = _get_doc_id(client)
         if doc_id is None:
             pytest.skip("No document available for cancel revision test")
-        
+
         # Get revisions for the document
         revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
         if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
             pytest.skip("No revisions available for cancel revision test")
-        
+
         rev_id = revisions["payload"][0].get("rev_id")
         if rev_id is None:
             pytest.skip("No rev_id available for cancel revision test")
-        
+
         # Check initial state - cancelled_date should be None
         initial_canceled_date = revisions["payload"][0].get("canceled_date")
         assert initial_canceled_date is None, "canceled_date should be None initially"
-        
+
         # Cancel the revision
         result = _request(client, "PATCH", f"/documents/revisions/{rev_id}/cancel")
         assert 200 <= result["status"] < 300, f"Expected 2xx status, got {result['status']}"
         assert result["payload"]["rev_id"] == rev_id
         assert result["payload"]["canceled_date"] is not None, "canceled_date should be set"
-        
+
         # Verify the change persisted
         updated_revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
         assert 200 <= updated_revisions["status"] < 300
@@ -106,12 +106,12 @@ def test_delete_document_void():
         doc_id = _get_doc_id(client)
         if doc_id is None:
             pytest.skip("No document available for delete document test")
-        
+
         # Get revisions to check count
         revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
         if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
             pytest.skip("No revisions available for delete document test")
-        
+
         # If there's only one revision, create another to ensure voiding behavior
         if len(revisions["payload"]) == 1:
             base_revision = revisions["payload"][0]
@@ -134,7 +134,7 @@ def test_delete_document_void():
             )
             if not (200 <= create_result["status"] < 300):
                 pytest.skip("Could not create additional revision for void test")
-        
+
         # Check initial voided state
         project_id = _get_project_id(client)
         docs = _request(client, "GET", "/documents", params={"project_id": project_id})
@@ -142,16 +142,29 @@ def test_delete_document_void():
         if doc:
             initial_voided = doc.get("voided", False)
             assert initial_voided is False, "Document should not be voided initially"
-        
+
         # Delete the document (should void it)
         result = _request(client, "DELETE", f"/documents/{doc_id}")
         assert result["status"] == 204, f"Expected 204 status, got {result['status']}"
-        
-        # Verify the document is voided (not actually deleted)
+
+        # Verify the document is not listed after soft delete unless show_voided is set
         docs_after = _request(client, "GET", "/documents", params={"project_id": project_id})
         doc_after = next((d for d in docs_after["payload"] if d["doc_id"] == doc_id), None)
-        if doc_after:
-            assert doc_after["voided"] is True, "Document should be voided"
+        assert doc_after is None, "Voided documents should be excluded from list responses"
+
+        docs_after_voided = _request(
+            client,
+            "GET",
+            "/documents",
+            params={"project_id": project_id, "show_voided": True},
+        )
+        doc_after_voided = next(
+            (d for d in docs_after_voided["payload"] if d["doc_id"] == doc_id), None
+        )
+        assert doc_after_voided is not None, "Voided documents should be included when requested"
+
+        revisions_after = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        assert revisions_after["status"] == 404
 
 
 @pytest.mark.api_smoke
