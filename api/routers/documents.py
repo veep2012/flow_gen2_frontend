@@ -302,6 +302,10 @@ def delete_doc_type(
 )
 def list_documents_for_project(
     project_id: int = Query(..., description="Project ID to filter documents by"),
+    show_voided: bool = Query(
+        False,
+        description="Include voided documents in results when true.",
+    ),
     db: Session = Depends(get_db),
 ) -> list[DocOut]:
     """
@@ -317,7 +321,7 @@ def list_documents_for_project(
         List of documents with comprehensive metadata.
     """
     rev_current = aliased(DocRevision)
-    docs = (
+    query = (
         db.query(
             Doc,
             DocType,
@@ -341,8 +345,10 @@ def list_documents_for_project(
         .outerjoin(DocRevStatus, rev_current.rev_status_id == DocRevStatus.rev_status_id)
         .filter(Doc.project_id == project_id)
         .order_by(Doc.doc_name_unique)
-        .all()
     )
+    if not show_voided:
+        query = query.filter(Doc.voided.is_(False))
+    docs = query.all()
     return [
         DocOut(
             doc_id=doc.doc_id,
@@ -468,7 +474,8 @@ def list_document_revisions(
     Raises:
         HTTPException: 404 if the document is not found.
     """
-    if not db.get(Doc, doc_id):
+    doc = db.get(Doc, doc_id)
+    if not doc or doc.voided:
         raise HTTPException(status_code=404, detail="Document not found")
 
     rows = (
@@ -543,8 +550,13 @@ def update_document_revision(
     if not revision:
         raise HTTPException(status_code=404, detail="Revision not found")
 
-    if payload.doc_id is not None and not db.get(Doc, payload.doc_id):
+    doc_for_revision = db.get(Doc, revision.doc_id)
+    if not doc_for_revision or doc_for_revision.voided:
         raise HTTPException(status_code=404, detail="Document not found")
+    if payload.doc_id is not None:
+        doc_ref = db.get(Doc, payload.doc_id)
+        if not doc_ref or doc_ref.voided:
+            raise HTTPException(status_code=404, detail="Document not found")
     if payload.rev_code_id is not None and not db.get(RevisionOverview, payload.rev_code_id):
         raise HTTPException(status_code=404, detail="Revision code not found")
     if payload.rev_status_id is not None and not db.get(DocRevStatus, payload.rev_status_id):
@@ -630,7 +642,8 @@ def insert_document_revision(
     Raises:
         HTTPException: 404 if document or referenced entities not found.
     """
-    if not db.get(Doc, doc_id):
+    doc = db.get(Doc, doc_id)
+    if not doc or doc.voided:
         raise HTTPException(status_code=404, detail="Document not found")
     if not db.get(RevisionOverview, payload.rev_code_id):
         raise HTTPException(status_code=404, detail="Revision code not found")
@@ -757,7 +770,7 @@ def update_document(
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
     doc = db.get(Doc, payload.doc_id)
-    if not doc:
+    if not doc or doc.voided:
         raise HTTPException(status_code=404, detail="Document not found")
 
     T = TypeVar("T")
@@ -1803,6 +1816,9 @@ def delete_document(
     else:
         # Set voided to true
         doc.voided = True
+        db.query(DocRevision).filter(DocRevision.doc_id == doc_id).update(
+            {"voided": True}, synchronize_session=False
+        )
 
     try:
         db.commit()
