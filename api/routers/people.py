@@ -443,6 +443,38 @@ def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
     return [_build_user_out(user) for user in users]
 
 
+@router.get(
+    "/users/current_user",
+    summary="Get current user.",
+    description="Returns the current user and person info (currently hardcoded to user_id=2).",
+    operation_id="get_current_user",
+    tags=["people"],
+    response_model=UserOut,
+    responses={
+        404: {
+            "description": "Not Found",
+            "content": {"application/json": {"example": {"detail": "User not found"}}},
+        },
+    },
+)
+def get_current_user(db: Session = Depends(get_db)) -> UserOut:
+    """
+    Get current user.
+
+    Returns the current user and person info. Currently hardcoded to user_id=2.
+    """
+    user = (
+        db.query(User)
+        .join(Person, User.person_id == Person.person_id)
+        .join(Role, User.role_id == Role.role_id)
+        .filter(User.user_id == 2)
+        .one_or_none()
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return _build_user_out(user)
+
+
 def update_user(
     payload: UserUpdate = Body(..., openapi_examples=_example_for(UserUpdate)),
     db: Session = Depends(get_db),

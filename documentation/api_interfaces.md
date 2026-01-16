@@ -1046,6 +1046,17 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/people/users
 ```json
 [ { "user_id": 7, "person_id": 12, "user_acronym": "ALV", "role_id": 3, "person_name": "Ada Lovelace", "role_name": "Coordinator" } ]
 ```
+### Current user
+- `GET /api/v1/people/users/current_user` — 200; returns current user (currently hardcoded to `user_id=2`); 404 if user not found.
+- Headers: `Accept: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/people/users/current_user
+```
+- Example response:
+```json
+{ "user_id": 2, "person_id": 1, "user_acronym": "USR", "role_id": 1, "person_name": "User", "role_name": "Viewer" }
+```
 ### Create
 - `POST /api/v1/people/users` — 201; 400 on insert failure; 404 if person/role missing.
 - Headers: `Accept: application/json`, `Content-Type: application/json`
