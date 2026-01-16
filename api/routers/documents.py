@@ -1677,7 +1677,7 @@ def create_document_rest(
 @router.patch(
     "/revisions/{rev_id}/cancel",
     summary="Cancel a document revision.",
-    description="Sets the cancelled_date to the current datetime for the specified revision.",
+    description="Sets the canceled_date to the current datetime for the specified revision.",
     response_model=DocRevisionOut,
     tags=["documents"],
     responses=_REST_RESPONSES,
