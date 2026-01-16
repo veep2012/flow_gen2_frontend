@@ -72,8 +72,8 @@ const InDesignBehavior = ({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "8px", minHeight: 0 }}>
-      {/* File list area - takes remaining space and scrolls */}
-      <div style={{ flex: 1, overflow: "auto", padding: "8px 0", minHeight: 0 }}>
+      {/* File list area - takes 80% space and scrolls */}
+      <div style={{ flex: 4, overflow: "auto", padding: "8px 0", minHeight: 0 }}>
         {allFiles.length > 0 ? (
           <>
             {["Rev A", "Rev B", "Rev C", "Other"].map((revision) => {
@@ -252,7 +252,7 @@ const InDesignBehavior = ({
         )}
       </div>
 
-      {/* Drag and drop area - always at bottom */}
+      {/* Drag and drop area - takes 20% of space */}
       <button
         type="button"
         className={`flow-upload ${isDraggingUpload ? "dragging" : ""}`}
@@ -261,7 +261,9 @@ const InDesignBehavior = ({
         aria-label="Upload PDF files"
         style={{
           padding: "16px",
-          flexShrink: 0,
+          flex: 1,
+          minHeight: 0,
+          overflow: "auto",
         }}
       >
         Drag & drop PDF files here
