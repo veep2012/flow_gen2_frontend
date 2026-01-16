@@ -343,7 +343,7 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
             disabled={!selectedPerson || loading}
             className="btn-add"
           >
-            {loading ? "Creating..." : "Create List"}
+            {loading ? "Creating..." : "+Add new person"}
           </button>
         </div>
       </div>
