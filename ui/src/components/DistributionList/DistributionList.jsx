@@ -318,7 +318,6 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
 
       {/* Header */}
       <div className="distribution-list-header">
-        <h3>Distribution Lists</h3>
       </div>
 
       {/* Create New List Section */}
@@ -343,7 +342,7 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
             disabled={!selectedPerson || loading}
             className="btn-add"
           >
-            {loading ? "Creating..." : "+Add new person"}
+            {loading ? "Creating..." : "+ Add New person"}
           </button>
         </div>
       </div>
