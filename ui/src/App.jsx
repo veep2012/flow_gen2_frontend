@@ -1114,7 +1114,7 @@ function App() {
   }, [orderedStatuses, infoActiveStep]);
 
   return (
-    <main className="page" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <main className="page" style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <style>
         {`
         :root {
@@ -1559,6 +1559,9 @@ function App() {
           display: flex;
           flex-direction: column;
           flex: 1;
+          min-height: 0;
+          max-height: 100%;
+          overflow: hidden;
         }
         .flow-subtabs {
           display: flex;

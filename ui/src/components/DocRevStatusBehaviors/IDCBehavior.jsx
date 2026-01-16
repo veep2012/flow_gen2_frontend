@@ -75,7 +75,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
           );
         })}
       </div>
-      <div className="detail-tab-panel" style={{ display: "flex", flexDirection: "column", gap: "0", padding: "12px", borderBottomLeftRadius: "10px", borderBottomRightRadius: "10px", overflow: "hidden", fontSize: "13px", color: "var(--color-text-muted)" }}>
+      <div className="detail-tab-panel" style={{ display: "flex", flexDirection: "column", gap: "0", padding: "12px", borderBottomLeftRadius: "10px", borderBottomRightRadius: "10px", overflow: "hidden", fontSize: "13px", color: "var(--color-text-muted)", flex: "1", minHeight: 0, height: "100%", maxHeight: "100%" }}>
         {infoActiveSubTab === "Comments" || infoActiveSubTab === "Files with Comments" || infoActiveSubTab === "Written Comments" ? (
           <>
             {docInfo && (
@@ -85,11 +85,11 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                 <div>Discipline: {docInfo.discipline}</div>
               </div>
             )}
-            <div className="flow-box" style={{ flex: "0 0 25%", borderRadius: "0px", margin: "0", padding: "0", marginBottom: "-1px", display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)", padding: "12px", background: "var(--color-surface-alt)", borderBottom: "1px solid rgba(0, 0, 0, 0.08)", margin: "0" }}>
+            <div className="flow-box" style={{ flex: "0 0 25%", borderRadius: "0px", margin: "0", padding: "0", marginBottom: "-1px", display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)", padding: "12px", background: "var(--color-surface-alt)", borderBottom: "1px solid rgba(0, 0, 0, 0.08)", margin: "0", flex: "0 0 auto" }}>
                 Original Files
               </div>
-              <div style={{ padding: "12px" }}>
+              <div style={{ padding: "12px", flex: "1", minHeight: 0, overflow: "auto" }}>
                 {idcFiles.length > 0 ? (
                   <div style={{ fontSize: "13px" }}>
                     {["Rev A", "Rev B", "Rev C", "Other"].map((revision) => {
@@ -236,7 +236,7 @@ const IDCBehavior = ({ selectedDoc, infoActiveSubTab, onSubTabChange, uploadedFi
                 )}
               </div>
             </div>
-            <div className="flow-box" style={{ flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", borderRadius: "0px", margin: "0", padding: "12px", marginTop: "-1px" }}>
+            <div className="flow-box" style={{ flex: "1 1 auto", minHeight: 0, maxHeight: "75%", display: "flex", flexDirection: "column", borderRadius: "0px", margin: "0", padding: "12px", marginTop: "-1px", overflow: "hidden" }}>
               <div className="detail-tabs" style={{ flex: "0 0 auto" }}>
                 {["Files with Comments", "Written Comments"].map((tab) => {
                   const isActive = infoActiveSubTab === tab;
