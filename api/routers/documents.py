@@ -7,6 +7,7 @@ from typing import Any, TypeVar
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased, joinedload
+from sqlalchemy.orm.exc import StaleDataError
 
 from api.db.models import (
     Area,
@@ -1454,6 +1455,10 @@ _REST_RESPONSES: dict[int | str, dict[str, Any]] = {
         "description": "Not Found",
         "content": {"application/json": {"example": {"detail": "Not Found"}}},
     },
+    409: {
+        "description": "Conflict",
+        "content": {"application/json": {"example": {"detail": "Conflict"}}},
+    },
     422: {
         "description": "Validation Error",
         "content": {
@@ -1717,13 +1722,22 @@ def cancel_revision(
     if not revision:
         raise HTTPException(status_code=404, detail="Revision not found")
 
-    revision.canceled_date = datetime.now(timezone.utc).replace(tzinfo=None)
+    doc = db.get(Doc, revision.doc_id)
+    if not doc or doc.voided:
+        raise HTTPException(status_code=404, detail="Document not found")
 
-    try:
-        db.commit()
-    except IntegrityError as err:
-        db.rollback()
-        _handle_integrity_error("Failed to cancel revision", err, "cancel_revision")
+    if revision.canceled_date is None:
+        status = db.get(DocRevStatus, revision.rev_status_id)
+        if status and status.final:
+            raise HTTPException(
+                status_code=409, detail="Revision status does not allow cancellation"
+            )
+        revision.canceled_date = datetime.now(timezone.utc).replace(tzinfo=None)
+        try:
+            db.commit()
+        except IntegrityError as err:
+            db.rollback()
+            _handle_integrity_error("Failed to cancel revision", err, "cancel_revision")
 
     row = (
         db.query(DocRevision, RevisionOverview, DocRevStatus, DocRevMilestone)
@@ -1774,14 +1788,13 @@ def cancel_revision(
         "Deletes a document if it has only one revision with start status. "
         "Otherwise, sets the voided field to true."
     ),
-    status_code=204,
     tags=["documents"],
     responses=_REST_RESPONSES,
 )
 def delete_document(
     doc_id: int = Path(..., description="Document ID to delete", gt=0),
     db: Session = Depends(get_db),
-) -> None:
+) -> dict[str, str]:
     """
     Delete a document.
 
@@ -1795,7 +1808,7 @@ def delete_document(
     Raises:
         HTTPException: 404 if document not found.
     """
-    doc = db.get(Doc, doc_id)
+    doc = db.query(Doc).filter(Doc.doc_id == doc_id).with_for_update().one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
@@ -1811,17 +1824,33 @@ def delete_document(
             should_delete = True
 
     if should_delete:
-        # Delete the document (cascade will delete revisions)
+        # Clear revision pointers before delete to avoid FK churn during cascades.
+        doc.rev_current_id = None
+        doc.rev_actual_id = None
+        try:
+            db.flush()
+        except StaleDataError:
+            db.rollback()
+            raise HTTPException(status_code=404, detail="Document not found")
+        for revision in revisions:
+            db.delete(revision)
+        # Delete the document (cascade will delete related revisions)
         db.delete(doc)
+        result = "deleted"
     else:
         # Set voided to true
         doc.voided = True
         db.query(DocRevision).filter(DocRevision.doc_id == doc_id).update(
             {"voided": True}, synchronize_session=False
         )
+        result = "voided"
 
     try:
         db.commit()
+    except StaleDataError:
+        db.rollback()
+        raise HTTPException(status_code=404, detail="Document not found")
     except IntegrityError as err:
         db.rollback()
         _handle_integrity_error("Failed to delete/void document", err, "delete_document")
+    return {"result": result}

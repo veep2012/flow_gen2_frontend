@@ -9,13 +9,16 @@ PATCH /api/v1/documents/revisions/{rev_id}/cancel
 
 ### Description
 Cancels a document revision by setting the `canceled_date` field to the current datetime.
+Cancellation is allowed only when the current revision status is not final. If `canceled_date`
+is already set, the endpoint is idempotent and returns the existing revision state.
 
 ### Path Parameters
 - `rev_id` (integer, required): The ID of the revision to cancel
 
 ### Response
 - **200 OK**: Returns the updated revision object with `canceled_date` set
-- **404 Not Found**: Revision with the specified ID does not exist
+- **404 Not Found**: Revision or document does not exist (or is voided)
+- **409 Conflict**: Revision status does not allow cancellation
 
 ### Example Request
 ```bash
@@ -53,7 +56,7 @@ Deletes or voids a document based on its revision state:
 - `doc_id` (integer, required): The ID of the document to delete
 
 ### Response
-- **204 No Content**: Document successfully deleted or voided
+- **200 OK**: Returns `{ "result": "deleted" }` or `{ "result": "voided" }`
 - **404 Not Found**: Document with the specified ID does not exist
 
 ### Example Request
