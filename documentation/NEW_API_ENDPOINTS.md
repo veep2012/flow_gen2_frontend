@@ -88,6 +88,20 @@ Added column to `doc` table:
 voided BOOLEAN NOT NULL DEFAULT FALSE
 ```
 
+### Migration Notes
+If you need to migrate an existing database, apply the change with a default and backfill:
+```sql
+ALTER TABLE doc
+    ADD COLUMN voided BOOLEAN NOT NULL DEFAULT FALSE;
+
+UPDATE doc
+SET voided = FALSE
+WHERE voided IS NULL;
+
+CREATE INDEX idx_doc_voided ON doc (voided);
+```
+The hard delete path relies on `doc_revision.doc_id` using `ON DELETE CASCADE` (already set in schema).
+
 ### DocOut Schema
 Added field to response:
 - `voided` (boolean): Whether the document is voided
