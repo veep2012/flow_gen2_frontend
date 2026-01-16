@@ -219,6 +219,10 @@ def list_commented_files_for_file(
             "filename": filename,
             "mimetype": mimetype,
             "rev_id": rev_id,
+            "created_at": file_row.created_at,
+            "updated_at": file_row.updated_at,
+            "created_by": file_row.created_by,
+            "updated_by": file_row.updated_by,
         }
         for file_row, filename, mimetype, rev_id in rows
     ]
