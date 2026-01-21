@@ -29,5 +29,3 @@ HistoryBehavior.propTypes = {
 };
 
 export default HistoryBehavior;
-
-

@@ -29,5 +29,3 @@ OfficialBehavior.propTypes = {
 };
 
 export default OfficialBehavior;
-
-

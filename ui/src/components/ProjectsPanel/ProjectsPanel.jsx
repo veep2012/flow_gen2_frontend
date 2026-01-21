@@ -1,7 +1,15 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-const ProjectsPanel = ({ project, setProject, projects, projectsError, cabinetTabs, userMenuOpen, setUserMenuOpen }) => {
+const ProjectsPanel = ({
+  project,
+  setProject,
+  projects,
+  projectsError,
+  cabinetTabs,
+  userMenuOpen,
+  setUserMenuOpen,
+}) => {
   return (
     <div
       style={{
@@ -59,7 +67,7 @@ const ProjectsPanel = ({ project, setProject, projects, projectsError, cabinetTa
             </div>
           ))}
         </div>
-        
+
         {/* User Avatar */}
         <div style={{ position: "relative", marginLeft: "12px" }}>
           <button
@@ -93,7 +101,7 @@ const ProjectsPanel = ({ project, setProject, projects, projectsError, cabinetTa
           >
             👤
           </button>
-          
+
           {userMenuOpen && (
             <div
               style={{
@@ -108,17 +116,26 @@ const ProjectsPanel = ({ project, setProject, projects, projectsError, cabinetTa
                 zIndex: 1000,
                 marginTop: "8px",
                 overflow: "hidden",
-                animation: "slideDown 0.2s ease"
+                animation: "slideDown 0.2s ease",
               }}
             >
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border-soft)" }}>
-                <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>John Doe</div>
-                <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>john.doe@example.com</div>
+              <div
+                style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border-soft)" }}
+              >
+                <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>
+                  John Doe
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                  john.doe@example.com
+                </div>
               </div>
-              
+
               <button
                 type="button"
-                onClick={() => { console.log("Profile"); setUserMenuOpen(false); }}
+                onClick={() => {
+                  console.log("Profile");
+                  setUserMenuOpen(false);
+                }}
                 style={{
                   display: "block",
                   width: "100%",
@@ -132,15 +149,20 @@ const ProjectsPanel = ({ project, setProject, projects, projectsError, cabinetTa
                   transition: "background 0.2s",
                   borderBottom: "1px solid var(--color-border-soft)",
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-muted)"}
-                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "var(--color-surface-muted)")
+                }
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
                 👤 My Profile
               </button>
-              
+
               <button
                 type="button"
-                onClick={() => { console.log("Settings"); setUserMenuOpen(false); }}
+                onClick={() => {
+                  console.log("Settings");
+                  setUserMenuOpen(false);
+                }}
                 style={{
                   display: "block",
                   width: "100%",
@@ -154,15 +176,20 @@ const ProjectsPanel = ({ project, setProject, projects, projectsError, cabinetTa
                   transition: "background 0.2s",
                   borderBottom: "1px solid var(--color-border-soft)",
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-muted)"}
-                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "var(--color-surface-muted)")
+                }
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
                 ⚙ Settings
               </button>
-              
+
               <button
                 type="button"
-                onClick={() => { console.log("Logout"); setUserMenuOpen(false); }}
+                onClick={() => {
+                  console.log("Logout");
+                  setUserMenuOpen(false);
+                }}
                 style={{
                   display: "block",
                   width: "100%",
@@ -175,8 +202,10 @@ const ProjectsPanel = ({ project, setProject, projects, projectsError, cabinetTa
                   color: "var(--color-danger)",
                   transition: "background 0.2s",
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-danger-soft)"}
-                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "var(--color-danger-soft)")
+                }
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
                 🚪 Logout
               </button>

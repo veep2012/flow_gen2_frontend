@@ -22,9 +22,12 @@ const DocumentFlow = ({
         <>
           <div className="flow-subtabs" style={{ display: "flex" }}>
             {["Comments", "Distribution list"].map((tab) => {
-              const isActive = tab === "Comments" 
-                ? (infoActiveSubTab === "Comments" || infoActiveSubTab === "Files with Comments" || infoActiveSubTab === "Written Comments")
-                : infoActiveSubTab === tab;
+              const isActive =
+                tab === "Comments"
+                  ? infoActiveSubTab === "Comments" ||
+                    infoActiveSubTab === "Files with Comments" ||
+                    infoActiveSubTab === "Written Comments"
+                  : infoActiveSubTab === tab;
               return (
                 <button
                   type="button"
@@ -32,7 +35,10 @@ const DocumentFlow = ({
                   className={`flow-subtab ${isActive ? "active" : ""}`}
                   aria-pressed={isActive}
                   onClick={() => {
-                    if (tab === "Comments" && !["Files with Comments", "Written Comments"].includes(infoActiveSubTab)) {
+                    if (
+                      tab === "Comments" &&
+                      !["Files with Comments", "Written Comments"].includes(infoActiveSubTab)
+                    ) {
                       onSubTabChange("Files with Comments");
                     } else if (tab !== "Comments") {
                       onSubTabChange(tab);
@@ -45,7 +51,9 @@ const DocumentFlow = ({
             })}
           </div>
           <div className="detail-tab-panel">
-            {infoActiveSubTab === "Comments" || infoActiveSubTab === "Files with Comments" || infoActiveSubTab === "Written Comments" ? (
+            {infoActiveSubTab === "Comments" ||
+            infoActiveSubTab === "Files with Comments" ||
+            infoActiveSubTab === "Written Comments" ? (
               <div className="flow-box">
                 <div className="flow-mini-tabs">
                   {["Files with Comments", "Written Comments"].map((tab) => (

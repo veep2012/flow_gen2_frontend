@@ -2,11 +2,10 @@ import React from "react";
 import PropTypes from "prop-types";
 import "./DistributionList.css";
 
-const DistributionList = ({ docId, apiBase, onClose }) => {
+const DistributionList = ({ docId, apiBase }) => {
   const [lists, setLists] = React.useState([]);
   const [selectedListId, setSelectedListId] = React.useState(null);
   const [selectedPerson, setSelectedPerson] = React.useState("");
-  const [isCreating, setIsCreating] = React.useState(false);
   const [persons, setPersons] = React.useState([]);
   const [roles, setRoles] = React.useState([]);
   const [recipients, setRecipients] = React.useState([]);
@@ -39,9 +38,9 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
       setLoadingPersons(true);
       const [personResponse, rolesResponse] = await Promise.all([
         fetch(`${apiBase}/people/persons`),
-        fetch(`${apiBase}/people/roles`)
+        fetch(`${apiBase}/people/roles`),
       ]);
-      
+
       if (personResponse.ok) {
         const personData = await personResponse.json();
         setPersons(Array.isArray(personData) ? personData : []);
@@ -50,7 +49,7 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
       } else {
         console.error("Failed to load persons");
       }
-      
+
       if (rolesResponse.ok) {
         const rolesData = await rolesResponse.json();
         setRoles(Array.isArray(rolesData) ? rolesData : []);
@@ -98,7 +97,7 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
       setLoading(true);
       setError(null);
       const response = await fetch(
-        `${apiBase}/documents/${docId}/distribution-lists/${selectedListId}/recipients`
+        `${apiBase}/documents/${docId}/distribution-lists/${selectedListId}/recipients`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -134,7 +133,7 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
 
       if (response.ok) {
         const newList = await response.json();
-        
+
         // Automatically add the selected person as a recipient
         if (selectedPersonObj?.email) {
           await fetch(
@@ -142,14 +141,14 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
+              body: JSON.stringify({
                 email: selectedPersonObj.email,
-                person_name: selectedPersonObj.person_name
+                person_name: selectedPersonObj.person_name,
               }),
-            }
+            },
           );
         }
-        
+
         setLists([...lists, newList]);
         setSelectedListId(newList.dist_list_id);
         setSelectedPerson("");
@@ -157,7 +156,8 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
         setTimeout(() => setSuccess(null), 3000);
       } else {
         const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-        const errorMsg = errorData?.detail || `Failed to create distribution list (${response.status})`;
+        const errorMsg =
+          errorData?.detail || `Failed to create distribution list (${response.status})`;
         setError(errorMsg);
         console.error("Create list error:", response.status, errorData);
       }
@@ -184,7 +184,7 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ person_id: parseInt(newRecipient) }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -215,7 +215,7 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
       setError(null);
       const response = await fetch(
         `${apiBase}/documents/${docId}/distribution-lists/${selectedListId}/recipients/${recipientId}`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
 
       if (response.ok) {
@@ -256,7 +256,8 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
         setTimeout(() => setSuccess(null), 3000);
       } else {
         const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-        const errorMsg = errorData?.detail || `Failed to delete distribution list (${response.status})`;
+        const errorMsg =
+          errorData?.detail || `Failed to delete distribution list (${response.status})`;
         setError(errorMsg);
         console.error("Delete list error:", response.status, errorData);
       }
@@ -285,7 +286,7 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({}),
-        }
+        },
       );
 
       if (response.ok) {
@@ -317,8 +318,7 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
       {success && <div className="alert alert-success">{success}</div>}
 
       {/* Header */}
-      <div className="distribution-list-header">
-      </div>
+      <div className="distribution-list-header"></div>
 
       {/* Create New List Section */}
       <div className="distribution-list-section">
@@ -363,13 +363,19 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
                     key={list.dist_list_id}
                     className={`list-item ${selectedListId === list.dist_list_id ? "active" : ""}`}
                     onClick={() => setSelectedListId(list.dist_list_id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedListId(list.dist_list_id);
+                      }
+                    }}
                   >
                     <div className="list-item-name">
                       {list.distribution_list_name || list.list_name}
                     </div>
-                    {sentLists.has(list.dist_list_id) && (
-                      <span className="sent-badge">Sent</span>
-                    )}
+                    {sentLists.has(list.dist_list_id) && <span className="sent-badge">Sent</span>}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -402,10 +408,7 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
                   >
                     <option value="">Select person to add...</option>
                     {persons
-                      .filter(
-                        (p) =>
-                          !recipients.some((r) => r.person_id === p.person_id)
-                      )
+                      .filter((p) => !recipients.some((r) => r.person_id === p.person_id))
                       .map((person) => (
                         <option key={person.person_id} value={person.person_id}>
                           {person.person_name} ({getRoleForPerson(person.person_id)})
@@ -434,9 +437,7 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
                           <div className="recipient-name">
                             {recipient.person_name || recipient.name || "Unknown"}
                           </div>
-                          <div className="recipient-email">
-                            {recipient.email || "no email"}
-                          </div>
+                          <div className="recipient-email">{recipient.email || "no email"}</div>
                         </div>
                         <button
                           onClick={() => handleRemoveRecipient(recipient.id)}
@@ -462,8 +463,8 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
                       {loading
                         ? "Sending..."
                         : sentLists.has(selectedListId)
-                        ? "✓ Sent for Review"
-                        : "Send for Review"}
+                          ? "✓ Sent for Review"
+                          : "Send for Review"}
                     </button>
                   </div>
                 )}
@@ -479,7 +480,6 @@ const DistributionList = ({ docId, apiBase, onClose }) => {
 DistributionList.propTypes = {
   docId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   apiBase: PropTypes.string.isRequired,
-  onClose: PropTypes.func,
 };
 
 export default DistributionList;

@@ -38,7 +38,7 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
 
   const reloadDocuments = useCallback(() => {
     if (!project) return;
-    
+
     const controller = new AbortController();
     const { signal } = controller;
     setDocuments([]);

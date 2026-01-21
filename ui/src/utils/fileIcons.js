@@ -43,7 +43,10 @@ export const getFileIcon = (filename) => {
   if (["txt", "csv", "log"].includes(ext)) return "📄";
 
   // Code files
-  if (["js", "jsx", "ts", "tsx", "py", "java", "cpp", "c", "html", "css", "json", "xml"].includes(ext)) return "💻";
+  if (
+    ["js", "jsx", "ts", "tsx", "py", "java", "cpp", "c", "html", "css", "json", "xml"].includes(ext)
+  )
+    return "💻";
 
   // Default file icon
   return "📄";

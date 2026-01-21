@@ -101,7 +101,6 @@ function App() {
   const [uploadedFiles, setUploadedFiles] = React.useState({});
   const [expandedRevisions, setExpandedRevisions] = React.useState({});
   const [statusMenuOpen, setStatusMenuOpen] = React.useState({});
-  const [isFlowPanelHidden, setIsFlowPanelHidden] = React.useState(false);
   const [isDetailPanelHidden, setIsDetailPanelHidden] = React.useState(false);
   const containerRef = React.useRef(null);
   const leftPanelRef = React.useRef(null);
@@ -232,7 +231,7 @@ function App() {
             >
               ≣
             </button>
-            
+
             {projectMenuOpen && (
               <div
                 style={{
@@ -247,12 +246,15 @@ function App() {
                   zIndex: 1000,
                   marginTop: "8px",
                   overflow: "hidden",
-                  animation: "slideDown 0.2s ease"
+                  animation: "slideDown 0.2s ease",
                 }}
               >
                 <button
                   type="button"
-                  onClick={() => { console.log("New project"); setProjectMenuOpen(false); }}
+                  onClick={() => {
+                    console.log("New project");
+                    setProjectMenuOpen(false);
+                  }}
                   style={{
                     display: "block",
                     width: "100%",
@@ -266,14 +268,19 @@ function App() {
                     transition: "background 0.2s",
                     borderBottom: "1px solid var(--color-border-soft)",
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-muted)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "var(--color-surface-muted)")
+                  }
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   + New Project
                 </button>
                 <button
                   type="button"
-                  onClick={() => { console.log("Manage projects"); setProjectMenuOpen(false); }}
+                  onClick={() => {
+                    console.log("Manage projects");
+                    setProjectMenuOpen(false);
+                  }}
                   style={{
                     display: "block",
                     width: "100%",
@@ -287,14 +294,19 @@ function App() {
                     transition: "background 0.2s",
                     borderBottom: "1px solid var(--color-border-soft)",
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-muted)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "var(--color-surface-muted)")
+                  }
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   ⚙ Manage Projects
                 </button>
                 <button
                   type="button"
-                  onClick={() => { console.log("Project settings"); setProjectMenuOpen(false); }}
+                  onClick={() => {
+                    console.log("Project settings");
+                    setProjectMenuOpen(false);
+                  }}
                   style={{
                     display: "block",
                     width: "100%",
@@ -307,14 +319,16 @@ function App() {
                     color: "var(--color-text)",
                     transition: "background 0.2s",
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-muted)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "var(--color-surface-muted)")
+                  }
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   ⬚ Settings
                 </button>
               </div>
             )}
-            
+
             <label
               htmlFor="project-select"
               style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-success-text)" }}
@@ -361,9 +375,18 @@ function App() {
               </div>
             ))}
           </div>
-          
+
           {/* User Avatar */}
-          <div style={{ position: "relative", marginLeft: "12px", display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+          <div
+            style={{
+              position: "relative",
+              marginLeft: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              cursor: "pointer",
+            }}
+          >
             <input
               type="file"
               id="avatar-upload"
@@ -425,16 +448,45 @@ function App() {
                 }}
               />
             </button>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: "1px", justifyContent: "center", cursor: "pointer" }} onClick={() => setUserMenuOpen(!userMenuOpen)}>
-              <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text)", lineHeight: "1.3", letterSpacing: "-0.3px" }}>
+
+            <button
+              type="button"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "1px",
+                justifyContent: "center",
+                cursor: "pointer",
+                background: "none",
+                border: "none",
+                padding: 0,
+                textAlign: "left",
+              }}
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+            >
+              <div
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  color: "var(--color-text)",
+                  lineHeight: "1.3",
+                  letterSpacing: "-0.3px",
+                }}
+              >
                 Konstantin Ni
               </div>
-              <div style={{ fontSize: "10px", color: "var(--color-text-muted)", lineHeight: "1.2", fontWeight: 500 }}>
+              <div
+                style={{
+                  fontSize: "10px",
+                  color: "var(--color-text-muted)",
+                  lineHeight: "1.2",
+                  fontWeight: 500,
+                }}
+              >
                 Designer
               </div>
-            </div>
-            
+            </button>
+
             {userMenuOpen && (
               <div
                 style={{
@@ -449,17 +501,29 @@ function App() {
                   zIndex: 1000,
                   marginTop: "8px",
                   overflow: "hidden",
-                  animation: "slideDown 0.2s ease"
+                  animation: "slideDown 0.2s ease",
                 }}
               >
-                <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border-soft)" }}>
-                  <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>John Doe</div>
-                  <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>john.doe@example.com</div>
+                <div
+                  style={{
+                    padding: "12px 16px",
+                    borderBottom: "1px solid var(--color-border-soft)",
+                  }}
+                >
+                  <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>
+                    John Doe
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                    john.doe@example.com
+                  </div>
                 </div>
-                
+
                 <button
                   type="button"
-                  onClick={() => { console.log("Profile"); setUserMenuOpen(false); }}
+                  onClick={() => {
+                    console.log("Profile");
+                    setUserMenuOpen(false);
+                  }}
                   style={{
                     display: "block",
                     width: "100%",
@@ -473,15 +537,20 @@ function App() {
                     transition: "background 0.2s",
                     borderBottom: "1px solid var(--color-border-soft)",
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-muted)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "var(--color-surface-muted)")
+                  }
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   👤 My Profile
                 </button>
-                
+
                 <button
                   type="button"
-                  onClick={() => { console.log("Settings"); setUserMenuOpen(false); }}
+                  onClick={() => {
+                    console.log("Settings");
+                    setUserMenuOpen(false);
+                  }}
                   style={{
                     display: "block",
                     width: "100%",
@@ -495,15 +564,20 @@ function App() {
                     transition: "background 0.2s",
                     borderBottom: "1px solid var(--color-border-soft)",
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-muted)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "var(--color-surface-muted)")
+                  }
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   ⚙ Settings
                 </button>
-                
+
                 <button
                   type="button"
-                  onClick={() => { console.log("Logout"); setUserMenuOpen(false); }}
+                  onClick={() => {
+                    console.log("Logout");
+                    setUserMenuOpen(false);
+                  }}
                   style={{
                     display: "block",
                     width: "100%",
@@ -516,31 +590,37 @@ function App() {
                     color: "var(--color-danger)",
                     transition: "background 0.2s",
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-danger-soft)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "var(--color-danger-soft)")
+                  }
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   🚪 Logout
                 </button>
               </div>
             )}
           </div>
-          
+
           {/* FLOW Logo */}
-          <div style={{ 
-            marginLeft: "16px",
-            paddingLeft: "12px",
-            borderLeft: "1px solid var(--color-success-border-strong)",
-            display: "flex",
-            alignItems: "center",
-            gap: "4px"
-          }}>
-            <span style={{
-              fontSize: "14px",
-              fontWeight: 800,
-              color: "var(--color-success-text)",
-              letterSpacing: "0.5px",
-              textTransform: "uppercase"
-            }}>
+          <div
+            style={{
+              marginLeft: "16px",
+              paddingLeft: "12px",
+              borderLeft: "1px solid var(--color-success-border-strong)",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "14px",
+                fontWeight: 800,
+                color: "var(--color-success-text)",
+                letterSpacing: "0.5px",
+                textTransform: "uppercase",
+              }}
+            >
               FLOW
             </span>
           </div>
@@ -666,7 +746,7 @@ function App() {
   const applyEdit = React.useCallback(
     async (doc) => {
       if (!doc) return;
-      
+
       // Build minimal payload - only include fields that are actually being changed
       const payload = {
         doc_id: Number(doc.doc_id || doc.id),
@@ -752,7 +832,7 @@ function App() {
 
           // Store the file object with document number and API response
           setUploadedFiles((prev) => {
-            const currentFiles = (prev[selectedDocId]?.[statusKey]) || [];
+            const currentFiles = prev[selectedDocId]?.[statusKey] || [];
             const fileObject = {
               name: file.name,
               documentNumber,
@@ -821,7 +901,7 @@ function App() {
     const fileId = typeof file === "object" ? file.fileId : null;
     const documentNumber = typeof file === "object" ? file.documentNumber : null;
     const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
-    
+
     // Set the selected file ID for visual indication
     setSelectedFileId(fileId ? `${fileId}-${fileName}` : fileName);
     console.log(`File selected: ${displayName}`);
@@ -867,9 +947,6 @@ function App() {
     },
     [apiBase],
   );
-
-  // Keep handleOpenFile for backward compatibility, now just selects
-  const handleOpenFile = handleSelectFile;
 
   const handleDeleteFile = React.useCallback(
     async (file) => {
@@ -962,7 +1039,7 @@ function App() {
         }
 
         const files = await response.json();
-        
+
         // Convert API files to our file object format
         // Store all API files in a special "$api" key to keep them persistent across all statuses
         const apiFiles = [];
@@ -1100,9 +1177,14 @@ function App() {
 
   React.useEffect(() => {
     if (orderedStatuses.length === 0) return;
-    
+
     // Auto-select first status when document is selected and no step is active
-    if (selectedDoc && selectedDoc.rev_current_id && infoActiveStep === null && !hasInitializedFlowRef.current) {
+    if (
+      selectedDoc &&
+      selectedDoc.rev_current_id &&
+      infoActiveStep === null &&
+      !hasInitializedFlowRef.current
+    ) {
       const firstStatus = orderedStatuses[0];
       if (firstStatus) {
         setInfoActiveStep(String(firstStatus.rev_status_id));
@@ -1110,7 +1192,7 @@ function App() {
         return;
       }
     }
-    
+
     if (infoActiveStep === null) {
       hasInitializedFlowRef.current = true;
       return;
@@ -1124,7 +1206,10 @@ function App() {
   }, [orderedStatuses, infoActiveStep, selectedDoc]);
 
   return (
-    <main className="page" style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <main
+      className="page"
+      style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
+    >
       <style>
         {`
         :root {
@@ -1717,11 +1802,19 @@ function App() {
         }
       `}
       </style>
-      
+
       {/* Sidebar Overlay */}
       {sidebarOpen && (
         <div
+          role="button"
+          tabIndex={0}
           onClick={() => setSidebarOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setSidebarOpen(false);
+            }
+          }}
           style={{
             position: "fixed",
             top: 0,
@@ -1730,11 +1823,11 @@ function App() {
             bottom: 0,
             background: "rgba(0, 0, 0, 0.4)",
             zIndex: 998,
-            animation: "fadeIn 0.2s ease"
+            animation: "fadeIn 0.2s ease",
           }}
         />
       )}
-      
+
       {/* Sidebar Menu */}
       <div
         style={{
@@ -1755,14 +1848,25 @@ function App() {
         }}
       >
         <div style={{ paddingBottom: "20px", borderBottom: "1px solid var(--color-border)" }}>
-          <div style={{ padding: "0 20px", marginBottom: "20px", fontSize: "18px", fontWeight: 700, color: "var(--color-text)" }}>
+          <div
+            style={{
+              padding: "0 20px",
+              marginBottom: "20px",
+              fontSize: "18px",
+              fontWeight: 700,
+              color: "var(--color-text)",
+            }}
+          >
             Menu
           </div>
         </div>
-        
+
         <div style={{ padding: "12px 12px" }}>
           <button
-            onClick={() => { console.log("Projects"); setSidebarOpen(false); }}
+            onClick={() => {
+              console.log("Projects");
+              setSidebarOpen(false);
+            }}
             style={{
               display: "block",
               width: "100%",
@@ -1790,9 +1894,12 @@ function App() {
           >
             📁 Projects
           </button>
-          
+
           <button
-            onClick={() => { console.log("Documents"); setSidebarOpen(false); }}
+            onClick={() => {
+              console.log("Documents");
+              setSidebarOpen(false);
+            }}
             style={{
               display: "block",
               width: "100%",
@@ -1820,9 +1927,12 @@ function App() {
           >
             📄 Documents
           </button>
-          
+
           <button
-            onClick={() => { console.log("Workflows"); setSidebarOpen(false); }}
+            onClick={() => {
+              console.log("Workflows");
+              setSidebarOpen(false);
+            }}
             style={{
               display: "block",
               width: "100%",
@@ -1850,9 +1960,12 @@ function App() {
           >
             🔄 Workflows
           </button>
-          
+
           <button
-            onClick={() => { console.log("Settings"); setSidebarOpen(false); }}
+            onClick={() => {
+              console.log("Settings");
+              setSidebarOpen(false);
+            }}
             style={{
               display: "block",
               width: "100%",
@@ -1882,7 +1995,7 @@ function App() {
           </button>
         </div>
       </div>
-      
+
       {/* Main Content */}
       <ProjectsPanel />
       <div
@@ -1898,7 +2011,7 @@ function App() {
         <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}>
           <ToolbarMenu />
         </div>
-        
+
         {/* Save Status */}
         {saveStatus === "saving" ? (
           <span className="status" style={{ marginLeft: 8 }}>
@@ -2016,7 +2129,7 @@ function App() {
                             setSelectedDocId(rowId);
                             // Find and expand InDesign tab
                             const inDesignStatus = orderedStatuses.find(
-                              (s) => s.rev_status_name?.toLowerCase() === "indesign"
+                              (s) => s.rev_status_name?.toLowerCase() === "indesign",
                             );
                             if (inDesignStatus) {
                               setInfoActiveStep(String(inDesignStatus.rev_status_id));
@@ -2161,8 +2274,7 @@ function App() {
                 }}
                 title="Hide revisions"
                 aria-label="Hide revisions"
-              >
-              </button>
+              ></button>
             )}
             {isDetailPanelHidden && (
               <button
@@ -2196,8 +2308,7 @@ function App() {
                 }}
                 title="Show revisions"
                 aria-label="Show revisions"
-              >
-              </button>
+              ></button>
             )}
           </div>
           <div
@@ -2228,35 +2339,60 @@ function App() {
             </div>
             <div className="detail-tab-panel" style={{ flex: 1 }}>
               {activeDetailTab === "Details" ? (
-                <div style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}>
+                <div
+                  style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}
+                >
                   {selectedDoc ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                       <div>
-                        <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            color: "var(--color-text)",
+                            marginBottom: "4px",
+                          }}
+                        >
                           Current Revision ID
                         </div>
-                        <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-accent)", padding: "8px 12px", background: "var(--color-accent-soft)", borderRadius: "6px" }}>
+                        <div
+                          style={{
+                            fontSize: "16px",
+                            fontWeight: 700,
+                            color: "var(--color-accent)",
+                            padding: "8px 12px",
+                            background: "var(--color-accent-soft)",
+                            borderRadius: "6px",
+                          }}
+                        >
                           {selectedDoc.rev_current_id || "N/A"}
                         </div>
                       </div>
                       {selectedDoc.rev_seq_num && (
                         <div>
-                          <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              color: "var(--color-text)",
+                              marginBottom: "4px",
+                            }}
+                          >
                             Sequence Number
                           </div>
-                          <div style={{ fontSize: "14px" }}>
-                            {selectedDoc.rev_seq_num}
-                          </div>
+                          <div style={{ fontSize: "14px" }}>{selectedDoc.rev_seq_num}</div>
                         </div>
                       )}
                       {selectedDoc.rev_code_name && (
                         <div>
-                          <div style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              color: "var(--color-text)",
+                              marginBottom: "4px",
+                            }}
+                          >
                             Revision Code
                           </div>
-                          <div style={{ fontSize: "14px" }}>
-                            {selectedDoc.rev_code_name}
-                          </div>
+                          <div style={{ fontSize: "14px" }}>{selectedDoc.rev_code_name}</div>
                         </div>
                       )}
                     </div>
@@ -2271,7 +2407,7 @@ function App() {
               )}
             </div>
           </div>
-          </div>
+        </div>
         <div
           style={{
             position: "relative",
@@ -2319,9 +2455,7 @@ function App() {
           }}
         >
           <div className="flow-card" style={{ flex: 1 }}>
-            <div className="flow-header">
-              DOCUMENT FLOW
-            </div>
+            <div className="flow-header">DOCUMENT FLOW</div>
             <div className="flow-body">
               {revStatusLoading ? (
                 <div className="flow-empty">Loading statuses…</div>
@@ -2441,7 +2575,9 @@ function App() {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if (window.confirm(`Issue "${status.rev_status_name}" to IDC?`)) {
+                                    if (
+                                      window.confirm(`Issue "${status.rev_status_name}" to IDC?`)
+                                    ) {
                                       alert(`Status "${status.rev_status_name}" issued to IDC`);
                                     }
                                     setStatusMenuOpen((prev) => ({ ...prev, [statusKey]: false }));

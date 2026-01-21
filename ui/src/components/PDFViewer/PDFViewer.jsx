@@ -45,7 +45,19 @@ const PDFViewer = ({ pdfUrl, fileName, onClose }) => {
         zIndex: 1000,
         padding: "20px",
       }}
-      onClick={onClose}
+      role="button"
+      tabIndex={0}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
+          e.preventDefault();
+          onClose();
+        }
+      }}
     >
       <div
         style={{
@@ -60,7 +72,6 @@ const PDFViewer = ({ pdfUrl, fileName, onClose }) => {
           boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
           overflow: "hidden",
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
@@ -73,9 +84,7 @@ const PDFViewer = ({ pdfUrl, fileName, onClose }) => {
             backgroundColor: "#f5f5f5",
           }}
         >
-          <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>
-            📄 {fileName}
-          </h2>
+          <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>📄 {fileName}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -118,22 +127,10 @@ const PDFViewer = ({ pdfUrl, fileName, onClose }) => {
             backgroundColor: "#f9f9f9",
           }}
         >
-          {isLoading && (
-            <div style={{ color: "#666", fontSize: "14px" }}>
-              Loading PDF...
-            </div>
-          )}
-          {error && (
-            <div style={{ color: "#d32f2f", fontSize: "14px" }}>
-              {error}
-            </div>
-          )}
+          {isLoading && <div style={{ color: "#666", fontSize: "14px" }}>Loading PDF...</div>}
+          {error && <div style={{ color: "#d32f2f", fontSize: "14px" }}>{error}</div>}
           {!isLoading && !error && (
-            <Document
-              file={pdfUrl}
-              onLoadSuccess={onLoadSuccess}
-              onLoadError={onLoadError}
-            >
+            <Document file={pdfUrl} onLoadSuccess={onLoadSuccess} onLoadError={onLoadError}>
               <Page pageNumber={pageNumber} />
             </Document>
           )}

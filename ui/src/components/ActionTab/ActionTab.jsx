@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import "./ActionTab.css";
 
 const ActionTab = ({ title = "Action Tab", onAdd, onRemove, onSend }) => {
-  const [isDisabled, setIsDisabled] = React.useState(true);
+  const [isDisabled] = React.useState(true);
 
   const handleAdd = () => {
     onAdd?.();
@@ -23,12 +23,7 @@ const ActionTab = ({ title = "Action Tab", onAdd, onRemove, onSend }) => {
       <div className="action-tab-header">
         <h3>{title}</h3>
         <div className="button-group">
-          <button
-            className="btn-add"
-            onClick={handleAdd}
-            disabled={isDisabled}
-            title="Add"
-          >
+          <button className="btn-add" onClick={handleAdd} disabled={isDisabled} title="Add">
             + Add
           </button>
           <button
@@ -39,12 +34,7 @@ const ActionTab = ({ title = "Action Tab", onAdd, onRemove, onSend }) => {
           >
             ⊖ Remove
           </button>
-          <button
-            className="btn-send"
-            onClick={handleSend}
-            disabled={isDisabled}
-            title="Send"
-          >
+          <button className="btn-send" onClick={handleSend} disabled={isDisabled} title="Send">
             ✓ Send
           </button>
         </div>
@@ -52,7 +42,10 @@ const ActionTab = ({ title = "Action Tab", onAdd, onRemove, onSend }) => {
 
       {/* Content Area */}
       <div className="action-tab-content">
-        <p>No documents sent yet. Add recipients and click "Send" to start the distribution.</p>
+        <p>
+          No documents sent yet. Add recipients and click &quot;Send&quot; to start the
+          distribution.
+        </p>
       </div>
     </div>
   );

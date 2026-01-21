@@ -24,36 +24,44 @@ const InDesignBehavior = ({
   const apiFiles = (docId && uploadedFiles[docId]?.["$api"]) || [];
   // Get local status files (not yet synced to API)
   const statusFiles = (docId && uploadedFiles[docId]?.[statusKey]) || [];
-  
+
   // Filter API files that haven't been issued to other statuses
-  const availableApiFiles = apiFiles.filter(f => !f.issuedStatus || f.issuedStatus === statusKey);
-  
+  const availableApiFiles = apiFiles.filter((f) => !f.issuedStatus || f.issuedStatus === statusKey);
+
   // Deduplicate: only include status files that aren't already in API files
-  const apiFileIds = new Set(availableApiFiles.map(f => f.fileId).filter(Boolean));
-  const apiFileNames = new Set(availableApiFiles.map(f => f.name));
-  const localOnlyFiles = statusFiles.filter(f => {
+  const apiFileIds = new Set(availableApiFiles.map((f) => f.fileId).filter(Boolean));
+  const apiFileNames = new Set(availableApiFiles.map((f) => f.name));
+  const localOnlyFiles = statusFiles.filter((f) => {
     const fileId = typeof f === "object" ? f.fileId : null;
     const fileName = typeof f === "object" ? f.name : f;
     // Include only if not in API by fileId or filename
     return fileId ? !apiFileIds.has(fileId) : !apiFileNames.has(fileName);
   });
-  
+
   const allFiles = [...availableApiFiles, ...localOnlyFiles];
-  
+
   // Debug logging
   React.useEffect(() => {
-    console.log("InDesignBehavior - statusKey:", statusKey, "allFiles:", allFiles, "apiFiles:", apiFiles, "statusFiles:", statusFiles);
+    console.log(
+      "InDesignBehavior - statusKey:",
+      statusKey,
+      "allFiles:",
+      allFiles,
+      "apiFiles:",
+      apiFiles,
+      "statusFiles:",
+      statusFiles,
+    );
   }, [allFiles, statusKey, apiFiles, statusFiles]);
-  
+
   const dragProps = uploadDragProps(statusKey);
-  const docName = selectedDoc ? `${selectedDoc.doc_name_unique || selectedDoc.title || "Document"}` : "No document selected";
 
   // Organize files by revision letter (RevA, RevB, RevC) - case insensitive
   const filesByRevision = {
     "Rev A": [],
     "Rev B": [],
     "Rev C": [],
-    "Other": [],
+    Other: [],
   };
 
   allFiles.forEach((file) => {
@@ -106,7 +114,15 @@ const InDesignBehavior = ({
                     }}
                     aria-expanded={isExpanded}
                   >
-                    <span style={{ fontSize: "16px", width: "20px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span
+                      style={{
+                        fontSize: "16px",
+                        width: "20px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
                       {isExpanded ? "📂" : "📁"}
                     </span>
                     <span style={{ display: "flex", alignItems: "center" }}>{revision}</span>
@@ -114,132 +130,160 @@ const InDesignBehavior = ({
                   <div style={{ position: "relative" }}>
                     {isExpanded &&
                       revFiles.map((file, idx) => {
-                      // Handle both string and object file formats
-                      const fileName = typeof file === "string" ? file : file.name;
-                      const documentNumber = typeof file === "object" ? file.documentNumber : null;
-                      const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
-                      const fileIcon = getFileIcon(fileName);
-                      const fileTypeLabel = getFileTypeLabel(fileName);
-                      const isLastFile = idx === revFiles.length - 1;
-                      const treeChar = isLastFile ? "└─ ─ " : "├─ ─ ";
+                        // Handle both string and object file formats
+                        const fileName = typeof file === "string" ? file : file.name;
+                        const documentNumber =
+                          typeof file === "object" ? file.documentNumber : null;
+                        const displayName = documentNumber
+                          ? `${documentNumber} - ${fileName}`
+                          : fileName;
+                        const fileIcon = getFileIcon(fileName);
+                        const fileTypeLabel = getFileTypeLabel(fileName);
+                        const isLastFile = idx === revFiles.length - 1;
+                        const treeChar = isLastFile ? "└─ ─ " : "├─ ─ ";
 
-                      return (
-                        <div
-                          key={`${revision}-${idx}`}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0px",
-                            padding: "4px 8px 4px 8px",
-                            fontSize: "12px",
-                            background: "transparent",
-                            transition: "background 0.2s",
-                            marginLeft: "8px",
-                            overflow: "hidden",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "rgba(0,0,0,0.05)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "transparent";
-                          }}
-                        >
-                          {!isLastFile && (
-                            <div
-                              style={{
-                                width: "1px",
-                                height: "28px",
-                                background: "var(--color-border)",
-                                position: "absolute",
-                                left: "25px",
-                                top: "100%",
-                                zIndex: "1",
-                                clipPath: "inset(0 0 0 10px)",
-                              }}
-                            />
-                          )}
-                          <span style={{ color: "var(--color-text-muted)", fontSize: "12px", fontFamily: "monospace", minWidth: "20px" }}>
-                            {treeChar}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => onSelectFile(file)}
-                            onDoubleClick={() => onDownloadFile(file)}
+                        return (
+                          <div
+                            key={`${revision}-${idx}`}
                             style={{
                               display: "flex",
                               alignItems: "center",
-                              gap: "6px",
-                              padding: "4px 8px",
-                              color: selectedFileId === `${file.fileId}-${file.name}` || selectedFileId === fileName ? "var(--color-accent-hover)" : "var(--color-accent)",
-                              background: selectedFileId === `${file.fileId}-${file.name}` || selectedFileId === fileName ? "rgba(59, 130, 246, 0.1)" : "transparent",
-                              border: selectedFileId === `${file.fileId}-${file.name}` || selectedFileId === fileName ? "1px solid var(--color-accent)" : "none",
-                              cursor: "pointer",
-                              textAlign: "left",
-                              flex: 1,
-                              transition: "all 0.2s",
-                              borderRadius: "4px",
-                            }}
-                            onMouseEnter={(e) => {
-                              if (selectedFileId !== `${file.fileId}-${file.name}` && selectedFileId !== fileName) {
-                                e.currentTarget.style.color = "var(--color-accent-hover)";
-                                e.currentTarget.style.background = "rgba(0,0,0,0.05)";
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (selectedFileId !== `${file.fileId}-${file.name}` && selectedFileId !== fileName) {
-                                e.currentTarget.style.color = "var(--color-accent)";
-                                e.currentTarget.style.background = "transparent";
-                              }
-                            }}
-                            title={`${fileTypeLabel} - Click to select, double-click to download ${displayName}`}
-                          >
-                            <span>
-                              {typeof fileIcon === "string" && !fileIcon.includes(".") ? (
-                                fileIcon
-                              ) : (
-                                <img 
-                                  src={fileIcon} 
-                                  alt="file icon" 
-                                  style={{ width: "16px", height: "16px" }} 
-                                />
-                              )}
-                            </span>
-                            <span>{displayName}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteFile(file);
-                            }}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              width: "20px",
-                              height: "20px",
-                              padding: "0",
-                              color: "var(--color-danger)",
-                              background: "transparent",
-                              border: "none",
-                              cursor: "pointer",
+                              gap: "0px",
+                              padding: "4px 8px 4px 8px",
                               fontSize: "12px",
-                              transition: "opacity 0.2s",
-                              opacity: "0.6",
+                              background: "transparent",
+                              transition: "background 0.2s",
+                              marginLeft: "8px",
+                              overflow: "hidden",
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.opacity = "1";
+                              e.currentTarget.style.background = "rgba(0,0,0,0.05)";
                             }}
                             onMouseLeave={(e) => {
-                              e.currentTarget.style.opacity = "0.6";
+                              e.currentTarget.style.background = "transparent";
                             }}
-                            title={`Delete ${displayName}`}
                           >
-                            ✕
-                          </button>
-                        </div>
-                      );
-                    })}
+                            {!isLastFile && (
+                              <div
+                                style={{
+                                  width: "1px",
+                                  height: "28px",
+                                  background: "var(--color-border)",
+                                  position: "absolute",
+                                  left: "25px",
+                                  top: "100%",
+                                  zIndex: "1",
+                                  clipPath: "inset(0 0 0 10px)",
+                                }}
+                              />
+                            )}
+                            <span
+                              style={{
+                                color: "var(--color-text-muted)",
+                                fontSize: "12px",
+                                fontFamily: "monospace",
+                                minWidth: "20px",
+                              }}
+                            >
+                              {treeChar}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => onSelectFile(file)}
+                              onDoubleClick={() => onDownloadFile(file)}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "4px 8px",
+                                color:
+                                  selectedFileId === `${file.fileId}-${file.name}` ||
+                                  selectedFileId === fileName
+                                    ? "var(--color-accent-hover)"
+                                    : "var(--color-accent)",
+                                background:
+                                  selectedFileId === `${file.fileId}-${file.name}` ||
+                                  selectedFileId === fileName
+                                    ? "rgba(59, 130, 246, 0.1)"
+                                    : "transparent",
+                                border:
+                                  selectedFileId === `${file.fileId}-${file.name}` ||
+                                  selectedFileId === fileName
+                                    ? "1px solid var(--color-accent)"
+                                    : "none",
+                                cursor: "pointer",
+                                textAlign: "left",
+                                flex: 1,
+                                transition: "all 0.2s",
+                                borderRadius: "4px",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (
+                                  selectedFileId !== `${file.fileId}-${file.name}` &&
+                                  selectedFileId !== fileName
+                                ) {
+                                  e.currentTarget.style.color = "var(--color-accent-hover)";
+                                  e.currentTarget.style.background = "rgba(0,0,0,0.05)";
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (
+                                  selectedFileId !== `${file.fileId}-${file.name}` &&
+                                  selectedFileId !== fileName
+                                ) {
+                                  e.currentTarget.style.color = "var(--color-accent)";
+                                  e.currentTarget.style.background = "transparent";
+                                }
+                              }}
+                              title={`${fileTypeLabel} - Click to select, double-click to download ${displayName}`}
+                            >
+                              <span>
+                                {typeof fileIcon === "string" && !fileIcon.includes(".") ? (
+                                  fileIcon
+                                ) : (
+                                  <img
+                                    src={fileIcon}
+                                    alt="file icon"
+                                    style={{ width: "16px", height: "16px" }}
+                                  />
+                                )}
+                              </span>
+                              <span>{displayName}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteFile(file);
+                              }}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: "20px",
+                                height: "20px",
+                                padding: "0",
+                                color: "var(--color-danger)",
+                                background: "transparent",
+                                border: "none",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                                transition: "opacity 0.2s",
+                                opacity: "0.6",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.opacity = "1";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.opacity = "0.6";
+                              }}
+                              title={`Delete ${displayName}`}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               );
