@@ -21,24 +21,38 @@ const InDesignBehavior = ({
   // Get files for the current document and status
   const docId = selectedDoc?.doc_id;
   // Get API-persisted files (single source of truth from database)
-  const apiFiles = (docId && uploadedFiles[docId]?.["$api"]) || [];
+  const apiFiles = React.useMemo(
+    () => (docId && uploadedFiles[docId]?.["$api"]) || [],
+    [docId, uploadedFiles],
+  );
   // Get local status files (not yet synced to API)
-  const statusFiles = (docId && uploadedFiles[docId]?.[statusKey]) || [];
+  const statusFiles = React.useMemo(
+    () => (docId && uploadedFiles[docId]?.[statusKey]) || [],
+    [docId, statusKey, uploadedFiles],
+  );
 
   // Filter API files that haven't been issued to other statuses
-  const availableApiFiles = apiFiles.filter((f) => !f.issuedStatus || f.issuedStatus === statusKey);
+  const availableApiFiles = React.useMemo(
+    () => apiFiles.filter((f) => !f.issuedStatus || f.issuedStatus === statusKey),
+    [apiFiles, statusKey],
+  );
 
   // Deduplicate: only include status files that aren't already in API files
-  const apiFileIds = new Set(availableApiFiles.map((f) => f.fileId).filter(Boolean));
-  const apiFileNames = new Set(availableApiFiles.map((f) => f.name));
-  const localOnlyFiles = statusFiles.filter((f) => {
-    const fileId = typeof f === "object" ? f.fileId : null;
-    const fileName = typeof f === "object" ? f.name : f;
-    // Include only if not in API by fileId or filename
-    return fileId ? !apiFileIds.has(fileId) : !apiFileNames.has(fileName);
-  });
+  const localOnlyFiles = React.useMemo(() => {
+    const apiFileIds = new Set(availableApiFiles.map((f) => f.fileId).filter(Boolean));
+    const apiFileNames = new Set(availableApiFiles.map((f) => f.name));
+    return statusFiles.filter((f) => {
+      const fileId = typeof f === "object" ? f.fileId : null;
+      const fileName = typeof f === "object" ? f.name : f;
+      // Include only if not in API by fileId or filename
+      return fileId ? !apiFileIds.has(fileId) : !apiFileNames.has(fileName);
+    });
+  }, [availableApiFiles, statusFiles]);
 
-  const allFiles = [...availableApiFiles, ...localOnlyFiles];
+  const allFiles = React.useMemo(
+    () => [...availableApiFiles, ...localOnlyFiles],
+    [availableApiFiles, localOnlyFiles],
+  );
 
   // Debug logging
   React.useEffect(() => {

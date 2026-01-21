@@ -16,24 +16,7 @@ const DistributionList = ({ docId, apiBase }) => {
   const [success, setSuccess] = React.useState(null);
   const [sentLists, setSentLists] = React.useState(new Set());
 
-  // Load distribution lists and persons on mount
-  React.useEffect(() => {
-    if (docId) {
-      loadDistributionLists();
-    }
-    loadPersons();
-  }, [docId]);
-
-  // Load recipients when list is selected
-  React.useEffect(() => {
-    if (selectedListId) {
-      loadRecipients();
-    } else {
-      setRecipients([]);
-    }
-  }, [selectedListId]);
-
-  const loadPersons = async () => {
+  const loadPersons = React.useCallback(async () => {
     try {
       setLoadingPersons(true);
       const [personResponse, rolesResponse] = await Promise.all([
@@ -63,14 +46,14 @@ const DistributionList = ({ docId, apiBase }) => {
     } finally {
       setLoadingPersons(false);
     }
-  };
+  }, [apiBase]);
 
   const getRoleForPerson = (personId) => {
     const personRole = roles.find((r) => r.person_id === personId);
     return personRole ? personRole.role_name : "N/A";
   };
 
-  const loadDistributionLists = async () => {
+  const loadDistributionLists = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -89,9 +72,9 @@ const DistributionList = ({ docId, apiBase }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiBase, docId]);
 
-  const loadRecipients = async () => {
+  const loadRecipients = React.useCallback(async () => {
     if (!selectedListId) return;
     try {
       setLoading(true);
@@ -111,7 +94,24 @@ const DistributionList = ({ docId, apiBase }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiBase, docId, selectedListId]);
+
+  // Load distribution lists and persons on mount
+  React.useEffect(() => {
+    if (docId) {
+      loadDistributionLists();
+    }
+    loadPersons();
+  }, [docId, loadDistributionLists, loadPersons]);
+
+  // Load recipients when list is selected
+  React.useEffect(() => {
+    if (selectedListId) {
+      loadRecipients();
+    } else {
+      setRecipients([]);
+    }
+  }, [loadRecipients, selectedListId]);
 
   const handleCreateList = async () => {
     if (!selectedPerson) {
