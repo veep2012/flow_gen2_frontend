@@ -122,6 +122,18 @@ function App() {
     area_id: "",
     unit_id: "",
   });
+  const [isAdding, setIsAdding] = React.useState(false);
+  const [newDocValues, setNewDocValues] = React.useState({
+    doc_name_unique: "",
+    title: "",
+    discipline_id: "",
+    type_id: "",
+    jobpack_id: "",
+    area_id: "",
+    unit_id: "",
+  });
+  const [createStatus, setCreateStatus] = React.useState("idle");
+  const [createError, setCreateError] = React.useState(null);
   const [saveError, setSaveError] = React.useState(null);
   const [saveStatus, setSaveStatus] = React.useState("idle");
   const [selectedFileId, setSelectedFileId] = React.useState(null);
@@ -133,6 +145,8 @@ function App() {
   const [jobpacks, setJobpacks] = React.useState([]);
   const [areas, setAreas] = React.useState([]);
   const [units, setUnits] = React.useState([]);
+  const [revisionOverviews, setRevisionOverviews] = React.useState([]);
+  const [people, setPeople] = React.useState([]);
 
   const editingDoc = React.useMemo(
     () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === editRowId),
@@ -196,8 +210,39 @@ function App() {
     [areas, disciplines, docTypes, editValues.discipline_id, jobpacks, units],
   );
 
+  const newDocTypeOptions = React.useMemo(() => {
+    if (!newDocValues.discipline_id) return docTypes;
+    return docTypes.filter(
+      (item) => String(item.ref_discipline_id ?? "") === String(newDocValues.discipline_id),
+    );
+  }, [docTypes, newDocValues.discipline_id]);
+
   const ToolbarMenu = () => {
-    const handleAddNew = () => console.log("Add new clicked");
+    const handleAddNew = () => {
+      if (!project) return;
+      const fallbackDisciplineId =
+        selectedDoc?.discipline_id ?? disciplines[0]?.discipline_id ?? "";
+      const fallbackTypeOptions = docTypes.filter(
+        (item) => String(item.ref_discipline_id ?? "") === String(fallbackDisciplineId),
+      );
+      const fallbackTypeId =
+        selectedDoc?.type_id ?? fallbackTypeOptions[0]?.type_id ?? docTypes[0]?.type_id ?? "";
+      const fallbackDisciplineFromType =
+        docTypes.find((item) => item.type_id === fallbackTypeId)?.ref_discipline_id ??
+        fallbackDisciplineId;
+      setCreateError(null);
+      setCreateStatus("idle");
+      setIsAdding(true);
+      setNewDocValues({
+        doc_name_unique: "",
+        title: "",
+        discipline_id: String(fallbackDisciplineFromType || ""),
+        type_id: String(fallbackTypeId || ""),
+        jobpack_id: String(selectedDoc?.jobpack_id ?? ""),
+        area_id: String(selectedDoc?.area_id ?? areas[0]?.area_id ?? ""),
+        unit_id: String(selectedDoc?.unit_id ?? units[0]?.unit_id ?? ""),
+      });
+    };
     const handleEdit = () => {
       if (!selectedDoc) {
         setSaveStatus("error");
@@ -213,28 +258,43 @@ function App() {
     const hasSelection = Boolean(selectedDoc);
     const hasProject = Boolean(project);
 
-    if (editRowId) {
+    if (editRowId || isAdding) {
+      const isSaving = editRowId ? saveStatus === "saving" : createStatus === "saving";
       return (
         <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
           <button
-            style={saveStatus === "saving" ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
-            title="Save changes"
-            onClick={() => applyEdit(editingDoc || selectedDoc)}
-            disabled={saveStatus === "saving"}
+            style={isSaving ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
+            title={editRowId ? "Save changes" : "Create document"}
+            onClick={() => {
+              if (editRowId) {
+                applyEdit(editingDoc || selectedDoc);
+              } else {
+                createDocument();
+              }
+            }}
+            disabled={isSaving}
           >
             <span style={iconStyle}>💾</span>
-            Save
+            {editRowId ? "Save" : "Create"}
           </button>
           <button
             style={{
               ...buttonStyle,
               background: "var(--color-border)",
               color: "var(--color-text)",
-              ...(saveStatus === "saving" ? disabledButtonStyle : null),
+              ...(isSaving ? disabledButtonStyle : null),
             }}
-            title="Cancel editing"
-            onClick={cancelEdit}
-            disabled={saveStatus === "saving"}
+            title="Cancel"
+            onClick={() => {
+              if (editRowId) {
+                cancelEdit();
+              } else {
+                setIsAdding(false);
+                setCreateError(null);
+                setCreateStatus("idle");
+              }
+            }}
+            disabled={isSaving}
           >
             <span style={iconStyle}>✕</span>
             Cancel
@@ -905,6 +965,84 @@ function App() {
     [apiBase, editValues, reloadDocuments],
   );
 
+  const createDocument = React.useCallback(async () => {
+    if (!project) return;
+
+    const trimmedName = String(newDocValues.doc_name_unique || "").trim();
+    const trimmedTitle = String(newDocValues.title || "").trim();
+    const missing = [];
+    if (!trimmedName) missing.push("Document name");
+    if (!trimmedTitle) missing.push("Title");
+    if (!newDocValues.type_id) missing.push("Type");
+    if (!newDocValues.area_id) missing.push("Area");
+    if (!newDocValues.unit_id) missing.push("Unit");
+    if (!revisionOverviews.length) missing.push("Revision code");
+    if (!people.length) {
+      missing.push("Revision author");
+      missing.push("Revision originator");
+      missing.push("Revision modifier");
+    }
+    if (missing.length) {
+      setCreateStatus("error");
+      setCreateError(`Missing required fields: ${missing.join(", ")}`);
+      return;
+    }
+
+    const toLookupId = (value) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    };
+    const toDateTime = (dateValue) => `${dateValue}T00:00:00Z`;
+    const today = new Date();
+    const startDate = today.toISOString().slice(0, 10);
+    const finishDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const revCodeId = toLookupId(revisionOverviews[0]?.rev_code_id);
+    const personId = toLookupId(people[0]?.person_id);
+
+    const payload = {
+      doc_name_unique: trimmedName,
+      title: trimmedTitle,
+      project_id: Number(project),
+      type_id: toLookupId(newDocValues.type_id),
+      area_id: toLookupId(newDocValues.area_id),
+      unit_id: toLookupId(newDocValues.unit_id),
+      rev_code_id: revCodeId,
+      rev_author_id: personId,
+      rev_originator_id: personId,
+      rev_modifier_id: personId,
+      transmital_current_revision: "TR-001",
+      planned_start_date: toDateTime(startDate),
+      planned_finish_date: toDateTime(finishDate),
+    };
+    const jobpackId = toLookupId(newDocValues.jobpack_id);
+    if (jobpackId) payload.jobpack_id = jobpackId;
+
+    setCreateStatus("saving");
+    setCreateError(null);
+
+    try {
+      const res = await fetch(`${apiBase}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `Create failed (${res.status})`);
+      }
+      const created = await res.json();
+      setCreateStatus("saved");
+      setIsAdding(false);
+      setSelectedDocId(created?.doc_id ?? null);
+      reloadDocuments();
+    } catch (err) {
+      setCreateStatus("error");
+      setCreateError(err.message || "Unknown error while creating document");
+    }
+  }, [apiBase, newDocValues, people, project, reloadDocuments, revisionOverviews]);
+
   const handleUploadFiles = React.useCallback(
     async (files, statusKey) => {
       const list = Array.from(files || []);
@@ -1232,12 +1370,22 @@ function App() {
     let isActive = true;
     const loadLookups = async () => {
       try {
-        const [docTypesRes, disciplinesRes, jobpacksRes, areasRes, unitsRes] = await Promise.all([
+        const [
+          docTypesRes,
+          disciplinesRes,
+          jobpacksRes,
+          areasRes,
+          unitsRes,
+          revisionOverviewsRes,
+          peopleRes,
+        ] = await Promise.all([
           fetch(`${apiBase}/documents/doc_types`),
           fetch(`${apiBase}/lookups/disciplines`),
           fetch(`${apiBase}/lookups/jobpacks`),
           fetch(`${apiBase}/lookups/areas`),
           fetch(`${apiBase}/lookups/units`),
+          fetch(`${apiBase}/documents/revision_overview`),
+          fetch(`${apiBase}/people/persons`),
         ]);
 
         const readJson = async (res) => (res.status === 404 ? [] : await res.json());
@@ -1247,6 +1395,8 @@ function App() {
         setJobpacks((await readJson(jobpacksRes)) || []);
         setAreas((await readJson(areasRes)) || []);
         setUnits((await readJson(unitsRes)) || []);
+        setRevisionOverviews((await readJson(revisionOverviewsRes)) || []);
+        setPeople((await readJson(peopleRes)) || []);
       } catch (err) {
         if (!isActive) return;
         console.error("Failed to load lookup data:", err);
@@ -1255,6 +1405,8 @@ function App() {
         setJobpacks([]);
         setAreas([]);
         setUnits([]);
+        setRevisionOverviews([]);
+        setPeople([]);
       }
     };
 
@@ -2240,6 +2392,302 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
+                  {isAdding && project && !documentsLoading && (
+                    <>
+                      <tr>
+                        {visibleColumns.map((col) => {
+                          const cellStyle = {
+                            width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
+                            minWidth: columnWidths[col.key]
+                              ? `${columnWidths[col.key]}px`
+                              : undefined,
+                          };
+
+                          if (col.id === "doc_name") {
+                            return (
+                              <td key={col.key} style={cellStyle}>
+                                <input
+                                  style={{
+                                    width: "100%",
+                                    padding: "6px 8px",
+                                    borderRadius: "8px",
+                                    border: "1px solid var(--color-border-strong)",
+                                  }}
+                                  value={newDocValues.doc_name_unique}
+                                  onChange={(e) =>
+                                    setNewDocValues((prev) => ({
+                                      ...prev,
+                                      doc_name_unique: e.target.value,
+                                    }))
+                                  }
+                                  disabled={createStatus === "saving"}
+                                  placeholder="Document name"
+                                />
+                              </td>
+                            );
+                          }
+
+                          if (col.id === "title") {
+                            return (
+                              <td key={col.key} style={cellStyle}>
+                                <input
+                                  style={{
+                                    width: "100%",
+                                    padding: "6px 8px",
+                                    borderRadius: "8px",
+                                    border: "1px solid var(--color-border-strong)",
+                                  }}
+                                  value={newDocValues.title}
+                                  onChange={(e) =>
+                                    setNewDocValues((prev) => ({ ...prev, title: e.target.value }))
+                                  }
+                                  disabled={createStatus === "saving"}
+                                  placeholder="Title"
+                                />
+                              </td>
+                            );
+                          }
+
+                          if (col.id === "discipline") {
+                            return (
+                              <td key={col.key} style={cellStyle}>
+                                <select
+                                  style={{
+                                    width: "100%",
+                                    padding: "6px 8px",
+                                    borderRadius: "8px",
+                                    border: "1px solid var(--color-border-strong)",
+                                    background: "var(--color-surface)",
+                                  }}
+                                  value={String(newDocValues.discipline_id ?? "")}
+                                  onChange={(e) =>
+                                    setNewDocValues((prev) => {
+                                      const nextDiscipline = e.target.value;
+                                      const nextTypes = docTypes.filter(
+                                        (item) =>
+                                          String(item.ref_discipline_id ?? "") === nextDiscipline,
+                                      );
+                                      const currentTypeMatches = docTypes.find(
+                                        (item) =>
+                                          String(item.type_id) === String(prev.type_id) &&
+                                          String(item.ref_discipline_id ?? "") === nextDiscipline,
+                                      );
+                                      return {
+                                        ...prev,
+                                        discipline_id: nextDiscipline,
+                                        type_id: currentTypeMatches
+                                          ? prev.type_id
+                                          : String(nextTypes[0]?.type_id ?? ""),
+                                      };
+                                    })
+                                  }
+                                  disabled={createStatus === "saving"}
+                                >
+                                  <option value="">Select discipline...</option>
+                                  {disciplines.map((item) => (
+                                    <option
+                                      key={item.discipline_id}
+                                      value={String(item.discipline_id)}
+                                    >
+                                      {item.discipline_name}
+                                      {item.discipline_acronym
+                                        ? ` (${item.discipline_acronym})`
+                                        : ""}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                            );
+                          }
+
+                          if (col.id === "doc_type") {
+                            return (
+                              <td key={col.key} style={cellStyle}>
+                                <select
+                                  style={{
+                                    width: "100%",
+                                    padding: "6px 8px",
+                                    borderRadius: "8px",
+                                    border: "1px solid var(--color-border-strong)",
+                                    background: "var(--color-surface)",
+                                  }}
+                                  value={String(newDocValues.type_id ?? "")}
+                                  onChange={(e) =>
+                                    setNewDocValues((prev) => {
+                                      const nextType = e.target.value;
+                                      const selectedType = docTypes.find(
+                                        (item) => String(item.type_id) === nextType,
+                                      );
+                                      return {
+                                        ...prev,
+                                        type_id: nextType,
+                                        discipline_id:
+                                          selectedType?.ref_discipline_id ?? prev.discipline_id,
+                                      };
+                                    })
+                                  }
+                                  disabled={createStatus === "saving"}
+                                >
+                                  <option value="">Select type...</option>
+                                  {newDocTypeOptions.map((item) => (
+                                    <option key={item.type_id} value={String(item.type_id)}>
+                                      {item.doc_type_name}
+                                      {item.discipline_acronym
+                                        ? ` (${item.discipline_acronym})`
+                                        : ""}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                            );
+                          }
+
+                          if (col.id === "jobpack") {
+                            return (
+                              <td key={col.key} style={cellStyle}>
+                                <select
+                                  style={{
+                                    width: "100%",
+                                    padding: "6px 8px",
+                                    borderRadius: "8px",
+                                    border: "1px solid var(--color-border-strong)",
+                                    background: "var(--color-surface)",
+                                  }}
+                                  value={String(newDocValues.jobpack_id ?? "")}
+                                  onChange={(e) =>
+                                    setNewDocValues((prev) => ({
+                                      ...prev,
+                                      jobpack_id: e.target.value,
+                                    }))
+                                  }
+                                  disabled={createStatus === "saving"}
+                                >
+                                  <option value="">Select jobpack...</option>
+                                  {jobpacks.map((item) => (
+                                    <option key={item.jobpack_id} value={String(item.jobpack_id)}>
+                                      {item.jobpack_name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                            );
+                          }
+
+                          if (col.id === "area") {
+                            return (
+                              <td key={col.key} style={cellStyle}>
+                                <select
+                                  style={{
+                                    width: "100%",
+                                    padding: "6px 8px",
+                                    borderRadius: "8px",
+                                    border: "1px solid var(--color-border-strong)",
+                                    background: "var(--color-surface)",
+                                  }}
+                                  value={String(newDocValues.area_id ?? "")}
+                                  onChange={(e) =>
+                                    setNewDocValues((prev) => ({
+                                      ...prev,
+                                      area_id: e.target.value,
+                                    }))
+                                  }
+                                  disabled={createStatus === "saving"}
+                                >
+                                  <option value="">Select area...</option>
+                                  {areas.map((item) => (
+                                    <option key={item.area_id} value={String(item.area_id)}>
+                                      {item.area_name}
+                                      {item.area_acronym ? ` (${item.area_acronym})` : ""}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                            );
+                          }
+
+                          if (col.id === "unit") {
+                            return (
+                              <td key={col.key} style={cellStyle}>
+                                <select
+                                  style={{
+                                    width: "100%",
+                                    padding: "6px 8px",
+                                    borderRadius: "8px",
+                                    border: "1px solid var(--color-border-strong)",
+                                    background: "var(--color-surface)",
+                                  }}
+                                  value={String(newDocValues.unit_id ?? "")}
+                                  onChange={(e) =>
+                                    setNewDocValues((prev) => ({
+                                      ...prev,
+                                      unit_id: e.target.value,
+                                    }))
+                                  }
+                                  disabled={createStatus === "saving"}
+                                >
+                                  <option value="">Select unit...</option>
+                                  {units.map((item) => (
+                                    <option key={item.unit_id} value={String(item.unit_id)}>
+                                      {item.unit_name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                            );
+                          }
+
+                          if (col.id === "rev_code") {
+                            return (
+                              <td key={col.key} style={cellStyle}>
+                                <select
+                                  style={{
+                                    width: "100%",
+                                    padding: "6px 8px",
+                                    borderRadius: "8px",
+                                    border: "1px solid var(--color-border-strong)",
+                                    background: "var(--color-surface)",
+                                  }}
+                                  value={String(newDocValues.rev_code_id ?? "")}
+                                  onChange={(e) =>
+                                    setNewDocValues((prev) => ({
+                                      ...prev,
+                                      rev_code_id: e.target.value,
+                                    }))
+                                  }
+                                  disabled={createStatus === "saving"}
+                                >
+                                  <option value="">Select rev code...</option>
+                                  {revisionOverviews.map((item) => (
+                                    <option key={item.rev_code_id} value={String(item.rev_code_id)}>
+                                      {item.rev_code_acronym
+                                        ? `${item.rev_code_acronym} (${item.rev_code_name})`
+                                        : item.rev_code_name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                            );
+                          }
+
+                          return (
+                            <td key={col.key} style={cellStyle}>
+                              —
+                            </td>
+                          );
+                        })}
+                      </tr>
+                      {createError && (
+                        <tr>
+                          <td
+                            colSpan={visibleColumns.length}
+                            style={{ color: "var(--color-danger)", padding: "6px 10px" }}
+                          >
+                            {createError}
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )}
                   {documentsLoading ? (
                     <tr>
                       <td className="status-row" colSpan={visibleColumns.length}>
