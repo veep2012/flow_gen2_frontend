@@ -108,13 +108,26 @@ function App() {
   const uploadInputRef = React.useRef(null);
   const [selectedDocId, setSelectedDocId] = React.useState(null);
   const [editRowId, setEditRowId] = React.useState(null);
-  const [editValues, setEditValues] = React.useState({ doc_name_unique: "", title: "" });
+  const [editValues, setEditValues] = React.useState({
+    doc_name_unique: "",
+    title: "",
+    type_id: "",
+    discipline_id: "",
+    jobpack_id: "",
+    area_id: "",
+    unit_id: "",
+  });
   const [saveError, setSaveError] = React.useState(null);
   const [saveStatus, setSaveStatus] = React.useState("idle");
   const [selectedFileId, setSelectedFileId] = React.useState(null);
   const [projectMenuOpen, setProjectMenuOpen] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+  const [docTypes, setDocTypes] = React.useState([]);
+  const [disciplines, setDisciplines] = React.useState([]);
+  const [jobpacks, setJobpacks] = React.useState([]);
+  const [areas, setAreas] = React.useState([]);
+  const [units, setUnits] = React.useState([]);
 
   const editingDoc = React.useMemo(
     () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === editRowId),
@@ -123,6 +136,59 @@ function App() {
   const selectedDoc = React.useMemo(
     () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === selectedDocId),
     [filteredDocuments, selectedDocId],
+  );
+
+  const lookupOptionsByColumn = React.useMemo(
+    () => ({
+      doc_type: {
+        field: "type_id",
+        options:
+          editValues.discipline_id && docTypes.length
+            ? docTypes.filter(
+                (item) => String(item.ref_discipline_id ?? "") === String(editValues.discipline_id),
+              )
+            : docTypes,
+        getLabel: (item) =>
+          `${item.doc_type_name || ""}${
+            item.discipline_acronym ? ` (${item.discipline_acronym})` : ""
+          }`,
+        valueKey: "type_id",
+        placeholder: "Select type...",
+      },
+      discipline: {
+        field: "discipline_id",
+        options: disciplines,
+        getLabel: (item) =>
+          `${item.discipline_name || ""}${
+            item.discipline_acronym ? ` (${item.discipline_acronym})` : ""
+          }`,
+        valueKey: "discipline_id",
+        placeholder: "Select discipline...",
+      },
+      jobpack: {
+        field: "jobpack_id",
+        options: jobpacks,
+        getLabel: (item) => item.jobpack_name || "",
+        valueKey: "jobpack_id",
+        placeholder: "Select jobpack...",
+      },
+      area: {
+        field: "area_id",
+        options: areas,
+        getLabel: (item) =>
+          `${item.area_name || ""}${item.area_acronym ? ` (${item.area_acronym})` : ""}`,
+        valueKey: "area_id",
+        placeholder: "Select area...",
+      },
+      unit: {
+        field: "unit_id",
+        options: units,
+        getLabel: (item) => item.unit_name || "",
+        valueKey: "unit_id",
+        placeholder: "Select unit...",
+      },
+    }),
+    [areas, disciplines, docTypes, editValues.discipline_id, jobpacks, units],
   );
 
   const ToolbarMenu = () => {
@@ -734,6 +800,11 @@ function App() {
     setEditValues({
       doc_name_unique: doc.doc_name || doc.doc_name_unique || "",
       title: doc.title || "",
+      type_id: doc.type_id ?? doc.doc_type_id ?? "",
+      discipline_id: doc.discipline_id ?? "",
+      jobpack_id: doc.jobpack_id ?? "",
+      area_id: doc.area_id ?? "",
+      unit_id: doc.unit_id ?? "",
     });
   }, []);
 
@@ -755,6 +826,10 @@ function App() {
       // Add edited fields only if they have actual content
       const docName = String(editValues.doc_name_unique || "").trim();
       const docTitle = String(editValues.title || "").trim();
+      const toLookupId = (value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      };
 
       if (docName) {
         payload.doc_name_unique = docName;
@@ -762,6 +837,14 @@ function App() {
       if (docTitle) {
         payload.title = docTitle;
       }
+      const typeId = toLookupId(editValues.type_id);
+      const jobpackId = toLookupId(editValues.jobpack_id);
+      const areaId = toLookupId(editValues.area_id);
+      const unitId = toLookupId(editValues.unit_id);
+      if (typeId) payload.type_id = typeId;
+      if (jobpackId) payload.jobpack_id = jobpackId;
+      if (areaId) payload.area_id = areaId;
+      if (unitId) payload.unit_id = unitId;
 
       setSaveStatus("saving");
       setSaveError(null);
@@ -1112,6 +1195,42 @@ function App() {
     };
 
     fetchLookups();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
+
+  React.useEffect(() => {
+    let isActive = true;
+    const loadLookups = async () => {
+      try {
+        const [docTypesRes, disciplinesRes, jobpacksRes, areasRes, unitsRes] = await Promise.all([
+          fetch(`${apiBase}/documents/doc_types`),
+          fetch(`${apiBase}/lookups/disciplines`),
+          fetch(`${apiBase}/lookups/jobpacks`),
+          fetch(`${apiBase}/lookups/areas`),
+          fetch(`${apiBase}/lookups/units`),
+        ]);
+
+        const readJson = async (res) => (res.status === 404 ? [] : await res.json());
+        if (!isActive) return;
+        setDocTypes((await readJson(docTypesRes)) || []);
+        setDisciplines((await readJson(disciplinesRes)) || []);
+        setJobpacks((await readJson(jobpacksRes)) || []);
+        setAreas((await readJson(areasRes)) || []);
+        setUnits((await readJson(unitsRes)) || []);
+      } catch (err) {
+        if (!isActive) return;
+        console.error("Failed to load lookup data:", err);
+        setDocTypes([]);
+        setDisciplines([]);
+        setJobpacks([]);
+        setAreas([]);
+        setUnits([]);
+      }
+    };
+
+    loadLookups();
     return () => {
       isActive = false;
     };
@@ -2143,9 +2262,10 @@ function App() {
                         >
                           {visibleColumns.map((col) => {
                             const isEditable = col.id === "doc_name" || col.id === "title";
+                            const selectConfig = lookupOptionsByColumn[col.id];
                             const value = renderCell(doc, col);
 
-                            if (isEditing && isEditable) {
+                            if (isEditing && (isEditable || selectConfig)) {
                               return (
                                 <td
                                   key={col.key}
@@ -2158,26 +2278,89 @@ function App() {
                                       : undefined,
                                   }}
                                 >
-                                  <input
-                                    style={{
-                                      width: "100%",
-                                      padding: "6px 8px",
-                                      borderRadius: "8px",
-                                      border: "1px solid var(--color-border-strong)",
-                                    }}
-                                    value={
-                                      col.id === "doc_name"
-                                        ? editValues.doc_name_unique
-                                        : editValues.title
-                                    }
-                                    onChange={(e) =>
-                                      setEditValues((prev) => ({
-                                        ...prev,
-                                        [col.id === "doc_name" ? "doc_name_unique" : "title"]:
-                                          e.target.value,
-                                      }))
-                                    }
-                                  />
+                                  {selectConfig ? (
+                                    <select
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                        background: "var(--color-surface)",
+                                      }}
+                                      value={String(editValues[selectConfig.field] ?? "")}
+                                      onChange={(e) =>
+                                        setEditValues((prev) => {
+                                          const nextValue = e.target.value;
+                                          if (selectConfig.field === "type_id") {
+                                            const selectedType = selectConfig.options.find(
+                                              (item) =>
+                                                String(item[selectConfig.valueKey]) === nextValue,
+                                            );
+                                            return {
+                                              ...prev,
+                                              type_id: nextValue,
+                                              discipline_id:
+                                                selectedType?.ref_discipline_id ??
+                                                prev.discipline_id,
+                                            };
+                                          }
+                                          if (selectConfig.field === "discipline_id") {
+                                            const nextTypes = docTypes.filter(
+                                              (item) =>
+                                                String(item.ref_discipline_id ?? "") === nextValue,
+                                            );
+                                            const currentTypeMatches = docTypes.find(
+                                              (item) =>
+                                                String(item.type_id) === String(prev.type_id) &&
+                                                String(item.ref_discipline_id ?? "") === nextValue,
+                                            );
+                                            return {
+                                              ...prev,
+                                              discipline_id: nextValue,
+                                              type_id: currentTypeMatches
+                                                ? prev.type_id
+                                                : String(nextTypes[0]?.type_id ?? ""),
+                                            };
+                                          }
+                                          return {
+                                            ...prev,
+                                            [selectConfig.field]: nextValue,
+                                          };
+                                        })
+                                      }
+                                    >
+                                      <option value="">{selectConfig.placeholder}</option>
+                                      {selectConfig.options.map((item) => {
+                                        const optionValue = item[selectConfig.valueKey];
+                                        return (
+                                          <option key={optionValue} value={String(optionValue)}>
+                                            {selectConfig.getLabel(item)}
+                                          </option>
+                                        );
+                                      })}
+                                    </select>
+                                  ) : (
+                                    <input
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                      }}
+                                      value={
+                                        col.id === "doc_name"
+                                          ? editValues.doc_name_unique
+                                          : editValues.title
+                                      }
+                                      onChange={(e) =>
+                                        setEditValues((prev) => ({
+                                          ...prev,
+                                          [col.id === "doc_name" ? "doc_name_unique" : "title"]:
+                                            e.target.value,
+                                        }))
+                                      }
+                                    />
+                                  )}
                                 </td>
                               );
                             }
