@@ -82,6 +82,11 @@ function App() {
     boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
     transition: "background 0.2s",
   };
+  const disabledButtonStyle = {
+    opacity: 0.5,
+    cursor: "not-allowed",
+    boxShadow: "none",
+  };
 
   const iconStyle = {
     marginRight: "3px",
@@ -205,12 +210,14 @@ function App() {
     const handleExport = () => console.log("Export clicked");
     const handleUndo = () => console.log("Undo clicked");
     const handleRedo = () => console.log("Redo clicked");
+    const hasSelection = Boolean(selectedDoc);
+    const hasProject = Boolean(project);
 
     if (editRowId) {
       return (
         <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
           <button
-            style={buttonStyle}
+            style={saveStatus === "saving" ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
             title="Save changes"
             onClick={() => applyEdit(editingDoc || selectedDoc)}
             disabled={saveStatus === "saving"}
@@ -223,6 +230,7 @@ function App() {
               ...buttonStyle,
               background: "var(--color-border)",
               color: "var(--color-text)",
+              ...(saveStatus === "saving" ? disabledButtonStyle : null),
             }}
             title="Cancel editing"
             onClick={cancelEdit}
@@ -237,19 +245,39 @@ function App() {
 
     return (
       <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
-        <button style={buttonStyle} title="Add new document" onClick={handleAddNew}>
+        <button
+          style={!hasProject ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
+          title="Add new document"
+          onClick={handleAddNew}
+          disabled={!hasProject}
+        >
           <span style={iconStyle}>+</span>
           Add new
         </button>
-        <button style={buttonStyle} title="Edit selected document" onClick={handleEdit}>
+        <button
+          style={!hasSelection ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
+          title="Edit selected document"
+          onClick={handleEdit}
+          disabled={!hasSelection}
+        >
           <span style={iconStyle}>✎</span>
           Edit
         </button>
-        <button style={buttonStyle} title="Delete selected document" onClick={handleDelete}>
+        <button
+          style={!hasSelection ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
+          title="Delete selected document"
+          onClick={handleDelete}
+          disabled={!hasSelection}
+        >
           <span style={iconStyle}>🗑</span>
           Delete
         </button>
-        <button style={buttonStyle} title="Export documents" onClick={handleExport}>
+        <button
+          style={!hasSelection ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
+          title="Export documents"
+          onClick={handleExport}
+          disabled={!hasSelection}
+        >
           <span style={iconStyle}>⬇</span>
           Export to...
         </button>
