@@ -232,10 +232,7 @@ function App() {
     }
 
     const docLabel =
-      selectedDoc.doc_name_unique ||
-      selectedDoc.doc_name ||
-      selectedDoc.title ||
-      `#${docId}`;
+      selectedDoc.doc_name_unique || selectedDoc.doc_name || selectedDoc.title || `#${docId}`;
     if (!window.confirm(`Delete document "${docLabel}"?`)) {
       return;
     }
@@ -1290,8 +1287,6 @@ function App() {
           }
           return updated;
         });
-
-        alert(`File "${displayName}" deleted successfully.`);
       } catch (err) {
         console.error(`Error deleting file ${displayName}:`, err);
         alert(`Failed to delete ${displayName}: ${err.message}`);
