@@ -1,5 +1,7 @@
 import React from "react";
 import { documentGridColumns } from "./grids/documents";
+import { getFileKey } from "./utils/fileKey";
+import { normalizeFile } from "./utils/normalizeFile";
 import { useFetchDocuments } from "./hooks/useFetchDocuments";
 import { resolveBehaviorByFile } from "./components/DocRevStatusBehaviors";
 
@@ -1120,20 +1122,34 @@ function App() {
           // Store the file object with document number and API response
           setUploadedFiles((prev) => {
             const currentFiles = prev[selectedDocId]?.[statusKey] || [];
-            const fileObject = {
-              name: file.name,
+            const fileObject = normalizeFile(fileData, {
               documentNumber,
               uploadedAt: new Date().toISOString(),
-              fileId: fileData.id,
-              s3_uid: fileData.s3_uid,
-              mimetype: fileData.mimetype,
-              revId: fileData.rev_id,
-            };
+            });
+            const localFileObject = normalizeFile(file, {
+              documentNumber,
+              uploadedAt: new Date().toISOString(),
+            });
+            const nextFiles = currentFiles.filter((existing) => {
+              if (!existing) return false;
+              const existingId = existing.fileId ?? existing.id ?? null;
+              const incomingId = localFileObject.fileId ?? localFileObject.id ?? null;
+              if (incomingId && existingId) {
+                return existingId !== incomingId;
+              }
+              const existingName = existing.name ?? existing.filename ?? "";
+              const existingDocNumber = existing.documentNumber ?? "";
+              return !(
+                existingName &&
+                existingName === localFileObject.name &&
+                existingDocNumber === (localFileObject.documentNumber ?? "")
+              );
+            });
             return {
               ...prev,
               [selectedDocId]: {
                 ...(prev[selectedDocId] || {}),
-                [statusKey]: [...currentFiles, fileObject],
+                [statusKey]: [...nextFiles, fileObject],
               },
             };
           });
@@ -1182,16 +1198,14 @@ function App() {
   );
 
   // Handle file selection (single click)
-  const handleSelectFile = React.useCallback((file) => {
-    // Handle both string and object file formats
-    const fileName = typeof file === "string" ? file : file.name;
-    const fileId = typeof file === "object" ? file.fileId : null;
-    const documentNumber = typeof file === "object" ? file.documentNumber : null;
-    const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
+  const getFileId = React.useCallback(
+    (file) => (typeof file === "object" ? (file.fileId ?? file.id ?? null) : null),
+    [],
+  );
 
+  const handleSelectFile = React.useCallback((file) => {
     // Set the selected file ID for visual indication
-    setSelectedFileId(fileId ? `${fileId}-${fileName}` : fileName);
-    console.log(`File selected: ${displayName}`);
+    setSelectedFileId(getFileKey(file));
   }, []);
 
   // Handle file download (double click)
@@ -1199,7 +1213,7 @@ function App() {
     async (file) => {
       // Handle both string and object file formats
       const fileName = typeof file === "string" ? file : file.name;
-      const fileId = typeof file === "object" ? file.fileId : null;
+      const fileId = getFileId(file);
       const documentNumber = typeof file === "object" ? file.documentNumber : null;
       const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
 
@@ -1232,14 +1246,14 @@ function App() {
         alert(`Failed to download ${displayName}: ${err.message}`);
       }
     },
-    [apiBase],
+    [apiBase, getFileId],
   );
 
   const handleDeleteFile = React.useCallback(
     async (file) => {
       // Handle both string and object file formats
       const fileName = typeof file === "string" ? file : file.name;
-      const fileId = typeof file === "object" ? file.fileId : null;
+      const fileId = getFileId(file);
       const documentNumber = typeof file === "object" ? file.documentNumber : null;
       const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
 
@@ -1291,7 +1305,7 @@ function App() {
         alert(`Failed to delete ${displayName}: ${err.message}`);
       }
     },
-    [apiBase, selectedDocId],
+    [apiBase, getFileId, selectedDocId],
   );
 
   const handleRevisionToggle = React.useCallback((revKey) => {
@@ -1330,16 +1344,13 @@ function App() {
         const apiFiles = [];
         if (Array.isArray(files) && files.length > 0) {
           files.forEach((apiFile) => {
-            apiFiles.push({
-              name: apiFile.filename,
-              documentNumber: selectedDoc.doc_name_unique || selectedDoc.title,
-              uploadedAt: new Date().toISOString(),
-              fileId: apiFile.id,
-              s3_uid: apiFile.s3_uid,
-              mimetype: apiFile.mimetype,
-              revId: apiFile.rev_id,
-              isFromApi: true, // Mark as from API for distinction
-            });
+            apiFiles.push(
+              normalizeFile(apiFile, {
+                documentNumber: selectedDoc.doc_name_unique || selectedDoc.title,
+                uploadedAt: new Date().toISOString(),
+                isFromApi: true,
+              }),
+            );
           });
 
           // Update uploadedFiles with fetched files in a persistent location

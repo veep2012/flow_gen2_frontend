@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { getFileIcon, getFileTypeLabel } from "../../utils/fileIcons";
 import DistributionList from "../DistributionList/DistributionList";
+import { getFileKey } from "../../utils/fileKey";
 
 const IDCBehavior = ({
   selectedDoc,
@@ -222,10 +223,12 @@ const IDCBehavior = ({
                                 const fileTypeLabel = getFileTypeLabel(fileName);
                                 const isLastFile = idx === revFiles.length - 1;
                                 const treeChar = isLastFile ? "└─ ─ " : "├─ ─ ";
+                                const fileKey = getFileKey(file, idx);
+                                const selectedKey = getFileKey(file);
 
                                 return (
                                   <div
-                                    key={`${revision}-${idx}`}
+                                    key={`${revision}-${fileKey}`}
                                     style={{
                                       display: "flex",
                                       alignItems: "center",
@@ -278,18 +281,15 @@ const IDCBehavior = ({
                                         gap: "6px",
                                         padding: "4px 8px",
                                         color:
-                                          selectedFileId === `${file.fileId}-${file.name}` ||
-                                          selectedFileId === fileName
+                                          selectedFileId === selectedKey
                                             ? "var(--color-accent-hover)"
                                             : "var(--color-accent)",
                                         background:
-                                          selectedFileId === `${file.fileId}-${file.name}` ||
-                                          selectedFileId === fileName
+                                          selectedFileId === selectedKey
                                             ? "rgba(59, 130, 246, 0.1)"
                                             : "transparent",
                                         border:
-                                          selectedFileId === `${file.fileId}-${file.name}` ||
-                                          selectedFileId === fileName
+                                          selectedFileId === selectedKey
                                             ? "1px solid var(--color-accent)"
                                             : "none",
                                         cursor: "pointer",
@@ -299,19 +299,13 @@ const IDCBehavior = ({
                                         borderRadius: "4px",
                                       }}
                                       onMouseEnter={(e) => {
-                                        if (
-                                          selectedFileId !== `${file.fileId}-${file.name}` &&
-                                          selectedFileId !== fileName
-                                        ) {
+                                        if (selectedFileId !== selectedKey) {
                                           e.currentTarget.style.color = "var(--color-accent-hover)";
                                           e.currentTarget.style.background = "rgba(0,0,0,0.05)";
                                         }
                                       }}
                                       onMouseLeave={(e) => {
-                                        if (
-                                          selectedFileId !== `${file.fileId}-${file.name}` &&
-                                          selectedFileId !== fileName
-                                        ) {
+                                        if (selectedFileId !== selectedKey) {
                                           e.currentTarget.style.color = "var(--color-accent)";
                                           e.currentTarget.style.background = "transparent";
                                         }
@@ -635,7 +629,19 @@ IDCBehavior.propTypes = {
   }),
   infoActiveSubTab: PropTypes.string.isRequired,
   onSubTabChange: PropTypes.func.isRequired,
-  uploadedFiles: PropTypes.object,
+  uploadedFiles: PropTypes.objectOf(
+    PropTypes.arrayOf(
+      PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.shape({
+          fileId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+          id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+          name: PropTypes.string,
+          documentNumber: PropTypes.string,
+        }),
+      ]),
+    ),
+  ),
   expandedRevisions: PropTypes.object,
   onRevisionToggle: PropTypes.func,
   onSelectFile: PropTypes.func,

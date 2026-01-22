@@ -1,10 +1,10 @@
 """Distribution Lists endpoints for managing distribution lists and recipients."""
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, joinedload
 
-from api.db.models import Doc, DistributionList, DistributionListContent, Person, Project
+from api.db.models import DistributionList, DistributionListContent, Doc, Person, Project
 from api.schemas.distribution_lists import (
     DistributionListCreate,
     RecipientAdd,
@@ -44,9 +44,7 @@ def get_distribution_lists(doc_id: int, db: Session = Depends(get_db)):
     doc, project = _get_doc_and_project(doc_id, db)
 
     lists = (
-        db.query(DistributionList)
-        .filter(DistributionList.project_id == project.project_id)
-        .all()
+        db.query(DistributionList).filter(DistributionList.project_id == project.project_id).all()
     )
 
     return [
@@ -66,6 +64,7 @@ def get_distribution_lists(doc_id: int, db: Session = Depends(get_db)):
     summary="Create a new distribution list",
     description="Creates a new distribution list for the document's project",
     response_model=dict,
+    status_code=201,
     responses={
         400: {"description": "Bad Request"},
         404: {"description": "Document or project not found"},
@@ -74,7 +73,9 @@ def get_distribution_lists(doc_id: int, db: Session = Depends(get_db)):
 )
 def create_distribution_list(
     doc_id: int,
-    payload: DistributionListCreate = Body(..., openapi_examples=_example_for(DistributionListCreate)),
+    payload: DistributionListCreate = Body(
+        ..., openapi_examples=_example_for(DistributionListCreate)
+    ),
     db: Session = Depends(get_db),
 ):
     """Create a new distribution list."""
@@ -88,7 +89,7 @@ def create_distribution_list(
     db.add(dist_list)
     try:
         db.commit()
-    except IntegrityError as err:
+    except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Distribution list already exists")
 
@@ -134,9 +135,7 @@ def delete_distribution_list(doc_id: int, list_id: int, db: Session = Depends(ge
         500: {"description": "Internal Server Error"},
     },
 )
-def get_distribution_list_recipients(
-    doc_id: int, list_id: int, db: Session = Depends(get_db)
-):
+def get_distribution_list_recipients(doc_id: int, list_id: int, db: Session = Depends(get_db)):
     """Get all recipients in a distribution list."""
     doc, project = _get_doc_and_project(doc_id, db)
 
@@ -165,6 +164,7 @@ def get_distribution_list_recipients(
     summary="Add a recipient to a distribution list",
     description="Adds a person to the distribution list",
     response_model=dict,
+    status_code=201,
     responses={
         400: {"description": "Bad Request"},
         404: {"description": "Document, project, list, or person not found"},
@@ -231,10 +231,14 @@ def remove_recipient_from_list(
     if not dist_list or dist_list.project_id != project.project_id:
         raise HTTPException(status_code=404, detail="Distribution list not found")
 
-    content = db.query(DistributionListContent).filter(
-        DistributionListContent.dist_id == list_id,
-        DistributionListContent.person_id == person_id,
-    ).first()
+    content = (
+        db.query(DistributionListContent)
+        .filter(
+            DistributionListContent.dist_id == list_id,
+            DistributionListContent.person_id == person_id,
+        )
+        .first()
+    )
 
     if not content:
         raise HTTPException(status_code=404, detail="Recipient not in list")
@@ -248,6 +252,7 @@ def remove_recipient_from_list(
     summary="Send document for review",
     description="Sends document to recipients in the distribution list for review",
     response_model=dict,
+    status_code=201,
     responses={
         400: {"description": "Bad Request"},
         404: {"description": "Document, project, or list not found"},
