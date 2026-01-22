@@ -269,11 +269,40 @@ def send_for_review(
     if not dist_list or dist_list.project_id != project.project_id:
         raise HTTPException(status_code=404, detail="Distribution list not found")
 
-    # TODO: Implement actual email sending logic
-    # For now, just return success
+    # Validate that recipients are provided
+    if not payload.recipients:
+        raise HTTPException(status_code=400, detail="At least one recipient must be specified")
+
+    # Validate that all requested recipients belong to this distribution list
+    requested_recipient_ids = set(payload.recipients)
+    contents = (
+        db.query(DistributionListContent)
+        .filter(
+            DistributionListContent.dist_id == list_id,
+            DistributionListContent.person_id.in_(requested_recipient_ids),
+        )
+        .all()
+    )
+
+    valid_recipient_ids = {content.person_id for content in contents}
+
+    if not valid_recipient_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="No valid recipients found for the specified distribution list",
+        )
+
+    if valid_recipient_ids != requested_recipient_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="One or more recipients are not part of the specified distribution list",
+        )
+
+    # TODO: Implement actual email sending logic for validated recipients
+    # For now, just return success with validated recipients
     return {
         "message": "Document sent for review",
         "doc_id": doc_id,
         "list_id": list_id,
-        "recipients": payload.recipients,
+        "recipients": list(valid_recipient_ids),
     }
