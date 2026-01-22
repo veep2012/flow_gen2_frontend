@@ -7,8 +7,6 @@ from sqlalchemy.exc import IntegrityError
 from api.db.models import Doc, DistributionList, DistributionListContent, Person, Project
 from api.schemas.distribution_lists import (
     DistributionListCreate,
-    DistributionListDetailOut,
-    DistributionListOut,
     RecipientAdd,
     SendForReviewRequest,
 )
