@@ -156,6 +156,14 @@ function App() {
     () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === selectedDocId),
     [filteredDocuments, selectedDocId],
   );
+  const isFlowEnabled = Boolean(project && selectedDoc);
+
+  React.useEffect(() => {
+    if (!isFlowEnabled) {
+      setInfoActiveStep(null);
+      setStatusMenuOpen({});
+    }
+  }, [isFlowEnabled]);
 
   const lookupOptionsByColumn = React.useMemo(
     () => ({
@@ -1211,7 +1219,7 @@ function App() {
 
       try {
         // Download file from API
-        const downloadUrl = `${apiBase}/files/download?file_id=${fileId}`;
+        const downloadUrl = `${apiBase}/files/${fileId}/download`;
         const response = await fetch(downloadUrl);
 
         if (!response.ok) {
@@ -1898,6 +1906,10 @@ function App() {
           width: 100%;
           text-align: left;
           font: inherit;
+        }
+        .flow-step:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
         .flow-step__label {
           font-weight: 600;
@@ -3192,6 +3204,9 @@ function App() {
                           data-ui-behavior={behaviorFile || "default"}
                           data-final={status.final ? "true" : "false"}
                           onClick={() => {
+                            if (!isFlowEnabled) {
+                              return;
+                            }
                             if (isActive) {
                               setInfoActiveStep(null);
                               return;
@@ -3200,6 +3215,7 @@ function App() {
                             setInfoActiveSubTab("Files with Comments");
                           }}
                           style={{ flex: 1 }}
+                          disabled={!isFlowEnabled}
                         >
                           <span className="dot">
                             {status.final ? (
@@ -3215,7 +3231,7 @@ function App() {
                             {behaviorFileLabel || "Default"}
                           </span>
                         </button>
-                        {isActive && (
+                        {isActive && isFlowEnabled && (
                           <div
                             style={{
                               position: "relative",
@@ -3250,6 +3266,7 @@ function App() {
                               }}
                               title="Status menu"
                               aria-label="Status menu"
+                              disabled={!isFlowEnabled}
                             >
                               ⋮
                             </button>
@@ -3304,7 +3321,7 @@ function App() {
                           </div>
                         )}
                       </div>
-                      {isActive && (
+                      {isActive && isFlowEnabled && (
                         <div
                           id={panelId}
                           className="flow-inline-content"
@@ -3350,12 +3367,16 @@ function App() {
                     data-ui-behavior="HistoryBehavior.jsx"
                     data-final="false"
                     onClick={() => {
+                      if (!isFlowEnabled) {
+                        return;
+                      }
                       if (infoActiveStep === "history") {
                         setInfoActiveStep(null);
                         return;
                       }
                       setInfoActiveStep("history");
                     }}
+                    disabled={!isFlowEnabled}
                   >
                     <span className="dot">
                       <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
@@ -3367,7 +3388,7 @@ function App() {
                     <span className="flow-step__label">History</span>
                     <span className="flow-step__behavior">History</span>
                   </button>
-                  {infoActiveStep === "history" && (
+                  {infoActiveStep === "history" && isFlowEnabled && (
                     <div
                       id="flow-panel-history"
                       className="flow-inline-content"
