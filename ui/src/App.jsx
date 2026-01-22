@@ -217,6 +217,48 @@ function App() {
     );
   }, [docTypes, newDocValues.discipline_id]);
 
+  const handleDeleteDocument = React.useCallback(async () => {
+    if (!selectedDoc) {
+      setSaveStatus("error");
+      setSaveError("Select a row to delete");
+      return;
+    }
+
+    const docId = selectedDoc.doc_id ?? selectedDoc.id;
+    if (!docId) {
+      setSaveStatus("error");
+      setSaveError("Unable to delete: missing document ID");
+      return;
+    }
+
+    const docLabel =
+      selectedDoc.doc_name_unique ||
+      selectedDoc.doc_name ||
+      selectedDoc.title ||
+      `#${docId}`;
+    if (!window.confirm(`Delete document "${docLabel}"?`)) {
+      return;
+    }
+
+    setSaveStatus("saving");
+    setSaveError(null);
+    try {
+      const res = await fetch(`${apiBase}/documents/${docId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `Delete failed (${res.status})`);
+      }
+      await res.json();
+      setSaveStatus("idle");
+      setSelectedDocId(null);
+      setEditRowId(null);
+      reloadDocuments();
+    } catch (err) {
+      setSaveStatus("error");
+      setSaveError(err.message || "Unknown error while deleting");
+    }
+  }, [apiBase, reloadDocuments, selectedDoc]);
+
   const ToolbarMenu = () => {
     const handleAddNew = () => {
       if (!project) return;
@@ -251,7 +293,7 @@ function App() {
       }
       startEdit(selectedDoc);
     };
-    const handleDelete = () => console.log("Delete clicked");
+    const handleDelete = () => handleDeleteDocument();
     const handleExport = () => console.log("Export clicked");
     const handleUndo = () => console.log("Undo clicked");
     const handleRedo = () => console.log("Redo clicked");
