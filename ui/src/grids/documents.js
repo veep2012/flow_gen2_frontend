@@ -2,8 +2,8 @@ export const documentGridColumns = [
   { id: "doc_id", label: "ID", field: "doc_id", hidden: true },
   { id: "doc_name", label: "Name", field: "doc_name" },
   { id: "title", label: "Title", field: "title" },
-  { id: "doc_type", label: "Type", field: "doc_type_display" },
   { id: "discipline", label: "Discipline", field: "discipline_display" },
+  { id: "doc_type", label: "Type", field: "doc_type_display" },
   { id: "jobpack", label: "Jobpack", field: "jobpack_display" },
   { id: "area", label: "Area", field: "area_display" },
   { id: "unit", label: "Unit", field: "unit_display" },
@@ -30,8 +30,8 @@ export function mapDocumentRow(doc) {
     : "";
   const unitDisplay = doc.unit_name || (doc.unit_id ? `Unit ${doc.unit_id}` : "");
   const revCodeDisplay = doc.rev_code_acronym
-    ? `${doc.rev_code_acronym}${doc.rev_status_name ? ` (${doc.rev_status_name})` : ""}`
-    : doc.rev_status_name || "—";
+    ? `${doc.rev_code_acronym}${doc.rev_code_name ? ` (${doc.rev_code_name})` : ""}`
+    : doc.rev_code_name || "—";
   const revStatusDisplay =
     doc.rev_status_name || (doc.rev_status_id ? `Status ${doc.rev_status_id}` : "—");
   const revPercentDisplay =
