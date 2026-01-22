@@ -5,7 +5,6 @@ Run this after starting the API server to verify all endpoints are working.
 """
 
 import requests
-import json
 from typing import Dict, Any
 
 # Configuration
