@@ -54,20 +54,6 @@ const InDesignBehavior = ({
     [availableApiFiles, localOnlyFiles],
   );
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log(
-      "InDesignBehavior - statusKey:",
-      statusKey,
-      "allFiles:",
-      allFiles,
-      "apiFiles:",
-      apiFiles,
-      "statusFiles:",
-      statusFiles,
-    );
-  }, [allFiles, statusKey, apiFiles, statusFiles]);
-
   const dragProps = uploadDragProps(statusKey);
 
   // Organize files by revision letter (RevA, RevB, RevC) - case insensitive
