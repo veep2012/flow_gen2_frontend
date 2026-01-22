@@ -13,6 +13,7 @@ const IDCBehavior = ({
   onSelectFile,
   onDownloadFile,
   selectedFileId,
+  apiBase = "/api/v1",
 }) => {
   const [commentText, setCommentText] = React.useState("");
   const [comments, setComments] = React.useState([]);
@@ -616,10 +617,7 @@ const IDCBehavior = ({
             </div>
           </>
         ) : (
-          <DistributionList
-            docId={docId}
-            apiBase={process.env.REACT_APP_API_BASE_URL || "http://localhost:8000/api"}
-          />
+          <DistributionList docId={docId} apiBase={apiBase} />
         )}
       </div>
     </>
@@ -643,6 +641,7 @@ IDCBehavior.propTypes = {
   onSelectFile: PropTypes.func,
   onDownloadFile: PropTypes.func,
   selectedFileId: PropTypes.string,
+  apiBase: PropTypes.string,
 };
 
 export default IDCBehavior;

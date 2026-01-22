@@ -299,9 +299,9 @@ function App() {
       startEdit(selectedDoc);
     };
     const handleDelete = () => handleDeleteDocument();
-    const handleExport = () => console.log("Export clicked");
-    const handleUndo = () => console.log("Undo clicked");
-    const handleRedo = () => console.log("Redo clicked");
+    const handleExport = () => {};
+    const handleUndo = () => {};
+    const handleRedo = () => {};
     const hasSelection = Boolean(selectedDoc);
     const hasProject = Boolean(project);
 
@@ -453,7 +453,6 @@ function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    console.log("New project");
                     setProjectMenuOpen(false);
                   }}
                   style={{
@@ -479,7 +478,6 @@ function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    console.log("Manage projects");
                     setProjectMenuOpen(false);
                   }}
                   style={{
@@ -505,7 +503,6 @@ function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    console.log("Project settings");
                     setProjectMenuOpen(false);
                   }}
                   style={{
@@ -722,7 +719,6 @@ function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    console.log("Profile");
                     setUserMenuOpen(false);
                   }}
                   style={{
@@ -749,7 +745,6 @@ function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    console.log("Settings");
                     setUserMenuOpen(false);
                   }}
                   style={{
@@ -776,7 +771,6 @@ function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    console.log("Logout");
                     setUserMenuOpen(false);
                   }}
                   style={{
@@ -983,9 +977,6 @@ function App() {
 
       setSaveStatus("saving");
       setSaveError(null);
-
-      console.log("Final payload keys:", Object.keys(payload));
-      console.log("Final payload:", payload);
 
       try {
         const res = await fetch(`${apiBase}/documents/${payload.doc_id}`, {
@@ -2212,7 +2203,6 @@ function App() {
         <div style={{ padding: "12px 12px" }}>
           <button
             onClick={() => {
-              console.log("Projects");
               setSidebarOpen(false);
             }}
             style={{
@@ -2245,7 +2235,6 @@ function App() {
 
           <button
             onClick={() => {
-              console.log("Documents");
               setSidebarOpen(false);
             }}
             style={{
@@ -2278,7 +2267,6 @@ function App() {
 
           <button
             onClick={() => {
-              console.log("Workflows");
               setSidebarOpen(false);
             }}
             style={{
@@ -2311,7 +2299,6 @@ function App() {
 
           <button
             onClick={() => {
-              console.log("Settings");
               setSidebarOpen(false);
             }}
             style={{
@@ -3349,6 +3336,7 @@ function App() {
                               onDownloadFile={handleDownloadFile}
                               onDeleteFile={handleDeleteFile}
                               selectedFileId={selectedFileId}
+                              apiBase={apiBase}
                             />
                           </React.Suspense>
                         </div>
