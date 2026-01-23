@@ -374,7 +374,7 @@ flowchart TB
 ```sql
 ALTER TABLE flow.users ADD COLUMN external_id VARCHAR(255);
 ALTER TABLE flow.users ADD COLUMN identity_provider VARCHAR(50);
-ALTER TABLE flow.users ADD COLUMN last_login_at TIMESTAMP;
+ALTER TABLE flow.users ADD COLUMN last_login_at TIMESTAMPTZ;
 ALTER TABLE flow.users
     ADD CONSTRAINT users_identity_provider_external_id_uniq
     UNIQUE (identity_provider, external_id);
@@ -385,8 +385,8 @@ CREATE TABLE flow.identity_provider_mappings (
     provider_name VARCHAR(50) NOT NULL,
     external_user_id VARCHAR(255) NOT NULL,
     attributes JSONB,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (provider_name, external_user_id),
     PRIMARY KEY (mapping_id)
 );

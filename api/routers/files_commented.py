@@ -219,6 +219,10 @@ def list_commented_files_for_file(
             "filename": filename,
             "mimetype": mimetype,
             "rev_id": rev_id,
+            "created_at": file_row.created_at,
+            "updated_at": file_row.updated_at,
+            "created_by": file_row.created_by,
+            "updated_by": file_row.updated_by,
         }
         for file_row, filename, mimetype, rev_id in rows
     ]
@@ -403,6 +407,10 @@ def insert_commented_file(
         "filename": file_row.filename,
         "mimetype": file_row.mimetype,
         "rev_id": file_row.rev_id,
+        "created_at": new_file.created_at,
+        "updated_at": new_file.updated_at,
+        "created_by": new_file.created_by,
+        "updated_by": new_file.updated_by,
     }
     return _model_out(FileCommentedOut, response_payload)
 

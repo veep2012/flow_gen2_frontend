@@ -177,7 +177,7 @@ CREATE TABLE doc_distribution_lists (
     ddl_id INT PRIMARY KEY AUTO_INCREMENT,
     doc_id INT NOT NULL,
     list_name VARCHAR(255),
-    created_at TIMESTAMP,
+    created_at TIMESTAMPTZ,
     FOREIGN KEY (doc_id) REFERENCES docs(doc_id)
 );
 

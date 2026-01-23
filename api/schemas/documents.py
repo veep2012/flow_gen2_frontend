@@ -109,6 +109,10 @@ class DocOut(BaseModel):
         None, description="Completion percentage.", examples=[50], ge=0, le=100
     )
     voided: bool = Field(False, description="Whether document is voided.", examples=[False])
+    created_at: datetime | None = Field(None, description="Creation timestamp.")
+    updated_at: datetime | None = Field(None, description="Last update timestamp.")
+    created_by: int | None = Field(None, description="User ID who created the document.", gt=0)
+    updated_by: int | None = Field(None, description="User ID who last updated the document.", gt=0)
 
 
 class DeleteResult(BaseModel):
@@ -267,6 +271,10 @@ class DocRevisionOut(BaseModel):
     modified_doc_date: datetime = Field(
         ..., description="Modified document date.", examples=["2024-01-05T12:00:00Z"]
     )
+    created_at: datetime | None = Field(None, description="Creation timestamp.")
+    updated_at: datetime | None = Field(None, description="Last update timestamp.")
+    created_by: int | None = Field(None, description="User ID who created the revision.", gt=0)
+    updated_by: int | None = Field(None, description="User ID who last updated the revision.", gt=0)
 
 
 class DocRevisionUpdate(BaseModel):
