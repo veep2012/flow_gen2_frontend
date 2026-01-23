@@ -195,7 +195,10 @@ class User(Base):
     person: Mapped[Person] = relationship(back_populates="user")
     role: Mapped[Role] = relationship(back_populates="users")
     permissions: Mapped[list["Permission"]] = relationship(back_populates="user")
-    commented_files: Mapped[list["FileCommented"]] = relationship(back_populates="user")
+    commented_files: Mapped[list["FileCommented"]] = relationship(
+        back_populates="user",
+        foreign_keys="FileCommented.user_id",
+    )
 
 
 class DocType(Base):
@@ -482,7 +485,10 @@ class FileCommented(Base):
     updated_by: Mapped[Optional[int]] = mapped_column(ForeignKey("flow.users.user_id"))
 
     file: Mapped[File] = relationship(back_populates="comments")
-    user: Mapped[User] = relationship(back_populates="commented_files")
+    user: Mapped[User] = relationship(
+        back_populates="commented_files",
+        foreign_keys=[user_id],
+    )
 
 
 class DocRevisionHistoryView(Base):
