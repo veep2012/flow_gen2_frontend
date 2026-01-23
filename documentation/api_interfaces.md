@@ -71,9 +71,8 @@ Edge cases:
 - Concurrent modification: optimistic locking is not implemented; `409 Conflict` is reserved and not currently returned.
 
 Audit fields (created_by / updated_by):
-- `created_by` is set by the application on insert.
-- `updated_by` may be set by the application; if omitted, DB triggers attempt to populate it from the session setting `app.user` (a SMALLINT user id), e.g. `SET LOCAL "app.user" = '123';`.
-- The API sets `app.user` per request from the `X-User-Id` header when provided.
+- `created_by` and `updated_by` are set by the application or by DB triggers when NULL.
+- DB triggers read the session setting `app.user` (a SMALLINT user id). The API sets it per request (via `set_config('app.user', ...)`) from the `X-User-Id` header when provided, otherwise a default user id is used.
 
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
@@ -712,14 +711,18 @@ Shape (single item):
   "filename": "report.pdf",
   "s3_uid": "Project/Doc/IFC/uuid_report.pdf",
   "mimetype": "application/pdf",
-  "rev_id": 45
+  "rev_id": 45,
+  "created_at": "2026-01-23T17:45:08.294332Z",
+  "updated_at": "2026-01-23T17:45:08.294332Z",
+  "created_by": 1,
+  "updated_by": 1
 }
 ```
 Schema references:
 - Create: `api/schemas/files.py` `FileCreate`
 - Update: `api/schemas/files.py` `FileUpdate`
-- Response: `api/schemas/files.py` `FileCommentedOut`
-- Delete: `api/schemas/files.py` `FileCommentedDelete`
+- Response: `api/schemas/files.py` `FileOut`
+- Delete: `api/schemas/files.py` `FileDelete`
 
 ### List
 - `GET /api/v1/files?rev_id=45` — 200 sorted by `filename`; empty list if none.
@@ -736,7 +739,11 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/files?rev_id
     "filename": "report.pdf",
     "s3_uid": "Project/Doc/IFC/uuid_report.pdf",
     "mimetype": "application/pdf",
-    "rev_id": 45
+    "rev_id": 45,
+    "created_at": "2026-01-23T17:45:08.294332Z",
+    "updated_at": "2026-01-23T17:45:08.294332Z",
+    "created_by": 1,
+    "updated_by": 1
   }
 ]
 ```
@@ -760,7 +767,11 @@ curl -sS -H "Accept: application/json" \
   "filename": "report.pdf",
   "s3_uid": "Project/Doc/IFC/uuid_report.pdf",
   "mimetype": "application/pdf",
-  "rev_id": 45
+  "rev_id": 45,
+  "created_at": "2026-01-23T17:45:08.294332Z",
+  "updated_at": "2026-01-23T17:45:08.294332Z",
+  "created_by": 1,
+  "updated_by": 1
 }
 ```
 
@@ -775,7 +786,17 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 ```
 - Example response:
 ```json
-{ "id": 12, "filename": "new_report.pdf" }
+{
+  "id": 12,
+  "filename": "new_report.pdf",
+  "s3_uid": "Project/Doc/IFC/uuid_report.pdf",
+  "mimetype": "application/pdf",
+  "rev_id": 45,
+  "created_at": "2026-01-23T17:45:08.294332Z",
+  "updated_at": "2026-01-23T17:45:08.294332Z",
+  "created_by": 1,
+  "updated_by": 1
+}
 ```
 - Body:
 ```json
@@ -821,7 +842,11 @@ Shape (single item):
   "s3_uid": "Project/Doc/IFC/uuid_report.pdf",
   "filename": "report.pdf",
   "mimetype": "application/pdf",
-  "rev_id": 45
+  "rev_id": 45,
+  "created_at": "2026-01-23T17:45:08.294332Z",
+  "updated_at": "2026-01-23T17:45:08.294332Z",
+  "created_by": 1,
+  "updated_by": 1
 }
 ```
 Schema references:
@@ -864,7 +889,11 @@ curl -sS -H "Accept: application/json" \
   "s3_uid": "Project/Doc/IFC/uuid_report.pdf",
   "filename": "report.pdf",
   "mimetype": "application/pdf",
-  "rev_id": 45
+  "rev_id": 45,
+  "created_at": "2026-01-23T17:45:08.294332Z",
+  "updated_at": "2026-01-23T17:45:08.294332Z",
+  "created_by": 1,
+  "updated_by": 1
 }
 ```
 
@@ -1299,7 +1328,7 @@ curl -i -H "Accept: application/json" -X DELETE http://localhost:4175/api/v1/doc
 
 ## Documents
 Shape (single item) includes doc, linked names, and discipline/progress pointers:
-`doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `rev_seq_num`, `discipline_id`/`discipline_name`/`discipline_acronym`, `rev_code_name`, `rev_code_acronym`, `percentage`, `voided`.
+`doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `rev_seq_num`, `discipline_id`/`discipline_name`/`discipline_acronym`, `rev_code_name`, `rev_code_acronym`, `percentage`, `voided`, `created_at`, `updated_at`, `created_by`, `updated_by`.
 Schema references:
 - Response: `api/schemas/documents.py` `DocOut`
 - Create: `api/schemas/documents.py` `DocCreate`
@@ -1443,7 +1472,11 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/11
     "as_built": false,
     "superseded": false,
     "voided": false,
-    "modified_doc_date": "2024-01-05T12:00:00Z"
+    "modified_doc_date": "2024-01-05T12:00:00Z",
+    "created_at": "2026-01-23T17:45:08.294332Z",
+    "updated_at": "2026-01-23T17:45:08.294332Z",
+    "created_by": 1,
+    "updated_by": 1
   }
 ]
 ```

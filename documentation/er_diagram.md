@@ -15,12 +15,16 @@ erDiagram
         integer rev_actual_id FK "Pointer to Actual Revision"
         integer rev_current_id FK "Pointer to Current Revision"
         boolean voided
+        timestamptz created_at
+        timestamptz updated_at
+        smallint created_by FK
+        smallint updated_by FK
     }
 
     DOC_REVISION {
         integer rev_id PK
         smallint rev_code_id FK
-        timestamp rev_date
+        timestamptz rev_date
         smallint rev_author_id FK
         smallint rev_originator_id FK
         boolean as_built
@@ -28,23 +32,27 @@ erDiagram
         boolean voided
         string transmital_current_revision
         smallint milestone_id FK
-        timestamp planned_start_date
-        timestamp planned_finish_date
-        timestamp actual_start_date
-        timestamp actual_finish_date
-        datetime canceled_date
+        timestamptz planned_start_date
+        timestamptz planned_finish_date
+        timestamptz actual_start_date
+        timestamptz actual_finish_date
+        timestamptz canceled_date
         smallint rev_status_id FK
         integer doc_id FK
         smallint seq_num
         smallint rev_modifier_id FK "NOT NULL"
-        timestamp modified_doc_date
+        timestamptz modified_doc_date
+        timestamptz created_at
+        timestamptz updated_at
+        smallint created_by FK
+        smallint updated_by FK
     }
 
     DOC_REVISION_HISTORY {
         integer rev_id PK
-        timestamp archived_at "Audit Timestamp"
+        timestamptz archived_at "Audit Timestamp"
         smallint rev_code_id
-        timestamp rev_date
+        timestamptz rev_date
         smallint rev_author_id
         smallint rev_originator_id
         boolean as_built
@@ -52,11 +60,11 @@ erDiagram
         boolean voided
         string transmital_current_revision
         smallint milestone_id
-        timestamp planned_start_date
-        timestamp planned_finish_date
-        timestamp actual_start_date
-        timestamp actual_finish_date
-        datetime canceled_date
+        timestamptz planned_start_date
+        timestamptz planned_finish_date
+        timestamptz actual_start_date
+        timestamptz actual_finish_date
+        timestamptz canceled_date
         smallint rev_status_id
         integer doc_id
         smallint seq_num
@@ -67,7 +75,7 @@ erDiagram
         smallint seq_num PK
         string source_type PK
         smallint rev_code_id
-        timestamp rev_date
+        timestamptz rev_date
         smallint rev_author_id
         smallint rev_originator_id
         boolean as_built
@@ -75,11 +83,11 @@ erDiagram
         boolean voided
         string transmital_current_revision
         smallint milestone_id
-        timestamp planned_start_date
-        timestamp planned_finish_date
-        timestamp actual_start_date
-        timestamp actual_finish_date
-        datetime canceled_date
+        timestamptz planned_start_date
+        timestamptz planned_finish_date
+        timestamptz actual_start_date
+        timestamptz actual_finish_date
+        timestamptz canceled_date
         smallint rev_status_id
         integer doc_id
     }
@@ -90,6 +98,10 @@ erDiagram
         string filename
         text s3_uid "S3 Object Key"
         string mimetype
+        timestamptz created_at
+        timestamptz updated_at
+        smallint created_by FK
+        smallint updated_by FK
     }
 
     FILES_COMMENTED {
@@ -98,6 +110,10 @@ erDiagram
         smallint user_id FK
         text s3_uid "S3 Object Key (Annotation)"
         string mimetype
+        timestamptz created_at
+        timestamptz updated_at
+        smallint created_by FK
+        smallint updated_by FK
     }
 
     FILES_FORBIDDEN {
@@ -107,7 +123,7 @@ erDiagram
 
     LEASED_DOC_NUMS {
         string doc_number PK
-        timestamp created_date
+        timestamptz created_date
     }
 
     SQL_QUERIES {
