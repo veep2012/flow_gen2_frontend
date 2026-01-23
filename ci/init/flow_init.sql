@@ -461,18 +461,46 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION fn_set_created_by() RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.created_by IS NULL THEN
+        NEW.created_by = NULLIF(current_setting('app.user', true), '')::SMALLINT;
+    END IF;
+    IF NEW.updated_by IS NULL THEN
+        NEW.updated_by = NULLIF(current_setting('app.user', true), '')::SMALLINT;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TRIGGER tr_doc_update_timestamp
 BEFORE UPDATE ON flow.doc
 FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();
+
+CREATE TRIGGER tr_doc_set_created_by
+BEFORE INSERT ON flow.doc
+FOR EACH ROW EXECUTE FUNCTION fn_set_created_by();
 
 CREATE TRIGGER tr_doc_revision_update_timestamp
 BEFORE UPDATE ON flow.doc_revision
 FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();
 
+CREATE TRIGGER tr_doc_revision_set_created_by
+BEFORE INSERT ON flow.doc_revision
+FOR EACH ROW EXECUTE FUNCTION fn_set_created_by();
+
 CREATE TRIGGER tr_files_update_timestamp
 BEFORE UPDATE ON flow.files
 FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();
 
+CREATE TRIGGER tr_files_set_created_by
+BEFORE INSERT ON flow.files
+FOR EACH ROW EXECUTE FUNCTION fn_set_created_by();
+
 CREATE TRIGGER tr_files_commented_update_timestamp
 BEFORE UPDATE ON flow.files_commented
 FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();
+
+CREATE TRIGGER tr_files_commented_set_created_by
+BEFORE INSERT ON flow.files_commented
+FOR EACH ROW EXECUTE FUNCTION fn_set_created_by();

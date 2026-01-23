@@ -152,6 +152,7 @@ DECLARE
     v_status_id INT;
     v_seq_num INT;
     v_rev_date TIMESTAMP;
+    v_user_id INT;
 BEGIN
     SELECT rev_code_id INTO v_rev_code_id
     FROM revision_overview
@@ -170,16 +171,28 @@ BEGIN
         SELECT area_id INTO v_area_id FROM areas ORDER BY random() LIMIT 1;
         SELECT unit_id INTO v_unit_id FROM units ORDER BY random() LIMIT 1;
         SELECT person_id INTO v_author FROM person ORDER BY random() LIMIT 1;
+        SELECT user_id INTO v_user_id FROM users ORDER BY random() LIMIT 1;
         
         -- 2. Generate Doc Name (e.g., PR-2345-LAY-001)
         v_doc_name := 'DOC-' || lpad(i::text, 4, '0');
 
         -- 3. Insert Document (Triggers will handle the rev_current_id pointer updates later)
-        INSERT INTO doc (doc_name_unique, title, project_id, jobpack_id, type_id, area_id, unit_id)
+        INSERT INTO doc (
+            doc_name_unique,
+            title,
+            project_id,
+            jobpack_id,
+            type_id,
+            area_id,
+            unit_id,
+            created_by,
+            updated_by
+        )
         VALUES (
             v_doc_name, 
             'Generated Document Title ' || i,
-            v_project_id, v_jobpack_id, v_type_id, v_area_id, v_unit_id
+            v_project_id, v_jobpack_id, v_type_id, v_area_id, v_unit_id,
+            v_user_id, v_user_id
         ) RETURNING doc_id INTO v_doc_id;
 
         -- 4. Insert revisions with a random status per revision.
@@ -198,7 +211,8 @@ BEGIN
                 rev_code_id, rev_date, rev_author_id, rev_originator_id, 
                 transmital_current_revision, milestone_id, 
                 planned_start_date, planned_finish_date, 
-                rev_status_id, doc_id, seq_num, rev_modifier_id
+                rev_status_id, doc_id, seq_num, rev_modifier_id,
+                created_by, updated_by
             ) VALUES (
                 v_rev_code_id,
                 v_rev_date + ((v_seq_num - 1) * interval '2 days'),
@@ -210,7 +224,9 @@ BEGIN
                 v_status_id,
                 v_doc_id,
                 v_seq_num,
-                v_author
+                v_author,
+                v_user_id,
+                v_user_id
             );
             v_seq_num := v_seq_num + 1;
         END LOOP;
