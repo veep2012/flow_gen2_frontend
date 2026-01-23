@@ -451,7 +451,9 @@ FOR EACH ROW EXECUTE FUNCTION fn_files_commented_check_mimetype();
 
 CREATE OR REPLACE FUNCTION fn_update_timestamp() RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
+    IF NEW.updated_at IS NULL THEN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+    END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
