@@ -454,6 +454,9 @@ BEGIN
     IF NEW.updated_at IS NULL THEN
         NEW.updated_at = CURRENT_TIMESTAMP;
     END IF;
+    IF NEW.updated_by IS NULL THEN
+        NEW.updated_by = NULLIF(current_setting('app.user', true), '')::SMALLINT;
+    END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

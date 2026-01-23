@@ -70,6 +70,11 @@ Edge cases:
 - Malformed JSON bodies: FastAPI returns `422 Unprocessable Entity` with a validation error payload.
 - Concurrent modification: optimistic locking is not implemented; `409 Conflict` is reserved and not currently returned.
 
+Audit fields (created_by / updated_by):
+- `created_by` is set by the application on insert.
+- `updated_by` may be set by the application; if omitted, DB triggers attempt to populate it from the session setting `app.user` (a SMALLINT user id), e.g. `SET LOCAL "app.user" = '123';`.
+- The API sets `app.user` per request from the `X-User-Id` header when provided.
+
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
 - Headers: `Accept: application/json`
