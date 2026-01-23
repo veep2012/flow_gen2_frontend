@@ -685,7 +685,7 @@ def insert_document_revision(
         doc_id=doc_id,
         seq_num=seq_num,
         rev_code_id=payload.rev_code_id,
-        rev_date=_normalize_dt(payload.rev_date) or datetime.now(timezone.utc).replace(tzinfo=None),
+        rev_date=_normalize_dt(payload.rev_date) or datetime.now(timezone.utc),
         rev_author_id=payload.rev_author_id,
         rev_originator_id=payload.rev_originator_id,
         rev_modifier_id=payload.rev_modifier_id,
@@ -700,8 +700,7 @@ def insert_document_revision(
         as_built=payload.as_built,
         superseded=payload.superseded,
         voided=payload.voided,
-        modified_doc_date=_normalize_dt(payload.modified_doc_date)
-        or datetime.now(timezone.utc).replace(tzinfo=None),
+        modified_doc_date=_normalize_dt(payload.modified_doc_date) or datetime.now(timezone.utc),
     )
     db.add(new_revision)
     try:
@@ -1027,7 +1026,7 @@ def insert_document(
         doc_id=new_doc.doc_id,
         seq_num=1,
         rev_code_id=payload.rev_code_id,
-        rev_date=datetime.now(timezone.utc).replace(tzinfo=None),
+        rev_date=datetime.now(timezone.utc),
         rev_author_id=payload.rev_author_id,
         rev_originator_id=payload.rev_originator_id,
         rev_modifier_id=payload.rev_modifier_id,
@@ -1042,7 +1041,7 @@ def insert_document(
         as_built=False,
         superseded=False,
         voided=False,
-        modified_doc_date=datetime.now(timezone.utc).replace(tzinfo=None),
+        modified_doc_date=datetime.now(timezone.utc),
     )
     db.add(new_revision)
     try:
@@ -1762,7 +1761,7 @@ def cancel_revision(
             raise HTTPException(
                 status_code=409, detail="Revision status does not allow cancellation"
             )
-        revision.canceled_date = datetime.now(timezone.utc).replace(tzinfo=None)
+        revision.canceled_date = datetime.now(timezone.utc)
         try:
             db.commit()
         except IntegrityError as err:

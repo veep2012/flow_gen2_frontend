@@ -2,7 +2,7 @@
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Iterable, TypeVar
 
 from fastapi import HTTPException
@@ -17,16 +17,16 @@ DEBUG_MODE = os.getenv("DEBUG", "").lower() in {"1", "true", "yes", "on", "debug
 
 def _normalize_dt(value: datetime | str | None) -> datetime | None:
     """
-    Normalize datetime values to timezone-naive datetime objects.
+    Normalize datetime values to timezone-aware UTC datetimes.
 
-    Handles both datetime objects and ISO format strings. If the input has timezone
-    information, it is removed (converted to naive datetime).
+    Handles both datetime objects and ISO format strings. If the input has no timezone
+    information, UTC is assumed.
 
     Args:
         value: A datetime object, ISO format string, or None.
 
     Returns:
-        Timezone-naive datetime object or None.
+        Timezone-aware datetime object in UTC, or None.
 
     Raises:
         HTTPException: If the datetime string format is invalid.
@@ -38,8 +38,12 @@ def _normalize_dt(value: datetime | str | None) -> datetime | None:
             parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Invalid datetime format") from exc
-        return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
-    return value.replace(tzinfo=None) if value.tzinfo else value
+        if parsed.tzinfo:
+            return parsed.astimezone(timezone.utc)
+        return parsed.replace(tzinfo=timezone.utc)
+    if value.tzinfo:
+        return value.astimezone(timezone.utc)
+    return value.replace(tzinfo=timezone.utc)
 
 
 def _example_for(model_cls: type[ModelT]) -> dict[str, Any]:
