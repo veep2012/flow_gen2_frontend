@@ -1073,6 +1073,14 @@ def insert_doc_rev_status(
             status_code=400,
             detail="Final status cannot be editable or revertible",
         )
+    if payload.start:
+        existing_start = db.query(DocRevStatus).filter(DocRevStatus.start.is_(True)).first()
+        if existing_start is not None:
+            raise HTTPException(status_code=400, detail="Start status already exists")
+    if payload.final:
+        existing_final = db.query(DocRevStatus).filter(DocRevStatus.final.is_(True)).first()
+        if existing_final is not None:
+            raise HTTPException(status_code=400, detail="Final status already exists")
 
     status_fields = {
         "rev_status_name": payload.rev_status_name,
@@ -1151,6 +1159,7 @@ def update_doc_rev_status(
     next_next_id = status.next_rev_status_id
     next_editable = status.editable
     next_revertible = status.revertible
+    next_start = status.start
     if "final" in payload.model_fields_set:
         assert payload.final is not None
         next_final = payload.final
@@ -1162,6 +1171,9 @@ def update_doc_rev_status(
     if "revertible" in payload.model_fields_set:
         assert payload.revertible is not None
         next_revertible = payload.revertible
+    if "start" in payload.model_fields_set:
+        assert payload.start is not None
+        next_start = payload.start
 
     if next_final and next_next_id is not None:
         raise HTTPException(status_code=400, detail="Final status cannot have next status")
@@ -1171,6 +1183,39 @@ def update_doc_rev_status(
         raise HTTPException(
             status_code=400, detail="Final status must not be editable or revertible"
         )
+    if next_start:
+        existing_start = (
+            db.query(DocRevStatus)
+            .filter(
+                DocRevStatus.start.is_(True),
+                DocRevStatus.rev_status_id != status.rev_status_id,
+            )
+            .first()
+        )
+        if existing_start is not None:
+            raise HTTPException(status_code=400, detail="Start status already exists")
+    if next_start:
+        existing_start = (
+            db.query(DocRevStatus)
+            .filter(
+                DocRevStatus.start.is_(True),
+                DocRevStatus.rev_status_id != status.rev_status_id,
+            )
+            .first()
+        )
+        if existing_start is not None:
+            raise HTTPException(status_code=400, detail="Start status already exists")
+    if next_final:
+        existing_final = (
+            db.query(DocRevStatus)
+            .filter(
+                DocRevStatus.final.is_(True),
+                DocRevStatus.rev_status_id != status.rev_status_id,
+            )
+            .first()
+        )
+        if existing_final is not None:
+            raise HTTPException(status_code=400, detail="Final status already exists")
 
     if "rev_status_name" in payload.model_fields_set:
         assert payload.rev_status_name is not None

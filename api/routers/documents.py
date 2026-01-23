@@ -559,6 +559,7 @@ def update_document_revision(
     revision = db.get(DocRevision, payload.rev_id)
     if not revision:
         raise HTTPException(status_code=404, detail="Revision not found")
+    revision.updated_by = None
 
     doc_for_revision = db.get(Doc, revision.doc_id)
     if not doc_for_revision or doc_for_revision.voided:
@@ -789,6 +790,7 @@ def update_document(
     doc = db.get(Doc, payload.doc_id)
     if not doc or doc.voided:
         raise HTTPException(status_code=404, detail="Document not found")
+    doc.updated_by = None
 
     T = TypeVar("T")
 
