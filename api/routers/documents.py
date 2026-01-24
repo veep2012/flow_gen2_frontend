@@ -679,6 +679,25 @@ def _build_doc_revision_out(db: Session, rev_id: int) -> DocRevisionOut:
     return _model_out(DocRevisionOut, response_payload)
 
 
+_REV_STATUS_TRANSITION_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("already at final status", 409, "Revision already at final status"),
+    ("already at start status", 409, "Revision already at start status"),
+    ("not revertible", 409, "Revision status not revertible"),
+    ("previous status not found", 409, "Previous status not found"),
+    ("invalid direction", 400, "Invalid direction"),
+    ("revision not found", 404, "Revision not found"),
+)
+
+
+def _raise_for_status_transition_db_error(err: DBAPIError) -> None:
+    message = str(err.orig) if getattr(err, "orig", None) else str(err)
+    lowered = message.lower()
+    for needle, status_code, detail in _REV_STATUS_TRANSITION_ERROR_MAP:
+        if needle in lowered:
+            raise HTTPException(status_code=status_code, detail=detail)
+    raise HTTPException(status_code=500, detail="Failed to transition revision status")
+
+
 def create_revision_status_transition(
     rev_id: int,
     payload: DocRevisionStatusTransition = Body(
@@ -707,19 +726,7 @@ def create_revision_status_transition(
         db.commit()
     except DBAPIError as err:
         db.rollback()
-        message = str(err.orig) if getattr(err, "orig", None) else str(err)
-        lowered = message.lower()
-        if "already at final status" in lowered:
-            raise HTTPException(status_code=409, detail="Revision already at final status")
-        if "already at start status" in lowered:
-            raise HTTPException(status_code=409, detail="Revision already at start status")
-        if "not revertible" in lowered:
-            raise HTTPException(status_code=409, detail="Revision status not revertible")
-        if "invalid direction" in lowered:
-            raise HTTPException(status_code=400, detail="Invalid direction")
-        if "revision not found" in lowered:
-            raise HTTPException(status_code=404, detail="Revision not found")
-        raise HTTPException(status_code=500, detail="Failed to transition revision status")
+        _raise_for_status_transition_db_error(err)
 
     return _build_doc_revision_out(db, rev_id)
 
