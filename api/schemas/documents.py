@@ -389,6 +389,7 @@ class RevisionOverviewOut(BaseModel):
 
 
 class RevisionOverviewUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     rev_code_name: str | None = Field(
         None, description="Revision code name.", examples=["Rev Code A"], min_length=1
     )
