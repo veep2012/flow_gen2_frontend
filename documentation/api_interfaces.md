@@ -1551,7 +1551,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 }
 ```
 ### Revision status transition
-- `POST /api/v1/documents/revisions/{rev_id}/status-transitions` — 200; 400 if invalid direction; 404 if revision/document not found; 409 if start/final/revertible rules block the transition.
+- `POST /api/v1/documents/revisions/{rev_id}/status-transitions` — 200; 422 for invalid direction/validation errors; 404 if revision/document not found; 409 if start/final/revertible rules block the transition.
 - Headers: `Accept: application/json`, `Content-Type: application/json`
 - Example request:
 ```bash
