@@ -336,3 +336,100 @@ def test_documents_revisions_status_transition_back():
         assert 200 <= result["status"] < 300
         assert result["payload"]["rev_id"] == rev_id
         assert result["payload"]["rev_status_id"] == prev_id
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_status_transition_invalid_direction():
+    with httpx.Client(timeout=10) as client:
+        doc_id = _get_doc_id(client)
+        if doc_id is None:
+            pytest.skip("No document available for invalid direction test")
+        revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
+            pytest.skip("No revisions available for invalid direction test")
+        rev_id = revisions["payload"][0].get("rev_id")
+        if rev_id is None:
+            pytest.skip("No rev_id available for invalid direction test")
+        result = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{rev_id}/status-transitions",
+            json={"direction": "sideways"},
+        )
+        assert result["status"] == 422
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_status_transition_already_final():
+    with httpx.Client(timeout=10) as client:
+        doc_id = _get_doc_id(client)
+        if doc_id is None:
+            pytest.skip("No document available for final status test")
+        revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
+            pytest.skip("No revisions available for final status test")
+        statuses = _get_statuses(client)
+        if not statuses:
+            pytest.skip("No statuses available for final status test")
+        status_map = {
+            status["rev_status_id"]: status for status in statuses if "rev_status_id" in status
+        }
+        candidate = None
+        for rev in revisions["payload"]:
+            status = status_map.get(rev.get("rev_status_id"))
+            if not status:
+                continue
+            if status.get("final") or status.get("next_rev_status_id") is None:
+                candidate = rev
+                break
+        if candidate is None:
+            pytest.skip("No final revision available for final status test")
+        rev_id = candidate.get("rev_id")
+        if rev_id is None:
+            pytest.skip("No rev_id available for final status test")
+        result = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{rev_id}/status-transitions",
+            json={"direction": "forward"},
+        )
+        assert result["status"] == 409
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_status_transition_not_revertible():
+    with httpx.Client(timeout=10) as client:
+        doc_id = _get_doc_id(client)
+        if doc_id is None:
+            pytest.skip("No document available for not revertible test")
+        revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
+            pytest.skip("No revisions available for not revertible test")
+        statuses = _get_statuses(client)
+        if not statuses:
+            pytest.skip("No statuses available for not revertible test")
+        status_map = {
+            status["rev_status_id"]: status for status in statuses if "rev_status_id" in status
+        }
+        candidate = None
+        for rev in revisions["payload"]:
+            status = status_map.get(rev.get("rev_status_id"))
+            if not status:
+                continue
+            if status.get("start"):
+                continue
+            if status.get("revertible") is False:
+                candidate = rev
+                break
+        if candidate is None:
+            pytest.skip("No non-revertible revision available for back transition test")
+        rev_id = candidate.get("rev_id")
+        if rev_id is None:
+            pytest.skip("No rev_id available for not revertible test")
+        result = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{rev_id}/status-transitions",
+            json={"direction": "back"},
+        )
+        assert result["status"] == 409
