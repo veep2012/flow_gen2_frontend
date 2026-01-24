@@ -18,7 +18,7 @@ class PersonOut(BaseModel):
 
 
 class PersonUpdate(BaseModel):
-    person_id: int = Field(..., description="Person ID.", examples=[1], gt=0)
+    model_config = ConfigDict(extra="forbid")
     person_name: str | None = Field(
         None, description="Person name.", examples=["Person A"], min_length=1
     )
@@ -58,7 +58,7 @@ class UserOut(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    user_id: int = Field(..., description="User ID.", examples=[1], gt=0)
+    model_config = ConfigDict(extra="forbid")
     person_id: int | None = Field(None, description="Person ID.", examples=[1], gt=0)
     user_acronym: str | None = Field(
         None, description="User acronym.", examples=["ABC"], min_length=1
@@ -125,7 +125,6 @@ class PermissionDelete(BaseModel):
 
 
 class PermissionUpdate(BaseModel):
-    permission_id: int | None = Field(None, description="Permission ID.", examples=[1], gt=0)
     user_id: int = Field(..., description="User ID.", examples=[1], gt=0)
     project_id: int | None = Field(None, description="Project ID.", examples=[1], gt=0)
     discipline_id: int | None = Field(None, description="Discipline ID.", examples=[1], gt=0)

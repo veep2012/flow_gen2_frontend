@@ -17,33 +17,26 @@ from api.db.models import (
 )
 from api.schemas.documents import (
     DocRevStatusCreate,
-    DocRevStatusDelete,
     DocRevStatusOut,
     DocRevStatusUiBehaviorCreate,
-    DocRevStatusUiBehaviorDelete,
     DocRevStatusUiBehaviorOut,
     DocRevStatusUiBehaviorUpdate,
     DocRevStatusUpdate,
 )
 from api.schemas.lookups import (
     AreaCreate,
-    AreaDelete,
     AreaOut,
     AreaUpdate,
     DisciplineCreate,
-    DisciplineDelete,
     DisciplineOut,
     DisciplineUpdate,
     JobpackCreate,
-    JobpackDelete,
     JobpackOut,
     JobpackUpdate,
     ProjectCreate,
-    ProjectDelete,
     ProjectOut,
     ProjectUpdate,
     UnitCreate,
-    UnitDelete,
     UnitOut,
     UnitUpdate,
 )
@@ -116,6 +109,7 @@ def list_areas(db: Session = Depends(get_db)) -> list[AreaOut]:
 
 
 def update_area(
+    area_id: int,
     payload: AreaUpdate = Body(..., openapi_examples=_example_for(AreaUpdate)),
     db: Session = Depends(get_db),
 ) -> AreaOut:
@@ -125,7 +119,8 @@ def update_area(
     Updates the name and/or acronym of an existing area.
 
     Args:
-        payload: Area update data including area_id and at least one field to update.
+        area_id: Area ID to update.
+        payload: Area update data including at least one field to update.
 
     Returns:
         Updated area object.
@@ -137,7 +132,7 @@ def update_area(
     if payload.area_name is None and payload.area_acronym is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    area = db.get(Area, payload.area_id)
+    area = db.get(Area, area_id)
     if not area:
         raise HTTPException(status_code=404, detail="Area not found")
 
@@ -185,22 +180,19 @@ def insert_area(
     return _model_out(AreaOut, area)
 
 
-def delete_area(
-    payload: AreaDelete = Body(..., openapi_examples=_example_for(AreaDelete)),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_area(area_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete an area.
 
     Removes an area from the database by its ID.
 
     Args:
-        payload: Area deletion data including area_id.
+        area_id: Area ID to delete.
 
     Raises:
         HTTPException: 404 if area not found.
     """
-    area = db.get(Area, payload.area_id)
+    area = db.get(Area, area_id)
     if not area:
         raise HTTPException(status_code=404, detail="Area not found")
     db.delete(area)
@@ -269,6 +261,7 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[DisciplineOut]:
 
 
 def update_discipline(
+    discipline_id: int,
     payload: DisciplineUpdate = Body(..., openapi_examples=_example_for(DisciplineUpdate)),
     db: Session = Depends(get_db),
 ) -> DisciplineOut:
@@ -278,7 +271,8 @@ def update_discipline(
     Updates the name and/or acronym of an existing discipline.
 
     Args:
-        payload: Discipline update data including discipline_id and at least one field to update.
+        discipline_id: Discipline ID to update.
+        payload: Discipline update data including at least one field to update.
 
     Returns:
         Updated discipline object.
@@ -290,7 +284,7 @@ def update_discipline(
     if payload.discipline_name is None and payload.discipline_acronym is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    discipline = db.get(Discipline, payload.discipline_id)
+    discipline = db.get(Discipline, discipline_id)
     if not discipline:
         raise HTTPException(status_code=404, detail="Discipline not found")
 
@@ -349,22 +343,19 @@ def insert_discipline(
     return _model_out(DisciplineOut, discipline)
 
 
-def delete_discipline(
-    payload: DisciplineDelete = Body(..., openapi_examples=_example_for(DisciplineDelete)),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_discipline(discipline_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a discipline.
 
     Removes a discipline from the database by its ID.
 
     Args:
-        payload: Discipline deletion data including discipline_id.
+        discipline_id: Discipline ID to delete.
 
     Raises:
         HTTPException: 404 if discipline not found.
     """
-    discipline = db.get(Discipline, payload.discipline_id)
+    discipline = db.get(Discipline, discipline_id)
     if not discipline:
         raise HTTPException(status_code=404, detail="Discipline not found")
     db.delete(discipline)
@@ -433,6 +424,7 @@ def list_projects(db: Session = Depends(get_db)) -> list[ProjectOut]:
 
 
 def update_project(
+    project_id: int,
     payload: ProjectUpdate = Body(..., openapi_examples=_example_for(ProjectUpdate)),
     db: Session = Depends(get_db),
 ) -> ProjectOut:
@@ -442,7 +434,8 @@ def update_project(
     Updates the name of an existing project.
 
     Args:
-        payload: Project update data including project_id and new project_name.
+        project_id: Project ID to update.
+        payload: Project update data including new project_name.
 
     Returns:
         Updated project object.
@@ -454,7 +447,7 @@ def update_project(
     if payload.project_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    project = db.get(Project, payload.project_id)
+    project = db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -500,22 +493,19 @@ def insert_project(
     return _model_out(ProjectOut, project)
 
 
-def delete_project(
-    payload: ProjectDelete = Body(..., openapi_examples=_example_for(ProjectDelete)),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_project(project_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a project.
 
     Removes a project from the database by its ID.
 
     Args:
-        payload: Project deletion data including project_id.
+        project_id: Project ID to delete.
 
     Raises:
         HTTPException: 404 if project not found.
     """
-    project = db.get(Project, payload.project_id)
+    project = db.get(Project, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     db.delete(project)
@@ -584,6 +574,7 @@ def list_units(db: Session = Depends(get_db)) -> list[UnitOut]:
 
 
 def update_unit(
+    unit_id: int,
     payload: UnitUpdate = Body(..., openapi_examples=_example_for(UnitUpdate)),
     db: Session = Depends(get_db),
 ) -> UnitOut:
@@ -593,7 +584,8 @@ def update_unit(
     Updates the name of an existing unit.
 
     Args:
-        payload: Unit update data including unit_id and new unit_name.
+        unit_id: Unit ID to update.
+        payload: Unit update data including new unit_name.
 
     Returns:
         Updated unit object.
@@ -605,7 +597,7 @@ def update_unit(
     if payload.unit_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    unit = db.get(Unit, payload.unit_id)
+    unit = db.get(Unit, unit_id)
     if not unit:
         raise HTTPException(status_code=404, detail="Unit not found")
 
@@ -651,22 +643,19 @@ def insert_unit(
     return _model_out(UnitOut, unit)
 
 
-def delete_unit(
-    payload: UnitDelete = Body(..., openapi_examples=_example_for(UnitDelete)),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_unit(unit_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a unit.
 
     Removes a unit from the database by its ID.
 
     Args:
-        payload: Unit deletion data including unit_id.
+        unit_id: Unit ID to delete.
 
     Raises:
         HTTPException: 404 if unit not found.
     """
-    unit = db.get(Unit, payload.unit_id)
+    unit = db.get(Unit, unit_id)
     if not unit:
         raise HTTPException(status_code=404, detail="Unit not found")
     db.delete(unit)
@@ -735,6 +724,7 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[JobpackOut]:
 
 
 def update_jobpack(
+    jobpack_id: int,
     payload: JobpackUpdate = Body(..., openapi_examples=_example_for(JobpackUpdate)),
     db: Session = Depends(get_db),
 ) -> JobpackOut:
@@ -744,7 +734,8 @@ def update_jobpack(
     Updates the name of an existing jobpack.
 
     Args:
-        payload: Jobpack update data including jobpack_id and new jobpack_name.
+        jobpack_id: Jobpack ID to update.
+        payload: Jobpack update data including new jobpack_name.
 
     Returns:
         Updated jobpack object.
@@ -756,7 +747,7 @@ def update_jobpack(
     if payload.jobpack_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    jobpack = db.get(Jobpack, payload.jobpack_id)
+    jobpack = db.get(Jobpack, jobpack_id)
     if not jobpack:
         raise HTTPException(status_code=404, detail="Jobpack not found")
 
@@ -801,22 +792,19 @@ def insert_jobpack(
     return _model_out(JobpackOut, jobpack)
 
 
-def delete_jobpack(
-    payload: JobpackDelete = Body(..., openapi_examples=_example_for(JobpackDelete)),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_jobpack(jobpack_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a jobpack.
 
     Removes a jobpack from the database by its ID.
 
     Args:
-        payload: Jobpack deletion data including jobpack_id.
+        jobpack_id: Jobpack ID to delete.
 
     Raises:
         HTTPException: 404 if jobpack not found.
     """
-    jobpack = db.get(Jobpack, payload.jobpack_id)
+    jobpack = db.get(Jobpack, jobpack_id)
     if not jobpack:
         raise HTTPException(status_code=404, detail="Jobpack not found")
     db.delete(jobpack)
@@ -922,6 +910,7 @@ def insert_doc_rev_status_ui_behavior(
 
 
 def update_doc_rev_status_ui_behavior(
+    ui_behavior_id: int,
     payload: DocRevStatusUiBehaviorUpdate = Body(
         ..., openapi_examples=_example_for(DocRevStatusUiBehaviorUpdate)
     ),
@@ -931,7 +920,8 @@ def update_doc_rev_status_ui_behavior(
     Update an existing document revision status UI behavior.
 
     Args:
-        payload: UI behavior update data including ui_behavior_id and name.
+        ui_behavior_id: UI behavior ID to update.
+        payload: UI behavior update data including name.
 
     Returns:
         Updated UI behavior object.
@@ -943,7 +933,7 @@ def update_doc_rev_status_ui_behavior(
     if payload.ui_behavior_name is None and payload.ui_behavior_file is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    behavior = db.get(DocRevStatusUiBehavior, payload.ui_behavior_id)
+    behavior = db.get(DocRevStatusUiBehavior, ui_behavior_id)
     if not behavior:
         raise HTTPException(status_code=404, detail="Revision status UI behavior not found")
 
@@ -964,21 +954,18 @@ def update_doc_rev_status_ui_behavior(
 
 
 def delete_doc_rev_status_ui_behavior(
-    payload: DocRevStatusUiBehaviorDelete = Body(
-        ..., openapi_examples=_example_for(DocRevStatusUiBehaviorDelete)
-    ),
-    db: Session = Depends(get_db),
+    ui_behavior_id: int, db: Session = Depends(get_db)
 ) -> None:
     """
     Delete a document revision status UI behavior.
 
     Args:
-        payload: UI behavior deletion data including ui_behavior_id.
+        ui_behavior_id: UI behavior ID to delete.
 
     Raises:
         HTTPException: 404 if UI behavior not found.
     """
-    behavior = db.get(DocRevStatusUiBehavior, payload.ui_behavior_id)
+    behavior = db.get(DocRevStatusUiBehavior, ui_behavior_id)
     if not behavior:
         raise HTTPException(status_code=404, detail="Revision status UI behavior not found")
     db.delete(behavior)
@@ -1108,6 +1095,7 @@ def insert_doc_rev_status(
 
 
 def update_doc_rev_status(
+    rev_status_id: int,
     payload: DocRevStatusUpdate = Body(..., openapi_examples=_example_for(DocRevStatusUpdate)),
     db: Session = Depends(get_db),
 ) -> DocRevStatusOut:
@@ -1117,7 +1105,8 @@ def update_doc_rev_status(
     Updates the name of an existing document revision status.
 
     Args:
-        payload: Document revision status update data including rev_status_id and rev_status_name.
+        rev_status_id: Revision status ID to update.
+        payload: Document revision status update data including rev_status_name.
 
     Returns:
         Updated document revision status object.
@@ -1138,7 +1127,7 @@ def update_doc_rev_status(
     if not update_fields.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    status = db.get(DocRevStatus, payload.rev_status_id)
+    status = db.get(DocRevStatus, rev_status_id)
     if not status:
         raise HTTPException(status_code=404, detail="Revision status not found")
 
@@ -1247,22 +1236,19 @@ def update_doc_rev_status(
     return _model_out(DocRevStatusOut, status)
 
 
-def delete_doc_rev_status(
-    payload: DocRevStatusDelete = Body(..., openapi_examples=_example_for(DocRevStatusDelete)),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_doc_rev_status(rev_status_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a document revision status.
 
     Removes a document revision status from the database by its ID.
 
     Args:
-        payload: Document revision status deletion data including rev_status_id.
+        rev_status_id: Revision status ID to delete.
 
     Raises:
         HTTPException: 404 if status not found.
     """
-    status = db.get(DocRevStatus, payload.rev_status_id)
+    status = db.get(DocRevStatus, rev_status_id)
     if not status:
         raise HTTPException(status_code=404, detail="Revision status not found")
     db.delete(status)
@@ -1330,9 +1316,7 @@ def update_area_rest(
     payload: AreaUpdate = Body(..., openapi_examples=_example_for(AreaUpdate)),
     db: Session = Depends(get_db),
 ) -> AreaOut:
-    if payload.area_id != area_id:
-        raise HTTPException(status_code=400, detail="area_id mismatch")
-    return update_area(payload, db)
+    return update_area(area_id, payload, db)
 
 
 @router.delete(
@@ -1344,7 +1328,7 @@ def update_area_rest(
     responses=_REST_RESPONSES,
 )
 def delete_area_rest(area_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_area(AreaDelete(area_id=area_id), db)
+    return delete_area(area_id, db)
 
 
 @router.post(
@@ -1376,9 +1360,7 @@ def update_discipline_rest(
     payload: DisciplineUpdate = Body(..., openapi_examples=_example_for(DisciplineUpdate)),
     db: Session = Depends(get_db),
 ) -> DisciplineOut:
-    if payload.discipline_id != discipline_id:
-        raise HTTPException(status_code=400, detail="discipline_id mismatch")
-    return update_discipline(payload, db)
+    return update_discipline(discipline_id, payload, db)
 
 
 @router.delete(
@@ -1390,7 +1372,7 @@ def update_discipline_rest(
     responses=_REST_RESPONSES,
 )
 def delete_discipline_rest(discipline_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_discipline(DisciplineDelete(discipline_id=discipline_id), db)
+    return delete_discipline(discipline_id, db)
 
 
 @router.post(
@@ -1422,9 +1404,7 @@ def update_project_rest(
     payload: ProjectUpdate = Body(..., openapi_examples=_example_for(ProjectUpdate)),
     db: Session = Depends(get_db),
 ) -> ProjectOut:
-    if payload.project_id != project_id:
-        raise HTTPException(status_code=400, detail="project_id mismatch")
-    return update_project(payload, db)
+    return update_project(project_id, payload, db)
 
 
 @router.delete(
@@ -1436,7 +1416,7 @@ def update_project_rest(
     responses=_REST_RESPONSES,
 )
 def delete_project_rest(project_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_project(ProjectDelete(project_id=project_id), db)
+    return delete_project(project_id, db)
 
 
 @router.post(
@@ -1468,9 +1448,7 @@ def update_unit_rest(
     payload: UnitUpdate = Body(..., openapi_examples=_example_for(UnitUpdate)),
     db: Session = Depends(get_db),
 ) -> UnitOut:
-    if payload.unit_id != unit_id:
-        raise HTTPException(status_code=400, detail="unit_id mismatch")
-    return update_unit(payload, db)
+    return update_unit(unit_id, payload, db)
 
 
 @router.delete(
@@ -1482,7 +1460,7 @@ def update_unit_rest(
     responses=_REST_RESPONSES,
 )
 def delete_unit_rest(unit_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_unit(UnitDelete(unit_id=unit_id), db)
+    return delete_unit(unit_id, db)
 
 
 @router.post(
@@ -1514,9 +1492,7 @@ def update_jobpack_rest(
     payload: JobpackUpdate = Body(..., openapi_examples=_example_for(JobpackUpdate)),
     db: Session = Depends(get_db),
 ) -> JobpackOut:
-    if payload.jobpack_id != jobpack_id:
-        raise HTTPException(status_code=400, detail="jobpack_id mismatch")
-    return update_jobpack(payload, db)
+    return update_jobpack(jobpack_id, payload, db)
 
 
 @router.delete(
@@ -1528,7 +1504,7 @@ def update_jobpack_rest(
     responses=_REST_RESPONSES,
 )
 def delete_jobpack_rest(jobpack_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_jobpack(JobpackDelete(jobpack_id=jobpack_id), db)
+    return delete_jobpack(jobpack_id, db)
 
 
 @router.post(
@@ -1564,9 +1540,7 @@ def update_doc_rev_status_ui_behavior_rest(
     ),
     db: Session = Depends(get_db),
 ) -> DocRevStatusUiBehaviorOut:
-    if payload.ui_behavior_id != ui_behavior_id:
-        raise HTTPException(status_code=400, detail="ui_behavior_id mismatch")
-    return update_doc_rev_status_ui_behavior(payload, db)
+    return update_doc_rev_status_ui_behavior(ui_behavior_id, payload, db)
 
 
 @router.delete(
@@ -1581,9 +1555,7 @@ def delete_doc_rev_status_ui_behavior_rest(
     ui_behavior_id: int,
     db: Session = Depends(get_db),
 ) -> None:
-    return delete_doc_rev_status_ui_behavior(
-        DocRevStatusUiBehaviorDelete(ui_behavior_id=ui_behavior_id), db
-    )
+    return delete_doc_rev_status_ui_behavior(ui_behavior_id, db)
 
 
 @router.post(
@@ -1615,9 +1587,7 @@ def update_doc_rev_status_rest(
     payload: DocRevStatusUpdate = Body(..., openapi_examples=_example_for(DocRevStatusUpdate)),
     db: Session = Depends(get_db),
 ) -> DocRevStatusOut:
-    if payload.rev_status_id != rev_status_id:
-        raise HTTPException(status_code=400, detail="rev_status_id mismatch")
-    return update_doc_rev_status(payload, db)
+    return update_doc_rev_status(rev_status_id, payload, db)
 
 
 @router.delete(
@@ -1629,4 +1599,4 @@ def update_doc_rev_status_rest(
     responses=_REST_RESPONSES,
 )
 def delete_doc_rev_status_rest(rev_status_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_doc_rev_status(DocRevStatusDelete(rev_status_id=rev_status_id), db)
+    return delete_doc_rev_status(rev_status_id, db)

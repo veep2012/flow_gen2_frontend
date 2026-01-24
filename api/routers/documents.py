@@ -5,7 +5,8 @@ from datetime import datetime, timezone
 from typing import Any, TypeVar
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session, aliased, joinedload
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -29,18 +30,16 @@ from api.schemas.documents import (
     DocOut,
     DocRevisionCreate,
     DocRevisionOut,
+    DocRevisionStatusTransition,
     DocRevisionUpdate,
     DocRevMilestoneCreate,
-    DocRevMilestoneDelete,
     DocRevMilestoneOut,
     DocRevMilestoneUpdate,
     DocTypeCreate,
-    DocTypeDelete,
     DocTypeOut,
     DocTypeUpdate,
     DocUpdate,
     RevisionOverviewCreate,
-    RevisionOverviewDelete,
     RevisionOverviewOut,
     RevisionOverviewUpdate,
 )
@@ -179,6 +178,7 @@ def insert_doc_type(
 
 
 def update_doc_type(
+    type_id: int,
     payload: DocTypeUpdate = Body(..., openapi_examples=_example_for(DocTypeUpdate)),
     db: Session = Depends(get_db),
 ) -> DocTypeOut:
@@ -188,7 +188,8 @@ def update_doc_type(
     Updates the name, acronym, and/or discipline reference of an existing document type.
 
     Args:
-        payload: Document type update data including type_id and at least one field to update.
+        type_id: Document type ID to update.
+        payload: Document type update data including at least one field to update.
 
     Returns:
         Updated document type object.
@@ -204,7 +205,7 @@ def update_doc_type(
     ):
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    doc_type = db.get(DocType, payload.type_id)
+    doc_type = db.get(DocType, type_id)
     if not doc_type:
         raise HTTPException(status_code=404, detail="Doc type not found")
 
@@ -229,22 +230,19 @@ def update_doc_type(
     return _build_doc_type_out(doc_type)
 
 
-def delete_doc_type(
-    payload: DocTypeDelete = Body(..., openapi_examples=_example_for(DocTypeDelete)),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_doc_type(type_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a document type.
 
     Removes a document type from the database by its ID.
 
     Args:
-        payload: Document type deletion data including type_id.
+        type_id: Document type ID to delete.
 
     Raises:
         HTTPException: 404 if document type not found.
     """
-    doc_type = db.get(DocType, payload.type_id)
+    doc_type = db.get(DocType, type_id)
     if not doc_type:
         raise HTTPException(status_code=404, detail="Doc type not found")
     db.delete(doc_type)
@@ -532,6 +530,7 @@ def list_document_revisions(
 
 
 def update_document_revision(
+    rev_id: int,
     payload: DocRevisionUpdate = Body(..., openapi_examples=_example_for(DocRevisionUpdate)),
     db: Session = Depends(get_db),
 ) -> DocRevisionOut:
@@ -542,7 +541,8 @@ def update_document_revision(
     least one field must be provided.
 
     Args:
-        payload: Revision update data including rev_id and at least one field to update.
+        rev_id: Revision ID to update.
+        payload: Revision update data including at least one field to update.
 
     Returns:
         Updated document revision with metadata.
@@ -552,11 +552,9 @@ def update_document_revision(
         HTTPException: 404 if revision or referenced entities not found.
     """
     updates = payload.model_dump(exclude_unset=True)
-    updates.pop("rev_id", None)
     if not updates:
         raise HTTPException(status_code=400, detail="No fields provided for update")
-
-    revision = db.get(DocRevision, payload.rev_id)
+    revision = db.get(DocRevision, rev_id)
     if not revision:
         raise HTTPException(status_code=404, detail="Revision not found")
     revision.updated_by = None
@@ -564,14 +562,8 @@ def update_document_revision(
     doc_for_revision = db.get(Doc, revision.doc_id)
     if not doc_for_revision or doc_for_revision.voided:
         raise HTTPException(status_code=404, detail="Document not found")
-    if payload.doc_id is not None:
-        doc_ref = db.get(Doc, payload.doc_id)
-        if not doc_ref or doc_ref.voided:
-            raise HTTPException(status_code=404, detail="Document not found")
     if payload.rev_code_id is not None and not db.get(RevisionOverview, payload.rev_code_id):
         raise HTTPException(status_code=404, detail="Revision code not found")
-    if payload.rev_status_id is not None and not db.get(DocRevStatus, payload.rev_status_id):
-        raise HTTPException(status_code=404, detail="Revision status not found")
     if payload.milestone_id is not None and not db.get(DocRevMilestone, payload.milestone_id):
         raise HTTPException(status_code=404, detail="Milestone not found")
     if payload.rev_author_id is not None and not db.get(Person, payload.rev_author_id):
@@ -636,94 +628,17 @@ def update_document_revision(
     return _model_out(DocRevisionOut, response_payload)
 
 
-def insert_document_revision(
-    doc_id: int,
-    payload: DocRevisionCreate = Body(..., openapi_examples=_example_for(DocRevisionCreate)),
-    db: Session = Depends(get_db),
-) -> DocRevisionOut:
-    """
-    Create a new document revision.
-
-    Creates a revision for the specified document. The sequence number is auto-assigned as
-    max(seq_num)+1 for the document.
-
-    Args:
-        doc_id: Document ID to attach the revision to.
-        payload: Revision creation data.
-
-    Returns:
-        Newly created document revision with metadata.
-
-    Raises:
-        HTTPException: 404 if document or referenced entities not found.
-    """
-    doc = db.get(Doc, doc_id)
-    if not doc or doc.voided:
-        raise HTTPException(status_code=404, detail="Document not found")
-    if not db.get(RevisionOverview, payload.rev_code_id):
-        raise HTTPException(status_code=404, detail="Revision code not found")
-    if not db.get(DocRevStatus, payload.rev_status_id):
-        raise HTTPException(status_code=404, detail="Revision status not found")
-    if payload.milestone_id is not None and not db.get(DocRevMilestone, payload.milestone_id):
-        raise HTTPException(status_code=404, detail="Milestone not found")
-    if not db.get(Person, payload.rev_author_id):
-        raise HTTPException(status_code=404, detail="Revision author not found")
-    if not db.get(Person, payload.rev_originator_id):
-        raise HTTPException(status_code=404, detail="Revision originator not found")
-    if not db.get(Person, payload.rev_modifier_id):
-        raise HTTPException(status_code=404, detail="Revision modifier not found")
-
-    max_seq = (
-        db.query(DocRevision.seq_num)
-        .filter(DocRevision.doc_id == doc_id)
-        .order_by(DocRevision.seq_num.desc())
-        .limit(1)
-        .scalar()
-    )
-    seq_num = 1 if max_seq is None else max_seq + 1
-
-    new_revision = DocRevision(
-        doc_id=doc_id,
-        seq_num=seq_num,
-        rev_code_id=payload.rev_code_id,
-        rev_date=_normalize_dt(payload.rev_date) or datetime.now(timezone.utc),
-        rev_author_id=payload.rev_author_id,
-        rev_originator_id=payload.rev_originator_id,
-        rev_modifier_id=payload.rev_modifier_id,
-        transmital_current_revision=payload.transmital_current_revision,
-        milestone_id=payload.milestone_id,
-        planned_start_date=_normalize_dt(payload.planned_start_date),
-        planned_finish_date=_normalize_dt(payload.planned_finish_date),
-        actual_start_date=_normalize_dt(payload.actual_start_date),
-        actual_finish_date=_normalize_dt(payload.actual_finish_date),
-        canceled_date=_normalize_dt(payload.canceled_date),
-        rev_status_id=payload.rev_status_id,
-        as_built=payload.as_built,
-        superseded=payload.superseded,
-        voided=payload.voided,
-        modified_doc_date=_normalize_dt(payload.modified_doc_date) or datetime.now(timezone.utc),
-    )
-    db.add(new_revision)
-    try:
-        db.commit()
-    except IntegrityError as err:
-        db.rollback()
-        _handle_integrity_error("Failed to create revision", err, "insert_document_revision")
-    except Exception as err:
-        db.rollback()
-        logger.exception("Failed to create revision doc_id=%s", doc_id)
-        raise HTTPException(status_code=500, detail="Internal Server Error") from err
-
+def _build_doc_revision_out(db: Session, rev_id: int) -> DocRevisionOut:
     row = (
         db.query(DocRevision, RevisionOverview, DocRevStatus, DocRevMilestone)
         .outerjoin(RevisionOverview, DocRevision.rev_code_id == RevisionOverview.rev_code_id)
         .outerjoin(DocRevStatus, DocRevision.rev_status_id == DocRevStatus.rev_status_id)
         .outerjoin(DocRevMilestone, DocRevision.milestone_id == DocRevMilestone.milestone_id)
-        .filter(DocRevision.rev_id == new_revision.rev_id)
+        .filter(DocRevision.rev_id == rev_id)
         .one_or_none()
     )
     if not row:
-        raise HTTPException(status_code=404, detail="Revision not found after insert")
+        raise HTTPException(status_code=404, detail="Revision not found")
 
     rev, overview, status, milestone = row
     response_payload = {
@@ -760,7 +675,146 @@ def insert_document_revision(
     return _model_out(DocRevisionOut, response_payload)
 
 
+_REV_STATUS_TRANSITION_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("already at final status", 409, "Revision already at final status"),
+    ("already at start status", 409, "Revision already at start status"),
+    ("not revertible", 409, "Revision status not revertible"),
+    ("previous status not found", 409, "Previous status not found"),
+    ("invalid direction", 400, "Invalid direction"),
+    ("revision not found", 404, "Revision not found"),
+)
+
+
+def _raise_for_status_transition_db_error(err: DBAPIError) -> None:
+    message = str(err.orig) if getattr(err, "orig", None) else str(err)
+    lowered = message.lower()
+    for needle, status_code, detail in _REV_STATUS_TRANSITION_ERROR_MAP:
+        if needle in lowered:
+            raise HTTPException(status_code=status_code, detail=detail)
+    raise HTTPException(status_code=500, detail="Failed to transition revision status")
+
+
+def create_revision_status_transition(
+    rev_id: int,
+    payload: DocRevisionStatusTransition = Body(
+        ..., openapi_examples=_example_for(DocRevisionStatusTransition)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevisionOut:
+    """
+    Transition a document revision status forward or back.
+
+    Status changes are enforced by database rules (start/final/revertible).
+    """
+    revision = db.get(DocRevision, rev_id)
+    if not revision:
+        raise HTTPException(status_code=404, detail="Revision not found")
+
+    doc_for_revision = db.get(Doc, revision.doc_id)
+    if not doc_for_revision or doc_for_revision.voided:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    try:
+        db.execute(
+            text("SELECT flow.doc_revision_status_transform(:rev_id, :direction)"),
+            {"rev_id": rev_id, "direction": payload.direction},
+        )
+        db.commit()
+    except DBAPIError as err:
+        db.rollback()
+        _raise_for_status_transition_db_error(err)
+
+    return _build_doc_revision_out(db, rev_id)
+
+
+def insert_document_revision(
+    doc_id: int,
+    payload: DocRevisionCreate = Body(..., openapi_examples=_example_for(DocRevisionCreate)),
+    db: Session = Depends(get_db),
+) -> DocRevisionOut:
+    """
+    Create a new document revision.
+
+    Creates a revision for the specified document. The sequence number is auto-assigned as
+    max(seq_num)+1 for the document.
+
+    Args:
+        doc_id: Document ID to attach the revision to.
+        payload: Revision creation data.
+
+    Returns:
+        Newly created document revision with metadata.
+
+    Raises:
+        HTTPException: 404 if document or referenced entities not found.
+    """
+    doc = db.get(Doc, doc_id)
+    if not doc or doc.voided:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not db.get(RevisionOverview, payload.rev_code_id):
+        raise HTTPException(status_code=404, detail="Revision code not found")
+    if payload.milestone_id is not None and not db.get(DocRevMilestone, payload.milestone_id):
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    if not db.get(Person, payload.rev_author_id):
+        raise HTTPException(status_code=404, detail="Revision author not found")
+    if not db.get(Person, payload.rev_originator_id):
+        raise HTTPException(status_code=404, detail="Revision originator not found")
+    if not db.get(Person, payload.rev_modifier_id):
+        raise HTTPException(status_code=404, detail="Revision modifier not found")
+
+    max_seq = (
+        db.query(DocRevision.seq_num)
+        .filter(DocRevision.doc_id == doc_id)
+        .order_by(DocRevision.seq_num.desc())
+        .limit(1)
+        .scalar()
+    )
+    seq_num = 1 if max_seq is None else max_seq + 1
+
+    new_revision = DocRevision(
+        doc_id=doc_id,
+        seq_num=seq_num,
+        rev_code_id=payload.rev_code_id,
+        rev_date=_normalize_dt(payload.rev_date) or datetime.now(timezone.utc),
+        rev_author_id=payload.rev_author_id,
+        rev_originator_id=payload.rev_originator_id,
+        rev_modifier_id=payload.rev_modifier_id,
+        transmital_current_revision=payload.transmital_current_revision,
+        milestone_id=payload.milestone_id,
+        planned_start_date=_normalize_dt(payload.planned_start_date),
+        planned_finish_date=_normalize_dt(payload.planned_finish_date),
+        actual_start_date=_normalize_dt(payload.actual_start_date),
+        actual_finish_date=_normalize_dt(payload.actual_finish_date),
+        canceled_date=_normalize_dt(payload.canceled_date),
+        rev_status_id=None,
+        as_built=payload.as_built,
+        superseded=payload.superseded,
+        voided=payload.voided,
+        modified_doc_date=_normalize_dt(payload.modified_doc_date) or datetime.now(timezone.utc),
+    )
+    db.add(new_revision)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        _handle_integrity_error("Failed to create revision", err, "insert_document_revision")
+    except DBAPIError as err:
+        db.rollback()
+        message = str(err.orig) if getattr(err, "orig", None) else str(err)
+        if "No start status found in doc_rev_statuses" in message:
+            raise HTTPException(
+                status_code=400, detail="No start status found in doc_rev_statuses"
+            ) from err
+        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+    except Exception as err:
+        db.rollback()
+        logger.exception("Failed to create revision doc_id=%s", doc_id)
+        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+    return _build_doc_revision_out(db, new_revision.rev_id)
+
+
 def update_document(
+    doc_id: int,
     payload: DocUpdate = Body(..., openapi_examples=_example_for(DocUpdate)),
     db: Session = Depends(get_db),
 ) -> DocOut:
@@ -772,7 +826,8 @@ def update_document(
     name uniqueness.
 
     Args:
-        payload: Document update data including doc_id and at least one field to update.
+        doc_id: Document ID to update.
+        payload: Document update data including at least one field to update.
 
     Returns:
         Updated document with complete metadata.
@@ -783,11 +838,10 @@ def update_document(
         HTTPException: 404 if document or any referenced entity not found.
     """
     updates = payload.model_dump(exclude_unset=True)
-    updates.pop("doc_id", None)
     if not updates:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    doc = db.get(Doc, payload.doc_id)
+    doc = db.get(Doc, doc_id)
     if not doc or doc.voided:
         raise HTTPException(status_code=404, detail="Document not found")
     doc.updated_by = None
@@ -1001,68 +1055,76 @@ def insert_document(
     if not db.get(Person, payload.rev_modifier_id):
         raise HTTPException(status_code=404, detail="Revision modifier not found")
 
-    # Get the start status
-    start_status = db.query(DocRevStatus).filter(DocRevStatus.start.is_(True)).first()
-    if not start_status:
-        raise HTTPException(status_code=400, detail="No start status found in doc_rev_statuses")
-
-    # Create the document
-    new_doc = Doc(
-        doc_name_unique=payload.doc_name_unique,
-        title=payload.title,
-        project_id=payload.project_id,
-        jobpack_id=payload.jobpack_id,
-        type_id=payload.type_id,
-        area_id=payload.area_id,
-        unit_id=payload.unit_id,
-    )
-    db.add(new_doc)
+    # Create the document and initial revision in the database
     try:
-        db.flush()  # Flush to get the doc_id without committing
+        result = db.execute(
+            text(
+                """
+                SELECT out_doc_id AS doc_id, out_rev_id AS rev_id
+                FROM flow.create_doc_with_revision(
+                    :doc_name_unique,
+                    :title,
+                    :project_id,
+                    :jobpack_id,
+                    :type_id,
+                    :area_id,
+                    :unit_id,
+                    :rev_code_id,
+                    :rev_date,
+                    :rev_author_id,
+                    :rev_originator_id,
+                    :rev_modifier_id,
+                    :transmital_current_revision,
+                    :milestone_id,
+                    :planned_start_date,
+                    :planned_finish_date,
+                    :actual_start_date,
+                    :actual_finish_date,
+                    :canceled_date,
+                    :modified_doc_date
+                )
+                """
+            ),
+            {
+                "doc_name_unique": payload.doc_name_unique,
+                "title": payload.title,
+                "project_id": payload.project_id,
+                "jobpack_id": payload.jobpack_id,
+                "type_id": payload.type_id,
+                "area_id": payload.area_id,
+                "unit_id": payload.unit_id,
+                "rev_code_id": payload.rev_code_id,
+                "rev_date": _normalize_dt(getattr(payload, "rev_date", None)),
+                "rev_author_id": payload.rev_author_id,
+                "rev_originator_id": payload.rev_originator_id,
+                "rev_modifier_id": payload.rev_modifier_id,
+                "transmital_current_revision": payload.transmital_current_revision,
+                "milestone_id": payload.milestone_id,
+                "planned_start_date": _normalize_dt(payload.planned_start_date),
+                "planned_finish_date": _normalize_dt(payload.planned_finish_date),
+                "actual_start_date": _normalize_dt(getattr(payload, "actual_start_date", None)),
+                "actual_finish_date": _normalize_dt(getattr(payload, "actual_finish_date", None)),
+                "canceled_date": _normalize_dt(getattr(payload, "canceled_date", None)),
+                "modified_doc_date": _normalize_dt(getattr(payload, "modified_doc_date", None)),
+            },
+        ).one()
+        doc_id = result.doc_id
     except IntegrityError as err:
         db.rollback()
         _handle_integrity_error("Document name must be unique", err, "insert_document")
-
-    # Create the initial revision with start status
-    new_revision = DocRevision(
-        doc_id=new_doc.doc_id,
-        seq_num=1,
-        rev_code_id=payload.rev_code_id,
-        rev_date=datetime.now(timezone.utc),
-        rev_author_id=payload.rev_author_id,
-        rev_originator_id=payload.rev_originator_id,
-        rev_modifier_id=payload.rev_modifier_id,
-        transmital_current_revision=payload.transmital_current_revision,
-        milestone_id=payload.milestone_id,
-        planned_start_date=_normalize_dt(payload.planned_start_date),
-        planned_finish_date=_normalize_dt(payload.planned_finish_date),
-        actual_start_date=None,
-        actual_finish_date=None,
-        canceled_date=None,
-        rev_status_id=start_status.rev_status_id,
-        as_built=False,
-        superseded=False,
-        voided=False,
-        modified_doc_date=datetime.now(timezone.utc),
-    )
-    db.add(new_revision)
-    try:
-        db.flush()  # Flush to get the rev_id
-    except IntegrityError as err:
+    except DBAPIError as err:
         db.rollback()
-        _handle_integrity_error("Failed to create initial revision", err, "insert_document")
-    except Exception as err:
-        db.rollback()
-        logger.exception("Failed to create initial revision for doc_id=%s", new_doc.doc_id)
+        message = str(err.orig) if getattr(err, "orig", None) else str(err)
+        if "No start status found in doc_rev_statuses" in message:
+            raise HTTPException(
+                status_code=400, detail="No start status found in doc_rev_statuses"
+            ) from err
         raise HTTPException(status_code=500, detail="Internal Server Error") from err
-
-    # Set the current revision to the newly created revision
-    new_doc.rev_current_id = new_revision.rev_id
     try:
         db.commit()
     except Exception as err:
         db.rollback()
-        logger.exception("Failed to commit document doc_id=%s", new_doc.doc_id)
+        logger.exception("Failed to commit document doc_id=%s", doc_id)
         raise HTTPException(status_code=500, detail="Internal Server Error") from err
 
     # Fetch the complete document with all relationships
@@ -1077,7 +1139,7 @@ def insert_document(
             joinedload(Doc.current_revision).joinedload(DocRevision.revision_overview),
             joinedload(Doc.current_revision).joinedload(DocRevision.status),
         )
-        .filter(Doc.doc_id == new_doc.doc_id)
+        .filter(Doc.doc_id == doc_id)
         .one_or_none()
     )
     if not doc_row:
@@ -1190,6 +1252,7 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
 
 
 def update_doc_rev_milestone(
+    milestone_id: int,
     payload: DocRevMilestoneUpdate = Body(
         ..., openapi_examples=_example_for(DocRevMilestoneUpdate)
     ),
@@ -1201,7 +1264,8 @@ def update_doc_rev_milestone(
     Updates the name and/or progress percentage of an existing milestone.
 
     Args:
-        payload: Milestone update data including milestone_id and at least one field to update.
+        milestone_id: Milestone ID to update.
+        payload: Milestone update data including at least one field to update.
 
     Returns:
         Updated milestone object.
@@ -1213,7 +1277,7 @@ def update_doc_rev_milestone(
     if payload.milestone_name is None and payload.progress is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    milestone = db.get(DocRevMilestone, payload.milestone_id)
+    milestone = db.get(DocRevMilestone, milestone_id)
     if not milestone:
         raise HTTPException(status_code=404, detail="Milestone not found")
 
@@ -1263,24 +1327,19 @@ def insert_doc_rev_milestone(
     return _model_out(DocRevMilestoneOut, milestone)
 
 
-def delete_doc_rev_milestone(
-    payload: DocRevMilestoneDelete = Body(
-        ..., openapi_examples=_example_for(DocRevMilestoneDelete)
-    ),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_doc_rev_milestone(milestone_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a document revision milestone.
 
     Removes a milestone from the database by its ID.
 
     Args:
-        payload: Milestone deletion data including milestone_id.
+        milestone_id: Milestone ID to delete.
 
     Raises:
         HTTPException: 404 if milestone not found.
     """
-    milestone = db.get(DocRevMilestone, payload.milestone_id)
+    milestone = db.get(DocRevMilestone, milestone_id)
     if not milestone:
         raise HTTPException(status_code=404, detail="Milestone not found")
     db.delete(milestone)
@@ -1349,6 +1408,7 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
 
 
 def update_revision_overview(
+    rev_code_id: int,
     payload: RevisionOverviewUpdate = Body(
         ..., openapi_examples=_example_for(RevisionOverviewUpdate)
     ),
@@ -1361,8 +1421,8 @@ def update_revision_overview(
     entry.
 
     Args:
-        payload: Revision overview update data including rev_code_id and at least
-        one field to update.
+        rev_code_id: Revision code ID to update.
+        payload: Revision overview update data including at least one field to update.
 
     Returns:
         Updated revision overview object.
@@ -1379,7 +1439,7 @@ def update_revision_overview(
     ):
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    revision = db.get(RevisionOverview, payload.rev_code_id)
+    revision = db.get(RevisionOverview, rev_code_id)
     if not revision:
         raise HTTPException(status_code=404, detail="Revision overview entry not found")
 
@@ -1444,24 +1504,19 @@ def insert_revision_overview(
     return _model_out(RevisionOverviewOut, revision)
 
 
-def delete_revision_overview(
-    payload: RevisionOverviewDelete = Body(
-        ..., openapi_examples=_example_for(RevisionOverviewDelete)
-    ),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_revision_overview(rev_code_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a revision overview entry.
 
     Removes a revision overview entry from the database by its ID.
 
     Args:
-        payload: Revision overview deletion data including rev_code_id.
+        rev_code_id: Revision overview ID to delete.
 
     Raises:
         HTTPException: 404 if revision overview entry not found.
     """
-    revision = db.get(RevisionOverview, payload.rev_code_id)
+    revision = db.get(RevisionOverview, rev_code_id)
     if not revision:
         raise HTTPException(status_code=404, detail="Revision overview entry not found")
     db.delete(revision)
@@ -1533,9 +1588,7 @@ def update_doc_type_rest(
     payload: DocTypeUpdate = Body(..., openapi_examples=_example_for(DocTypeUpdate)),
     db: Session = Depends(get_db),
 ) -> DocTypeOut:
-    if payload.type_id != type_id:
-        raise HTTPException(status_code=400, detail="type_id mismatch")
-    return update_doc_type(payload, db)
+    return update_doc_type(type_id, payload, db)
 
 
 @router.delete(
@@ -1547,7 +1600,7 @@ def update_doc_type_rest(
     responses=_REST_RESPONSES,
 )
 def delete_doc_type_rest(type_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_doc_type(DocTypeDelete(type_id=type_id), db)
+    return delete_doc_type(type_id, db)
 
 
 @router.post(
@@ -1582,9 +1635,7 @@ def update_doc_rev_milestone_rest(
     ),
     db: Session = Depends(get_db),
 ) -> DocRevMilestoneOut:
-    if payload.milestone_id != milestone_id:
-        raise HTTPException(status_code=400, detail="milestone_id mismatch")
-    return update_doc_rev_milestone(payload, db)
+    return update_doc_rev_milestone(milestone_id, payload, db)
 
 
 @router.delete(
@@ -1595,7 +1646,7 @@ def update_doc_rev_milestone_rest(
     responses=_REST_RESPONSES,
 )
 def delete_doc_rev_milestone_rest(milestone_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_doc_rev_milestone(DocRevMilestoneDelete(milestone_id=milestone_id), db)
+    return delete_doc_rev_milestone(milestone_id, db)
 
 
 @router.post(
@@ -1630,9 +1681,7 @@ def update_revision_overview_rest(
     ),
     db: Session = Depends(get_db),
 ) -> RevisionOverviewOut:
-    if payload.rev_code_id != rev_code_id:
-        raise HTTPException(status_code=400, detail="rev_code_id mismatch")
-    return update_revision_overview(payload, db)
+    return update_revision_overview(rev_code_id, payload, db)
 
 
 @router.delete(
@@ -1643,7 +1692,7 @@ def update_revision_overview_rest(
     responses=_REST_RESPONSES,
 )
 def delete_revision_overview_rest(rev_code_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_revision_overview(RevisionOverviewDelete(rev_code_id=rev_code_id), db)
+    return delete_revision_overview(rev_code_id, db)
 
 
 @router.put(
@@ -1659,9 +1708,7 @@ def update_document_rest(
     payload: DocUpdate = Body(..., openapi_examples=_example_for(DocUpdate)),
     db: Session = Depends(get_db),
 ) -> DocOut:
-    if payload.doc_id != doc_id:
-        raise HTTPException(status_code=400, detail="doc_id mismatch")
-    return update_document(payload, db)
+    return update_document(doc_id, payload, db)
 
 
 @router.put(
@@ -1677,9 +1724,25 @@ def update_document_revision_rest(
     payload: DocRevisionUpdate = Body(..., openapi_examples=_example_for(DocRevisionUpdate)),
     db: Session = Depends(get_db),
 ) -> DocRevisionOut:
-    if payload.rev_id != rev_id:
-        raise HTTPException(status_code=400, detail="rev_id mismatch")
-    return update_document_revision(payload, db)
+    return update_document_revision(rev_id, payload, db)
+
+
+@router.post(
+    "/revisions/{rev_id}/status-transitions",
+    summary="Transition a document revision status (REST).",
+    description="Moves a revision status forward or back according to workflow rules.",
+    response_model=DocRevisionOut,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def create_revision_status_transition_rest(
+    rev_id: int,
+    payload: DocRevisionStatusTransition = Body(
+        ..., openapi_examples=_example_for(DocRevisionStatusTransition)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevisionOut:
+    return create_revision_status_transition(rev_id, payload, db)
 
 
 @router.post(

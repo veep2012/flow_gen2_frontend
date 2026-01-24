@@ -27,12 +27,8 @@ class AreaOut(BaseModel):
 
 
 class AreaUpdate(BaseModel):
-    area_id: int = Field(
-        ...,
-        description="Area ID.",
-        examples=[1],
-        gt=0,
-    )
+    model_config = ConfigDict(extra="forbid")
+
     area_name: str | None = Field(
         None,
         description="Area name.",
@@ -95,12 +91,7 @@ class DisciplineOut(BaseModel):
 
 
 class DisciplineUpdate(BaseModel):
-    discipline_id: int = Field(
-        ...,
-        description="Discipline ID.",
-        examples=[1],
-        gt=0,
-    )
+    model_config = ConfigDict(extra="forbid")
     discipline_name: str | None = Field(
         None,
         description="Discipline name.",
@@ -157,12 +148,7 @@ class ProjectOut(BaseModel):
 
 
 class ProjectUpdate(BaseModel):
-    project_id: int = Field(
-        ...,
-        description="Project ID.",
-        examples=[1],
-        gt=0,
-    )
+    model_config = ConfigDict(extra="forbid")
     project_name: str | None = Field(
         None,
         description="Project name.",
@@ -207,12 +193,7 @@ class UnitOut(BaseModel):
 
 
 class UnitUpdate(BaseModel):
-    unit_id: int = Field(
-        ...,
-        description="Unit ID.",
-        examples=[1],
-        gt=0,
-    )
+    model_config = ConfigDict(extra="forbid")
     unit_name: str | None = Field(
         None,
         description="Unit name.",
@@ -257,12 +238,7 @@ class JobpackOut(BaseModel):
 
 
 class JobpackUpdate(BaseModel):
-    jobpack_id: int = Field(
-        ...,
-        description="Jobpack ID.",
-        examples=[1],
-        gt=0,
-    )
+    model_config = ConfigDict(extra="forbid")
     jobpack_name: str | None = Field(
         None,
         description="Jobpack name.",
@@ -307,12 +283,7 @@ class RoleOut(BaseModel):
 
 
 class RoleUpdate(BaseModel):
-    role_id: int = Field(
-        ...,
-        description="Role ID.",
-        examples=[1],
-        gt=0,
-    )
+    model_config = ConfigDict(extra="forbid")
     role_name: str | None = Field(
         None,
         description="Role name.",

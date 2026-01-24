@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
 from api.db.models import DocRevision, File, FileAccepted
-from api.schemas.files import FileDelete, FileOut, FileUpdate
+from api.schemas.files import FileOut, FileUpdate
 from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
 from api.utils.minio import (
@@ -337,6 +337,7 @@ def insert_file(
 
 
 def update_file(
+    file_id: int,
     payload: FileUpdate = Body(..., openapi_examples=_example_for(FileUpdate)),
     db: Session = Depends(get_db),
 ) -> FileOut:
@@ -346,7 +347,8 @@ def update_file(
     Updates the filename of an existing file record (does not update the actual file content).
 
     Args:
-        payload: File update data including file id and new filename.
+        file_id: File ID to update.
+        payload: File update data including new filename.
 
     Returns:
         Updated file record.
@@ -361,7 +363,7 @@ def update_file(
     if len(filename) > 90:
         raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
 
-    file_row = db.get(File, payload.id)
+    file_row = db.get(File, file_id)
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -379,8 +381,8 @@ def update_file(
 
 
 def delete_file(
+    file_id: int,
     request: Request,
-    payload: FileDelete = Body(..., openapi_examples=_example_for(FileDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
@@ -389,13 +391,13 @@ def delete_file(
     Removes a file from both the MinIO object storage and the database.
 
     Args:
-        payload: File deletion data including file id.
+        file_id: File ID to delete.
         request: Incoming request used for logging the client host.
 
     Raises:
         HTTPException: 404 if file not found.
     """
-    file_row = db.get(File, payload.id)
+    file_row = db.get(File, file_id)
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -428,7 +430,7 @@ def delete_file(
     client_host = request.client.host if request.client else "unknown"
     logger.info(
         "File deleted file_id=%s s3_uid=%s client=%s",
-        payload.id,
+        file_row.id,
         file_row.s3_uid,
         client_host,
     )
@@ -499,9 +501,7 @@ def update_file_rest(
     payload: FileUpdate = Body(..., openapi_examples=_example_for(FileUpdate)),
     db: Session = Depends(get_db),
 ) -> FileOut:
-    if payload.id != id:
-        raise HTTPException(status_code=400, detail="id mismatch")
-    return update_file(payload, db)
+    return update_file(id, payload, db)
 
 
 @router.delete(
@@ -514,7 +514,7 @@ def update_file_rest(
     responses=_REST_RESPONSES,
 )
 def delete_file_rest(id: int, request: Request, db: Session = Depends(get_db)) -> None:
-    return delete_file(request, FileDelete(id=id), db)
+    return delete_file(id, request, db)
 
 
 @router.get(

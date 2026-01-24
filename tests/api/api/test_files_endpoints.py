@@ -99,7 +99,7 @@ def test_files_crud_and_download():
             client,
             "PUT",
             f"/files/{file_id}",
-            json={"id": file_id, "filename": f"file-{suffix}-v2.pdf"},
+            json={"filename": f"file-{suffix}-v2.pdf"},
         )
         assert 200 <= updated["status"] < 300
         assert updated["payload"]["filename"] == f"file-{suffix}-v2.pdf"
@@ -119,9 +119,37 @@ def test_files_crud_and_download():
         deleted = _request(client, "DELETE", f"/files/{file_id}")
         assert deleted["status"] == 204
 
+
+@pytest.mark.api_smoke
+def test_files_update_rejects_id_in_body():
+    suffix = uuid.uuid4().hex[:6]
+    with httpx.Client(timeout=10) as client:
+        rev_id = _get_test_revision_id(client)
+        content = f"test-{suffix}".encode()
+        upload = _request(
+            client,
+            "POST",
+            "/files/",
+            files={"file": (f"file-{suffix}.pdf", content, "application/pdf")},
+            data={"rev_id": str(rev_id)},
+        )
+        assert upload["status"] == 201
+        file_id = upload["payload"]["id"]
+
+        updated = _request(
+            client,
+            "PUT",
+            f"/files/{file_id}",
+            json={"id": file_id, "filename": f"file-{suffix}-v2.pdf"},
+        )
+        assert updated["status"] == 422
         listed_after = _request(client, "GET", "/files", params={"rev_id": rev_id})
         assert 200 <= listed_after["status"] < 300
-        assert all(item.get("id") != file_id for item in listed_after["payload"])
+        matched = next(
+            (item for item in listed_after["payload"] if item.get("id") == file_id), None
+        )
+        assert matched is not None
+        assert matched.get("filename") == f"file-{suffix}.pdf"
 
 
 @pytest.mark.api_smoke
