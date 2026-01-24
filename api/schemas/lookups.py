@@ -27,6 +27,8 @@ class AreaOut(BaseModel):
 
 
 class AreaUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     area_name: str | None = Field(
         None,
         description="Area name.",
