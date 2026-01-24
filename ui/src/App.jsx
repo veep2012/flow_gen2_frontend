@@ -4,6 +4,7 @@ import { getFileKey } from "./utils/fileKey";
 import { normalizeFile } from "./utils/normalizeFile";
 import { useFetchDocuments } from "./hooks/useFetchDocuments";
 import { resolveBehaviorByFile } from "./components/DocRevStatusBehaviors";
+import DetailPanel from "./components/DetailPanel";
 
 const columns = documentGridColumns.map(({ id, label, field, hidden }) => ({
   key: field,
@@ -1444,7 +1445,6 @@ function App() {
           fetch(`${apiBase}/documents/revision_overview`),
           fetch(`${apiBase}/people/persons`),
         ]);
-
         const readJson = async (res) => (res.status === 404 ? [] : await res.json());
         if (!isActive) return;
         setDocTypes((await readJson(docTypesRes)) || []);
@@ -3043,7 +3043,7 @@ function App() {
             }}
           >
             <div className="detail-tabs">
-              {["Details", "TAGs", "References", "Plan", "Information"].map((tab) => (
+              {["Revisions", "TAGs", "References", "Plan", "Information"].map((tab) => (
                 <button
                   key={tab}
                   className={`detail-tab ${activeDetailTab === tab ? "active" : ""}`}
@@ -3054,68 +3054,29 @@ function App() {
               ))}
             </div>
             <div className="detail-tab-panel" style={{ flex: 1 }}>
-              {activeDetailTab === "Details" ? (
-                <div
-                  style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}
-                >
-                  {selectedDoc ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      <div>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            color: "var(--color-text)",
-                            marginBottom: "4px",
-                          }}
-                        >
-                          Current Revision ID
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "16px",
-                            fontWeight: 700,
-                            color: "var(--color-accent)",
-                            padding: "8px 12px",
-                            background: "var(--color-accent-soft)",
-                            borderRadius: "6px",
-                          }}
-                        >
-                          {selectedDoc.rev_current_id || "N/A"}
-                        </div>
-                      </div>
-                      {selectedDoc.rev_seq_num && (
-                        <div>
-                          <div
-                            style={{
-                              fontWeight: 600,
-                              color: "var(--color-text)",
-                              marginBottom: "4px",
-                            }}
-                          >
-                            Sequence Number
-                          </div>
-                          <div style={{ fontSize: "14px" }}>{selectedDoc.rev_seq_num}</div>
-                        </div>
-                      )}
-                      {selectedDoc.rev_code_name && (
-                        <div>
-                          <div
-                            style={{
-                              fontWeight: 600,
-                              color: "var(--color-text)",
-                              marginBottom: "4px",
-                            }}
-                          >
-                            Revision Code
-                          </div>
-                          <div style={{ fontSize: "14px" }}>{selectedDoc.rev_code_name}</div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div>Select a document to view revisions.</div>
-                  )}
-                </div>
+              {activeDetailTab === "Revisions" ? (
+                selectedDoc ? (
+                  <table style={{ width: "100%", fontSize: "13px", borderCollapse: "collapse", margin: "12px 0" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: "left", padding: "4px 8px", background: "#f5f5f5" }}>Field</th>
+                        <th style={{ textAlign: "left", padding: "4px 8px", background: "#f5f5f5" }}>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(selectedDoc).map(([key, value]) => (
+                        <tr key={key}>
+                          <td style={{ fontWeight: 600, padding: "4px 8px", borderBottom: "1px solid #eee" }}>{key}</td>
+                          <td style={{ padding: "4px 8px", borderBottom: "1px solid #eee" }}>{typeof value === "object" && value !== null ? JSON.stringify(value) : String(value)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}>
+                    Select a document to view revisions.
+                  </div>
+                )
               ) : (
                 <div style={{ color: "var(--color-text-muted)", fontSize: "13px" }}>
                   {activeDetailTab} content will appear here.
