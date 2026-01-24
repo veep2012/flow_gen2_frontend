@@ -18,6 +18,7 @@ class PersonOut(BaseModel):
 
 
 class PersonUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     person_name: str | None = Field(
         None, description="Person name.", examples=["Person A"], min_length=1
     )
