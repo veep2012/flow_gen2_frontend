@@ -57,6 +57,7 @@ class UserOut(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     person_id: int | None = Field(None, description="Person ID.", examples=[1], gt=0)
     user_acronym: str | None = Field(
         None, description="User acronym.", examples=["ABC"], min_length=1
