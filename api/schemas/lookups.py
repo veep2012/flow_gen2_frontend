@@ -279,6 +279,7 @@ class RoleOut(BaseModel):
 
 
 class RoleUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     role_name: str | None = Field(
         None,
         description="Role name.",
