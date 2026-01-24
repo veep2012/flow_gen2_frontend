@@ -1088,68 +1088,76 @@ def insert_document(
     if not db.get(Person, payload.rev_modifier_id):
         raise HTTPException(status_code=404, detail="Revision modifier not found")
 
-    # Get the start status
-    start_status = db.query(DocRevStatus).filter(DocRevStatus.start.is_(True)).first()
-    if not start_status:
-        raise HTTPException(status_code=400, detail="No start status found in doc_rev_statuses")
-
-    # Create the document
-    new_doc = Doc(
-        doc_name_unique=payload.doc_name_unique,
-        title=payload.title,
-        project_id=payload.project_id,
-        jobpack_id=payload.jobpack_id,
-        type_id=payload.type_id,
-        area_id=payload.area_id,
-        unit_id=payload.unit_id,
-    )
-    db.add(new_doc)
+    # Create the document and initial revision in the database
     try:
-        db.flush()  # Flush to get the doc_id without committing
+        result = db.execute(
+            text(
+                """
+                SELECT out_doc_id AS doc_id, out_rev_id AS rev_id
+                FROM flow.create_doc_with_revision(
+                    :doc_name_unique,
+                    :title,
+                    :project_id,
+                    :jobpack_id,
+                    :type_id,
+                    :area_id,
+                    :unit_id,
+                    :rev_code_id,
+                    :rev_date,
+                    :rev_author_id,
+                    :rev_originator_id,
+                    :rev_modifier_id,
+                    :transmital_current_revision,
+                    :milestone_id,
+                    :planned_start_date,
+                    :planned_finish_date,
+                    :actual_start_date,
+                    :actual_finish_date,
+                    :canceled_date,
+                    :modified_doc_date
+                )
+                """
+            ),
+            {
+                "doc_name_unique": payload.doc_name_unique,
+                "title": payload.title,
+                "project_id": payload.project_id,
+                "jobpack_id": payload.jobpack_id,
+                "type_id": payload.type_id,
+                "area_id": payload.area_id,
+                "unit_id": payload.unit_id,
+                "rev_code_id": payload.rev_code_id,
+                "rev_date": _normalize_dt(getattr(payload, "rev_date", None)),
+                "rev_author_id": payload.rev_author_id,
+                "rev_originator_id": payload.rev_originator_id,
+                "rev_modifier_id": payload.rev_modifier_id,
+                "transmital_current_revision": payload.transmital_current_revision,
+                "milestone_id": payload.milestone_id,
+                "planned_start_date": _normalize_dt(payload.planned_start_date),
+                "planned_finish_date": _normalize_dt(payload.planned_finish_date),
+                "actual_start_date": _normalize_dt(getattr(payload, "actual_start_date", None)),
+                "actual_finish_date": _normalize_dt(getattr(payload, "actual_finish_date", None)),
+                "canceled_date": _normalize_dt(getattr(payload, "canceled_date", None)),
+                "modified_doc_date": _normalize_dt(getattr(payload, "modified_doc_date", None)),
+            },
+        ).one()
+        doc_id = result.doc_id
     except IntegrityError as err:
         db.rollback()
         _handle_integrity_error("Document name must be unique", err, "insert_document")
-
-    # Create the initial revision with start status
-    new_revision = DocRevision(
-        doc_id=new_doc.doc_id,
-        seq_num=1,
-        rev_code_id=payload.rev_code_id,
-        rev_date=datetime.now(timezone.utc),
-        rev_author_id=payload.rev_author_id,
-        rev_originator_id=payload.rev_originator_id,
-        rev_modifier_id=payload.rev_modifier_id,
-        transmital_current_revision=payload.transmital_current_revision,
-        milestone_id=payload.milestone_id,
-        planned_start_date=_normalize_dt(payload.planned_start_date),
-        planned_finish_date=_normalize_dt(payload.planned_finish_date),
-        actual_start_date=None,
-        actual_finish_date=None,
-        canceled_date=None,
-        rev_status_id=start_status.rev_status_id,
-        as_built=False,
-        superseded=False,
-        voided=False,
-        modified_doc_date=datetime.now(timezone.utc),
-    )
-    db.add(new_revision)
-    try:
-        db.flush()  # Flush to get the rev_id
-    except IntegrityError as err:
+    except DBAPIError as err:
         db.rollback()
-        _handle_integrity_error("Failed to create initial revision", err, "insert_document")
-    except Exception as err:
-        db.rollback()
-        logger.exception("Failed to create initial revision for doc_id=%s", new_doc.doc_id)
+        message = str(err.orig) if getattr(err, "orig", None) else str(err)
+        if "No start status found in doc_rev_statuses" in message:
+            raise HTTPException(
+                status_code=400, detail="No start status found in doc_rev_statuses"
+            ) from err
         raise HTTPException(status_code=500, detail="Internal Server Error") from err
-
-    # Set the current revision to the newly created revision
-    new_doc.rev_current_id = new_revision.rev_id
     try:
         db.commit()
     except Exception as err:
         db.rollback()
-        logger.exception("Failed to commit document doc_id=%s", new_doc.doc_id)
+        logger.exception("Failed to commit document doc_id=%s", doc_id)
         raise HTTPException(status_code=500, detail="Internal Server Error") from err
 
     # Fetch the complete document with all relationships
@@ -1164,7 +1172,7 @@ def insert_document(
             joinedload(Doc.current_revision).joinedload(DocRevision.revision_overview),
             joinedload(Doc.current_revision).joinedload(DocRevision.status),
         )
-        .filter(Doc.doc_id == new_doc.doc_id)
+        .filter(Doc.doc_id == doc_id)
         .one_or_none()
     )
     if not doc_row:

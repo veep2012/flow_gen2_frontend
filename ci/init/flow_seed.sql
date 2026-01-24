@@ -141,6 +141,7 @@ DO $$
 DECLARE
     i INT;
     v_doc_id INT;
+    v_rev_id INT;
     v_project_id INT;
     v_jobpack_id INT;
     v_type_id INT;
@@ -149,8 +150,6 @@ DECLARE
     v_doc_name TEXT;
     v_author INT;
     v_rev_code_id INT;
-    v_status_id INT;
-    v_seq_num INT;
     v_rev_date TIMESTAMP;
     v_user_id INT;
 BEGIN
@@ -176,60 +175,34 @@ BEGIN
         -- 2. Generate Doc Name (e.g., PR-2345-LAY-001)
         v_doc_name := 'DOC-' || lpad(i::text, 4, '0');
 
-        -- 3. Insert Document (Triggers will handle the rev_current_id pointer updates later)
-        INSERT INTO doc (
-            doc_name_unique,
-            title,
-            project_id,
-            jobpack_id,
-            type_id,
-            area_id,
-            unit_id,
-            created_by,
-            updated_by
-        )
-        VALUES (
-            v_doc_name, 
-            'Generated Document Title ' || i,
-            v_project_id, v_jobpack_id, v_type_id, v_area_id, v_unit_id,
-            v_user_id, v_user_id
-        ) RETURNING doc_id INTO v_doc_id;
-
-        -- 4. Insert revisions with a random status per revision.
-        -- Note: The trigger 'tr_doc_revision_after_insert' defined in the schema
-        -- will automatically update 'doc.rev_current_id' to point to the latest revision.
-        v_seq_num := 1;
+        -- 3. Insert document + initial revision via DB function
         v_rev_date := NOW() - (random() * interval '30 days');
+        PERFORM set_config('app.user', v_user_id::text, true);
 
-        WHILE v_seq_num <= 4 LOOP
-            SELECT rev_status_id INTO v_status_id
-            FROM doc_rev_statuses
-            ORDER BY random()
-            LIMIT 1;
-
-            INSERT INTO doc_revision (
-                rev_code_id, rev_date, rev_author_id, rev_originator_id, 
-                transmital_current_revision, milestone_id, 
-                planned_start_date, planned_finish_date, 
-                rev_status_id, doc_id, seq_num, rev_modifier_id,
-                created_by, updated_by
-            ) VALUES (
-                v_rev_code_id,
-                v_rev_date + ((v_seq_num - 1) * interval '2 days'),
-                v_author, v_author,
-                'TR-' || lpad(i::text, 2, '0') || '-' || v_seq_num,
-                1,
-                NOW() + ((v_seq_num - 1) * interval '1 day'),
-                NOW() + ((v_seq_num - 1) * interval '1 day') + interval '5 days',
-                v_status_id,
-                v_doc_id,
-                v_seq_num,
-                v_author,
-                v_user_id,
-                v_user_id
-            );
-            v_seq_num := v_seq_num + 1;
-        END LOOP;
+        SELECT out_doc_id AS doc_id, out_rev_id AS rev_id
+        INTO v_doc_id, v_rev_id
+        FROM flow.create_doc_with_revision(
+            v_doc_name::VARCHAR(45),
+            ('Generated Document Title ' || i)::VARCHAR(45),
+            v_project_id::SMALLINT,
+            v_jobpack_id::SMALLINT,
+            v_type_id::SMALLINT,
+            v_area_id::SMALLINT,
+            v_unit_id::SMALLINT,
+            v_rev_code_id::SMALLINT,
+            v_rev_date::TIMESTAMPTZ,
+            v_author::SMALLINT,
+            v_author::SMALLINT,
+            v_author::SMALLINT,
+            ('TR-' || lpad(i::text, 2, '0') || '-1')::VARCHAR(45),
+            1::SMALLINT,
+            NOW()::TIMESTAMPTZ,
+            (NOW() + interval '5 days')::TIMESTAMPTZ,
+            NULL::TIMESTAMPTZ,
+            NULL::TIMESTAMPTZ,
+            NULL::TIMESTAMPTZ,
+            NULL::TIMESTAMPTZ
+        );
 
     END LOOP;
 END $$;
