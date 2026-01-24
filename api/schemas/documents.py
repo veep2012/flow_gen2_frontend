@@ -449,6 +449,7 @@ class DocRevStatusOut(BaseModel):
 
 
 class DocRevStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     rev_status_name: str | None = Field(
         None, description="Revision status name.", examples=["Rev Status A"], min_length=1
     )
