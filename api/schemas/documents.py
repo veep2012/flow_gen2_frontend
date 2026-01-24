@@ -36,6 +36,8 @@ class DocTypeCreate(BaseModel):
 
 
 class DocTypeUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     doc_type_name: str | None = Field(
         None, description="Document type name.", examples=["Doc Type A"], min_length=1
     )
@@ -279,7 +281,6 @@ class DocRevisionOut(BaseModel):
 class DocRevisionUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    doc_id: int | None = Field(None, description="Doc ID.", examples=[1], gt=0)
     seq_num: int | None = Field(None, description="Revision sequence number.", examples=[1], gt=0)
     rev_code_id: int | None = Field(None, description="Revision code ID.", examples=[1], gt=0)
     rev_date: datetime | None = Field(

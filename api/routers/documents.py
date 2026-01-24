@@ -562,10 +562,6 @@ def update_document_revision(
     doc_for_revision = db.get(Doc, revision.doc_id)
     if not doc_for_revision or doc_for_revision.voided:
         raise HTTPException(status_code=404, detail="Document not found")
-    if payload.doc_id is not None:
-        doc_ref = db.get(Doc, payload.doc_id)
-        if not doc_ref or doc_ref.voided:
-            raise HTTPException(status_code=404, detail="Document not found")
     if payload.rev_code_id is not None and not db.get(RevisionOverview, payload.rev_code_id):
         raise HTTPException(status_code=404, detail="Revision code not found")
     if payload.milestone_id is not None and not db.get(DocRevMilestone, payload.milestone_id):
