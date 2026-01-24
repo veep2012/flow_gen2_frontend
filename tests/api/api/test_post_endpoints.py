@@ -630,11 +630,66 @@ def test_post_documents_create_with_start_status():
         assert (
             created["payload"].get("rev_status_id") == start_status["rev_status_id"]
         ), "revision status should be the start status"
-        assert (
-            created["payload"].get("rev_seq_num") == 1
-        ), "initial revision seq_num should be 1"
+        assert created["payload"].get("rev_seq_num") == 1, "initial revision seq_num should be 1"
 
         # Clean up: delete the document
         # Note: Document deletion endpoint may not exist, so we'll skip cleanup
         # If there's a delete endpoint, uncomment the following line:
         # _request(client, "DELETE", f"/documents/{created['payload']['doc_id']}")
+
+
+@pytest.mark.api_smoke
+def test_documents_update_rejects_doc_id_in_body():
+    suffix = uuid.uuid4().hex[:8]
+    with httpx.Client(timeout=10) as client:
+        areas = _ensure_list(_request(client, "GET", "/lookups/areas"))
+        area_id = _extract_first_id(areas, ["area_id"])
+        if area_id is None:
+            pytest.skip("No area available for document update id test")
+
+        units = _ensure_list(_request(client, "GET", "/lookups/units"))
+        unit_id = _extract_first_id(units, ["unit_id"])
+        if unit_id is None:
+            pytest.skip("No unit available for document update id test")
+
+        doc_types = _ensure_list(_request(client, "GET", "/documents/doc_types"))
+        type_id = _extract_first_id(doc_types, ["type_id"])
+        if type_id is None:
+            pytest.skip("No doc type available for document update id test")
+
+        rev_codes = _ensure_list(_request(client, "GET", "/documents/revision_overview"))
+        rev_code_id = _extract_first_id(rev_codes, ["rev_code_id"])
+        if rev_code_id is None:
+            pytest.skip("No revision code available for document update id test")
+
+        persons = _ensure_list(_request(client, "GET", "/people/persons"))
+        person_id = _extract_first_id(persons, ["person_id"])
+        if person_id is None:
+            pytest.skip("No person available for document update id test")
+
+        doc_payload = {
+            "doc_name_unique": f"DOC-ID-{suffix}",
+            "title": f"Test Document {suffix}",
+            "type_id": type_id,
+            "area_id": area_id,
+            "unit_id": unit_id,
+            "rev_code_id": rev_code_id,
+            "rev_author_id": person_id,
+            "rev_originator_id": person_id,
+            "rev_modifier_id": person_id,
+            "transmital_current_revision": f"TR-{suffix}",
+            "planned_start_date": "2024-01-01T00:00:00Z",
+            "planned_finish_date": "2024-12-31T23:59:59Z",
+        }
+        created = _request(client, "POST", "/documents", json=doc_payload)
+        assert created["status"] == 201, f"document create failed: {created['status']}"
+        doc_id = created["payload"].get("doc_id")
+        assert doc_id is not None, "doc_id missing from response"
+
+        updated = _request(
+            client,
+            "PUT",
+            f"/documents/{doc_id}",
+            json={"doc_id": doc_id, "title": f"Test Document {suffix} Updated"},
+        )
+        assert updated["status"] == 422

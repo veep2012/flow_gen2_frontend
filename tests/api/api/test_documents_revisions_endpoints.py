@@ -205,6 +205,30 @@ def test_documents_revisions_create():
 
 
 @pytest.mark.api_smoke
+def test_documents_revisions_create_rejects_rev_status_id():
+    with httpx.Client(timeout=10) as client:
+        doc_id = _get_doc_id(client)
+        if doc_id is None:
+            pytest.skip("No document available for revisions create status test")
+        revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
+            pytest.skip("No revisions available for revisions create status test")
+        base_revision = revisions["payload"][0]
+        payload = {
+            "rev_code_id": base_revision["rev_code_id"],
+            "rev_author_id": base_revision["rev_author_id"],
+            "rev_originator_id": base_revision["rev_originator_id"],
+            "rev_modifier_id": base_revision["rev_modifier_id"],
+            "transmital_current_revision": f"TR-NEW-{doc_id}-STATUS",
+            "planned_start_date": base_revision["planned_start_date"],
+            "planned_finish_date": base_revision["planned_finish_date"],
+            "rev_status_id": base_revision["rev_status_id"],
+        }
+        created = _request(client, "POST", f"/documents/{doc_id}/revisions", json=payload)
+        assert created["status"] == 422
+
+
+@pytest.mark.api_smoke
 def test_documents_revisions_create_missing_doc():
     with httpx.Client(timeout=10) as client:
         payload = {
@@ -239,7 +263,9 @@ def test_documents_revisions_status_transition_forward():
         statuses = _get_statuses(client)
         if not statuses:
             pytest.skip("No statuses available for status transition test")
-        status_map = {status["rev_status_id"]: status for status in statuses if "rev_status_id" in status}
+        status_map = {
+            status["rev_status_id"]: status for status in statuses if "rev_status_id" in status
+        }
         candidate = None
         for rev in revisions["payload"]:
             status = status_map.get(rev.get("rev_status_id"))
@@ -277,7 +303,9 @@ def test_documents_revisions_status_transition_back():
         statuses = _get_statuses(client)
         if not statuses:
             pytest.skip("No statuses available for status transition back test")
-        status_map = {status["rev_status_id"]: status for status in statuses if "rev_status_id" in status}
+        status_map = {
+            status["rev_status_id"]: status for status in statuses if "rev_status_id" in status
+        }
         prev_map = {}
         for status in statuses:
             next_id = status.get("next_rev_status_id")

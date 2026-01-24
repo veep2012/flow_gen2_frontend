@@ -1,4 +1,5 @@
 """Pydantic schemas for file-related entities."""
+
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -23,6 +24,8 @@ class FileOut(BaseModel):
 
 
 class FileUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     filename: str = Field(..., description="Filename.", examples=["Example"], min_length=1)
 
 
@@ -46,8 +49,12 @@ class FileCommentedOut(BaseModel):
     rev_id: int = Field(..., description="Rev ID.", examples=[1], gt=0)
     created_at: datetime | None = Field(None, description="Creation timestamp.")
     updated_at: datetime | None = Field(None, description="Last update timestamp.")
-    created_by: int | None = Field(None, description="User ID who created the commented file.", gt=0)
-    updated_by: int | None = Field(None, description="User ID who last updated the commented file.", gt=0)
+    created_by: int | None = Field(
+        None, description="User ID who created the commented file.", gt=0
+    )
+    updated_by: int | None = Field(
+        None, description="User ID who last updated the commented file.", gt=0
+    )
 
 
 class FileCommentedDelete(BaseModel):
