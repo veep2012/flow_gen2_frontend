@@ -89,6 +89,7 @@ class DisciplineOut(BaseModel):
 
 
 class DisciplineUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     discipline_name: str | None = Field(
         None,
         description="Discipline name.",
