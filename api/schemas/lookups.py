@@ -234,6 +234,7 @@ class JobpackOut(BaseModel):
 
 
 class JobpackUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     jobpack_name: str | None = Field(
         None,
         description="Jobpack name.",
