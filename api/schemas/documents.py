@@ -189,6 +189,7 @@ class DocRevMilestoneOut(BaseModel):
 
 
 class DocRevMilestoneUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     milestone_name: str | None = Field(
         None, description="Milestone name.", examples=["Milestone A"], min_length=1
     )
