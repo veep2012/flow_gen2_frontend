@@ -189,6 +189,7 @@ class UnitOut(BaseModel):
 
 
 class UnitUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     unit_name: str | None = Field(
         None,
         description="Unit name.",
