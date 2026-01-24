@@ -64,7 +64,7 @@ def test_post_lookups_areas_disciplines_projects_units_jobpacks():
             client,
             "PUT",
             f"/lookups/areas/{area_id}",
-            json={"area_id": area_id, "area_name": f"Area {suffix} Updated"},
+            json={"area_name": f"Area {suffix} Updated"},
         )
         assert 200 <= updated["status"] < 300, f"areas update failed: {updated['status']}"
         deleted = _request(client, "DELETE", f"/lookups/areas/{area_id}")
@@ -83,7 +83,6 @@ def test_post_lookups_areas_disciplines_projects_units_jobpacks():
             "PUT",
             f"/lookups/disciplines/{discipline_id}",
             json={
-                "discipline_id": discipline_id,
                 "discipline_name": f"Discipline {suffix} Updated",
             },
         )
@@ -104,7 +103,7 @@ def test_post_lookups_areas_disciplines_projects_units_jobpacks():
             client,
             "PUT",
             f"/lookups/projects/{project_id}",
-            json={"project_id": project_id, "project_name": f"Project {suffix} Updated"},
+            json={"project_name": f"Project {suffix} Updated"},
         )
         assert 200 <= updated["status"] < 300, f"projects update failed: {updated['status']}"
         deleted = _request(client, "DELETE", f"/lookups/projects/{project_id}")
@@ -119,7 +118,7 @@ def test_post_lookups_areas_disciplines_projects_units_jobpacks():
             client,
             "PUT",
             f"/lookups/units/{unit_id}",
-            json={"unit_id": unit_id, "unit_name": f"Unit {suffix} Updated"},
+            json={"unit_name": f"Unit {suffix} Updated"},
         )
         assert 200 <= updated["status"] < 300, f"units update failed: {updated['status']}"
         deleted = _request(client, "DELETE", f"/lookups/units/{unit_id}")
@@ -134,7 +133,7 @@ def test_post_lookups_areas_disciplines_projects_units_jobpacks():
             client,
             "PUT",
             f"/lookups/jobpacks/{jobpack_id}",
-            json={"jobpack_id": jobpack_id, "jobpack_name": f"Jobpack {suffix} Updated"},
+            json={"jobpack_name": f"Jobpack {suffix} Updated"},
         )
         assert 200 <= updated["status"] < 300, f"jobpacks update failed: {updated['status']}"
         deleted = _request(
@@ -166,7 +165,7 @@ def test_post_documents_metadata():
             client,
             "PUT",
             f"/documents/doc_types/{type_id}",
-            json={"type_id": type_id, "doc_type_name": f"DocType {suffix} Updated"},
+            json={"doc_type_name": f"DocType {suffix} Updated"},
         )
         assert 200 <= updated["status"] < 300, f"doc types update failed: {updated['status']}"
         deleted = _request(client, "DELETE", f"/documents/doc_types/{type_id}")
@@ -180,7 +179,7 @@ def test_post_documents_metadata():
             client,
             "PUT",
             f"/documents/doc_rev_milestones/{milestone_id}",
-            json={"milestone_id": milestone_id, "progress": 20},
+            json={"progress": 20},
         )
         assert 200 <= updated["status"] < 300, f"milestones update failed: {updated['status']}"
         deleted = _request(
@@ -205,7 +204,7 @@ def test_post_documents_metadata():
             client,
             "PUT",
             f"/documents/revision_overview/{rev_code_id}",
-            json={"rev_code_id": rev_code_id, "percentage": 15},
+            json={"percentage": 15},
         )
         assert (
             200 <= updated["status"] < 300
@@ -255,7 +254,7 @@ def test_post_documents_metadata():
             client,
             "PUT",
             f"/lookups/doc_rev_statuses/{status_id}",
-            json={"rev_status_id": status_id, "rev_status_name": f"Status {suffix} Updated"},
+            json={"rev_status_name": f"Status {suffix} Updated"},
         )
         assert 200 <= updated["status"] < 300, f"rev status update failed: {updated['status']}"
         deleted = _request(client, "DELETE", f"/lookups/doc_rev_statuses/{status_id}")
@@ -277,7 +276,7 @@ def test_post_people_roles_persons_users_permissions():
             client,
             "PUT",
             f"/people/roles/{role_id}",
-            json={"role_id": role_id, "role_name": f"Role {suffix} Updated"},
+            json={"role_name": f"Role {suffix} Updated"},
         )
         assert 200 <= updated["status"] < 300, f"roles update failed: {updated['status']}"
 
@@ -295,7 +294,7 @@ def test_post_people_roles_persons_users_permissions():
             client,
             "PUT",
             f"/people/persons/{person_id}",
-            json={"person_id": person_id, "person_name": f"Person {suffix} Updated"},
+            json={"person_name": f"Person {suffix} Updated"},
         )
         assert 200 <= updated["status"] < 300, f"persons update failed: {updated['status']}"
 
@@ -311,7 +310,7 @@ def test_post_people_roles_persons_users_permissions():
             client,
             "PUT",
             f"/people/users/{user_id}",
-            json={"user_id": user_id, "user_acronym": f"U{suffix[:3]}X"},
+            json={"user_acronym": f"U{suffix[:3]}X"},
         )
         assert 200 <= updated["status"] < 300, f"users update failed: {updated['status']}"
 
@@ -334,7 +333,6 @@ def test_post_people_roles_persons_users_permissions():
         ), f"permissions insert failed: {created_perm['status']}"
         permission_id = created_perm["payload"].get("permission_id")
         update_payload = {
-            "permission_id": permission_id,
             "user_id": user_id,
         }
         if project_id is not None:
@@ -350,9 +348,7 @@ def test_post_people_roles_persons_users_permissions():
             json=update_payload,
         )
         assert 200 <= updated["status"] < 300, f"permissions update failed: {updated['status']}"
-        deleted = _request(
-            client, "DELETE", f"/people/permissions/{permission_id}", json={"user_id": user_id}
-        )
+        deleted = _request(client, "DELETE", f"/people/permissions/{permission_id}")
         assert 200 <= deleted["status"] < 300, f"permissions delete failed: {deleted['status']}"
 
         deleted_user = _request(client, "DELETE", f"/people/users/{user_id}")
@@ -445,7 +441,7 @@ def test_post_doc_rev_status_constraints():
             client,
             "PUT",
             f"/lookups/doc_rev_statuses/{created_id}",
-            json={"rev_status_id": created_id, "final": True},
+            json={"final": True},
         )
         assert (
             invalid_update_final["status"] == 400
@@ -455,7 +451,7 @@ def test_post_doc_rev_status_constraints():
             client,
             "PUT",
             f"/lookups/doc_rev_statuses/{created_id}",
-            json={"rev_status_id": created_id, "next_rev_status_id": None},
+            json={"next_rev_status_id": None},
         )
         assert invalid_update_next["status"] == 400, "next cleared without final should be rejected"
 
@@ -464,7 +460,6 @@ def test_post_doc_rev_status_constraints():
             "PUT",
             f"/lookups/doc_rev_statuses/{created_id}",
             json={
-                "rev_status_id": created_id,
                 "final": True,
                 "next_rev_status_id": None,
                 "revertible": True,
@@ -485,7 +480,6 @@ def test_post_doc_rev_status_constraints():
                 "PUT",
                 f"/lookups/doc_rev_statuses/{final_status.get('rev_status_id')}",
                 json={
-                    "rev_status_id": final_status.get("rev_status_id"),
                     "next_rev_status_id": non_final_status.get("rev_status_id"),
                 },
             )
@@ -499,7 +493,6 @@ def test_post_doc_rev_status_constraints():
             "PUT",
             f"/lookups/doc_rev_statuses/{created_id}",
             json={
-                "rev_status_id": created_id,
                 "final": True,
                 "next_rev_status_id": None,
                 "revertible": False,

@@ -102,7 +102,7 @@ def test_audit_fields_document_and_revision():
             "PUT",
             f"/documents/{doc_id}",
             headers={"X-User-Id": "2"},
-            json={"doc_id": doc_id, "title": f"Audit Document Updated {suffix}"},
+            json={"title": f"Audit Document Updated {suffix}"},
         )
         assert 200 <= updated["status"] < 300, f"document update failed: {updated['status']}"
         updated_doc = updated["payload"]
@@ -127,7 +127,7 @@ def test_audit_fields_document_and_revision():
             "PUT",
             f"/documents/revisions/{rev_id}",
             headers={"X-User-Id": "3"},
-            json={"rev_id": rev_id, "transmital_current_revision": f"TR-AUD-{suffix}"},
+            json={"transmital_current_revision": f"TR-AUD-{suffix}"},
         )
         assert 200 <= rev_update["status"] < 300
         rev_out = rev_update["payload"]

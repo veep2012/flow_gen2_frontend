@@ -1,5 +1,4 @@
 import React from "react";
-import { toNumber } from "@utils/number";
 
 /**
  * Hook for managing document editing
@@ -32,24 +31,29 @@ export const useDocumentEdit = (apiBase, reloadDocuments) => {
     async (doc) => {
       if (!doc) return;
 
-      const payload = {
-        doc_id: toNumber(doc.doc_id ?? doc.id ?? 0),
-        doc_name_unique: editValues.doc_name_unique || doc.doc_name_unique || doc.doc_name || "",
-        title: editValues.title ?? doc.title ?? "",
-        project_id: toNumber(doc.project_id ?? doc.project ?? 0),
-        jobpack_id: toNumber(doc.jobpack_id ?? 0),
-        type_id: toNumber(doc.type_id ?? doc.doc_type_id ?? doc.doc_type ?? 0),
-        area_id: toNumber(doc.area_id ?? 0),
-        unit_id: toNumber(doc.unit_id ?? 0),
-        rev_actual_id: toNumber(doc.rev_actual_id ?? 0),
-        rev_current_id: toNumber(doc.rev_current_id ?? 0),
-      };
+      const docId = Number(doc.doc_id ?? doc.id ?? 0);
+      if (!docId) {
+        setSaveStatus("error");
+        setSaveError("Missing document ID");
+        return;
+      }
+
+      const payload = {};
+      const docName = String(editValues.doc_name_unique || "").trim();
+      const docTitle = String(editValues.title || "").trim();
+      if (docName) payload.doc_name_unique = docName;
+      if (docTitle) payload.title = docTitle;
+      if (!Object.keys(payload).length) {
+        setSaveStatus("error");
+        setSaveError("No changes to save");
+        return;
+      }
 
       setSaveStatus("saving");
       setSaveError(null);
 
       try {
-        const res = await fetch(`${apiBase}/documents/${payload.doc_id}`, {
+        const res = await fetch(`${apiBase}/documents/${docId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),

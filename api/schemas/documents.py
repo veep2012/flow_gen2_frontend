@@ -1,6 +1,7 @@
 """Pydantic schemas for document-related entities."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -35,7 +36,6 @@ class DocTypeCreate(BaseModel):
 
 
 class DocTypeUpdate(BaseModel):
-    type_id: int = Field(..., description="Type ID.", examples=[1], gt=0)
     doc_type_name: str | None = Field(
         None, description="Document type name.", examples=["Doc Type A"], min_length=1
     )
@@ -127,7 +127,6 @@ class DeleteResult(BaseModel):
 class DocUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    doc_id: int = Field(..., description="Doc ID.", examples=[1], gt=0)
     doc_name_unique: str | None = Field(
         None, description="Document unique name.", examples=["DOC-001"], min_length=1
     )
@@ -190,7 +189,6 @@ class DocRevMilestoneOut(BaseModel):
 
 
 class DocRevMilestoneUpdate(BaseModel):
-    milestone_id: int = Field(..., description="Milestone ID.", examples=[1], gt=0)
     milestone_name: str | None = Field(
         None, description="Milestone name.", examples=["Milestone A"], min_length=1
     )
@@ -280,7 +278,6 @@ class DocRevisionOut(BaseModel):
 class DocRevisionUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    rev_id: int = Field(..., description="Revision ID.", examples=[1], gt=0)
     doc_id: int | None = Field(None, description="Doc ID.", examples=[1], gt=0)
     seq_num: int | None = Field(None, description="Revision sequence number.", examples=[1], gt=0)
     rev_code_id: int | None = Field(None, description="Revision code ID.", examples=[1], gt=0)
@@ -315,12 +312,19 @@ class DocRevisionUpdate(BaseModel):
     canceled_date: datetime | None = Field(
         None, description="Canceled date.", examples=["2024-01-04T12:00:00Z"]
     )
-    rev_status_id: int | None = Field(None, description="Revision status ID.", examples=[1], gt=0)
     as_built: bool | None = Field(None, description="As-built flag.", examples=[False])
     superseded: bool | None = Field(None, description="Superseded flag.", examples=[False])
     voided: bool | None = Field(None, description="Voided flag.", examples=[False])
     modified_doc_date: datetime | None = Field(
         None, description="Modified document date.", examples=["2024-01-05T12:00:00Z"]
+    )
+
+
+class DocRevisionStatusTransition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    direction: Literal["forward", "back"] = Field(
+        ..., description="Status transition direction.", examples=["forward"]
     )
 
 
@@ -357,7 +361,6 @@ class DocRevisionCreate(BaseModel):
     canceled_date: datetime | None = Field(
         None, description="Canceled date.", examples=["2024-01-04T12:00:00Z"]
     )
-    rev_status_id: int = Field(..., description="Revision status ID.", examples=[1], gt=0)
     as_built: bool = Field(False, description="As-built flag.", examples=[False])
     superseded: bool = Field(False, description="Superseded flag.", examples=[False])
     voided: bool = Field(False, description="Voided flag.", examples=[False])
@@ -385,7 +388,6 @@ class RevisionOverviewOut(BaseModel):
 
 
 class RevisionOverviewUpdate(BaseModel):
-    rev_code_id: int = Field(..., description="Rev Code ID.", examples=[1], gt=0)
     rev_code_name: str | None = Field(
         None, description="Revision code name.", examples=["Rev Code A"], min_length=1
     )
@@ -445,7 +447,6 @@ class DocRevStatusOut(BaseModel):
 
 
 class DocRevStatusUpdate(BaseModel):
-    rev_status_id: int = Field(..., description="Rev Status ID.", examples=[1], gt=0)
     rev_status_name: str | None = Field(
         None, description="Revision status name.", examples=["Rev Status A"], min_length=1
     )
@@ -510,7 +511,6 @@ class DocRevStatusUiBehaviorOut(BaseModel):
 
 
 class DocRevStatusUiBehaviorUpdate(BaseModel):
-    ui_behavior_id: int = Field(..., description="UI behavior ID.", examples=[1], gt=0)
     ui_behavior_name: str | None = Field(
         None, description="UI behavior name.", examples=["InDesign"], min_length=1
     )

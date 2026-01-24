@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
 from api.db.models import File, FileAccepted, FileCommented, User
-from api.schemas.files import FileCommentedDelete, FileCommentedOut
+from api.schemas.files import FileCommentedOut
 from api.utils.database import get_db
 from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
 from api.utils.minio import (
@@ -416,8 +416,8 @@ def insert_commented_file(
 
 
 def delete_commented_file(
+    commented_file_id: int,
     request: Request,
-    payload: FileCommentedDelete = Body(..., openapi_examples=_example_for(FileCommentedDelete)),
     db: Session = Depends(get_db),
 ) -> None:
     """
@@ -426,13 +426,13 @@ def delete_commented_file(
     Removes a commented file from both the MinIO object storage and the database.
 
     Args:
-        payload: Commented file deletion data including id.
+        commented_file_id: Commented file ID to delete.
         request: Incoming request used for logging the client host.
 
     Raises:
         HTTPException: 404 if commented file not found.
     """
-    file_row = db.get(FileCommented, payload.id)
+    file_row = db.get(FileCommented, commented_file_id)
     if not file_row:
         raise HTTPException(status_code=404, detail="Commented file not found")
 
@@ -471,7 +471,7 @@ def delete_commented_file(
     client_host = request.client.host if request.client else "unknown"
     logger.info(
         "Commented file deleted id=%s s3_uid=%s client=%s",
-        payload.id,
+        file_row.id,
         file_row.s3_uid,
         client_host,
     )
@@ -543,7 +543,7 @@ def delete_commented_file_rest(
     request: Request,
     db: Session = Depends(get_db),
 ) -> None:
-    return delete_commented_file(request, FileCommentedDelete(id=id), db)
+    return delete_commented_file(id, request, db)
 
 
 @router.get(

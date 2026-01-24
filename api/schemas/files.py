@@ -23,7 +23,6 @@ class FileOut(BaseModel):
 
 
 class FileUpdate(BaseModel):
-    id: int = Field(..., description="Id.", examples=[1], gt=0)
     filename: str = Field(..., description="Filename.", examples=["Example"], min_length=1)
 
 

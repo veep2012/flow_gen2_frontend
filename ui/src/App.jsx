@@ -950,9 +950,13 @@ function App() {
       if (!doc) return;
 
       // Build minimal payload - only include fields that are actually being changed
-      const payload = {
-        doc_id: Number(doc.doc_id || doc.id),
-      };
+      const docId = Number(doc.doc_id || doc.id);
+      if (!docId) {
+        setSaveStatus("error");
+        setSaveError("Missing document ID");
+        return;
+      }
+      const payload = {};
 
       // Add edited fields only if they have actual content
       const docName = String(editValues.doc_name_unique || "").trim();
@@ -977,11 +981,17 @@ function App() {
       if (areaId) payload.area_id = areaId;
       if (unitId) payload.unit_id = unitId;
 
+      if (!Object.keys(payload).length) {
+        setSaveStatus("error");
+        setSaveError("No changes to save");
+        return;
+      }
+
       setSaveStatus("saving");
       setSaveError(null);
 
       try {
-        const res = await fetch(`${apiBase}/documents/${payload.doc_id}`, {
+        const res = await fetch(`${apiBase}/documents/${docId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),

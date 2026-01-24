@@ -99,7 +99,7 @@ def test_files_crud_and_download():
             client,
             "PUT",
             f"/files/{file_id}",
-            json={"id": file_id, "filename": f"file-{suffix}-v2.pdf"},
+            json={"filename": f"file-{suffix}-v2.pdf"},
         )
         assert 200 <= updated["status"] < 300
         assert updated["payload"]["filename"] == f"file-{suffix}-v2.pdf"

@@ -7,18 +7,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Query, Session
 
 from api.db.models import Discipline, Permission, Person, Project, Role, User
-from api.schemas.lookups import RoleCreate, RoleDelete, RoleOut, RoleUpdate
+from api.schemas.lookups import RoleCreate, RoleOut, RoleUpdate
 from api.schemas.people import (
     PermissionCreate,
-    PermissionDelete,
     PermissionOut,
     PermissionUpdate,
     PersonCreate,
-    PersonDelete,
     PersonOut,
     PersonUpdate,
     UserCreate,
-    UserDelete,
     UserOut,
     UserUpdate,
 )
@@ -163,6 +160,7 @@ def insert_role(
 
 
 def update_role(
+    role_id: int,
     payload: RoleUpdate = Body(..., openapi_examples=_example_for(RoleUpdate)),
     db: Session = Depends(get_db),
 ) -> RoleOut:
@@ -172,7 +170,8 @@ def update_role(
     Updates the name of an existing role.
 
     Args:
-        payload: Role update data including role_id and role_name.
+        role_id: Role ID to update.
+        payload: Role update data including role_name.
 
     Returns:
         Updated role object.
@@ -184,7 +183,7 @@ def update_role(
     if payload.role_name is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    role = db.get(Role, payload.role_id)
+    role = db.get(Role, role_id)
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
 
@@ -198,22 +197,19 @@ def update_role(
     return _model_out(RoleOut, role)
 
 
-def delete_role(
-    payload: RoleDelete = Body(..., openapi_examples=_example_for(RoleDelete)),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_role(role_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a role.
 
     Removes a role from the database by its ID.
 
     Args:
-        payload: Role deletion data including role_id.
+        role_id: Role ID to delete.
 
     Raises:
         HTTPException: 404 if role not found.
     """
-    role = db.get(Role, payload.role_id)
+    role = db.get(Role, role_id)
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
     db.delete(role)
@@ -282,6 +278,7 @@ def list_persons(db: Session = Depends(get_db)) -> list[PersonOut]:
 
 
 def update_person(
+    person_id: int,
     payload: PersonUpdate = Body(..., openapi_examples=_example_for(PersonUpdate)),
     db: Session = Depends(get_db),
 ) -> PersonOut:
@@ -291,7 +288,8 @@ def update_person(
     Updates the name and/or photo S3 UID of an existing person.
 
     Args:
-        payload: Person update data including person_id and at least one field to update.
+        person_id: Person ID to update.
+        payload: Person update data including at least one field to update.
 
     Returns:
         Updated person object.
@@ -303,7 +301,7 @@ def update_person(
     if payload.person_name is None and payload.photo_s3_uid is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    person = db.get(Person, payload.person_id)
+    person = db.get(Person, person_id)
     if not person:
         raise HTTPException(status_code=404, detail="Person not found")
 
@@ -351,22 +349,19 @@ def insert_person(
     return _model_out(PersonOut, person)
 
 
-def delete_person(
-    payload: PersonDelete = Body(..., openapi_examples=_example_for(PersonDelete)),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_person(person_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a person.
 
     Removes a person from the database by their ID.
 
     Args:
-        payload: Person deletion data including person_id.
+        person_id: Person ID to delete.
 
     Raises:
         HTTPException: 404 if person not found.
     """
-    person = db.get(Person, payload.person_id)
+    person = db.get(Person, person_id)
     if not person:
         raise HTTPException(status_code=404, detail="Person not found")
     db.delete(person)
@@ -476,6 +471,7 @@ def get_current_user(db: Session = Depends(get_db)) -> UserOut:
 
 
 def update_user(
+    user_id: int,
     payload: UserUpdate = Body(..., openapi_examples=_example_for(UserUpdate)),
     db: Session = Depends(get_db),
 ) -> UserOut:
@@ -485,7 +481,8 @@ def update_user(
     Updates the person reference, acronym, and/or role of an existing user.
 
     Args:
-        payload: User update data including user_id and at least one field to update.
+        user_id: User ID to update.
+        payload: User update data including at least one field to update.
 
     Returns:
         Updated user object with person and role information.
@@ -497,7 +494,7 @@ def update_user(
     if payload.person_id is None and payload.user_acronym is None and payload.role_id is None:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    user = db.get(User, payload.user_id)
+    user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -564,22 +561,19 @@ def insert_user(
     return _build_user_out(user)
 
 
-def delete_user(
-    payload: UserDelete = Body(..., openapi_examples=_example_for(UserDelete)),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_user(user_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a user.
 
     Removes a user from the database by their ID.
 
     Args:
-        payload: User deletion data including user_id.
+        user_id: User ID to delete.
 
     Raises:
         HTTPException: 404 if user not found.
     """
-    user = db.get(User, payload.user_id)
+    user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     db.delete(user)
@@ -703,6 +697,7 @@ def insert_permission(
 
 
 def update_permission(
+    permission_id: int,
     payload: PermissionUpdate = Body(..., openapi_examples=_example_for(PermissionUpdate)),
     db: Session = Depends(get_db),
 ) -> PermissionOut:
@@ -712,7 +707,8 @@ def update_permission(
     Updates the project and/or discipline scope of an existing permission.
 
     Args:
-        payload: Permission update data including current scope and new scope values.
+        permission_id: Permission ID to update.
+        payload: Permission update data including current scope (optional) and new scope values.
 
     Returns:
         Updated permission object with metadata.
@@ -722,11 +718,16 @@ def update_permission(
         permission already exists.
         HTTPException: 404 if permission, project, or discipline not found.
     """
-    payload.validate_current()
-
-    existing = _permission_filter(db.query(Permission), payload).first()
+    existing = db.get(Permission, permission_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Permission not found")
+
+    if payload.user_id != existing.user_id:
+        raise HTTPException(status_code=400, detail="User ID mismatch for permission")
+    if payload.project_id is not None and payload.project_id != existing.project_id:
+        raise HTTPException(status_code=400, detail="Project ID mismatch for permission")
+    if payload.discipline_id is not None and payload.discipline_id != existing.discipline_id:
+        raise HTTPException(status_code=400, detail="Discipline ID mismatch for permission")
 
     provided_project = "new_project_id" in payload.model_fields_set
     provided_discipline = "new_discipline_id" in payload.model_fields_set
@@ -768,26 +769,19 @@ def update_permission(
     return _build_permission_out(existing)
 
 
-def delete_permission(
-    payload: PermissionDelete = Body(..., openapi_examples=_example_for(PermissionDelete)),
-    db: Session = Depends(get_db),
-) -> None:
+def delete_permission(permission_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a permission.
 
-    Removes a permission from the database. Can be identified by permission_id or by user_id with
-    project_id and/or discipline_id.
+    Removes a permission from the database by its ID.
 
     Args:
-        payload: Permission deletion data including permission_id or user scope.
+        permission_id: Permission ID to delete.
 
     Raises:
-        HTTPException: 400 if scope information is missing.
         HTTPException: 404 if permission not found.
     """
-    payload.validate_scope()
-
-    permission = _permission_filter(db.query(Permission), payload).first()
+    permission = db.get(Permission, permission_id)
     if not permission:
         raise HTTPException(status_code=404, detail="Permission not found")
     db.delete(permission)
@@ -855,9 +849,7 @@ def update_role_rest(
     payload: RoleUpdate = Body(..., openapi_examples=_example_for(RoleUpdate)),
     db: Session = Depends(get_db),
 ) -> RoleOut:
-    if payload.role_id != role_id:
-        raise HTTPException(status_code=400, detail="role_id mismatch")
-    return update_role(payload, db)
+    return update_role(role_id, payload, db)
 
 
 @router.delete(
@@ -869,7 +861,7 @@ def update_role_rest(
     responses=_REST_RESPONSES,
 )
 def delete_role_rest(role_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_role(RoleDelete(role_id=role_id), db)
+    return delete_role(role_id, db)
 
 
 @router.post(
@@ -901,9 +893,7 @@ def update_person_rest(
     payload: PersonUpdate = Body(..., openapi_examples=_example_for(PersonUpdate)),
     db: Session = Depends(get_db),
 ) -> PersonOut:
-    if payload.person_id != person_id:
-        raise HTTPException(status_code=400, detail="person_id mismatch")
-    return update_person(payload, db)
+    return update_person(person_id, payload, db)
 
 
 @router.delete(
@@ -915,7 +905,7 @@ def update_person_rest(
     responses=_REST_RESPONSES,
 )
 def delete_person_rest(person_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_person(PersonDelete(person_id=person_id), db)
+    return delete_person(person_id, db)
 
 
 @router.post(
@@ -947,9 +937,7 @@ def update_user_rest(
     payload: UserUpdate = Body(..., openapi_examples=_example_for(UserUpdate)),
     db: Session = Depends(get_db),
 ) -> UserOut:
-    if payload.user_id != user_id:
-        raise HTTPException(status_code=400, detail="user_id mismatch")
-    return update_user(payload, db)
+    return update_user(user_id, payload, db)
 
 
 @router.delete(
@@ -961,7 +949,7 @@ def update_user_rest(
     responses=_REST_RESPONSES,
 )
 def delete_user_rest(user_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_user(UserDelete(user_id=user_id), db)
+    return delete_user(user_id, db)
 
 
 @router.post(
@@ -993,11 +981,7 @@ def update_permission_rest(
     payload: PermissionUpdate = Body(..., openapi_examples=_example_for(PermissionUpdate)),
     db: Session = Depends(get_db),
 ) -> PermissionOut:
-    if payload.permission_id is None:
-        payload = payload.model_copy(update={"permission_id": permission_id})
-    elif payload.permission_id != permission_id:
-        raise HTTPException(status_code=400, detail="permission_id mismatch")
-    return update_permission(payload, db)
+    return update_permission(permission_id, payload, db)
 
 
 @router.delete(
@@ -1010,11 +994,6 @@ def update_permission_rest(
 )
 def delete_permission_rest(
     permission_id: int,
-    payload: PermissionDelete = Body(..., openapi_examples=_example_for(PermissionDelete)),
     db: Session = Depends(get_db),
 ) -> None:
-    if payload.permission_id is None:
-        payload = payload.model_copy(update={"permission_id": permission_id})
-    elif payload.permission_id != permission_id:
-        raise HTTPException(status_code=400, detail="permission_id mismatch")
-    return delete_permission(payload, db)
+    return delete_permission(permission_id, db)

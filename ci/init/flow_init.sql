@@ -445,6 +445,89 @@ CREATE TRIGGER tr_files_commented_check_mimetype
 BEFORE INSERT OR UPDATE ON flow.files_commented
 FOR EACH ROW EXECUTE FUNCTION fn_files_commented_check_mimetype();
 
+CREATE OR REPLACE FUNCTION fn_doc_revision_set_start_status() RETURNS TRIGGER AS $$
+DECLARE
+    v_start_status SMALLINT;
+BEGIN
+    IF NEW.rev_status_id IS NULL THEN
+        SELECT rev_status_id
+        INTO v_start_status
+        FROM flow.doc_rev_statuses
+        WHERE start = TRUE
+        LIMIT 1;
+        IF v_start_status IS NULL THEN
+            RAISE EXCEPTION 'No start status found in doc_rev_statuses';
+        END IF;
+        NEW.rev_status_id = v_start_status;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_doc_revision_set_start_status
+BEFORE INSERT ON flow.doc_revision
+FOR EACH ROW EXECUTE FUNCTION fn_doc_revision_set_start_status();
+
+CREATE OR REPLACE FUNCTION doc_revision_status_transform(
+    p_rev_id INTEGER,
+    p_direction TEXT
+) RETURNS SMALLINT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    current_status_id SMALLINT;
+    next_status_id SMALLINT;
+    current_status RECORD;
+BEGIN
+    IF p_direction NOT IN ('forward', 'back') THEN
+        RAISE EXCEPTION 'Invalid direction: %', p_direction;
+    END IF;
+
+    SELECT rev_status_id
+    INTO current_status_id
+    FROM flow.doc_revision
+    WHERE rev_id = p_rev_id;
+
+    IF current_status_id IS NULL THEN
+        RAISE EXCEPTION 'Revision not found';
+    END IF;
+
+    SELECT rev_status_id, next_rev_status_id, revertible, final, start
+    INTO current_status
+    FROM flow.doc_rev_statuses
+    WHERE rev_status_id = current_status_id;
+
+    IF p_direction = 'forward' THEN
+        IF current_status.final OR current_status.next_rev_status_id IS NULL THEN
+            RAISE EXCEPTION 'Revision already at final status';
+        END IF;
+        next_status_id := current_status.next_rev_status_id;
+    ELSE
+        IF current_status.start THEN
+            RAISE EXCEPTION 'Revision already at start status';
+        END IF;
+        IF NOT current_status.revertible THEN
+            RAISE EXCEPTION 'Revision status not revertible';
+        END IF;
+        SELECT rev_status_id
+        INTO next_status_id
+        FROM flow.doc_rev_statuses
+        WHERE next_rev_status_id = current_status.rev_status_id;
+        IF next_status_id IS NULL THEN
+            RAISE EXCEPTION 'Previous status not found';
+        END IF;
+    END IF;
+
+    UPDATE flow.doc_revision
+    SET rev_status_id = next_status_id,
+        updated_at = NULL,
+        updated_by = NULL
+    WHERE rev_id = p_rev_id;
+
+    RETURN next_status_id;
+END;
+$$;
+
 -- ========================================================
 -- 7. Audit Triggers for updated_at
 -- ========================================================
