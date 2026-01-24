@@ -146,6 +146,7 @@ class ProjectOut(BaseModel):
 
 
 class ProjectUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     project_name: str | None = Field(
         None,
         description="Project name.",
