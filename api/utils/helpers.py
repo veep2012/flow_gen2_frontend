@@ -74,7 +74,8 @@ def _model_list(model_cls: type[ModelT], items: Iterable[object]) -> list[ModelT
 def _handle_integrity_error(detail: str, err: IntegrityError, context: str | None = None) -> None:
     ctx = f" during {context}" if context else ""
     logger.exception("IntegrityError%s: %s", ctx, err)
-    message = detail if not DEBUG_MODE else f"{detail} ({err})"
+    # Always include error details for easier debugging
+    message = f"{detail} ({err})"
     raise HTTPException(status_code=400, detail=message)
 
 
