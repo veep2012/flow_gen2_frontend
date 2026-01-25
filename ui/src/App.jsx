@@ -1339,7 +1339,7 @@ function App() {
       if (!revisionId) return;
 
       try {
-        const response = await fetch(`${apiBase}/files/list?rev_id=${revisionId}`);
+        const response = await fetch(`${apiBase}/files?rev_id=${revisionId}`);
         if (!response.ok) {
           if (response.status === 404) {
             // No files for this revision yet - keep existing local files
@@ -1366,11 +1366,22 @@ function App() {
 
           // Update uploadedFiles with fetched files in a persistent location
           setUploadedFiles((prev) => {
-            const existingFiles = prev[selectedDocId] || {};
+            const existingFiles = prev[selectedDocId] && typeof prev[selectedDocId] === 'object' && !Array.isArray(prev[selectedDocId])
+              ? prev[selectedDocId]
+              : {};
+            // Ensure all statusKey values are arrays (except $api)
+            const safeFiles = {};
+            Object.entries(existingFiles).forEach(([key, value]) => {
+              if (key === '$api') {
+                safeFiles[key] = value;
+              } else {
+                safeFiles[key] = Array.isArray(value) ? value : [];
+              }
+            });
             return {
               ...prev,
               [selectedDocId]: {
-                ...existingFiles,
+                ...safeFiles,
                 $api: apiFiles, // Store API files in special $api key
               },
             };
@@ -3057,22 +3068,30 @@ function App() {
               {activeDetailTab === "Revisions" ? (
                 selectedDoc ? (
                   <div style={{ width: "100%", height: "100%", overflow: "auto", margin: "12px 0" }}>
-                    <table style={{ minWidth: "600px", fontSize: "13px", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr>
-                          {Object.keys(selectedDoc).map((key) => (
-                            <th key={key} style={{ textAlign: "left", padding: "4px 8px", background: "#f5f5f5" }}>{key}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          {Object.values(selectedDoc).map((value, idx) => (
-                            <td key={idx} style={{ padding: "4px 8px", borderBottom: "1px solid #eee" }}>{typeof value === "object" && value !== null ? JSON.stringify(value) : String(value)}</td>
-                          ))}
-                        </tr>
-                      </tbody>
-                    </table>
+                    <div style={{ color: '#888', fontSize: '12px', marginBottom: '8px' }}>
+                      <b>DEBUG:</b> selectedDoc keys: {Object.keys(selectedDoc).join(', ')}
+                    </div>
+                    {(() => {
+                      const filteredEntries = Object.entries(selectedDoc).filter(([key]) => key === "discipline_acronim");
+                      return (
+                        <table style={{ minWidth: "200px", fontSize: "13px", borderCollapse: "collapse" }}>
+                          <thead>
+                            <tr>
+                              {filteredEntries.map(([key]) => (
+                                <th key={key} style={{ textAlign: "left", padding: "4px 8px", background: "#f5f5f5" }}>{key}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              {filteredEntries.map(([_, value], idx) => (
+                                <td key={idx} style={{ padding: "4px 8px", borderBottom: "1px solid #eee" }}>{typeof value === "object" && value !== null ? JSON.stringify(value) : String(value)}</td>
+                              ))}
+                            </tr>
+                          </tbody>
+                        </table>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <div style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}>
@@ -3308,7 +3327,12 @@ function App() {
                               statusKey={statusKey}
                               infoActiveSubTab={infoActiveSubTab}
                               onSubTabChange={setInfoActiveSubTab}
-                              uploadedFiles={uploadedFiles}
+                              uploadedFiles={Object.fromEntries(
+                                Object.entries(uploadedFiles).map(([docId, value]) => [
+                                  docId,
+                                  Array.isArray(value) ? value : value && typeof value === 'object' && !Array.isArray(value) ? value : []
+                                ])
+                              )}
                               expandedRevisions={expandedRevisions}
                               onRevisionToggle={handleRevisionToggle}
                               isDraggingUpload={isDraggingUpload}
