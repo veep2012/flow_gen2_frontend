@@ -3056,22 +3056,24 @@ function App() {
             <div className="detail-tab-panel" style={{ flex: 1 }}>
               {activeDetailTab === "Revisions" ? (
                 selectedDoc ? (
-                  <table style={{ width: "100%", fontSize: "13px", borderCollapse: "collapse", margin: "12px 0" }}>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: "left", padding: "4px 8px", background: "#f5f5f5" }}>Field</th>
-                        <th style={{ textAlign: "left", padding: "4px 8px", background: "#f5f5f5" }}>Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(selectedDoc).map(([key, value]) => (
-                        <tr key={key}>
-                          <td style={{ fontWeight: 600, padding: "4px 8px", borderBottom: "1px solid #eee" }}>{key}</td>
-                          <td style={{ padding: "4px 8px", borderBottom: "1px solid #eee" }}>{typeof value === "object" && value !== null ? JSON.stringify(value) : String(value)}</td>
+                  <div style={{ width: "100%", height: "100%", overflow: "auto", margin: "12px 0" }}>
+                    <table style={{ minWidth: "600px", fontSize: "13px", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          {Object.keys(selectedDoc).map((key) => (
+                            <th key={key} style={{ textAlign: "left", padding: "4px 8px", background: "#f5f5f5" }}>{key}</th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          {Object.values(selectedDoc).map((value, idx) => (
+                            <td key={idx} style={{ padding: "4px 8px", borderBottom: "1px solid #eee" }}>{typeof value === "object" && value !== null ? JSON.stringify(value) : String(value)}</td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
                   <div style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}>
                     Select a document to view revisions.
