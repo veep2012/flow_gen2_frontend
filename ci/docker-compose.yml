@@ -106,17 +106,6 @@ services:
       - api
     restart: unless-stopped
 
-  ui_api_test:
-    container_name: flow_gen2_ui_api_test
-    build:
-      context: ..
-      dockerfile: ci/Dockerfile.ui_api_test
-    expose:
-      - "5557"
-    depends_on:
-      - api
-    restart: unless-stopped
-
   nginx:
     container_name: flow_gen2_nginx
     image: nginx:1.27-alpine

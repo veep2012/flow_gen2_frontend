@@ -69,17 +69,13 @@ Updated to include the DistributionList component as a subtab:
 
 ### API Endpoints
 
-The Distribution List feature expects the following API endpoints to be available:
+The Distribution List feature expects the following API endpoints to be available (lists/recipients are read-only via API):
 
 #### List Management
 - `GET /documents/{docId}/distribution-lists` - Retrieve all distribution lists for a document
-- `POST /documents/{docId}/distribution-lists` - Create a new distribution list
-- `DELETE /documents/{docId}/distribution-lists/{listId}` - Delete a distribution list
 
 #### Recipient Management
 - `GET /documents/{docId}/distribution-lists/{listId}/recipients` - Get all recipients in a list
-- `POST /documents/{docId}/distribution-lists/{listId}/recipients` - Add a recipient to a list
-- `DELETE /documents/{docId}/distribution-lists/{listId}/recipients/{recipientId}` - Remove a recipient from a list
 
 #### Send for Review
 - `POST /documents/{docId}/distribution-lists/{listId}/send-for-review` - Send document for review
@@ -106,38 +102,13 @@ The component uses CSS custom properties (CSS variables) for theming and is full
 
 1. **Access** - In the Document Flow section, click on the IDC (Integrated Design Control) step
 2. **View Tabs** - You'll see "Comments" and "Distribution list" subtabs within the IDC section
-3. **Create List** - Click on "Distribution list" tab, then click the "➕" button to create a new distribution list
-   - Enter a list name
-   - Click "Create" to save
-4. **Add Recipients** - Select a list from the left panel
-   - Enter recipient email in the input field
-   - Click "Add" or press Enter to add the recipient
-   - Recipients are displayed in a list below
-5. **Send for Review** - With recipients added to the selected list
+3. **Select List** - Choose a list from the left panel (lists are read-only via API)
+4. **Review Recipients** - Recipients are displayed in a list below (read-only)
+5. **Send for Review** - With a list selected
    - Click "📨 Send for Review & Comments"
    - The document is sent to all recipients in the list
    - A confirmation message appears on success
-6. **Manage** - Users can:
-   - Delete lists using the trash icon
-   - Remove individual recipients using the "✕" button
-   - Create multiple lists for different distribution groups
-
-## User Interface Flow
-
-1. **Access** - In the Document Flow section, click on the IDC (Integrated Design Control) step
-2. **View Tabs** - You'll see "Comments" and "Distribution list" subtabs within the IDC section
-3. **Create List** - Click on "Distribution list" tab, then click the "➕" button to create a new distribution list
-   - Enter a list name
-   - Click "Create" to save
-4. **Add Recipients** - Select a list from the left panel
-   - Enter recipient email in the input field
-   - Click "Add" or press Enter to add the recipient
-   - Recipients are displayed in a list below
-5. **Send for Review** - With recipients added to the selected list
-   - Click "📨 Send for Review & Comments"
-   - The document is sent to all recipients in the list
-   - A confirmation message appears on success
-6. **Manage** - Users can:
+6. **Manage** - List and recipient management is handled outside the API (admin/seed workflows)
    - Delete lists using the trash icon
    - Remove individual recipients using the "✕" button
    - Create multiple lists for different distribution groups
@@ -196,13 +167,11 @@ Possible improvements for future versions:
 When testing the Distribution List feature:
 
 1. Ensure API endpoints are correctly implemented on the backend
-2. Test creating lists with various names
-3. Test adding/removing recipients
-4. Test send for review functionality
-5. Verify error handling with invalid emails
-6. Test delete operations with confirmation dialogs
-7. Verify proper error messages display for failed operations
-8. Test loading states don't allow multiple concurrent operations
+2. Test loading lists and recipients (read-only)
+3. Test send for review functionality
+4. Verify error handling with invalid recipients list payloads
+5. Verify proper error messages display for failed operations
+6. Test loading states don't allow multiple concurrent operations
 
 ## Troubleshooting
 

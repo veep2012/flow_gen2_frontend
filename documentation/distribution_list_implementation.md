@@ -1,7 +1,7 @@
 # Distribution List Feature Implementation
 
 ## Overview
-The Distribution List feature allows users to create recipient lists within the Document Flow application and send documents for review and comments to multiple recipients at once.
+The Distribution List feature allows users to view preconfigured recipient lists within the Document Flow application and send documents for review and comments to multiple recipients at once.
 
 ## Architecture
 
@@ -9,44 +9,23 @@ The Distribution List feature allows users to create recipient lists within the 
 - **Location**: `ui/src/components/DistributionList/DistributionList.jsx`
 - **Integration**: Embedded in `IDCBehavior.jsx` as a subtab in the Document Flow workflow
 - **Features**:
-  - Create distribution lists by selecting a person from a dropdown
-  - Add recipients to a list via email address
-  - Remove individual recipients
-  - Delete distribution lists
+  - View distribution lists and recipients (read-only)
   - Send documents for review to all recipients in a list
   - Real-time error messages with API response details
-  - Person selection dropdown populated from `/api/v1/people/persons` endpoint
+  - Recipient lists are managed outside the API (admin/seed workflows)
 
 ### Backend API Endpoints
-All endpoints follow the pattern: `POST /api/v1/documents/{doc_id}/distribution-lists/*`
+All endpoints follow the pattern: `/api/v1/documents/{doc_id}/distribution-lists/*`
 
 #### Distribution List Management
-1. **Create Distribution List**
-   - `POST /documents/{doc_id}/distribution-lists`
-   - Request: `{"name": "string"}`
-   - Response: `DistributionListOut`
-
-2. **Get All Distribution Lists for Document**
+1. **Get All Distribution Lists for Document**
    - `GET /documents/{doc_id}/distribution-lists`
    - Response: `List[DistributionListOut]`
 
-3. **Delete Distribution List**
-   - `DELETE /documents/{doc_id}/distribution-lists/{list_id}`
-   - Status: 204 No Content
-
 #### Recipient Management
-1. **Add Recipient to List**
-   - `POST /documents/{doc_id}/distribution-lists/{list_id}/recipients`
-   - Request: `{"email": "string", "person_name": "string|null"}`
-   - Response: `RecipientOut`
-
-2. **Get Recipients in List**
+1. **Get Recipients in List**
    - `GET /documents/{doc_id}/distribution-lists/{list_id}/recipients`
    - Response: `List[RecipientOut]`
-
-3. **Remove Recipient from List**
-   - `DELETE /documents/{doc_id}/distribution-lists/{list_id}/recipients/{recipient_id}`
-   - Status: 204 No Content
 
 #### Review Workflow
 1. **Send Document for Review**
@@ -64,15 +43,8 @@ class DistributionListOut(BaseModel):
     list_name: str
     recipients: List[RecipientOut]
 
-class DistributionListCreate(BaseModel):
-    name: str
-
 class RecipientOut(BaseModel):
     recipient_id: int
-    email: str
-    person_name: str | None
-
-class RecipientCreate(BaseModel):
     email: str
     person_name: str | None
 
