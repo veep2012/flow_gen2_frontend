@@ -1,7 +1,6 @@
 """Documents endpoints for managing documents, revisions, milestones, and overviews."""
 
 import logging
-from datetime import datetime, timezone
 from typing import Any, TypeVar
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
@@ -501,7 +500,6 @@ def list_document_revisions(
             "rev_code_name": overview.rev_code_name if overview else None,
             "rev_code_acronym": overview.rev_code_acronym if overview else None,
             "rev_description": overview.rev_description if overview else None,
-            "rev_date": rev.rev_date,
             "rev_author_id": rev.rev_author_id,
             "rev_originator_id": rev.rev_originator_id,
             "rev_modifier_id": rev.rev_modifier_id,
@@ -581,6 +579,13 @@ def update_document_revision(
     except IntegrityError as err:
         db.rollback()
         _handle_integrity_error("Failed to update revision", err, "update_document_revision")
+    except DBAPIError as err:
+        db.rollback()
+        message = str(err.orig) if getattr(err, "orig", None) else str(err)
+        lowered = message.lower()
+        if "final revision is immutable" in lowered:
+            raise HTTPException(status_code=409, detail="Final revision is immutable") from err
+        raise HTTPException(status_code=500, detail="Internal Server Error") from err
 
     row = (
         db.query(DocRevision, RevisionOverview, DocRevStatus, DocRevMilestone)
@@ -602,7 +607,6 @@ def update_document_revision(
         "rev_code_name": overview.rev_code_name if overview else None,
         "rev_code_acronym": overview.rev_code_acronym if overview else None,
         "rev_description": overview.rev_description if overview else None,
-        "rev_date": rev.rev_date,
         "rev_author_id": rev.rev_author_id,
         "rev_originator_id": rev.rev_originator_id,
         "rev_modifier_id": rev.rev_modifier_id,
@@ -649,7 +653,6 @@ def _build_doc_revision_out(db: Session, rev_id: int) -> DocRevisionOut:
         "rev_code_name": overview.rev_code_name if overview else None,
         "rev_code_acronym": overview.rev_code_acronym if overview else None,
         "rev_description": overview.rev_description if overview else None,
-        "rev_date": rev.rev_date,
         "rev_author_id": rev.rev_author_id,
         "rev_originator_id": rev.rev_originator_id,
         "rev_modifier_id": rev.rev_modifier_id,
@@ -680,6 +683,11 @@ _REV_STATUS_TRANSITION_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("already at start status", 409, "Revision already at start status"),
     ("not revertible", 409, "Revision status not revertible"),
     ("previous status not found", 409, "Previous status not found"),
+    (
+        "files must exist before leaving the start status",
+        409,
+        "Files must exist before leaving the start status",
+    ),
     ("invalid direction", 400, "Invalid direction"),
     ("revision not found", 404, "Revision not found"),
 )
@@ -716,7 +724,7 @@ def create_revision_status_transition(
 
     try:
         db.execute(
-            text("SELECT flow.doc_revision_status_transform(:rev_id, :direction)"),
+            text("SELECT workflow.transition_revision(:rev_id, :direction)"),
             {"rev_id": rev_id, "direction": payload.direction},
         )
         db.commit()
@@ -762,38 +770,43 @@ def insert_document_revision(
     if not db.get(Person, payload.rev_modifier_id):
         raise HTTPException(status_code=404, detail="Revision modifier not found")
 
-    max_seq = (
-        db.query(DocRevision.seq_num)
-        .filter(DocRevision.doc_id == doc_id)
-        .order_by(DocRevision.seq_num.desc())
-        .limit(1)
-        .scalar()
-    )
-    seq_num = 1 if max_seq is None else max_seq + 1
-
-    new_revision = DocRevision(
-        doc_id=doc_id,
-        seq_num=seq_num,
-        rev_code_id=payload.rev_code_id,
-        rev_date=_normalize_dt(payload.rev_date) or datetime.now(timezone.utc),
-        rev_author_id=payload.rev_author_id,
-        rev_originator_id=payload.rev_originator_id,
-        rev_modifier_id=payload.rev_modifier_id,
-        transmital_current_revision=payload.transmital_current_revision,
-        milestone_id=payload.milestone_id,
-        planned_start_date=_normalize_dt(payload.planned_start_date),
-        planned_finish_date=_normalize_dt(payload.planned_finish_date),
-        actual_start_date=_normalize_dt(payload.actual_start_date),
-        actual_finish_date=_normalize_dt(payload.actual_finish_date),
-        canceled_date=_normalize_dt(payload.canceled_date),
-        rev_status_id=None,
-        as_built=payload.as_built,
-        superseded=payload.superseded,
-        voided=payload.voided,
-        modified_doc_date=_normalize_dt(payload.modified_doc_date) or datetime.now(timezone.utc),
-    )
-    db.add(new_revision)
     try:
+        rev_id = db.execute(
+            text(
+                """
+                SELECT workflow.create_revision(
+                    :doc_id,
+                    :rev_code_id,
+                    :rev_author_id,
+                    :rev_originator_id,
+                    :rev_modifier_id,
+                    :transmital_current_revision,
+                    :milestone_id,
+                    :planned_start_date,
+                    :planned_finish_date,
+                    :actual_start_date,
+                    :actual_finish_date,
+                    :modified_doc_date,
+                    :as_built
+                )
+                """
+            ),
+            {
+                "doc_id": doc_id,
+                "rev_code_id": payload.rev_code_id,
+                "rev_author_id": payload.rev_author_id,
+                "rev_originator_id": payload.rev_originator_id,
+                "rev_modifier_id": payload.rev_modifier_id,
+                "transmital_current_revision": payload.transmital_current_revision,
+                "milestone_id": payload.milestone_id,
+                "planned_start_date": _normalize_dt(payload.planned_start_date),
+                "planned_finish_date": _normalize_dt(payload.planned_finish_date),
+                "actual_start_date": _normalize_dt(payload.actual_start_date),
+                "actual_finish_date": _normalize_dt(payload.actual_finish_date),
+                "modified_doc_date": _normalize_dt(payload.modified_doc_date),
+                "as_built": payload.as_built,
+            },
+        ).scalar_one()
         db.commit()
     except IntegrityError as err:
         db.rollback()
@@ -801,16 +814,20 @@ def insert_document_revision(
     except DBAPIError as err:
         db.rollback()
         message = str(err.orig) if getattr(err, "orig", None) else str(err)
-        if "No start status found in doc_rev_statuses" in message:
+        lowered = message.lower()
+        if "no start status configured" in lowered:
+            raise HTTPException(status_code=400, detail="No start status configured") from err
+        if "only one active (non-final, non-canceled) revision allowed per document" in lowered:
             raise HTTPException(
-                status_code=400, detail="No start status found in doc_rev_statuses"
+                status_code=409,
+                detail="Only one active (non-final, non-canceled) revision allowed per document",
             ) from err
         raise HTTPException(status_code=500, detail="Internal Server Error") from err
     except Exception as err:
         db.rollback()
         logger.exception("Failed to create revision doc_id=%s", doc_id)
         raise HTTPException(status_code=500, detail="Internal Server Error") from err
-    return _build_doc_revision_out(db, new_revision.rev_id)
+    return _build_doc_revision_out(db, rev_id)
 
 
 def update_document(
@@ -1060,8 +1077,8 @@ def insert_document(
         result = db.execute(
             text(
                 """
-                SELECT out_doc_id AS doc_id, out_rev_id AS rev_id
-                FROM flow.create_doc_with_revision(
+                SELECT doc_id, rev_id
+                FROM workflow.create_document(
                     :doc_name_unique,
                     :title,
                     :project_id,
@@ -1070,7 +1087,6 @@ def insert_document(
                     :area_id,
                     :unit_id,
                     :rev_code_id,
-                    :rev_date,
                     :rev_author_id,
                     :rev_originator_id,
                     :rev_modifier_id,
@@ -1080,8 +1096,8 @@ def insert_document(
                     :planned_finish_date,
                     :actual_start_date,
                     :actual_finish_date,
-                    :canceled_date,
-                    :modified_doc_date
+                    :modified_doc_date,
+                    :as_built
                 )
                 """
             ),
@@ -1094,7 +1110,6 @@ def insert_document(
                 "area_id": payload.area_id,
                 "unit_id": payload.unit_id,
                 "rev_code_id": payload.rev_code_id,
-                "rev_date": _normalize_dt(getattr(payload, "rev_date", None)),
                 "rev_author_id": payload.rev_author_id,
                 "rev_originator_id": payload.rev_originator_id,
                 "rev_modifier_id": payload.rev_modifier_id,
@@ -1104,8 +1119,8 @@ def insert_document(
                 "planned_finish_date": _normalize_dt(payload.planned_finish_date),
                 "actual_start_date": _normalize_dt(getattr(payload, "actual_start_date", None)),
                 "actual_finish_date": _normalize_dt(getattr(payload, "actual_finish_date", None)),
-                "canceled_date": _normalize_dt(getattr(payload, "canceled_date", None)),
                 "modified_doc_date": _normalize_dt(getattr(payload, "modified_doc_date", None)),
+                "as_built": getattr(payload, "as_built", False),
             },
         ).one()
         doc_id = result.doc_id
@@ -1820,18 +1835,23 @@ def cancel_revision(
     if not doc or doc.voided:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    if revision.canceled_date is None:
-        status = db.get(DocRevStatus, revision.rev_status_id)
-        if status and status.final:
+    try:
+        db.execute(
+            text("SELECT workflow.cancel_revision(:rev_id)"),
+            {"rev_id": rev_id},
+        )
+        db.commit()
+    except DBAPIError as err:
+        db.rollback()
+        message = str(err.orig) if getattr(err, "orig", None) else str(err)
+        lowered = message.lower()
+        if "revision not found" in lowered:
+            raise HTTPException(status_code=404, detail="Revision not found") from err
+        if "final revision cannot be canceled" in lowered:
             raise HTTPException(
-                status_code=409, detail="Revision status does not allow cancellation"
-            )
-        revision.canceled_date = datetime.now(timezone.utc)
-        try:
-            db.commit()
-        except IntegrityError as err:
-            db.rollback()
-            _handle_integrity_error("Failed to cancel revision", err, "cancel_revision")
+                status_code=409, detail="Final revision cannot be canceled"
+            ) from err
+        raise HTTPException(status_code=500, detail="Internal Server Error") from err
 
     row = (
         db.query(DocRevision, RevisionOverview, DocRevStatus, DocRevMilestone)
@@ -1853,7 +1873,6 @@ def cancel_revision(
         "rev_code_name": overview.rev_code_name if overview else None,
         "rev_code_acronym": overview.rev_code_acronym if overview else None,
         "rev_description": overview.rev_description if overview else None,
-        "rev_date": rev.rev_date,
         "rev_author_id": rev.rev_author_id,
         "rev_originator_id": rev.rev_originator_id,
         "rev_modifier_id": rev.rev_modifier_id,
@@ -1933,8 +1952,7 @@ def delete_document(
         except StaleDataError:
             db.rollback()
             raise HTTPException(status_code=404, detail="Document not found")
-        for revision in revisions:
-            db.delete(revision)
+        db.execute(text("SELECT set_config('app.action', 'delete_document', true)"))
         # Delete the document (cascade will delete related revisions)
         db.delete(doc)
         result = "deleted"

@@ -24,7 +24,6 @@ erDiagram
     DOC_REVISION {
         integer rev_id PK
         smallint rev_code_id FK
-        timestamptz rev_date
         smallint rev_author_id FK
         smallint rev_originator_id FK
         boolean as_built

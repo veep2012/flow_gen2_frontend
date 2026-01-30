@@ -35,9 +35,9 @@ flowchart TD
 - After approval, merge into `dev`; only Aleksei promotes `dev` to `main` for PROD/investor-ready code.
 
 ## Backend env notes
-- `DATABASE_URL` supports shell-style `${VAR}` expansion. Typical pattern:  
-  `DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}`
-- If `DATABASE_URL` is unset, the app builds it from `POSTGRES_USER/PASSWORD/HOST/PORT/DB` env vars.
+- `APP_DATABASE_URL` supports shell-style `${VAR}` expansion. Typical pattern:  
+  `APP_DATABASE_URL=postgresql+psycopg://${APP_DB_USER}:${APP_DB_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}`
+- If `APP_DATABASE_URL` is unset, the app builds it from `APP_DB_USER/APP_DB_PASSWORD` plus `POSTGRES_HOST/PORT/DB` env vars.
 - Object storage defaults to `MINIO_ENDPOINT=minio:9000` and `MINIO_BUCKET=flow-default`. Override with `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_SECURE`. MinIO credentials (`MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`) are required for local dev and CI.
 - Upload size limit: `MAX_UPLOAD_SIZE_MB` (default 128).
 - MinIO retry tuning: `MINIO_RETRIES`, `MINIO_RETRY_DELAY_SEC`.

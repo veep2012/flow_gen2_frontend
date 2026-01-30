@@ -1,6 +1,6 @@
 # Flow API Interfaces
 
-Current FastAPI surface (version 0.1.0). All endpoints are JSON unless noted, live under the backend root (no global prefix), and are CORS-open for any origin. Default database URL is `postgresql+psycopg://flow_user:flow_pass@postgres:5432/flow_db`; override via `DATABASE_URL`. Object storage defaults to `MINIO_ENDPOINT=minio:9000` and `MINIO_BUCKET=flow-default`; override with `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_SECURE`.
+Current FastAPI surface (version 0.1.0). All endpoints are JSON unless noted, live under the backend root (no global prefix), and are CORS-open for any origin. Default database URL is `postgresql+psycopg://app_user:app_pass@postgres:5432/flow_db`; override via `APP_DATABASE_URL` or `APP_DB_USER/APP_DB_PASSWORD` with `POSTGRES_HOST/PORT/DB`. Object storage defaults to `MINIO_ENDPOINT=minio:9000` and `MINIO_BUCKET=flow-default`; override with `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_SECURE`.
 
 Update conventions (PUT/PATCH):
 - `PUT` is idempotent and used for updates; this API accepts partial updates via `PUT` (fields may be omitted unless noted).
@@ -1445,7 +1445,6 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/11
     "rev_code_name": "INDESIGN",
     "rev_code_acronym": "A",
     "rev_description": "IN-DESIGN",
-    "rev_date": "2024-01-01T12:00:00Z",
     "rev_author_id": 1,
     "rev_originator_id": 1,
     "rev_modifier_id": 1,
@@ -1477,7 +1476,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/11
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
-  -d '{ "rev_code_id": 6, "rev_date": "2024-01-01T12:00:00Z", "rev_author_id": 1, "rev_originator_id": 1, "rev_modifier_id": 1, "transmital_current_revision": "TR-NEW-001", "milestone_id": 1, "planned_start_date": "2024-01-02T12:00:00Z", "planned_finish_date": "2024-01-05T12:00:00Z", "actual_start_date": null, "actual_finish_date": null, "canceled_date": null, "as_built": false, "superseded": false, "voided": false, "modified_doc_date": "2024-01-05T12:00:00Z" }' \
+  -d '{ "rev_code_id": 6, "rev_author_id": 1, "rev_originator_id": 1, "rev_modifier_id": 1, "transmital_current_revision": "TR-NEW-001", "milestone_id": 1, "planned_start_date": "2024-01-02T12:00:00Z", "planned_finish_date": "2024-01-05T12:00:00Z", "actual_start_date": null, "actual_finish_date": null, "as_built": false, "modified_doc_date": "2024-01-05T12:00:00Z" }' \
   http://localhost:4175/api/v1/documents/11/revisions
 ```
 - Example response:
@@ -1490,7 +1489,6 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "rev_code_name": "INDESIGN",
   "rev_code_acronym": "A",
   "rev_description": "IN-DESIGN",
-  "rev_date": "2024-01-01T12:00:00Z",
   "rev_author_id": 1,
   "rev_originator_id": 1,
   "rev_modifier_id": 1,
@@ -1530,7 +1528,6 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "rev_code_name": "INDESIGN",
   "rev_code_acronym": "A",
   "rev_description": "IN-DESIGN",
-  "rev_date": "2024-01-01T12:00:00Z",
   "rev_author_id": 1,
   "rev_originator_id": 1,
   "rev_modifier_id": 1,
@@ -1569,7 +1566,6 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "rev_code_name": "INDESIGN",
   "rev_code_acronym": "A",
   "rev_description": "IN-DESIGN",
-  "rev_date": "2024-01-01T12:00:00Z",
   "rev_author_id": 1,
   "rev_originator_id": 1,
   "rev_modifier_id": 1,

@@ -7,7 +7,7 @@ STOP_TIMEOUT_SEC="${STOP_TIMEOUT_SEC:-10}"
 
 mkdir -p "$(dirname "$PID_FILE")"
 
-PRESET_DATABASE_URL="${DATABASE_URL:-}"
+PRESET_APP_DATABASE_URL="${APP_DATABASE_URL:-}"
 PRESET_API_HOST="${API_HOST:-}"
 PRESET_API_PORT="${API_PORT:-}"
 PRESET_MINIO_ENDPOINT="${MINIO_ENDPOINT:-}"
@@ -23,8 +23,8 @@ if [[ -f ".env" ]]; then
   set +a
 fi
 
-if [[ -n "$PRESET_DATABASE_URL" ]]; then
-  export DATABASE_URL="$PRESET_DATABASE_URL"
+if [[ -n "$PRESET_APP_DATABASE_URL" ]]; then
+  export APP_DATABASE_URL="$PRESET_APP_DATABASE_URL"
 fi
 if [[ -n "$PRESET_API_HOST" ]]; then
   export API_HOST="$PRESET_API_HOST"
