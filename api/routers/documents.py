@@ -515,7 +515,6 @@ def list_document_revisions(
             "rev_status_name": status.rev_status_name if status else None,
             "as_built": rev.as_built,
             "superseded": rev.superseded,
-            "voided": rev.voided,
             "modified_doc_date": rev.modified_doc_date,
             "created_at": rev.created_at,
             "updated_at": rev.updated_at,
@@ -622,7 +621,6 @@ def update_document_revision(
         "rev_status_name": status.rev_status_name if status else None,
         "as_built": rev.as_built,
         "superseded": rev.superseded,
-        "voided": rev.voided,
         "modified_doc_date": rev.modified_doc_date,
         "created_at": rev.created_at,
         "updated_at": rev.updated_at,
@@ -668,7 +666,6 @@ def _build_doc_revision_out(db: Session, rev_id: int) -> DocRevisionOut:
         "rev_status_name": status.rev_status_name if status else None,
         "as_built": rev.as_built,
         "superseded": rev.superseded,
-        "voided": rev.voided,
         "modified_doc_date": rev.modified_doc_date,
         "created_at": rev.created_at,
         "updated_at": rev.updated_at,
@@ -1888,7 +1885,6 @@ def cancel_revision(
         "rev_status_name": status.rev_status_name if status else None,
         "as_built": rev.as_built,
         "superseded": rev.superseded,
-        "voided": rev.voided,
         "modified_doc_date": rev.modified_doc_date,
         "created_at": rev.created_at,
         "updated_at": rev.updated_at,
@@ -1959,9 +1955,6 @@ def delete_document(
     else:
         # Set voided to true
         doc.voided = True
-        db.query(DocRevision).filter(DocRevision.doc_id == doc_id).update(
-            {"voided": True}, synchronize_session=False
-        )
         result = "voided"
 
     try:

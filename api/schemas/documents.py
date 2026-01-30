@@ -267,7 +267,6 @@ class DocRevisionOut(BaseModel):
     )
     as_built: bool = Field(False, description="As-built flag.", examples=[False])
     superseded: bool = Field(False, description="Superseded flag.", examples=[False])
-    voided: bool = Field(False, description="Voided flag.", examples=[False])
     modified_doc_date: datetime = Field(
         ..., description="Modified document date.", examples=["2024-01-05T12:00:00Z"]
     )

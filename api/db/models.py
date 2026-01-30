@@ -394,7 +394,6 @@ class DocRevision(Base):
     )
     as_built: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     superseded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     transmital_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
     milestone_id: Mapped[Optional[int]] = mapped_column(
         SmallInteger, ForeignKey("doc_rev_milestones.milestone_id")
@@ -462,7 +461,6 @@ class DocRevisionHistory(Base):
     rev_originator_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     as_built: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     superseded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     transmital_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
     milestone_id: Mapped[Optional[int]] = mapped_column(SmallInteger)
     planned_start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -548,7 +546,6 @@ class DocRevisionHistoryView(Base):
     rev_originator_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     as_built: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     superseded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     transmital_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
     milestone_id: Mapped[Optional[int]] = mapped_column(SmallInteger)
     planned_start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

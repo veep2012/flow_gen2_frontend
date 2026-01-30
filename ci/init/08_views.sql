@@ -36,7 +36,6 @@ SELECT
     rev_originator_id,
     as_built,
     superseded,
-    voided,
     transmital_current_revision,
     milestone_id,
     planned_start_date,

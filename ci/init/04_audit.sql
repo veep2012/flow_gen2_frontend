@@ -33,7 +33,6 @@ CREATE TABLE doc_revision_history (
     rev_originator_id SMALLINT NOT NULL,
     as_built BOOLEAN NOT NULL DEFAULT FALSE,
     superseded BOOLEAN NOT NULL DEFAULT FALSE,
-    voided BOOLEAN NOT NULL DEFAULT FALSE,
     transmital_current_revision VARCHAR(45) NOT NULL,
     milestone_id SMALLINT,
     planned_start_date TIMESTAMPTZ NOT NULL,

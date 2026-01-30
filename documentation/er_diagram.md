@@ -28,7 +28,6 @@ erDiagram
         smallint rev_originator_id FK
         boolean as_built
         boolean superseded
-        boolean voided
         string transmital_current_revision
         smallint milestone_id FK
         timestamptz planned_start_date
@@ -56,7 +55,6 @@ erDiagram
         smallint rev_originator_id
         boolean as_built
         boolean superseded
-        boolean voided
         string transmital_current_revision
         smallint milestone_id
         timestamptz planned_start_date
@@ -79,7 +77,6 @@ erDiagram
         smallint rev_originator_id
         boolean as_built
         boolean superseded
-        boolean voided
         string transmital_current_revision
         smallint milestone_id
         timestamptz planned_start_date

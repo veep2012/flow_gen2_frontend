@@ -1460,7 +1460,6 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/11
     "rev_status_name": "InDesign",
     "as_built": false,
     "superseded": false,
-    "voided": false,
     "modified_doc_date": "2024-01-05T12:00:00Z",
     "created_at": "2026-01-23T17:45:08.294332Z",
     "updated_at": "2026-01-23T17:45:08.294332Z",
@@ -1504,7 +1503,6 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "rev_status_name": "InDesign",
   "as_built": false,
   "superseded": false,
-  "voided": false,
   "modified_doc_date": "2024-01-05T12:00:00Z"
 }
 ```
@@ -1543,7 +1541,6 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "rev_status_name": "InDesign",
   "as_built": false,
   "superseded": false,
-  "voided": false,
   "modified_doc_date": "2024-01-05T12:00:00Z"
 }
 ```
@@ -1581,7 +1578,6 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "rev_status_name": "IDC",
   "as_built": false,
   "superseded": false,
-  "voided": false,
   "modified_doc_date": "2024-01-05T12:00:00Z"
 }
 ```
@@ -1607,7 +1603,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 ### Delete
 - `DELETE /api/v1/documents/{doc_id}` — 200 with `{ "result": "deleted" }` or `{ "result": "voided" }`; deletes a document if only one revision in start status, otherwise voids. 404 if not found.
 - Permissions: none enforced by API (auth TBD).
-- Side effects: hard delete cascades to revisions/files/comments; voiding updates document and all revisions.
+- Side effects: hard delete cascades to revisions/files/comments; voiding updates the document only.
 
 ## Error responses
 - `400` — Validation failed (missing required fields, duplicate/uniqueness, duplicate permissions, etc.).

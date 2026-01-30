@@ -27,7 +27,6 @@ CREATE TABLE doc_revision (
     seq_num SMALLINT NOT NULL DEFAULT 1,
     rev_status_id SMALLINT NOT NULL REFERENCES ref.doc_rev_statuses(rev_status_id),
     superseded BOOLEAN NOT NULL DEFAULT FALSE,
-    voided BOOLEAN NOT NULL DEFAULT FALSE,
     transmital_current_revision VARCHAR(45) NOT NULL,
     milestone_id SMALLINT REFERENCES ref.doc_rev_milestones(milestone_id),
     planned_start_date TIMESTAMPTZ NOT NULL,
