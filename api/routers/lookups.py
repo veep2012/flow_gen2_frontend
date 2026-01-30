@@ -1,6 +1,7 @@
 """Lookups endpoints for areas, disciplines, projects, units, jobpacks, roles, and doc types."""
 
 from fastapi import APIRouter, Body, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -102,8 +103,16 @@ def list_areas(db: Session = Depends(get_db)) -> list[AreaOut]:
         List of areas with id, name, and acronym.
 
     """
-    areas = db.query(Area).order_by(Area.area_name).all()
-    return _model_list(AreaOut, areas)
+    rows = db.execute(
+        text(
+            """
+            SELECT area_id, area_name, area_acronym
+            FROM workflow.areas
+            ORDER BY area_name
+            """
+        )
+    ).mappings()
+    return _model_list(AreaOut, rows.all())
 
 
 def update_area(
@@ -254,8 +263,16 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[DisciplineOut]:
     Returns:
         List of disciplines with id, name, and acronym.
     """
-    disciplines = db.query(Discipline).order_by(Discipline.discipline_name).all()
-    return _model_list(DisciplineOut, disciplines)
+    rows = db.execute(
+        text(
+            """
+            SELECT discipline_id, discipline_name, discipline_acronym
+            FROM workflow.disciplines
+            ORDER BY discipline_name
+            """
+        )
+    ).mappings()
+    return _model_list(DisciplineOut, rows.all())
 
 
 def update_discipline(
@@ -417,8 +434,16 @@ def list_projects(db: Session = Depends(get_db)) -> list[ProjectOut]:
     Returns:
         List of projects with id and name.
     """
-    projects = db.query(Project).order_by(Project.project_name).all()
-    return _model_list(ProjectOut, projects)
+    rows = db.execute(
+        text(
+            """
+            SELECT project_id, project_name
+            FROM workflow.projects
+            ORDER BY project_name
+            """
+        )
+    ).mappings()
+    return _model_list(ProjectOut, rows.all())
 
 
 def update_project(
@@ -567,8 +592,16 @@ def list_units(db: Session = Depends(get_db)) -> list[UnitOut]:
     Returns:
         List of units with id and name.
     """
-    units = db.query(Unit).order_by(Unit.unit_name).all()
-    return _model_list(UnitOut, units)
+    rows = db.execute(
+        text(
+            """
+            SELECT unit_id, unit_name
+            FROM workflow.units
+            ORDER BY unit_name
+            """
+        )
+    ).mappings()
+    return _model_list(UnitOut, rows.all())
 
 
 def update_unit(
@@ -717,8 +750,16 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[JobpackOut]:
     Returns:
         List of jobpacks with id and name.
     """
-    jobpacks = db.query(Jobpack).order_by(Jobpack.jobpack_name).all()
-    return _model_list(JobpackOut, jobpacks)
+    rows = db.execute(
+        text(
+            """
+            SELECT jobpack_id, jobpack_name
+            FROM workflow.jobpacks
+            ORDER BY jobpack_name
+            """
+        )
+    ).mappings()
+    return _model_list(JobpackOut, rows.all())
 
 
 def update_jobpack(
@@ -866,10 +907,16 @@ def list_doc_rev_status_ui_behaviors(
     Returns:
         List of document revision status UI behaviors with id and name.
     """
-    behaviors = (
-        db.query(DocRevStatusUiBehavior).order_by(DocRevStatusUiBehavior.ui_behavior_name).all()
-    )
-    return _model_list(DocRevStatusUiBehaviorOut, behaviors)
+    rows = db.execute(
+        text(
+            """
+            SELECT ui_behavior_id, ui_behavior_name, ui_behavior_file
+            FROM workflow.doc_rev_status_ui_behaviors
+            ORDER BY ui_behavior_name
+            """
+        )
+    ).mappings()
+    return _model_list(DocRevStatusUiBehaviorOut, rows.all())
 
 
 def insert_doc_rev_status_ui_behavior(
@@ -1025,8 +1072,23 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatusOut
     Returns:
         List of document revision statuses with id and name.
     """
-    statuses = db.query(DocRevStatus).order_by(DocRevStatus.rev_status_name).all()
-    return _model_list(DocRevStatusOut, statuses)
+    rows = db.execute(
+        text(
+            """
+            SELECT rev_status_id,
+                   rev_status_name,
+                   ui_behavior_id,
+                   next_rev_status_id,
+                   revertible,
+                   editable,
+                   final,
+                   start
+            FROM workflow.doc_rev_statuses
+            ORDER BY rev_status_name
+            """
+        )
+    ).mappings()
+    return _model_list(DocRevStatusOut, rows.all())
 
 
 def insert_doc_rev_status(

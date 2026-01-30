@@ -1,27 +1,19 @@
 """Documents endpoints for managing documents, revisions, milestones, and overviews."""
 
+import json
 import logging
-from typing import Any, TypeVar
+from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
-from sqlalchemy.orm import Session, aliased, joinedload
-from sqlalchemy.orm.exc import StaleDataError
+from sqlalchemy.orm import Session
 
 from api.db.models import (
-    Area,
     Discipline,
-    Doc,
-    DocRevision,
     DocRevMilestone,
-    DocRevStatus,
     DocType,
-    Jobpack,
-    Person,
-    Project,
     RevisionOverview,
-    Unit,
 )
 from api.schemas.documents import (
     DeleteResult,
@@ -128,13 +120,27 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocTypeOut]:
     Returns:
         List of document types with id, name, acronym, and associated discipline details.
     """
-    doc_types = (
-        db.query(DocType, Discipline)
-        .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
-        .order_by(DocType.doc_type_name)
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    dt.type_id,
+                    dt.doc_type_name,
+                    dt.ref_discipline_id,
+                    dt.doc_type_acronym,
+                    d.discipline_name,
+                    d.discipline_acronym
+                FROM workflow.doc_types AS dt
+                JOIN workflow.disciplines AS d ON d.discipline_id = dt.ref_discipline_id
+                ORDER BY dt.doc_type_name
+                """
+            )
+        )
+        .mappings()
         .all()
     )
-    return [_build_doc_type_out(dt, disc) for dt, disc in doc_types]
+    return _model_list(DocTypeOut, rows)
 
 
 def insert_doc_type(
@@ -319,82 +325,117 @@ def list_documents_for_project(
     Returns:
         List of documents with comprehensive metadata.
     """
-    rev_current = aliased(DocRevision)
-    query = (
-        db.query(
-            Doc,
-            DocType,
-            Discipline,
-            Project,
-            Jobpack,
-            Area,
-            Unit,
-            rev_current,
-            RevisionOverview,
-            DocRevStatus,
-        )
-        .join(DocType, Doc.type_id == DocType.type_id)
-        .join(Discipline, DocType.ref_discipline_id == Discipline.discipline_id)
-        .outerjoin(Project, Doc.project_id == Project.project_id)
-        .outerjoin(Jobpack, Doc.jobpack_id == Jobpack.jobpack_id)
-        .outerjoin(Area, Doc.area_id == Area.area_id)
-        .outerjoin(Unit, Doc.unit_id == Unit.unit_id)
-        .outerjoin(rev_current, Doc.rev_current_id == rev_current.rev_id)
-        .outerjoin(RevisionOverview, rev_current.rev_code_id == RevisionOverview.rev_code_id)
-        .outerjoin(DocRevStatus, rev_current.rev_status_id == DocRevStatus.rev_status_id)
-        .filter(Doc.project_id == project_id)
-        .order_by(Doc.doc_name_unique)
-    )
+    sql = """
+        SELECT
+            d.doc_id,
+            d.doc_name_unique,
+            d.title,
+            d.project_id,
+            p.project_name,
+            d.jobpack_id,
+            j.jobpack_name,
+            d.type_id,
+            dt.doc_type_name,
+            dt.doc_type_acronym,
+            d.area_id,
+            a.area_name,
+            a.area_acronym,
+            d.unit_id,
+            u.unit_name,
+            d.rev_actual_id,
+            d.rev_current_id,
+            rc.seq_num AS rev_seq_num,
+            disc.discipline_id,
+            disc.discipline_name,
+            disc.discipline_acronym,
+            ro.rev_code_name,
+            ro.rev_code_acronym,
+            rs.rev_status_id,
+            rs.rev_status_name,
+            ro.percentage,
+            d.voided,
+            d.created_at,
+            d.updated_at,
+            d.created_by,
+            d.updated_by
+        FROM workflow.v_documents AS d
+        JOIN workflow.doc_types AS dt ON dt.type_id = d.type_id
+        JOIN workflow.disciplines AS disc ON disc.discipline_id = dt.ref_discipline_id
+        LEFT JOIN workflow.projects AS p ON p.project_id = d.project_id
+        LEFT JOIN workflow.jobpacks AS j ON j.jobpack_id = d.jobpack_id
+        LEFT JOIN workflow.areas AS a ON a.area_id = d.area_id
+        LEFT JOIN workflow.units AS u ON u.unit_id = d.unit_id
+        LEFT JOIN workflow.doc_revision AS rc ON rc.rev_id = d.rev_current_id
+        LEFT JOIN workflow.revision_overview AS ro ON ro.rev_code_id = rc.rev_code_id
+        LEFT JOIN workflow.doc_rev_statuses AS rs ON rs.rev_status_id = rc.rev_status_id
+        WHERE d.project_id = :project_id
+    """
+    params: dict[str, Any] = {"project_id": project_id}
     if not show_voided:
-        query = query.filter(Doc.voided.is_(False))
-    docs = query.all()
-    return [
-        DocOut(
-            doc_id=doc.doc_id,
-            doc_name_unique=doc.doc_name_unique,
-            title=doc.title,
-            project_id=doc.project_id,
-            project_name=project.project_name if project else None,
-            jobpack_id=doc.jobpack_id,
-            jobpack_name=jobpack.jobpack_name if jobpack else None,
-            type_id=doc.type_id,
-            doc_type_name=doc_type.doc_type_name,
-            doc_type_acronym=doc_type.doc_type_acronym,
-            area_id=doc.area_id,
-            area_name=area.area_name,
-            area_acronym=area.area_acronym,
-            unit_id=doc.unit_id,
-            unit_name=unit.unit_name,
-            rev_actual_id=doc.rev_actual_id,
-            rev_current_id=doc.rev_current_id,
-            rev_seq_num=rev_current_row.seq_num if rev_current_row else None,
-            discipline_id=discipline.discipline_id,
-            discipline_name=discipline.discipline_name,
-            discipline_acronym=discipline.discipline_acronym,
-            rev_code_name=revision_overview.rev_code_name if revision_overview else None,
-            rev_code_acronym=revision_overview.rev_code_acronym if revision_overview else None,
-            rev_status_id=rev_status.rev_status_id if rev_status else None,
-            rev_status_name=rev_status.rev_status_name if rev_status else None,
-            percentage=revision_overview.percentage if revision_overview else None,
-            voided=doc.voided,
-            created_at=doc.created_at,
-            updated_at=doc.updated_at,
-            created_by=doc.created_by,
-            updated_by=doc.updated_by,
+        sql += " AND d.voided IS FALSE"
+    sql += " ORDER BY d.doc_name_unique"
+    rows = db.execute(text(sql), params).mappings().all()
+    return _model_list(DocOut, rows)
+
+
+def _fetch_doc_out(db: Session, doc_id: int, *, allow_voided: bool = True) -> DocOut:
+    row = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    d.doc_id,
+                    d.doc_name_unique,
+                    d.title,
+                    d.project_id,
+                    p.project_name,
+                    d.jobpack_id,
+                    j.jobpack_name,
+                    d.type_id,
+                    dt.doc_type_name,
+                    dt.doc_type_acronym,
+                    d.area_id,
+                    a.area_name,
+                    a.area_acronym,
+                    d.unit_id,
+                    u.unit_name,
+                    d.rev_actual_id,
+                    d.rev_current_id,
+                    rc.seq_num AS rev_seq_num,
+                    disc.discipline_id,
+                    disc.discipline_name,
+                    disc.discipline_acronym,
+                    ro.rev_code_name,
+                    ro.rev_code_acronym,
+                    rs.rev_status_id,
+                    rs.rev_status_name,
+                    ro.percentage,
+                    d.voided,
+                    d.created_at,
+                    d.updated_at,
+                    d.created_by,
+                    d.updated_by
+                FROM workflow.v_documents AS d
+                JOIN workflow.doc_types AS dt ON dt.type_id = d.type_id
+                JOIN workflow.disciplines AS disc ON disc.discipline_id = dt.ref_discipline_id
+                LEFT JOIN workflow.projects AS p ON p.project_id = d.project_id
+                LEFT JOIN workflow.jobpacks AS j ON j.jobpack_id = d.jobpack_id
+                LEFT JOIN workflow.areas AS a ON a.area_id = d.area_id
+                LEFT JOIN workflow.units AS u ON u.unit_id = d.unit_id
+                LEFT JOIN workflow.doc_revision AS rc ON rc.rev_id = d.rev_current_id
+                LEFT JOIN workflow.revision_overview AS ro ON ro.rev_code_id = rc.rev_code_id
+                LEFT JOIN workflow.doc_rev_statuses AS rs ON rs.rev_status_id = rc.rev_status_id
+                WHERE d.doc_id = :doc_id
+                """
+            ),
+            {"doc_id": doc_id},
         )
-        for (
-            doc,
-            doc_type,
-            discipline,
-            project,
-            jobpack,
-            area,
-            unit,
-            rev_current_row,
-            revision_overview,
-            rev_status,
-        ) in docs
-    ]
+        .mappings()
+        .one_or_none()
+    )
+    if not row or (not allow_voided and row["voided"]):
+        raise HTTPException(status_code=404, detail="Document not found")
+    return _model_out(DocOut, row)
 
 
 @router.get(
@@ -477,53 +518,66 @@ def list_document_revisions(
     Raises:
         HTTPException: 404 if the document is not found.
     """
-    doc = db.get(Doc, doc_id)
-    if not doc or doc.voided:
+    doc_row = (
+        db.execute(
+            text("SELECT doc_id, voided FROM workflow.v_documents WHERE doc_id = :doc_id"),
+            {"doc_id": doc_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if not doc_row or doc_row["voided"]:
         raise HTTPException(status_code=404, detail="Document not found")
 
     rows = (
-        db.query(DocRevision, RevisionOverview, DocRevStatus, DocRevMilestone)
-        .outerjoin(RevisionOverview, DocRevision.rev_code_id == RevisionOverview.rev_code_id)
-        .outerjoin(DocRevStatus, DocRevision.rev_status_id == DocRevStatus.rev_status_id)
-        .outerjoin(DocRevMilestone, DocRevision.milestone_id == DocRevMilestone.milestone_id)
-        .filter(DocRevision.doc_id == doc_id)
-        .order_by(DocRevision.seq_num, DocRevision.rev_id)
+        db.execute(
+            text(
+                """
+                SELECT
+                    r.rev_id,
+                    r.doc_id,
+                    r.seq_num,
+                    r.rev_code_id,
+                    ro.rev_code_name,
+                    ro.rev_code_acronym,
+                    ro.rev_description,
+                    r.rev_author_id,
+                    r.rev_originator_id,
+                    r.rev_modifier_id,
+                    r.transmital_current_revision,
+                    r.milestone_id,
+                    m.milestone_name,
+                    r.planned_start_date,
+                    r.planned_finish_date,
+                    r.actual_start_date,
+                    r.actual_finish_date,
+                    r.canceled_date,
+                    r.rev_status_id,
+                    rs.rev_status_name,
+                    r.as_built,
+                    r.superseded,
+                    r.modified_doc_date,
+                    r.created_at,
+                    r.updated_at,
+                    r.created_by,
+                    r.updated_by
+                FROM workflow.v_document_revisions AS r
+                LEFT JOIN workflow.revision_overview AS ro
+                    ON ro.rev_code_id = r.rev_code_id
+                LEFT JOIN workflow.doc_rev_milestones AS m
+                    ON m.milestone_id = r.milestone_id
+                LEFT JOIN workflow.doc_rev_statuses AS rs
+                    ON rs.rev_status_id = r.rev_status_id
+                WHERE r.doc_id = :doc_id
+                ORDER BY r.seq_num, r.rev_id
+                """
+            ),
+            {"doc_id": doc_id},
+        )
+        .mappings()
         .all()
     )
-
-    revisions = [
-        {
-            "rev_id": rev.rev_id,
-            "doc_id": rev.doc_id,
-            "seq_num": rev.seq_num,
-            "rev_code_id": rev.rev_code_id,
-            "rev_code_name": overview.rev_code_name if overview else None,
-            "rev_code_acronym": overview.rev_code_acronym if overview else None,
-            "rev_description": overview.rev_description if overview else None,
-            "rev_author_id": rev.rev_author_id,
-            "rev_originator_id": rev.rev_originator_id,
-            "rev_modifier_id": rev.rev_modifier_id,
-            "transmital_current_revision": rev.transmital_current_revision,
-            "milestone_id": rev.milestone_id,
-            "milestone_name": milestone.milestone_name if milestone else None,
-            "planned_start_date": rev.planned_start_date,
-            "planned_finish_date": rev.planned_finish_date,
-            "actual_start_date": rev.actual_start_date,
-            "actual_finish_date": rev.actual_finish_date,
-            "canceled_date": rev.canceled_date,
-            "rev_status_id": rev.rev_status_id,
-            "rev_status_name": status.rev_status_name if status else None,
-            "as_built": rev.as_built,
-            "superseded": rev.superseded,
-            "modified_doc_date": rev.modified_doc_date,
-            "created_at": rev.created_at,
-            "updated_at": rev.updated_at,
-            "created_by": rev.created_by,
-            "updated_by": rev.updated_by,
-        }
-        for rev, overview, status, milestone in rows
-    ]
-    return _model_list(DocRevisionOut, revisions)
+    return _model_list(DocRevisionOut, rows)
 
 
 def update_document_revision(
@@ -551,29 +605,35 @@ def update_document_revision(
     updates = payload.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=400, detail="No fields provided for update")
-    revision = db.get(DocRevision, rev_id)
-    if not revision:
+
+    doc_row = (
+        db.execute(
+            text(
+                """
+                SELECT d.doc_id, d.voided
+                FROM workflow.v_documents AS d
+                JOIN workflow.v_document_revisions AS r ON r.doc_id = d.doc_id
+                WHERE r.rev_id = :rev_id
+                """
+            ),
+            {"rev_id": rev_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if not doc_row:
         raise HTTPException(status_code=404, detail="Revision not found")
-    revision.updated_by = None
-
-    doc_for_revision = db.get(Doc, revision.doc_id)
-    if not doc_for_revision or doc_for_revision.voided:
+    if doc_row["voided"]:
         raise HTTPException(status_code=404, detail="Document not found")
-    if payload.rev_code_id is not None and not db.get(RevisionOverview, payload.rev_code_id):
-        raise HTTPException(status_code=404, detail="Revision code not found")
-    if payload.milestone_id is not None and not db.get(DocRevMilestone, payload.milestone_id):
-        raise HTTPException(status_code=404, detail="Milestone not found")
-    if payload.rev_author_id is not None and not db.get(Person, payload.rev_author_id):
-        raise HTTPException(status_code=404, detail="Revision author not found")
-    if payload.rev_originator_id is not None and not db.get(Person, payload.rev_originator_id):
-        raise HTTPException(status_code=404, detail="Revision originator not found")
-    if payload.rev_modifier_id is not None and not db.get(Person, payload.rev_modifier_id):
-        raise HTTPException(status_code=404, detail="Revision modifier not found")
-
-    for field, value in updates.items():
-        setattr(revision, field, value)
+    patch = {key: value for key, value in updates.items() if value is not None}
+    if not patch:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
 
     try:
+        db.execute(
+            text("SELECT * FROM workflow.update_revision(:rev_id, CAST(:patch AS jsonb))"),
+            {"rev_id": rev_id, "patch": json.dumps(patch)},
+        )
         db.commit()
     except IntegrityError as err:
         db.rollback()
@@ -582,103 +642,79 @@ def update_document_revision(
         db.rollback()
         message = str(err.orig) if getattr(err, "orig", None) else str(err)
         lowered = message.lower()
+        if "revision not found" in lowered:
+            raise HTTPException(status_code=404, detail="Revision not found") from err
+        if "no fields to update" in lowered:
+            raise HTTPException(status_code=400, detail="No fields provided for update") from err
         if "final revision is immutable" in lowered:
             raise HTTPException(status_code=409, detail="Final revision is immutable") from err
         raise HTTPException(status_code=500, detail="Internal Server Error") from err
 
-    row = (
-        db.query(DocRevision, RevisionOverview, DocRevStatus, DocRevMilestone)
-        .outerjoin(RevisionOverview, DocRevision.rev_code_id == RevisionOverview.rev_code_id)
-        .outerjoin(DocRevStatus, DocRevision.rev_status_id == DocRevStatus.rev_status_id)
-        .outerjoin(DocRevMilestone, DocRevision.milestone_id == DocRevMilestone.milestone_id)
-        .filter(DocRevision.rev_id == revision.rev_id)
-        .one_or_none()
-    )
-    if not row:
-        raise HTTPException(status_code=404, detail="Revision not found after update")
-
-    rev, overview, status, milestone = row
-    response_payload = {
-        "rev_id": rev.rev_id,
-        "doc_id": rev.doc_id,
-        "seq_num": rev.seq_num,
-        "rev_code_id": rev.rev_code_id,
-        "rev_code_name": overview.rev_code_name if overview else None,
-        "rev_code_acronym": overview.rev_code_acronym if overview else None,
-        "rev_description": overview.rev_description if overview else None,
-        "rev_author_id": rev.rev_author_id,
-        "rev_originator_id": rev.rev_originator_id,
-        "rev_modifier_id": rev.rev_modifier_id,
-        "transmital_current_revision": rev.transmital_current_revision,
-        "milestone_id": rev.milestone_id,
-        "milestone_name": milestone.milestone_name if milestone else None,
-        "planned_start_date": rev.planned_start_date,
-        "planned_finish_date": rev.planned_finish_date,
-        "actual_start_date": rev.actual_start_date,
-        "actual_finish_date": rev.actual_finish_date,
-        "canceled_date": rev.canceled_date,
-        "rev_status_id": rev.rev_status_id,
-        "rev_status_name": status.rev_status_name if status else None,
-        "as_built": rev.as_built,
-        "superseded": rev.superseded,
-        "modified_doc_date": rev.modified_doc_date,
-        "created_at": rev.created_at,
-        "updated_at": rev.updated_at,
-        "created_by": rev.created_by,
-        "updated_by": rev.updated_by,
-    }
-    return _model_out(DocRevisionOut, response_payload)
+    return _build_doc_revision_out(db, rev_id)
 
 
 def _build_doc_revision_out(db: Session, rev_id: int) -> DocRevisionOut:
     row = (
-        db.query(DocRevision, RevisionOverview, DocRevStatus, DocRevMilestone)
-        .outerjoin(RevisionOverview, DocRevision.rev_code_id == RevisionOverview.rev_code_id)
-        .outerjoin(DocRevStatus, DocRevision.rev_status_id == DocRevStatus.rev_status_id)
-        .outerjoin(DocRevMilestone, DocRevision.milestone_id == DocRevMilestone.milestone_id)
-        .filter(DocRevision.rev_id == rev_id)
+        db.execute(
+            text(
+                """
+                SELECT
+                    r.rev_id,
+                    r.doc_id,
+                    r.seq_num,
+                    r.rev_code_id,
+                    ro.rev_code_name,
+                    ro.rev_code_acronym,
+                    ro.rev_description,
+                    r.rev_author_id,
+                    r.rev_originator_id,
+                    r.rev_modifier_id,
+                    r.transmital_current_revision,
+                    r.milestone_id,
+                    m.milestone_name,
+                    r.planned_start_date,
+                    r.planned_finish_date,
+                    r.actual_start_date,
+                    r.actual_finish_date,
+                    r.canceled_date,
+                    r.rev_status_id,
+                    rs.rev_status_name,
+                    r.as_built,
+                    r.superseded,
+                    r.modified_doc_date,
+                    r.created_at,
+                    r.updated_at,
+                    r.created_by,
+                    r.updated_by
+                FROM workflow.v_document_revisions AS r
+                LEFT JOIN workflow.revision_overview AS ro
+                    ON ro.rev_code_id = r.rev_code_id
+                LEFT JOIN workflow.doc_rev_milestones AS m
+                    ON m.milestone_id = r.milestone_id
+                LEFT JOIN workflow.doc_rev_statuses AS rs
+                    ON rs.rev_status_id = r.rev_status_id
+                WHERE r.rev_id = :rev_id
+                """
+            ),
+            {"rev_id": rev_id},
+        )
+        .mappings()
         .one_or_none()
     )
     if not row:
         raise HTTPException(status_code=404, detail="Revision not found")
-
-    rev, overview, status, milestone = row
-    response_payload = {
-        "rev_id": rev.rev_id,
-        "doc_id": rev.doc_id,
-        "seq_num": rev.seq_num,
-        "rev_code_id": rev.rev_code_id,
-        "rev_code_name": overview.rev_code_name if overview else None,
-        "rev_code_acronym": overview.rev_code_acronym if overview else None,
-        "rev_description": overview.rev_description if overview else None,
-        "rev_author_id": rev.rev_author_id,
-        "rev_originator_id": rev.rev_originator_id,
-        "rev_modifier_id": rev.rev_modifier_id,
-        "transmital_current_revision": rev.transmital_current_revision,
-        "milestone_id": rev.milestone_id,
-        "milestone_name": milestone.milestone_name if milestone else None,
-        "planned_start_date": rev.planned_start_date,
-        "planned_finish_date": rev.planned_finish_date,
-        "actual_start_date": rev.actual_start_date,
-        "actual_finish_date": rev.actual_finish_date,
-        "canceled_date": rev.canceled_date,
-        "rev_status_id": rev.rev_status_id,
-        "rev_status_name": status.rev_status_name if status else None,
-        "as_built": rev.as_built,
-        "superseded": rev.superseded,
-        "modified_doc_date": rev.modified_doc_date,
-        "created_at": rev.created_at,
-        "updated_at": rev.updated_at,
-        "created_by": rev.created_by,
-        "updated_by": rev.updated_by,
-    }
-    return _model_out(DocRevisionOut, response_payload)
+    return _model_out(DocRevisionOut, row)
 
 
 _REV_STATUS_TRANSITION_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("already at final status", 409, "Revision already at final status"),
     ("already at start status", 409, "Revision already at start status"),
     ("not revertible", 409, "Revision status not revertible"),
+    (
+        "superseded revision cannot be transitioned",
+        409,
+        "Superseded revision cannot be transitioned",
+    ),
     ("previous status not found", 409, "Previous status not found"),
     (
         "files must exist before leaving the start status",
@@ -711,14 +747,6 @@ def create_revision_status_transition(
 
     Status changes are enforced by database rules (start/final/revertible).
     """
-    revision = db.get(DocRevision, rev_id)
-    if not revision:
-        raise HTTPException(status_code=404, detail="Revision not found")
-
-    doc_for_revision = db.get(Doc, revision.doc_id)
-    if not doc_for_revision or doc_for_revision.voided:
-        raise HTTPException(status_code=404, detail="Document not found")
-
     try:
         db.execute(
             text("SELECT workflow.transition_revision(:rev_id, :direction)"),
@@ -753,19 +781,16 @@ def insert_document_revision(
     Raises:
         HTTPException: 404 if document or referenced entities not found.
     """
-    doc = db.get(Doc, doc_id)
-    if not doc or doc.voided:
+    doc_row = (
+        db.execute(
+            text("SELECT doc_id, voided FROM workflow.v_documents WHERE doc_id = :doc_id"),
+            {"doc_id": doc_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if not doc_row or doc_row["voided"]:
         raise HTTPException(status_code=404, detail="Document not found")
-    if not db.get(RevisionOverview, payload.rev_code_id):
-        raise HTTPException(status_code=404, detail="Revision code not found")
-    if payload.milestone_id is not None and not db.get(DocRevMilestone, payload.milestone_id):
-        raise HTTPException(status_code=404, detail="Milestone not found")
-    if not db.get(Person, payload.rev_author_id):
-        raise HTTPException(status_code=404, detail="Revision author not found")
-    if not db.get(Person, payload.rev_originator_id):
-        raise HTTPException(status_code=404, detail="Revision originator not found")
-    if not db.get(Person, payload.rev_modifier_id):
-        raise HTTPException(status_code=404, detail="Revision modifier not found")
 
     try:
         rev_id = db.execute(
@@ -812,6 +837,18 @@ def insert_document_revision(
         db.rollback()
         message = str(err.orig) if getattr(err, "orig", None) else str(err)
         lowered = message.lower()
+        if "document not found" in lowered:
+            raise HTTPException(status_code=404, detail="Document not found") from err
+        if "revision code not found" in lowered:
+            raise HTTPException(status_code=404, detail="Revision code not found") from err
+        if "milestone not found" in lowered:
+            raise HTTPException(status_code=404, detail="Milestone not found") from err
+        if "revision author not found" in lowered:
+            raise HTTPException(status_code=404, detail="Revision author not found") from err
+        if "revision originator not found" in lowered:
+            raise HTTPException(status_code=404, detail="Revision originator not found") from err
+        if "revision modifier not found" in lowered:
+            raise HTTPException(status_code=404, detail="Revision modifier not found") from err
         if "no start status configured" in lowered:
             raise HTTPException(status_code=400, detail="No start status configured") from err
         if "only one active (non-final, non-canceled) revision allowed per document" in lowered:
@@ -855,174 +892,30 @@ def update_document(
     if not updates:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
-    doc = db.get(Doc, doc_id)
-    if not doc or doc.voided:
-        raise HTTPException(status_code=404, detail="Document not found")
-    doc.updated_by = None
-
-    T = TypeVar("T")
-
-    def require_not_null(field_name: str, value: T | None) -> T:
-        if value is None:
-            raise HTTPException(status_code=400, detail=f"{field_name} cannot be null")
-        return value
-
-    if "doc_name_unique" in updates:
-        doc.doc_name_unique = require_not_null("doc_name_unique", payload.doc_name_unique)
-
-    if "title" in updates:
-        doc.title = require_not_null("title", payload.title)
-
-    project: Project | None = doc.project
-    if "project_id" in updates:
-        project_id = payload.project_id
-        if project_id is not None:
-            project = db.get(Project, project_id)
-            if not project:
-                raise HTTPException(status_code=404, detail="Project not found")
-        else:
-            project = None
-        doc.project_id = project_id
-        doc.project = project
-
-    jobpack: Jobpack | None = doc.jobpack
-    if "jobpack_id" in updates:
-        jobpack_id = payload.jobpack_id
-        if jobpack_id is not None:
-            jobpack = db.get(Jobpack, jobpack_id)
-            if not jobpack:
-                raise HTTPException(status_code=404, detail="Jobpack not found")
-        else:
-            jobpack = None
-        doc.jobpack_id = jobpack_id
-        doc.jobpack = jobpack
-
-    doc_type: DocType | None = doc.doc_type
-    if "type_id" in updates:
-        type_id = require_not_null("type_id", payload.type_id)
-        doc_type = db.get(DocType, type_id)
-        if not doc_type:
-            raise HTTPException(status_code=404, detail="Doc type not found")
-        doc.type_id = type_id
-        doc.doc_type = doc_type
-
-    area: Area | None = doc.area
-    if "area_id" in updates:
-        area_id = require_not_null("area_id", payload.area_id)
-        area = db.get(Area, area_id)
-        if not area:
-            raise HTTPException(status_code=404, detail="Area not found")
-        doc.area_id = area_id
-        doc.area = area
-
-    unit: Unit | None = doc.unit
-    if "unit_id" in updates:
-        unit_id = require_not_null("unit_id", payload.unit_id)
-        unit = db.get(Unit, unit_id)
-        if not unit:
-            raise HTTPException(status_code=404, detail="Unit not found")
-        doc.unit_id = unit_id
-        doc.unit = unit
-
-    if "rev_actual_id" in updates:
-        rev_actual_id = payload.rev_actual_id
-        if rev_actual_id is None:
-            doc.rev_actual_id = None
-            doc.actual_revision = None
-        else:
-            rev_actual = db.get(DocRevision, rev_actual_id)
-            if not rev_actual:
-                raise HTTPException(status_code=404, detail="Actual revision not found")
-            if rev_actual.doc_id != doc.doc_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Actual revision does not belong to the document",
-                )
-            doc.rev_actual_id = rev_actual_id
-            doc.actual_revision = rev_actual
-
-    if "rev_current_id" in updates:
-        rev_current_id = payload.rev_current_id
-        if rev_current_id is None:
-            doc.rev_current_id = None
-            doc.current_revision = None
-        else:
-            rev_current_row = db.get(DocRevision, rev_current_id)
-            if not rev_current_row:
-                raise HTTPException(status_code=404, detail="Current revision not found")
-            if rev_current_row.doc_id != doc.doc_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Current revision does not belong to the document",
-                )
-            doc.rev_current_id = rev_current_id
-            doc.current_revision = rev_current_row
+    patch = {key: value for key, value in updates.items() if value is not None}
+    if not patch:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
 
     try:
+        db.execute(
+            text("SELECT * FROM workflow.update_document(:doc_id, CAST(:patch AS jsonb))"),
+            {"doc_id": doc_id, "patch": json.dumps(patch)},
+        )
         db.commit()
     except IntegrityError as err:
         db.rollback()
         _handle_integrity_error("Document name must be unique", err, "update_document")
+    except DBAPIError as err:
+        db.rollback()
+        message = str(err.orig) if getattr(err, "orig", None) else str(err)
+        lowered = message.lower()
+        if "document not found" in lowered:
+            raise HTTPException(status_code=404, detail="Document not found") from err
+        if "no fields to update" in lowered:
+            raise HTTPException(status_code=400, detail="No fields provided for update") from err
+        raise HTTPException(status_code=500, detail="Internal Server Error") from err
 
-    doc_row = (
-        db.query(Doc)
-        .options(
-            joinedload(Doc.doc_type).joinedload(DocType.discipline),
-            joinedload(Doc.project),
-            joinedload(Doc.jobpack),
-            joinedload(Doc.area),
-            joinedload(Doc.unit),
-            joinedload(Doc.current_revision).joinedload(DocRevision.revision_overview),
-        )
-        .filter(Doc.doc_id == doc.doc_id)
-        .one_or_none()
-    )
-    if not doc_row:
-        raise HTTPException(status_code=404, detail="Document not found after update")
-
-    doc_type = doc_row.doc_type
-    discipline = doc_type.discipline if doc_type else None
-    project = doc_row.project
-    jobpack = doc_row.jobpack
-    area = doc_row.area
-    unit = doc_row.unit
-    rev_current_row = doc_row.current_revision
-    revision_overview = rev_current_row.revision_overview if rev_current_row else None
-    rev_status = rev_current_row.status if rev_current_row else None
-
-    return DocOut(
-        doc_id=doc_row.doc_id,
-        doc_name_unique=doc_row.doc_name_unique,
-        title=doc_row.title,
-        project_id=doc_row.project_id,
-        project_name=project.project_name if project else None,
-        jobpack_id=doc_row.jobpack_id,
-        jobpack_name=jobpack.jobpack_name if jobpack else None,
-        type_id=doc_row.type_id,
-        doc_type_name=doc_type.doc_type_name if doc_type else None,
-        doc_type_acronym=doc_type.doc_type_acronym if doc_type else None,
-        area_id=doc_row.area_id,
-        area_name=area.area_name if area else None,
-        area_acronym=area.area_acronym if area else None,
-        unit_id=doc_row.unit_id,
-        unit_name=unit.unit_name if unit else None,
-        rev_actual_id=doc_row.rev_actual_id,
-        rev_current_id=doc_row.rev_current_id,
-        rev_seq_num=rev_current_row.seq_num if rev_current_row else None,
-        discipline_id=discipline.discipline_id if discipline else None,
-        discipline_name=discipline.discipline_name if discipline else None,
-        discipline_acronym=discipline.discipline_acronym if discipline else None,
-        rev_code_name=revision_overview.rev_code_name if revision_overview else None,
-        rev_code_acronym=revision_overview.rev_code_acronym if revision_overview else None,
-        rev_status_id=rev_status.rev_status_id if rev_status else None,
-        rev_status_name=rev_status.rev_status_name if rev_status else None,
-        percentage=revision_overview.percentage if revision_overview else None,
-        voided=doc_row.voided,
-        created_at=doc_row.created_at,
-        updated_at=doc_row.updated_at,
-        created_by=doc_row.created_by,
-        updated_by=doc_row.updated_by,
-    )
+    return _fetch_doc_out(db, doc_id, allow_voided=False)
 
 
 def insert_document(
@@ -1045,30 +938,6 @@ def insert_document(
         HTTPException: 400 if document name already exists or no start status found.
         HTTPException: 404 if referenced entities not found.
     """
-    # Validate foreign key references for document
-    if payload.project_id is not None and not db.get(Project, payload.project_id):
-        raise HTTPException(status_code=404, detail="Project not found")
-    if payload.jobpack_id is not None and not db.get(Jobpack, payload.jobpack_id):
-        raise HTTPException(status_code=404, detail="Jobpack not found")
-    if not db.get(DocType, payload.type_id):
-        raise HTTPException(status_code=404, detail="Doc type not found")
-    if not db.get(Area, payload.area_id):
-        raise HTTPException(status_code=404, detail="Area not found")
-    if not db.get(Unit, payload.unit_id):
-        raise HTTPException(status_code=404, detail="Unit not found")
-
-    # Validate foreign key references for revision
-    if not db.get(RevisionOverview, payload.rev_code_id):
-        raise HTTPException(status_code=404, detail="Revision code not found")
-    if payload.milestone_id is not None and not db.get(DocRevMilestone, payload.milestone_id):
-        raise HTTPException(status_code=404, detail="Milestone not found")
-    if not db.get(Person, payload.rev_author_id):
-        raise HTTPException(status_code=404, detail="Revision author not found")
-    if not db.get(Person, payload.rev_originator_id):
-        raise HTTPException(status_code=404, detail="Revision originator not found")
-    if not db.get(Person, payload.rev_modifier_id):
-        raise HTTPException(status_code=404, detail="Revision modifier not found")
-
     # Create the document and initial revision in the database
     try:
         result = db.execute(
@@ -1127,10 +996,29 @@ def insert_document(
     except DBAPIError as err:
         db.rollback()
         message = str(err.orig) if getattr(err, "orig", None) else str(err)
-        if "No start status found in doc_rev_statuses" in message:
-            raise HTTPException(
-                status_code=400, detail="No start status found in doc_rev_statuses"
-            ) from err
+        lowered = message.lower()
+        if "no start status configured" in lowered:
+            raise HTTPException(status_code=400, detail="No start status configured") from err
+        if "project not found" in lowered:
+            raise HTTPException(status_code=404, detail="Project not found") from err
+        if "jobpack not found" in lowered:
+            raise HTTPException(status_code=404, detail="Jobpack not found") from err
+        if "doc type not found" in lowered:
+            raise HTTPException(status_code=404, detail="Doc type not found") from err
+        if "area not found" in lowered:
+            raise HTTPException(status_code=404, detail="Area not found") from err
+        if "unit not found" in lowered:
+            raise HTTPException(status_code=404, detail="Unit not found") from err
+        if "revision code not found" in lowered:
+            raise HTTPException(status_code=404, detail="Revision code not found") from err
+        if "milestone not found" in lowered:
+            raise HTTPException(status_code=404, detail="Milestone not found") from err
+        if "revision author not found" in lowered:
+            raise HTTPException(status_code=404, detail="Revision author not found") from err
+        if "revision originator not found" in lowered:
+            raise HTTPException(status_code=404, detail="Revision originator not found") from err
+        if "revision modifier not found" in lowered:
+            raise HTTPException(status_code=404, detail="Revision modifier not found") from err
         raise HTTPException(status_code=500, detail="Internal Server Error") from err
     try:
         db.commit()
@@ -1139,67 +1027,7 @@ def insert_document(
         logger.exception("Failed to commit document doc_id=%s", doc_id)
         raise HTTPException(status_code=500, detail="Internal Server Error") from err
 
-    # Fetch the complete document with all relationships
-    doc_row = (
-        db.query(Doc)
-        .options(
-            joinedload(Doc.doc_type).joinedload(DocType.discipline),
-            joinedload(Doc.project),
-            joinedload(Doc.jobpack),
-            joinedload(Doc.area),
-            joinedload(Doc.unit),
-            joinedload(Doc.current_revision).joinedload(DocRevision.revision_overview),
-            joinedload(Doc.current_revision).joinedload(DocRevision.status),
-        )
-        .filter(Doc.doc_id == doc_id)
-        .one_or_none()
-    )
-    if not doc_row:
-        raise HTTPException(status_code=404, detail="Document not found after insert")
-
-    doc_type = doc_row.doc_type
-    discipline = doc_type.discipline if doc_type else None
-    project = doc_row.project
-    jobpack = doc_row.jobpack
-    area = doc_row.area
-    unit = doc_row.unit
-    rev_current_row = doc_row.current_revision
-    revision_overview = rev_current_row.revision_overview if rev_current_row else None
-    rev_status = rev_current_row.status if rev_current_row else None
-
-    return DocOut(
-        doc_id=doc_row.doc_id,
-        doc_name_unique=doc_row.doc_name_unique,
-        title=doc_row.title,
-        project_id=doc_row.project_id,
-        project_name=project.project_name if project else None,
-        jobpack_id=doc_row.jobpack_id,
-        jobpack_name=jobpack.jobpack_name if jobpack else None,
-        type_id=doc_row.type_id,
-        doc_type_name=doc_type.doc_type_name if doc_type else None,
-        doc_type_acronym=doc_type.doc_type_acronym if doc_type else None,
-        area_id=doc_row.area_id,
-        area_name=area.area_name if area else None,
-        area_acronym=area.area_acronym if area else None,
-        unit_id=doc_row.unit_id,
-        unit_name=unit.unit_name if unit else None,
-        rev_actual_id=doc_row.rev_actual_id,
-        rev_current_id=doc_row.rev_current_id,
-        rev_seq_num=rev_current_row.seq_num if rev_current_row else None,
-        discipline_id=discipline.discipline_id if discipline else None,
-        discipline_name=discipline.discipline_name if discipline else None,
-        discipline_acronym=discipline.discipline_acronym if discipline else None,
-        rev_code_name=revision_overview.rev_code_name if revision_overview else None,
-        rev_code_acronym=revision_overview.rev_code_acronym if revision_overview else None,
-        rev_status_id=rev_status.rev_status_id if rev_status else None,
-        rev_status_name=rev_status.rev_status_name if rev_status else None,
-        percentage=revision_overview.percentage if revision_overview else None,
-        voided=doc_row.voided,
-        created_at=doc_row.created_at,
-        updated_at=doc_row.updated_at,
-        created_by=doc_row.created_by,
-        updated_by=doc_row.updated_by,
-    )
+    return _fetch_doc_out(db, doc_id)
 
 
 @router.get(
@@ -1259,8 +1087,20 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
     Returns:
         List of milestones with id, name, and progress percentage.
     """
-    milestones = db.query(DocRevMilestone).order_by(DocRevMilestone.milestone_name).all()
-    return _model_list(DocRevMilestoneOut, milestones)
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT milestone_id, milestone_name, progress
+                FROM workflow.doc_rev_milestones
+                ORDER BY milestone_name
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return _model_list(DocRevMilestoneOut, rows)
 
 
 def update_doc_rev_milestone(
@@ -1415,8 +1255,25 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     Returns:
         List of revision codes with id, name, acronym, description, and percentage.
     """
-    revisions = db.query(RevisionOverview).order_by(RevisionOverview.rev_code_name).all()
-    return _model_list(RevisionOverviewOut, revisions)
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    rev_code_id,
+                    rev_code_name,
+                    rev_code_acronym,
+                    rev_description,
+                    percentage
+                FROM workflow.revision_overview
+                ORDER BY rev_code_name
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return _model_list(RevisionOverviewOut, rows)
 
 
 def update_revision_overview(
@@ -1688,14 +1545,6 @@ def cancel_revision(
     Raises:
         HTTPException: 404 if revision not found.
     """
-    revision = db.get(DocRevision, rev_id)
-    if not revision:
-        raise HTTPException(status_code=404, detail="Revision not found")
-
-    doc = db.get(Doc, revision.doc_id)
-    if not doc or doc.voided:
-        raise HTTPException(status_code=404, detail="Document not found")
-
     try:
         db.execute(
             text("SELECT workflow.cancel_revision(:rev_id)"),
@@ -1713,49 +1562,7 @@ def cancel_revision(
                 status_code=409, detail="Final revision cannot be canceled"
             ) from err
         raise HTTPException(status_code=500, detail="Internal Server Error") from err
-
-    row = (
-        db.query(DocRevision, RevisionOverview, DocRevStatus, DocRevMilestone)
-        .outerjoin(RevisionOverview, DocRevision.rev_code_id == RevisionOverview.rev_code_id)
-        .outerjoin(DocRevStatus, DocRevision.rev_status_id == DocRevStatus.rev_status_id)
-        .outerjoin(DocRevMilestone, DocRevision.milestone_id == DocRevMilestone.milestone_id)
-        .filter(DocRevision.rev_id == revision.rev_id)
-        .one_or_none()
-    )
-    if not row:
-        raise HTTPException(status_code=404, detail="Revision not found after cancel")
-
-    rev, overview, status, milestone = row
-    response_payload = {
-        "rev_id": rev.rev_id,
-        "doc_id": rev.doc_id,
-        "seq_num": rev.seq_num,
-        "rev_code_id": rev.rev_code_id,
-        "rev_code_name": overview.rev_code_name if overview else None,
-        "rev_code_acronym": overview.rev_code_acronym if overview else None,
-        "rev_description": overview.rev_description if overview else None,
-        "rev_author_id": rev.rev_author_id,
-        "rev_originator_id": rev.rev_originator_id,
-        "rev_modifier_id": rev.rev_modifier_id,
-        "transmital_current_revision": rev.transmital_current_revision,
-        "milestone_id": rev.milestone_id,
-        "milestone_name": milestone.milestone_name if milestone else None,
-        "planned_start_date": rev.planned_start_date,
-        "planned_finish_date": rev.planned_finish_date,
-        "actual_start_date": rev.actual_start_date,
-        "actual_finish_date": rev.actual_finish_date,
-        "canceled_date": rev.canceled_date,
-        "rev_status_id": rev.rev_status_id,
-        "rev_status_name": status.rev_status_name if status else None,
-        "as_built": rev.as_built,
-        "superseded": rev.superseded,
-        "modified_doc_date": rev.modified_doc_date,
-        "created_at": rev.created_at,
-        "updated_at": rev.updated_at,
-        "created_by": rev.created_by,
-        "updated_by": rev.updated_by,
-    }
-    return _model_out(DocRevisionOut, response_payload)
+    return _build_doc_revision_out(db, rev_id)
 
 
 @router.delete(
@@ -1788,45 +1595,19 @@ def delete_document(
     Raises:
         HTTPException: 404 if document not found.
     """
-    doc = db.query(Doc).filter(Doc.doc_id == doc_id).with_for_update().one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    # Get all revisions for this document
-    revisions = db.query(DocRevision).filter(DocRevision.doc_id == doc_id).all()
-
-    # Check if we should delete or void
-    should_delete = False
-    if len(revisions) == 1:
-        # Get the start status
-        start_status = db.query(DocRevStatus).filter(DocRevStatus.start.is_(True)).first()
-        if start_status and revisions[0].rev_status_id == start_status.rev_status_id:
-            should_delete = True
-
-    if should_delete:
-        # Clear revision pointers before delete to avoid FK churn during cascades.
-        doc.rev_current_id = None
-        doc.rev_actual_id = None
-        try:
-            db.flush()
-        except StaleDataError:
-            db.rollback()
-            raise HTTPException(status_code=404, detail="Document not found")
-        db.execute(text("SELECT set_config('app.action', 'delete_document', true)"))
-        # Delete the document (cascade will delete related revisions)
-        db.delete(doc)
-        result = "deleted"
-    else:
-        # Set voided to true
-        doc.voided = True
-        result = "voided"
-
     try:
+        result = db.execute(
+            text("SELECT workflow.delete_document(:doc_id)"),
+            {"doc_id": doc_id},
+        ).scalar_one()
         db.commit()
-    except StaleDataError:
+    except DBAPIError as err:
         db.rollback()
-        raise HTTPException(status_code=404, detail="Document not found")
-    except IntegrityError as err:
-        db.rollback()
-        _handle_integrity_error("Failed to delete/void document", err, "delete_document")
+        message = str(err.orig) if getattr(err, "orig", None) else str(err)
+        lowered = message.lower()
+        if "document not found" in lowered:
+            raise HTTPException(status_code=404, detail="Document not found") from err
+        if "no start status configured" in lowered:
+            raise HTTPException(status_code=400, detail="No start status configured") from err
+        raise HTTPException(status_code=500, detail="Internal Server Error") from err
     return DeleteResult(result=result)

@@ -995,6 +995,317 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION workflow.update_document(
+    p_doc_id INTEGER,
+    p_patch JSONB
+) RETURNS core.doc
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_doc core.doc%ROWTYPE;
+BEGIN
+    IF p_patch IS NULL OR p_patch = '{}'::jsonb THEN
+        RAISE EXCEPTION 'No fields to update';
+    END IF;
+
+    SELECT * INTO v_doc FROM core.doc WHERE doc_id = p_doc_id FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Document not found';
+    END IF;
+
+    UPDATE core.doc
+    SET doc_name_unique = CASE
+            WHEN p_patch ? 'doc_name_unique' THEN p_patch->>'doc_name_unique'
+            ELSE doc_name_unique
+        END,
+        title = CASE
+            WHEN p_patch ? 'title' THEN p_patch->>'title'
+            ELSE title
+        END,
+        project_id = CASE
+            WHEN p_patch ? 'project_id' THEN (p_patch->>'project_id')::SMALLINT
+            ELSE project_id
+        END,
+        jobpack_id = CASE
+            WHEN p_patch ? 'jobpack_id' THEN (p_patch->>'jobpack_id')::SMALLINT
+            ELSE jobpack_id
+        END,
+        type_id = CASE
+            WHEN p_patch ? 'type_id' THEN (p_patch->>'type_id')::SMALLINT
+            ELSE type_id
+        END,
+        area_id = CASE
+            WHEN p_patch ? 'area_id' THEN (p_patch->>'area_id')::SMALLINT
+            ELSE area_id
+        END,
+        unit_id = CASE
+            WHEN p_patch ? 'unit_id' THEN (p_patch->>'unit_id')::SMALLINT
+            ELSE unit_id
+        END,
+        rev_actual_id = CASE
+            WHEN p_patch ? 'rev_actual_id' THEN (p_patch->>'rev_actual_id')::INTEGER
+            ELSE rev_actual_id
+        END,
+        rev_current_id = CASE
+            WHEN p_patch ? 'rev_current_id' THEN (p_patch->>'rev_current_id')::INTEGER
+            ELSE rev_current_id
+        END,
+        updated_at = NULL,
+        updated_by = NULL
+    WHERE doc_id = p_doc_id;
+
+    SELECT * INTO v_doc FROM core.doc WHERE doc_id = p_doc_id;
+    RETURN v_doc;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.update_revision(
+    p_rev_id INTEGER,
+    p_patch JSONB
+) RETURNS core.doc_revision
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_rev core.doc_revision%ROWTYPE;
+BEGIN
+    IF p_patch IS NULL OR p_patch = '{}'::jsonb THEN
+        RAISE EXCEPTION 'No fields to update';
+    END IF;
+
+    SELECT * INTO v_rev FROM core.doc_revision WHERE rev_id = p_rev_id FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Revision not found';
+    END IF;
+
+    UPDATE core.doc_revision
+    SET seq_num = CASE
+            WHEN p_patch ? 'seq_num' THEN (p_patch->>'seq_num')::SMALLINT
+            ELSE seq_num
+        END,
+        rev_code_id = CASE
+            WHEN p_patch ? 'rev_code_id' THEN (p_patch->>'rev_code_id')::SMALLINT
+            ELSE rev_code_id
+        END,
+        rev_author_id = CASE
+            WHEN p_patch ? 'rev_author_id' THEN (p_patch->>'rev_author_id')::SMALLINT
+            ELSE rev_author_id
+        END,
+        rev_originator_id = CASE
+            WHEN p_patch ? 'rev_originator_id' THEN (p_patch->>'rev_originator_id')::SMALLINT
+            ELSE rev_originator_id
+        END,
+        rev_modifier_id = CASE
+            WHEN p_patch ? 'rev_modifier_id' THEN (p_patch->>'rev_modifier_id')::SMALLINT
+            ELSE rev_modifier_id
+        END,
+        transmital_current_revision = CASE
+            WHEN p_patch ? 'transmital_current_revision'
+                THEN p_patch->>'transmital_current_revision'
+            ELSE transmital_current_revision
+        END,
+        milestone_id = CASE
+            WHEN p_patch ? 'milestone_id' THEN (p_patch->>'milestone_id')::SMALLINT
+            ELSE milestone_id
+        END,
+        planned_start_date = CASE
+            WHEN p_patch ? 'planned_start_date' THEN (p_patch->>'planned_start_date')::TIMESTAMPTZ
+            ELSE planned_start_date
+        END,
+        planned_finish_date = CASE
+            WHEN p_patch ? 'planned_finish_date' THEN (p_patch->>'planned_finish_date')::TIMESTAMPTZ
+            ELSE planned_finish_date
+        END,
+        actual_start_date = CASE
+            WHEN p_patch ? 'actual_start_date' THEN (p_patch->>'actual_start_date')::TIMESTAMPTZ
+            ELSE actual_start_date
+        END,
+        actual_finish_date = CASE
+            WHEN p_patch ? 'actual_finish_date' THEN (p_patch->>'actual_finish_date')::TIMESTAMPTZ
+            ELSE actual_finish_date
+        END,
+        as_built = CASE
+            WHEN p_patch ? 'as_built' THEN (p_patch->>'as_built')::BOOLEAN
+            ELSE as_built
+        END,
+        modified_doc_date = CASE
+            WHEN p_patch ? 'modified_doc_date' THEN (p_patch->>'modified_doc_date')::TIMESTAMPTZ
+            ELSE modified_doc_date
+        END,
+        updated_at = NULL,
+        updated_by = NULL
+    WHERE rev_id = p_rev_id;
+
+    SELECT * INTO v_rev FROM core.doc_revision WHERE rev_id = p_rev_id;
+    RETURN v_rev;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.delete_document(
+    p_doc_id INTEGER
+) RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_start_status SMALLINT;
+    v_doc core.doc%ROWTYPE;
+    v_rev core.doc_revision%ROWTYPE;
+    v_count INTEGER;
+BEGIN
+    SELECT * INTO v_doc FROM core.doc WHERE doc_id = p_doc_id FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Document not found';
+    END IF;
+
+    SELECT rev_status_id INTO v_start_status
+    FROM ref.doc_rev_statuses WHERE start = TRUE LIMIT 1;
+    IF v_start_status IS NULL THEN
+        RAISE EXCEPTION 'No start status configured';
+    END IF;
+
+    SELECT COUNT(*) INTO v_count FROM core.doc_revision WHERE doc_id = p_doc_id;
+    IF v_count = 1 THEN
+        SELECT * INTO v_rev FROM core.doc_revision WHERE doc_id = p_doc_id LIMIT 1;
+        IF v_rev.rev_status_id = v_start_status THEN
+            UPDATE core.doc
+            SET rev_current_id = NULL,
+                rev_actual_id = NULL
+            WHERE doc_id = p_doc_id;
+            PERFORM set_config('app.action', 'delete_document', true);
+            DELETE FROM core.doc WHERE doc_id = p_doc_id;
+            RETURN 'deleted';
+        END IF;
+    END IF;
+
+    UPDATE core.doc SET voided = TRUE WHERE doc_id = p_doc_id;
+    RETURN 'voided';
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.create_file(
+    p_rev_id INTEGER,
+    p_filename VARCHAR,
+    p_s3_uid TEXT,
+    p_mimetype VARCHAR
+) RETURNS core.files
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_file core.files%ROWTYPE;
+BEGIN
+    PERFORM 1 FROM core.doc_revision WHERE rev_id = p_rev_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Revision not found';
+    END IF;
+
+    INSERT INTO core.files (
+        rev_id, filename, s3_uid, mimetype
+    ) VALUES (
+        p_rev_id, p_filename, p_s3_uid, p_mimetype
+    ) RETURNING * INTO v_file;
+
+    RETURN v_file;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.update_file(
+    p_file_id INTEGER,
+    p_filename VARCHAR
+) RETURNS core.files
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_file core.files%ROWTYPE;
+BEGIN
+    SELECT * INTO v_file FROM core.files WHERE id = p_file_id FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'File not found';
+    END IF;
+
+    UPDATE core.files
+    SET filename = p_filename
+    WHERE id = p_file_id;
+
+    SELECT * INTO v_file FROM core.files WHERE id = p_file_id;
+    RETURN v_file;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.delete_file(
+    p_file_id INTEGER
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+BEGIN
+    PERFORM 1 FROM core.files WHERE id = p_file_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'File not found';
+    END IF;
+
+    DELETE FROM core.files WHERE id = p_file_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.create_file_commented(
+    p_file_id INTEGER,
+    p_user_id INTEGER,
+    p_s3_uid TEXT,
+    p_mimetype VARCHAR
+) RETURNS core.files_commented
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_row core.files_commented%ROWTYPE;
+BEGIN
+    PERFORM 1 FROM core.files WHERE id = p_file_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'File not found';
+    END IF;
+    PERFORM 1 FROM ref.users WHERE user_id = p_user_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'User not found';
+    END IF;
+
+    INSERT INTO core.files_commented (
+        file_id, user_id, s3_uid, mimetype
+    ) VALUES (
+        p_file_id, p_user_id, p_s3_uid, p_mimetype
+    ) RETURNING * INTO v_row;
+
+    RETURN v_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.delete_file_commented(
+    p_id INTEGER
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+BEGIN
+    PERFORM 1 FROM core.files_commented WHERE id = p_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Commented file not found';
+    END IF;
+
+    DELETE FROM core.files_commented WHERE id = p_id;
+END;
+$$;
+
 -- --------------------------------------------------------
 
 -- 8. Read-Only Views (schema: workflow)
@@ -1078,7 +1389,8 @@ REVOKE ALL ON ALL TABLES IN SCHEMA ref FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA audit FROM PUBLIC;
 
 GRANT USAGE ON SCHEMA workflow TO app_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA workflow TO app_user;
+REVOKE INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA workflow FROM app_user;
+GRANT SELECT ON ALL TABLES IN SCHEMA workflow TO app_user;
 
 GRANT EXECUTE ON FUNCTION workflow.create_document(
     VARCHAR, VARCHAR, SMALLINT, SMALLINT, SMALLINT, SMALLINT, SMALLINT,
@@ -1093,6 +1405,14 @@ GRANT EXECUTE ON FUNCTION workflow.create_revision(
 
 GRANT EXECUTE ON FUNCTION workflow.transition_revision(INTEGER, TEXT) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.cancel_revision(INTEGER) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.update_document(INTEGER, JSONB) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.update_revision(INTEGER, JSONB) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.delete_document(INTEGER) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.create_file(INTEGER, VARCHAR, TEXT, VARCHAR) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.update_file(INTEGER, VARCHAR) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.delete_file(INTEGER) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.create_file_commented(INTEGER, INTEGER, TEXT, VARCHAR) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.delete_file_commented(INTEGER) TO app_user;
 
 -- admin override only for db_admin
 GRANT EXECUTE ON FUNCTION workflow.admin_override_transition(INTEGER, SMALLINT, TEXT) TO db_admin;

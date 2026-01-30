@@ -1,6 +1,7 @@
 """People and security endpoints for persons, users, and permissions."""
 
 from fastapi import APIRouter, Body, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Query, Session
 
@@ -124,8 +125,20 @@ def list_roles(db: Session = Depends(get_db)) -> list[RoleOut]:
     Returns:
         List of roles with id and name.
     """
-    roles = db.query(Role).order_by(Role.role_name).all()
-    return _model_list(RoleOut, roles)
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT role_id, role_name
+                FROM workflow.roles
+                ORDER BY role_name
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return _model_list(RoleOut, rows)
 
 
 def insert_role(
@@ -271,8 +284,20 @@ def list_persons(db: Session = Depends(get_db)) -> list[PersonOut]:
     Returns:
         List of persons with id, name, and photo S3 UID.
     """
-    persons = db.query(Person).order_by(Person.person_name).all()
-    return _model_list(PersonOut, persons)
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT person_id, person_name, photo_s3_uid
+                FROM workflow.person
+                ORDER BY person_name
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return _model_list(PersonOut, rows)
 
 
 def update_person(
@@ -426,14 +451,28 @@ def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
     Returns:
         List of users with id, person details, acronym, and role information.
     """
-    users = (
-        db.query(User)
-        .join(Person, User.person_id == Person.person_id)
-        .join(Role, User.role_id == Role.role_id)
-        .order_by(User.user_acronym)
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    u.user_id,
+                    u.person_id,
+                    u.user_acronym,
+                    u.role_id,
+                    p.person_name,
+                    r.role_name
+                FROM workflow.users AS u
+                JOIN workflow.person AS p ON p.person_id = u.person_id
+                JOIN workflow.roles AS r ON r.role_id = u.role_id
+                ORDER BY u.user_acronym
+                """
+            )
+        )
+        .mappings()
         .all()
     )
-    return [_build_user_out(user) for user in users]
+    return _model_list(UserOut, rows)
 
 
 @router.get(
@@ -456,16 +495,30 @@ def get_current_user(db: Session = Depends(get_db)) -> UserOut:
 
     Returns the current user and person info. Currently hardcoded to user_id=2.
     """
-    user = (
-        db.query(User)
-        .join(Person, User.person_id == Person.person_id)
-        .join(Role, User.role_id == Role.role_id)
-        .filter(User.user_id == 2)
+    row = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    u.user_id,
+                    u.person_id,
+                    u.user_acronym,
+                    u.role_id,
+                    p.person_name,
+                    r.role_name
+                FROM workflow.users AS u
+                JOIN workflow.person AS p ON p.person_id = u.person_id
+                JOIN workflow.roles AS r ON r.role_id = u.role_id
+                WHERE u.user_id = 2
+                """
+            )
+        )
+        .mappings()
         .one_or_none()
     )
-    if not user:
+    if not row:
         raise HTTPException(status_code=404, detail="User not found")
-    return _build_user_out(user)
+    return _model_out(UserOut, row)
 
 
 def update_user(
@@ -639,8 +692,32 @@ def list_permissions(db: Session = Depends(get_db)) -> list[PermissionOut]:
     Returns:
         List of permissions with comprehensive metadata.
     """
-    permissions = db.query(Permission).order_by(Permission.user_id).all()
-    return [_build_permission_out(p) for p in permissions]
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    perm.permission_id,
+                    perm.user_id,
+                    perm.project_id,
+                    perm.discipline_id,
+                    u.user_acronym,
+                    p.person_name,
+                    proj.project_name,
+                    d.discipline_name
+                FROM workflow.permissions AS perm
+                JOIN workflow.users AS u ON u.user_id = perm.user_id
+                JOIN workflow.person AS p ON p.person_id = u.person_id
+                LEFT JOIN workflow.projects AS proj ON proj.project_id = perm.project_id
+                LEFT JOIN workflow.disciplines AS d ON d.discipline_id = perm.discipline_id
+                ORDER BY perm.user_id
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return _model_list(PermissionOut, rows)
 
 
 def insert_permission(

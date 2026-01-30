@@ -9,17 +9,17 @@ from email.utils import formatdate
 from typing import Any, BinaryIO, Iterator, cast
 from urllib.parse import quote
 
-from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile
 from fastapi import File as UploadFileField
 from fastapi.responses import StreamingResponse
-from sqlalchemy.exc import DataError, IntegrityError
+from sqlalchemy import text
+from sqlalchemy.exc import DataError, DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
-from api.db.models import File, FileAccepted, FileCommented, User
 from api.schemas.files import FileCommentedOut
 from api.utils.database import get_db
-from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
+from api.utils.helpers import _handle_integrity_error, _model_list, _model_out
 from api.utils.minio import (
     _build_file_object_key,
     _build_minio_client,
@@ -79,7 +79,8 @@ def _parse_accepted_file_mime_map() -> dict[str, str]:
 
 
 def _load_accepted_types(db: Session) -> dict[str, str]:
-    mapping = {row.file_type.lower(): row.mimetype for row in db.query(FileAccepted).all()}
+    rows = db.execute(text("SELECT file_type, mimetype FROM workflow.files_accepted")).mappings()
+    mapping = {row["file_type"].lower(): row["mimetype"] for row in rows}
     mapping.update(_parse_accepted_file_mime_map())
     return mapping
 
@@ -202,31 +203,30 @@ def list_commented_files_for_file(
         List of commented files with metadata. If no commented files exist for the specified
         file, an empty list is returned.
     """
-    query = (
-        db.query(FileCommented, File.filename, File.mimetype, File.rev_id)
-        .join(File, FileCommented.file_id == File.id)
-        .filter(FileCommented.file_id == file_id)
-    )
+    sql = """
+        SELECT
+            fc.id,
+            fc.file_id,
+            fc.user_id,
+            fc.s3_uid,
+            f.filename,
+            f.mimetype,
+            f.rev_id,
+            fc.created_at,
+            fc.updated_at,
+            fc.created_by,
+            fc.updated_by
+        FROM workflow.files_commented AS fc
+        JOIN workflow.v_files AS f ON f.id = fc.file_id
+        WHERE fc.file_id = :file_id
+    """
+    params: dict[str, Any] = {"file_id": file_id}
     if user_id is not None:
-        query = query.filter(FileCommented.user_id == user_id)
-    rows = query.order_by(FileCommented.id).all()
-    files = [
-        {
-            "id": file_row.id,
-            "file_id": file_row.file_id,
-            "user_id": file_row.user_id,
-            "s3_uid": file_row.s3_uid,
-            "filename": filename,
-            "mimetype": mimetype,
-            "rev_id": rev_id,
-            "created_at": file_row.created_at,
-            "updated_at": file_row.updated_at,
-            "created_by": file_row.created_by,
-            "updated_by": file_row.updated_by,
-        }
-        for file_row, filename, mimetype, rev_id in rows
-    ]
-    return _model_list(FileCommentedOut, files)
+        sql += " AND fc.user_id = :user_id"
+        params["user_id"] = user_id
+    sql += " ORDER BY fc.id"
+    rows = db.execute(text(sql), params).mappings().all()
+    return _model_list(FileCommentedOut, rows)
 
 
 def insert_commented_file(
@@ -253,16 +253,43 @@ def insert_commented_file(
         HTTPException: 404 if file or user not found.
         HTTPException: 413 if file exceeds size limit.
     """
-    file_row = db.get(File, file_id)
-    if not file_row:
-        raise HTTPException(status_code=404, detail="File not found")
-
     try:
-        user_row = db.get(User, user_id)
+        file_row = (
+            db.execute(
+                text(
+                    """
+                    SELECT
+                        f.id,
+                        f.filename,
+                        f.mimetype,
+                        f.rev_id,
+                        r.transmital_current_revision,
+                        d.doc_name_unique,
+                        d.voided,
+                        p.project_name
+                    FROM workflow.v_files AS f
+                    JOIN workflow.v_document_revisions AS r ON r.rev_id = f.rev_id
+                    JOIN workflow.v_documents AS d ON d.doc_id = r.doc_id
+                    LEFT JOIN workflow.projects AS p ON p.project_id = d.project_id
+                    WHERE f.id = :file_id
+                    """
+                ),
+                {"file_id": file_id},
+            )
+            .mappings()
+            .one_or_none()
+        )
     except DataError:
         db.rollback()
-        raise HTTPException(status_code=404, detail="User not found")
-    if not user_row:
+        file_row = None
+    if not file_row or file_row["voided"]:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    user_exists = db.execute(
+        text("SELECT user_id FROM workflow.users WHERE user_id = :user_id"),
+        {"user_id": user_id},
+    ).scalar_one_or_none()
+    if not user_exists:
         raise HTTPException(status_code=404, detail="User not found")
 
     if not file.filename:
@@ -283,26 +310,20 @@ def insert_commented_file(
     accepted_types = _get_cached_accepted_types(db)
     accepted_mimetype = accepted_types.get(file_extension)
     if not accepted_mimetype:
-        accepted_file = (
-            db.query(FileAccepted).filter(FileAccepted.file_type == file_extension).first()
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, "
+                "PDF, AutoCAD."
+            ),
         )
-        if not accepted_file:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, "
-                    "PDF, AutoCAD."
-                ),
-            )
-        accepted_mimetype = accepted_file.mimetype
-        accepted_types[file_extension] = accepted_mimetype
     _validate_mimetype(file_extension, content_type, accepted_mimetype)
-    if content_type.lower() != file_row.mimetype.lower():
+    if content_type.lower() != file_row["mimetype"].lower():
         raise HTTPException(
             status_code=415,
             detail=(
                 "Commented file content type does not match original file. "
-                f"Expected '{file_row.mimetype}'."
+                f"Expected '{file_row['mimetype']}'."
             ),
         )
 
@@ -324,13 +345,9 @@ def insert_commented_file(
             raise HTTPException(status_code=400, detail="File is empty")
         stream = cast(BinaryIO, _PrefixedStream(peek, stream))
 
-    revision = file_row.revision
-    doc = revision.doc if revision else None
-    project_name = doc.project.project_name if doc and doc.project else None
-    doc_name = doc.doc_name_unique if doc else f"doc_{revision.doc_id}" if revision else None
-    transmital_current_revision = (
-        revision.transmital_current_revision if revision else "rev_unknown"
-    )
+    project_name = file_row["project_name"]
+    doc_name = file_row["doc_name_unique"]
+    transmital_current_revision = file_row["transmital_current_revision"]
     object_key = _build_file_object_key(
         project_name=project_name,
         doc_name_unique=doc_name or "doc_unknown",
@@ -369,14 +386,39 @@ def insert_commented_file(
         logger.exception("MinIO upload failed for commented file key %s", object_key)
         raise
 
-    new_file = FileCommented(
-        file_id=file_id,
-        user_id=user_id,
-        s3_uid=object_key,
-        mimetype=content_type,
-    )
-    db.add(new_file)
     try:
+        new_file = (
+            db.execute(
+                text(
+                    """
+                    SELECT
+                        id,
+                        file_id,
+                        user_id,
+                        s3_uid,
+                        mimetype,
+                        created_at,
+                        updated_at,
+                        created_by,
+                        updated_by
+                    FROM workflow.create_file_commented(
+                        :file_id,
+                        :user_id,
+                        :s3_uid,
+                        :mimetype
+                    )
+                    """
+                ),
+                {
+                    "file_id": file_id,
+                    "user_id": user_id,
+                    "s3_uid": object_key,
+                    "mimetype": content_type,
+                },
+            )
+            .mappings()
+            .one()
+        )
         db.commit()
     except IntegrityError as err:
         db.rollback()
@@ -389,28 +431,36 @@ def insert_commented_file(
         except HTTPException:
             logger.exception("Failed to cleanup MinIO object after DB error: %s", object_key)
         _handle_commented_file_integrity_error(err)
+    except DBAPIError as err:
+        db.rollback()
+        message = str(err.orig) if getattr(err, "orig", None) else str(err)
+        lowered = message.lower()
+        if "file not found" in lowered:
+            raise HTTPException(status_code=404, detail="File not found") from err
+        if "user not found" in lowered:
+            raise HTTPException(status_code=404, detail="User not found") from err
+        raise HTTPException(status_code=500, detail="Internal Server Error") from err
 
-    db.refresh(new_file)
     client_host = request.client.host if request.client else "unknown"
     logger.info(
         "Commented file uploaded file_id=%s user_id=%s id=%s client=%s",
         file_id,
         user_id,
-        new_file.id,
+        new_file["id"],
         client_host,
     )
     response_payload = {
-        "id": new_file.id,
+        "id": new_file["id"],
         "file_id": file_id,
         "user_id": user_id,
-        "s3_uid": new_file.s3_uid,
-        "filename": file_row.filename,
-        "mimetype": file_row.mimetype,
-        "rev_id": file_row.rev_id,
-        "created_at": new_file.created_at,
-        "updated_at": new_file.updated_at,
-        "created_by": new_file.created_by,
-        "updated_by": new_file.updated_by,
+        "s3_uid": new_file["s3_uid"],
+        "filename": file_row["filename"],
+        "mimetype": file_row["mimetype"],
+        "rev_id": file_row["rev_id"],
+        "created_at": new_file["created_at"],
+        "updated_at": new_file["updated_at"],
+        "created_by": new_file["created_by"],
+        "updated_by": new_file["updated_by"],
     }
     return _model_out(FileCommentedOut, response_payload)
 
@@ -432,7 +482,14 @@ def delete_commented_file(
     Raises:
         HTTPException: 404 if commented file not found.
     """
-    file_row = db.get(FileCommented, commented_file_id)
+    file_row = (
+        db.execute(
+            text("SELECT id, s3_uid FROM workflow.files_commented WHERE id = :id"),
+            {"id": commented_file_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
     if not file_row:
         raise HTTPException(status_code=404, detail="Commented file not found")
 
@@ -442,37 +499,40 @@ def delete_commented_file(
         _minio_with_retry(
             "remove_object",
             endpoint,
-            lambda: client.remove_object(bucket, file_row.s3_uid),
+            lambda: client.remove_object(bucket, file_row["s3_uid"]),
         )
         logger.info(
             "MinIO delete succeeded commented_id=%s s3_uid=%s",
-            file_row.id,
-            file_row.s3_uid,
+            file_row["id"],
+            file_row["s3_uid"],
         )
     except HTTPException:
         logger.exception(
             "MinIO delete failed for commented_id=%s s3_uid=%s",
-            file_row.id,
-            file_row.s3_uid,
+            file_row["id"],
+            file_row["s3_uid"],
         )
         raise
 
     try:
-        db.delete(file_row)
+        db.execute(
+            text("SELECT workflow.delete_file_commented(:id)"),
+            {"id": commented_file_id},
+        )
         db.commit()
     except Exception:
         db.rollback()
         logger.exception(
             "DB delete failed after MinIO delete commented_id=%s s3_uid=%s",
-            file_row.id,
-            file_row.s3_uid,
+            file_row["id"],
+            file_row["s3_uid"],
         )
         raise HTTPException(status_code=500, detail="Internal Server Error")
     client_host = request.client.host if request.client else "unknown"
     logger.info(
         "Commented file deleted id=%s s3_uid=%s client=%s",
-        file_row.id,
-        file_row.s3_uid,
+        file_row["id"],
+        file_row["s3_uid"],
         client_host,
     )
 
@@ -638,15 +698,35 @@ def download_commented_file(
     if request.headers.get("range"):
         raise HTTPException(status_code=416, detail="Range requests are not supported")
 
-    file_row = db.get(FileCommented, file_id)
+    file_row = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    fc.id,
+                    fc.s3_uid,
+                    fc.mimetype,
+                    f.filename AS source_filename,
+                    u.user_acronym
+                FROM workflow.files_commented AS fc
+                LEFT JOIN workflow.files AS f ON f.id = fc.file_id
+                LEFT JOIN workflow.users AS u ON u.user_id = fc.user_id
+                WHERE fc.id = :file_id
+                """
+            ),
+            {"file_id": file_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
     if not file_row:
         raise HTTPException(status_code=404, detail="Commented file not found")
 
     client_host = request.client.host if request.client else "unknown"
     logger.info(
         "event=commented_download_start commented_id=%s s3_uid=%s client=%s",
-        file_row.id,
-        file_row.s3_uid,
+        file_row["id"],
+        file_row["s3_uid"],
         client_host,
     )
     client, bucket = _build_minio_client()
@@ -654,24 +734,20 @@ def download_commented_file(
     response = _minio_with_retry(
         "get_object",
         endpoint,
-        lambda: client.get_object(bucket, file_row.s3_uid),
+        lambda: client.get_object(bucket, file_row["s3_uid"]),
     )
     stat = _minio_with_retry(
         "stat_object",
         endpoint,
-        lambda: client.stat_object(bucket, file_row.s3_uid),
+        lambda: client.stat_object(bucket, file_row["s3_uid"]),
     )
 
-    source_filename = None
-    user_acronym = None
-    if file_row.file is not None:
-        source_filename = file_row.file.filename
-    if file_row.user is not None:
-        user_acronym = file_row.user.user_acronym
+    source_filename = file_row["source_filename"]
+    user_acronym = file_row["user_acronym"]
 
     # Extract filename from s3_uid path as fallback
     filename = source_filename or (
-        file_row.s3_uid.split("/")[-1] if "/" in file_row.s3_uid else file_row.s3_uid
+        file_row["s3_uid"].split("/")[-1] if "/" in file_row["s3_uid"] else file_row["s3_uid"]
     )
     if user_acronym:
         base, ext = os.path.splitext(filename)
@@ -701,13 +777,13 @@ def download_commented_file(
 
     logger.info(
         "event=commented_download_ready commented_id=%s s3_uid=%s client=%s",
-        file_row.id,
-        file_row.s3_uid,
+        file_row["id"],
+        file_row["s3_uid"],
         client_host,
     )
 
     # Prefer stored mimetype; fall back to MinIO stat, then octet-stream.
-    mimetype = file_row.mimetype or stat.content_type or "application/octet-stream"
+    mimetype = file_row["mimetype"] or stat.content_type or "application/octet-stream"
 
     return StreamingResponse(
         _stream_minio(response),
