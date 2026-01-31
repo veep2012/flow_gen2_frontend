@@ -1741,6 +1741,8 @@ function App() {
           width: 100%;
           border-collapse: collapse;
           white-space: nowrap;
+          margin: 0 !important;
+          padding: 0 !important;
         }
         .table thead th {
           background: var(--color-surface-alt);
@@ -1806,6 +1808,8 @@ function App() {
           width: 100%;
           height: 100%;
           overflow: auto;
+          margin: 0 !important;
+          padding: 0 !important;
         }
         .task-cabinet {
           display: flex;
@@ -1880,7 +1884,8 @@ function App() {
           border: 1px solid var(--color-border);
           border-top: none;
           border-radius: 0;
-          padding: 16px;
+          padding: 0 !important;
+          margin: 0 !important;
           background: var(--color-surface);
           display: flex;
           flex-direction: column;
@@ -3067,31 +3072,51 @@ function App() {
             <div className="detail-tab-panel" style={{ flex: 1 }}>
               {activeDetailTab === "Revisions" ? (
                 selectedDoc ? (
-                  <div style={{ width: "100%", height: "100%", overflow: "auto", margin: "12px 0" }}>
-                    <div style={{ color: '#888', fontSize: '12px', marginBottom: '8px' }}>
-                      <b>DEBUG:</b> selectedDoc keys: {Object.keys(selectedDoc).join(', ')}
+                  <div style={{ width: "100%", height: "100%", overflow: "auto", margin: 0, padding: 0, boxSizing: 'border-box' }}>
+                    <div className="table-wrapper" style={{ margin: 0, padding: 0, boxSizing: 'border-box' }}>
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Revision</th>
+                            <th>Name of revision</th>
+                            <th>Progress %</th>
+                            <th>Author</th>
+                            <th>Date of revision</th>
+                            <th>Plan</th>
+                            <th>Actual start</th>
+                            <th>Actual finish</th>
+                            <th>Forecast deadline</th>
+                            <th>Canceled</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>1</td>
+                            <td>IFRC</td>
+                            <td>100%</td>
+                            <td>ALEKSEY KRUTSKIH</td>
+                            <td>2025-11-14</td>
+                            <td>2025-11-14</td>
+                            <td>2025-11-14</td>
+                            <td>2025-11-14</td>
+                            <td>2025-11-17</td>
+                            <td></td>
+                          </tr>
+                          <tr>
+                            <td>1C</td>
+                            <td>READY FOR ISSUE</td>
+                            <td>75%</td>
+                            <td>ALEKSEY KRUTSKIH</td>
+                            <td>2025-11-14</td>
+                            <td>2025-11-14</td>
+                            <td>2025-11-14</td>
+                            <td>2025-11-14</td>
+                            <td>2025-11-17</td>
+                            <td></td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
-                    {(() => {
-                      const filteredEntries = Object.entries(selectedDoc).filter(([key]) => key === "discipline_acronim");
-                      return (
-                        <table style={{ minWidth: "200px", fontSize: "13px", borderCollapse: "collapse" }}>
-                          <thead>
-                            <tr>
-                              {filteredEntries.map(([key]) => (
-                                <th key={key} style={{ textAlign: "left", padding: "4px 8px", background: "#f5f5f5" }}>{key}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              {filteredEntries.map(([_, value], idx) => (
-                                <td key={idx} style={{ padding: "4px 8px", borderBottom: "1px solid #eee" }}>{typeof value === "object" && value !== null ? JSON.stringify(value) : String(value)}</td>
-                              ))}
-                            </tr>
-                          </tbody>
-                        </table>
-                      );
-                    })()}
                   </div>
                 ) : (
                   <div style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}>
