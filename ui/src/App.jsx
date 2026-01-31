@@ -149,6 +149,24 @@ function App() {
   const [areas, setAreas] = React.useState([]);
   const [units, setUnits] = React.useState([]);
   const [revisionOverviews, setRevisionOverviews] = React.useState([]);
+  // Fetch revisions for selected document
+  React.useEffect(() => {
+    const fetchRevisions = async () => {
+      if (!selectedDocId) {
+        setRevisionOverviews([]);
+        return;
+      }
+      try {
+        const res = await fetch(`${apiBase}/documents/${selectedDocId}/revisions`);
+        if (!res.ok) throw new Error('Failed to fetch revisions');
+        const data = await res.json();
+        setRevisionOverviews(Array.isArray(data) ? data : []);
+      } catch (err) {
+        setRevisionOverviews([]);
+      }
+    };
+    fetchRevisions();
+  }, [apiBase, selectedDocId]);
   const [people, setPeople] = React.useState([]);
   // Selected revision row in Revisions tab
   const [selectedRevisionIdx, setSelectedRevisionIdx] = React.useState(null);
@@ -3093,52 +3111,31 @@ function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {[
-                            {
-                              revision: '1',
-                              name: 'IFRC',
-                              progress: '100%',
-                              author: 'ALEKSEY KRUTSKIH',
-                              date: '2025-11-14',
-                              plan: '2025-11-14',
-                              actualStart: '2025-11-14',
-                              actualFinish: '2025-11-14',
-                              forecast: '2025-11-17',
-                              canceled: ''
-                            },
-                            {
-                              revision: '1C',
-                              name: 'READY FOR ISSUE',
-                              progress: '75%',
-                              author: 'ALEKSEY KRUTSKIH',
-                              date: '2025-11-14',
-                              plan: '2025-11-14',
-                              actualStart: '2025-11-14',
-                              actualFinish: '2025-11-14',
-                              forecast: '2025-11-17',
-                              canceled: ''
-                            }
-                          ].map((row, idx) => (
-                            <tr
-                              key={row.revision}
-                              style={{
-                                cursor: 'pointer',
-                                background: selectedRevisionIdx === idx ? 'var(--color-row-selected)' : undefined
-                              }}
-                              onClick={() => setSelectedRevisionIdx(idx)}
-                            >
-                              <td>{row.revision}</td>
-                              <td>{row.name}</td>
-                              <td>{row.progress}</td>
-                              <td>{row.author}</td>
-                              <td>{row.date}</td>
-                              <td>{row.plan}</td>
-                              <td>{row.actualStart}</td>
-                              <td>{row.actualFinish}</td>
-                              <td>{row.forecast}</td>
-                              <td>{row.canceled}</td>
-                            </tr>
-                          ))}
+                          {revisionOverviews.length === 0 ? (
+                            <tr><td colSpan={10} style={{textAlign:'center',color:'var(--color-text-muted)'}}>No revisions found</td></tr>
+                          ) : (
+                            revisionOverviews.map((row, idx) => (
+                              <tr
+                                key={row.revision_id || row.revision || idx}
+                                style={{
+                                  cursor: 'pointer',
+                                  background: selectedRevisionIdx === idx ? 'var(--color-row-selected)' : undefined
+                                }}
+                                onClick={() => setSelectedRevisionIdx(idx)}
+                              >
+                                <td>{row.revision || row.rev_code || row.rev_code_id || ''}</td>
+                                <td>{row.name || row.rev_name || ''}</td>
+                                <td>{row.progress || row.rev_percent || ''}</td>
+                                <td>{row.author || row.rev_author || row.rev_author_name || ''}</td>
+                                <td>{row.date || row.rev_date || row.created_at || ''}</td>
+                                <td>{row.plan || row.plan_date || ''}</td>
+                                <td>{row.actualStart || row.actual_start || ''}</td>
+                                <td>{row.actualFinish || row.actual_finish || ''}</td>
+                                <td>{row.forecast || row.forecast_deadline || ''}</td>
+                                <td>{row.canceled || row.is_canceled ? 'Yes' : ''}</td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
