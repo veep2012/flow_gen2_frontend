@@ -150,6 +150,8 @@ function App() {
   const [units, setUnits] = React.useState([]);
   const [revisionOverviews, setRevisionOverviews] = React.useState([]);
   const [people, setPeople] = React.useState([]);
+  // Selected revision row in Revisions tab
+  const [selectedRevisionIdx, setSelectedRevisionIdx] = React.useState(null);
 
   const editingDoc = React.useMemo(
     () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === editRowId),
@@ -2795,6 +2797,7 @@ function App() {
                           key={rowId}
                           onClick={() => {
                             setSelectedDocId(rowId);
+                            setActiveDetailTab("Revisions");
                             // Find and expand InDesign tab
                             const inDesignStatus = orderedStatuses.find(
                               (s) => s.rev_status_name?.toLowerCase() === "indesign",
@@ -3090,30 +3093,52 @@ function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          <tr>
-                            <td>1</td>
-                            <td>IFRC</td>
-                            <td>100%</td>
-                            <td>ALEKSEY KRUTSKIH</td>
-                            <td>2025-11-14</td>
-                            <td>2025-11-14</td>
-                            <td>2025-11-14</td>
-                            <td>2025-11-14</td>
-                            <td>2025-11-17</td>
-                            <td></td>
-                          </tr>
-                          <tr>
-                            <td>1C</td>
-                            <td>READY FOR ISSUE</td>
-                            <td>75%</td>
-                            <td>ALEKSEY KRUTSKIH</td>
-                            <td>2025-11-14</td>
-                            <td>2025-11-14</td>
-                            <td>2025-11-14</td>
-                            <td>2025-11-14</td>
-                            <td>2025-11-17</td>
-                            <td></td>
-                          </tr>
+                          {[
+                            {
+                              revision: '1',
+                              name: 'IFRC',
+                              progress: '100%',
+                              author: 'ALEKSEY KRUTSKIH',
+                              date: '2025-11-14',
+                              plan: '2025-11-14',
+                              actualStart: '2025-11-14',
+                              actualFinish: '2025-11-14',
+                              forecast: '2025-11-17',
+                              canceled: ''
+                            },
+                            {
+                              revision: '1C',
+                              name: 'READY FOR ISSUE',
+                              progress: '75%',
+                              author: 'ALEKSEY KRUTSKIH',
+                              date: '2025-11-14',
+                              plan: '2025-11-14',
+                              actualStart: '2025-11-14',
+                              actualFinish: '2025-11-14',
+                              forecast: '2025-11-17',
+                              canceled: ''
+                            }
+                          ].map((row, idx) => (
+                            <tr
+                              key={row.revision}
+                              style={{
+                                cursor: 'pointer',
+                                background: selectedRevisionIdx === idx ? 'var(--color-row-selected)' : undefined
+                              }}
+                              onClick={() => setSelectedRevisionIdx(idx)}
+                            >
+                              <td>{row.revision}</td>
+                              <td>{row.name}</td>
+                              <td>{row.progress}</td>
+                              <td>{row.author}</td>
+                              <td>{row.date}</td>
+                              <td>{row.plan}</td>
+                              <td>{row.actualStart}</td>
+                              <td>{row.actualFinish}</td>
+                              <td>{row.forecast}</td>
+                              <td>{row.canceled}</td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
