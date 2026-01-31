@@ -3100,6 +3100,7 @@ function App() {
                           <tr>
                             <th>Revision</th>
                             <th>Name of revision</th>
+                            <th>Revision description</th>
                             <th>Progress %</th>
                             <th>Author</th>
                             <th>Date of revision</th>
@@ -3123,8 +3124,9 @@ function App() {
                                 }}
                                 onClick={() => setSelectedRevisionIdx(idx)}
                               >
-                                <td>{row.revision || row.rev_code || row.rev_code_id || ''}</td>
-                                <td>{row.name || row.rev_name || ''}</td>
+                                <td>{row.rev_code_acronym || row.revision || row.rev_code || row.rev_code_id || ''}</td>
+                                <td>{row.rev_code_name || row.name || row.rev_name || ''}</td>
+                                <td>{row.rev_description || ''}</td>
                                 <td>{row.progress || row.rev_percent || ''}</td>
                                 <td>{row.author || row.rev_author || row.rev_author_name || ''}</td>
                                 <td>{row.date || row.rev_date || row.created_at || ''}</td>
