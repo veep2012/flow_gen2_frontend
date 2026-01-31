@@ -2827,7 +2827,11 @@ function App() {
                           onDoubleClick={() => startEdit(doc)}
                           style={{
                             background:
-                              selectedDocId === rowId ? "var(--color-row-selected)" : undefined,
+                              selectedDocId === rowId ? 'var(--color-row-selected, #f0f4ff)' : undefined,
+                            color: selectedDocId === rowId ? 'inherit' : undefined,
+                            border: selectedDocId === rowId ? '1.5px solid var(--color-accent, #3d5a80)' : undefined,
+                            outline: selectedDocId === rowId ? 'none' : undefined,
+                            fontWeight: selectedDocId === rowId ? 600 : undefined
                           }}
                         >
                           {visibleColumns.map((col) => {
@@ -3115,28 +3119,42 @@ function App() {
                           {revisionOverviews.length === 0 ? (
                             <tr><td colSpan={10} style={{textAlign:'center',color:'var(--color-text-muted)'}}>No revisions found</td></tr>
                           ) : (
-                            revisionOverviews.map((row, idx) => (
-                              <tr
-                                key={row.revision_id || row.revision || idx}
-                                style={{
-                                  cursor: 'pointer',
-                                  background: selectedRevisionIdx === idx ? 'var(--color-row-selected)' : undefined
-                                }}
-                                onClick={() => setSelectedRevisionIdx(idx)}
-                              >
-                                <td>{row.rev_code_acronym || row.revision || row.rev_code || row.rev_code_id || ''}</td>
-                                <td>{row.rev_code_name || row.name || row.rev_name || ''}</td>
-                                <td>{row.rev_description || ''}</td>
-                                <td>{row.progress || row.rev_percent || ''}</td>
-                                <td>{row.author || row.rev_author || row.rev_author_name || ''}</td>
-                                <td>{row.date || row.rev_date || row.created_at || ''}</td>
-                                <td>{row.plan || row.plan_date || ''}</td>
-                                <td>{row.actualStart || row.actual_start || ''}</td>
-                                <td>{row.actualFinish || row.actual_finish || ''}</td>
-                                <td>{row.forecast || row.forecast_deadline || ''}</td>
-                                <td>{row.canceled || row.is_canceled ? 'Yes' : ''}</td>
-                              </tr>
-                            ))
+                            (() => {
+                              // Remove duplicates by rev_id or rev_code_id
+                              const seen = new Set();
+                              const uniqueRows = revisionOverviews.filter(row => {
+                                const key = row.rev_id || row.rev_code_id || row.id || JSON.stringify(row);
+                                if (seen.has(key)) return false;
+                                seen.add(key);
+                                return true;
+                              });
+                              return uniqueRows.map((row, idx) => (
+                                <tr
+                                  key={row.rev_id || row.rev_code_id || row.revision_id || row.revision || idx}
+                                  style={{
+                                    cursor: 'pointer',
+                                    background: selectedRevisionIdx === idx ? 'var(--color-row-selected, #f0f4ff)' : undefined,
+                                    color: selectedRevisionIdx === idx ? 'inherit' : undefined,
+                                    border: selectedRevisionIdx === idx ? '1.5px solid var(--color-accent, #3d5a80)' : undefined,
+                                    outline: selectedRevisionIdx === idx ? 'none' : undefined,
+                                    fontWeight: selectedRevisionIdx === idx ? 600 : undefined
+                                  }}
+                                  onClick={() => setSelectedRevisionIdx(idx)}
+                                >
+                                  <td>{row.rev_code_acronym || row.revision || row.rev_code || row.rev_code_id || ''}</td>
+                                  <td>{row.rev_code_name || row.name || row.rev_name || ''}</td>
+                                  <td>{row.rev_description || ''}</td>
+                                  <td>{row.progress || row.rev_percent || ''}</td>
+                                  <td>{row.author || row.rev_author || row.rev_author_name || ''}</td>
+                                  <td>{row.date || row.rev_date || row.created_at || ''}</td>
+                                  <td>{row.plan || row.plan_date || ''}</td>
+                                  <td>{row.actualStart || row.actual_start || ''}</td>
+                                  <td>{row.actualFinish || row.actual_finish || ''}</td>
+                                  <td>{row.forecast || row.forecast_deadline || ''}</td>
+                                  <td>{row.canceled || row.is_canceled ? 'Yes' : ''}</td>
+                                </tr>
+                              ));
+                            })()
                           )}
                         </tbody>
                       </table>
