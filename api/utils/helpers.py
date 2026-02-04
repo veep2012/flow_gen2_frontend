@@ -78,6 +78,19 @@ def _handle_integrity_error(detail: str, err: IntegrityError, context: str | Non
     raise HTTPException(status_code=400, detail=message)
 
 
+def _require_non_null_fields(payload: BaseModel, fields: Iterable[str]) -> None:
+    missing = [
+        field
+        for field in fields
+        if field in payload.model_fields_set and getattr(payload, field) is None
+    ]
+    if not missing:
+        return
+    label = "Field" if len(missing) == 1 else "Fields"
+    joined = ", ".join(missing)
+    raise HTTPException(status_code=400, detail=f"{label} cannot be null: {joined}")
+
+
 def _raise_for_dbapi_error(
     err: DBAPIError,
     mappings: Iterable[DbErrorMapping],

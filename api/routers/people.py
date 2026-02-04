@@ -19,7 +19,13 @@ from api.schemas.people import (
     UserUpdate,
 )
 from api.utils.database import get_db
-from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
+from api.utils.helpers import (
+    _example_for,
+    _handle_integrity_error,
+    _model_list,
+    _model_out,
+    _require_non_null_fields,
+)
 
 router = APIRouter(prefix="/api/v1/people", tags=["people"])
 
@@ -191,13 +197,15 @@ def update_role(
         HTTPException: 400 if no fields provided.
         HTTPException: 404 if role not found.
     """
-    if payload.role_name is None:
+    if "role_name" not in payload.model_fields_set:
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("role_name",))
 
     role = db.get(Role, role_id)
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
 
+    assert payload.role_name is not None
     role.role_name = payload.role_name
     try:
         db.commit()
@@ -321,8 +329,9 @@ def update_person(
         HTTPException: 400 if no fields provided.
         HTTPException: 404 if person not found.
     """
-    if payload.person_name is None and payload.photo_s3_uid is None:
+    if not {"person_name", "photo_s3_uid"}.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("person_name",))
 
     person = db.get(Person, person_id)
     if not person:
@@ -542,8 +551,9 @@ def update_user(
         HTTPException: 400 if no fields provided or update fails.
         HTTPException: 404 if user, person, or role not found.
     """
-    if payload.person_id is None and payload.user_acronym is None and payload.role_id is None:
+    if not {"person_id", "user_acronym", "role_id"}.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("person_id", "user_acronym", "role_id"))
 
     user = db.get(User, user_id)
     if not user:

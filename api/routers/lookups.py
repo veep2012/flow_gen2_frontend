@@ -40,7 +40,13 @@ from api.schemas.lookups import (
     UnitUpdate,
 )
 from api.utils.database import get_db
-from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
+from api.utils.helpers import (
+    _example_for,
+    _handle_integrity_error,
+    _model_list,
+    _model_out,
+    _require_non_null_fields,
+)
 
 router = APIRouter(prefix="/api/v1/lookups", tags=["lookups"])
 
@@ -136,8 +142,9 @@ def update_area(
         HTTPException: 400 if no fields provided or name/acronym already exists.
         HTTPException: 404 if area not found.
     """
-    if payload.area_name is None and payload.area_acronym is None:
+    if not {"area_name", "area_acronym"}.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("area_name", "area_acronym"))
 
     area = db.get(Area, area_id)
     if not area:
@@ -296,8 +303,9 @@ def update_discipline(
         HTTPException: 400 if no fields provided or name/acronym already exists.
         HTTPException: 404 if discipline not found.
     """
-    if payload.discipline_name is None and payload.discipline_acronym is None:
+    if not {"discipline_name", "discipline_acronym"}.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("discipline_name", "discipline_acronym"))
 
     discipline = db.get(Discipline, discipline_id)
     if not discipline:
@@ -467,8 +475,9 @@ def update_project(
         HTTPException: 400 if no fields provided or project name already exists.
         HTTPException: 404 if project not found.
     """
-    if payload.project_name is None:
+    if "project_name" not in payload.model_fields_set:
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("project_name",))
 
     project = db.get(Project, project_id)
     if not project:
@@ -625,8 +634,9 @@ def update_unit(
         HTTPException: 400 if no fields provided or unit name already exists.
         HTTPException: 404 if unit not found.
     """
-    if payload.unit_name is None:
+    if "unit_name" not in payload.model_fields_set:
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("unit_name",))
 
     unit = db.get(Unit, unit_id)
     if not unit:
@@ -783,8 +793,9 @@ def update_jobpack(
         HTTPException: 400 if no fields provided or jobpack name already exists.
         HTTPException: 404 if jobpack not found.
     """
-    if payload.jobpack_name is None:
+    if "jobpack_name" not in payload.model_fields_set:
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("jobpack_name",))
 
     jobpack = db.get(Jobpack, jobpack_id)
     if not jobpack:
@@ -975,8 +986,9 @@ def update_doc_rev_status_ui_behavior(
         HTTPException: 400 if no fields provided.
         HTTPException: 404 if UI behavior not found.
     """
-    if payload.ui_behavior_name is None and payload.ui_behavior_file is None:
+    if not {"ui_behavior_name", "ui_behavior_file"}.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("ui_behavior_name", "ui_behavior_file"))
 
     behavior = db.get(DocRevStatusUiBehavior, ui_behavior_id)
     if not behavior:

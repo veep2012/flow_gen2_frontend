@@ -42,6 +42,7 @@ from api.utils.helpers import (
     _model_out,
     _normalize_dt,
     _raise_for_dbapi_error,
+    _require_non_null_fields,
 )
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
@@ -204,12 +205,16 @@ def update_doc_type(
         HTTPException: 400 if no fields provided or document type already exists.
         HTTPException: 404 if document type or referenced discipline not found.
     """
-    if (
-        payload.doc_type_name is None
-        and payload.doc_type_acronym is None
-        and payload.ref_discipline_id is None
-    ):
+    if not {
+        "doc_type_name",
+        "doc_type_acronym",
+        "ref_discipline_id",
+    }.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(
+        payload,
+        ("doc_type_name", "ref_discipline_id", "doc_type_acronym"),
+    )
 
     doc_type = db.get(DocType, type_id)
     if not doc_type:
@@ -606,6 +611,21 @@ def update_document_revision(
     updates = payload.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(
+        payload,
+        (
+            "seq_num",
+            "rev_code_id",
+            "rev_author_id",
+            "rev_originator_id",
+            "rev_modifier_id",
+            "transmital_current_revision",
+            "planned_start_date",
+            "planned_finish_date",
+            "modified_doc_date",
+            "as_built",
+        ),
+    )
 
     doc_row = (
         db.execute(
@@ -913,6 +933,10 @@ def update_document(
     updates = payload.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(
+        payload,
+        ("doc_name_unique", "title", "type_id", "area_id", "unit_id"),
+    )
 
     patch = {key: value for key, value in updates.items() if value is not None}
     if not patch:
@@ -1118,8 +1142,9 @@ def update_doc_rev_milestone(
         HTTPException: 400 if no fields provided or milestone name already exists.
         HTTPException: 404 if milestone not found.
     """
-    if payload.milestone_name is None and payload.progress is None:
+    if not {"milestone_name", "progress"}.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("milestone_name",))
 
     milestone = db.get(DocRevMilestone, milestone_id)
     if not milestone:
@@ -1292,13 +1317,17 @@ def update_revision_overview(
         HTTPException: 400 if no fields provided or revision overview already exists.
         HTTPException: 404 if revision overview entry not found.
     """
-    if (
-        payload.rev_code_name is None
-        and payload.rev_code_acronym is None
-        and payload.rev_description is None
-        and payload.percentage is None
-    ):
+    if not {
+        "rev_code_name",
+        "rev_code_acronym",
+        "rev_description",
+        "percentage",
+    }.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(
+        payload,
+        ("rev_code_name", "rev_code_acronym", "rev_description"),
+    )
 
     revision = db.get(RevisionOverview, rev_code_id)
     if not revision:
