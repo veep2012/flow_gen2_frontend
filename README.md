@@ -112,6 +112,11 @@ export OAUTH2_PROXY_COOKIE_SECRET="your-32-byte-secret"
 ```
 
 ### Environment variables (API + MinIO)
+- DB connection:
+- Prefer `APP_DATABASE_URL` for explicit DSN overrides.
+- If `APP_DATABASE_URL` is unset, the API builds it from `APP_DB_USER` / `APP_DB_PASSWORD` plus
+  `POSTGRES_HOST` / `POSTGRES_PORT` / `POSTGRES_DB`.
+- `DATABASE_URL` is ignored (legacy). Use `APP_DATABASE_URL` instead.
 - `MINIO_ENDPOINT` supports `host:port` or `http(s)://host:port` (scheme controls TLS).
 - `MINIO_SECURE` (`1`/`true` enables TLS when no scheme is provided).
 - `MINIO_BUCKET` defaults to `flow-default` (override as needed).
