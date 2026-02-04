@@ -19,7 +19,13 @@ from starlette.background import BackgroundTask
 
 from api.schemas.files import FileOut, FileUpdate
 from api.utils.database import get_db
-from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
+from api.utils.helpers import (
+    _example_for,
+    _handle_integrity_error,
+    _model_list,
+    _model_out,
+    _raise_for_dbapi_error,
+)
 from api.utils.minio import (
     _build_file_object_key,
     _build_minio_client,
@@ -33,6 +39,7 @@ logger = logging.getLogger(__name__)
 
 _ACCEPTED_TYPES_CACHE: dict[str, str] = {}
 _ACCEPTED_TYPES_CACHE_AT = 0.0
+_FILE_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (("file not found", 404, "File not found"),)
 
 
 class _PrefixedStream:
@@ -465,10 +472,7 @@ def update_file(
         _handle_integrity_error("Failed to update file", err, "update_file")
     except DBAPIError as err:
         db.rollback()
-        message = str(err.orig) if getattr(err, "orig", None) else str(err)
-        if "File not found" in message:
-            raise HTTPException(status_code=404, detail="File not found") from err
-        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+        _raise_for_dbapi_error(err, _FILE_DB_ERROR_MAP)
 
     logger.info("event=file_update_success file_id=%s", file_id)
     return _model_out(FileOut, file_row)

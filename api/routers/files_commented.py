@@ -19,7 +19,12 @@ from starlette.background import BackgroundTask
 
 from api.schemas.files import FileCommentedOut
 from api.utils.database import get_db
-from api.utils.helpers import _handle_integrity_error, _model_list, _model_out
+from api.utils.helpers import (
+    _handle_integrity_error,
+    _model_list,
+    _model_out,
+    _raise_for_dbapi_error,
+)
 from api.utils.minio import (
     _build_file_object_key,
     _build_minio_client,
@@ -33,6 +38,10 @@ logger = logging.getLogger(__name__)
 
 _ACCEPTED_TYPES_CACHE: dict[str, str] = {}
 _ACCEPTED_TYPES_CACHE_AT = 0.0
+_COMMENTED_FILE_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("file not found", 404, "File not found"),
+    ("user not found", 404, "User not found"),
+)
 
 
 class _PrefixedStream:
@@ -433,13 +442,7 @@ def insert_commented_file(
         _handle_commented_file_integrity_error(err)
     except DBAPIError as err:
         db.rollback()
-        message = str(err.orig) if getattr(err, "orig", None) else str(err)
-        lowered = message.lower()
-        if "file not found" in lowered:
-            raise HTTPException(status_code=404, detail="File not found") from err
-        if "user not found" in lowered:
-            raise HTTPException(status_code=404, detail="User not found") from err
-        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+        _raise_for_dbapi_error(err, _COMMENTED_FILE_DB_ERROR_MAP)
 
     client_host = request.client.host if request.client else "unknown"
     logger.info(

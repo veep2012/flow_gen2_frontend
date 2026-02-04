@@ -41,6 +41,7 @@ from api.utils.helpers import (
     _model_list,
     _model_out,
     _normalize_dt,
+    _raise_for_dbapi_error,
 )
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
@@ -640,15 +641,7 @@ def update_document_revision(
         _handle_integrity_error("Failed to update revision", err, "update_document_revision")
     except DBAPIError as err:
         db.rollback()
-        message = str(err.orig) if getattr(err, "orig", None) else str(err)
-        lowered = message.lower()
-        if "revision not found" in lowered:
-            raise HTTPException(status_code=404, detail="Revision not found") from err
-        if "no fields to update" in lowered:
-            raise HTTPException(status_code=400, detail="No fields provided for update") from err
-        if "final revision is immutable" in lowered:
-            raise HTTPException(status_code=409, detail="Final revision is immutable") from err
-        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+        _raise_for_dbapi_error(err, _UPDATE_REVISION_DB_ERROR_MAP)
 
     return _build_doc_revision_out(db, rev_id)
 
@@ -727,12 +720,62 @@ _REV_STATUS_TRANSITION_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
 
 
 def _raise_for_status_transition_db_error(err: DBAPIError) -> None:
-    message = str(err.orig) if getattr(err, "orig", None) else str(err)
-    lowered = message.lower()
-    for needle, status_code, detail in _REV_STATUS_TRANSITION_ERROR_MAP:
-        if needle in lowered:
-            raise HTTPException(status_code=status_code, detail=detail)
-    raise HTTPException(status_code=500, detail="Failed to transition revision status")
+    _raise_for_dbapi_error(
+        err,
+        _REV_STATUS_TRANSITION_ERROR_MAP,
+        default_detail="Failed to transition revision status",
+    )
+
+
+_UPDATE_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("revision not found", 404, "Revision not found"),
+    ("no fields to update", 400, "No fields provided for update"),
+    ("final revision is immutable", 409, "Final revision is immutable"),
+)
+
+_INSERT_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("document not found", 404, "Document not found"),
+    ("revision code not found", 404, "Revision code not found"),
+    ("milestone not found", 404, "Milestone not found"),
+    ("revision author not found", 404, "Revision author not found"),
+    ("revision originator not found", 404, "Revision originator not found"),
+    ("revision modifier not found", 404, "Revision modifier not found"),
+    ("no start status configured", 400, "No start status configured"),
+    (
+        "only one active (non-final, non-canceled) revision allowed per document",
+        409,
+        "Only one active (non-final, non-canceled) revision allowed per document",
+    ),
+)
+
+_UPDATE_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("document not found", 404, "Document not found"),
+    ("no fields to update", 400, "No fields provided for update"),
+)
+
+_INSERT_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("no start status configured", 400, "No start status configured"),
+    ("project not found", 404, "Project not found"),
+    ("jobpack not found", 404, "Jobpack not found"),
+    ("doc type not found", 404, "Doc type not found"),
+    ("area not found", 404, "Area not found"),
+    ("unit not found", 404, "Unit not found"),
+    ("revision code not found", 404, "Revision code not found"),
+    ("milestone not found", 404, "Milestone not found"),
+    ("revision author not found", 404, "Revision author not found"),
+    ("revision originator not found", 404, "Revision originator not found"),
+    ("revision modifier not found", 404, "Revision modifier not found"),
+)
+
+_CANCEL_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("revision not found", 404, "Revision not found"),
+    ("final revision cannot be canceled", 409, "Final revision cannot be canceled"),
+)
+
+_DELETE_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("document not found", 404, "Document not found"),
+    ("no start status configured", 400, "No start status configured"),
+)
 
 
 def create_revision_status_transition(
@@ -835,28 +878,7 @@ def insert_document_revision(
         _handle_integrity_error("Failed to create revision", err, "insert_document_revision")
     except DBAPIError as err:
         db.rollback()
-        message = str(err.orig) if getattr(err, "orig", None) else str(err)
-        lowered = message.lower()
-        if "document not found" in lowered:
-            raise HTTPException(status_code=404, detail="Document not found") from err
-        if "revision code not found" in lowered:
-            raise HTTPException(status_code=404, detail="Revision code not found") from err
-        if "milestone not found" in lowered:
-            raise HTTPException(status_code=404, detail="Milestone not found") from err
-        if "revision author not found" in lowered:
-            raise HTTPException(status_code=404, detail="Revision author not found") from err
-        if "revision originator not found" in lowered:
-            raise HTTPException(status_code=404, detail="Revision originator not found") from err
-        if "revision modifier not found" in lowered:
-            raise HTTPException(status_code=404, detail="Revision modifier not found") from err
-        if "no start status configured" in lowered:
-            raise HTTPException(status_code=400, detail="No start status configured") from err
-        if "only one active (non-final, non-canceled) revision allowed per document" in lowered:
-            raise HTTPException(
-                status_code=409,
-                detail="Only one active (non-final, non-canceled) revision allowed per document",
-            ) from err
-        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+        _raise_for_dbapi_error(err, _INSERT_REVISION_DB_ERROR_MAP)
     except Exception as err:
         db.rollback()
         logger.exception("Failed to create revision doc_id=%s", doc_id)
@@ -907,13 +929,7 @@ def update_document(
         _handle_integrity_error("Document name must be unique", err, "update_document")
     except DBAPIError as err:
         db.rollback()
-        message = str(err.orig) if getattr(err, "orig", None) else str(err)
-        lowered = message.lower()
-        if "document not found" in lowered:
-            raise HTTPException(status_code=404, detail="Document not found") from err
-        if "no fields to update" in lowered:
-            raise HTTPException(status_code=400, detail="No fields provided for update") from err
-        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+        _raise_for_dbapi_error(err, _UPDATE_DOCUMENT_DB_ERROR_MAP)
 
     return _fetch_doc_out(db, doc_id, allow_voided=False)
 
@@ -995,31 +1011,7 @@ def insert_document(
         _handle_integrity_error("Document name must be unique", err, "insert_document")
     except DBAPIError as err:
         db.rollback()
-        message = str(err.orig) if getattr(err, "orig", None) else str(err)
-        lowered = message.lower()
-        if "no start status configured" in lowered:
-            raise HTTPException(status_code=400, detail="No start status configured") from err
-        if "project not found" in lowered:
-            raise HTTPException(status_code=404, detail="Project not found") from err
-        if "jobpack not found" in lowered:
-            raise HTTPException(status_code=404, detail="Jobpack not found") from err
-        if "doc type not found" in lowered:
-            raise HTTPException(status_code=404, detail="Doc type not found") from err
-        if "area not found" in lowered:
-            raise HTTPException(status_code=404, detail="Area not found") from err
-        if "unit not found" in lowered:
-            raise HTTPException(status_code=404, detail="Unit not found") from err
-        if "revision code not found" in lowered:
-            raise HTTPException(status_code=404, detail="Revision code not found") from err
-        if "milestone not found" in lowered:
-            raise HTTPException(status_code=404, detail="Milestone not found") from err
-        if "revision author not found" in lowered:
-            raise HTTPException(status_code=404, detail="Revision author not found") from err
-        if "revision originator not found" in lowered:
-            raise HTTPException(status_code=404, detail="Revision originator not found") from err
-        if "revision modifier not found" in lowered:
-            raise HTTPException(status_code=404, detail="Revision modifier not found") from err
-        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+        _raise_for_dbapi_error(err, _INSERT_DOCUMENT_DB_ERROR_MAP)
     try:
         db.commit()
     except Exception as err:
@@ -1553,15 +1545,7 @@ def cancel_revision(
         db.commit()
     except DBAPIError as err:
         db.rollback()
-        message = str(err.orig) if getattr(err, "orig", None) else str(err)
-        lowered = message.lower()
-        if "revision not found" in lowered:
-            raise HTTPException(status_code=404, detail="Revision not found") from err
-        if "final revision cannot be canceled" in lowered:
-            raise HTTPException(
-                status_code=409, detail="Final revision cannot be canceled"
-            ) from err
-        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+        _raise_for_dbapi_error(err, _CANCEL_REVISION_DB_ERROR_MAP)
     return _build_doc_revision_out(db, rev_id)
 
 
@@ -1603,11 +1587,5 @@ def delete_document(
         db.commit()
     except DBAPIError as err:
         db.rollback()
-        message = str(err.orig) if getattr(err, "orig", None) else str(err)
-        lowered = message.lower()
-        if "document not found" in lowered:
-            raise HTTPException(status_code=404, detail="Document not found") from err
-        if "no start status configured" in lowered:
-            raise HTTPException(status_code=400, detail="No start status configured") from err
-        raise HTTPException(status_code=500, detail="Internal Server Error") from err
+        _raise_for_dbapi_error(err, _DELETE_DOCUMENT_DB_ERROR_MAP)
     return DeleteResult(result=result)
