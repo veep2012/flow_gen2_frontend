@@ -124,6 +124,10 @@ export OAUTH2_PROXY_COOKIE_SECRET="your-32-byte-secret"
 - `MAX_UPLOAD_SIZE_MB` limits upload size (default 128).
 - `MINIO_RETRIES` / `MINIO_RETRY_DELAY_SEC` control MinIO retry behavior.
 
+### Seed data (Postgres)
+- `ci/init/flow_seed.sql` inserts into `ref/core/workflow` tables and must run as a privileged role
+  (e.g., `postgres`/`db_owner`). `app_user` is read-only on workflow tables and cannot run seeds.
+
 ### Ports used by local services (defaults)
 - API: `5556`
 - UI: `5558`

@@ -3,6 +3,8 @@
 -- ========================================================
 -- 1. Populates lookup tables from your 5_base_content.sql
 -- 2. Generates fake Documents and Revisions for testing
+-- NOTE: Must be executed by a privileged role (e.g., postgres/db_owner).
+--       app_user is read-only on workflow tables and cannot run this seed.
 -- ========================================================
 
 SET search_path TO ref, core, workflow;
