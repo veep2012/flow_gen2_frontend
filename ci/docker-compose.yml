@@ -10,8 +10,7 @@ services:
       - ${POSTGRES_PORT:-5432}
     volumes:
       - flow_gen2_compose_pg_data:/var/lib/postgresql
-      - ./init/flow_init.sql:/docker-entrypoint-initdb.d/00_flow_init.sql:ro
-      - ./init/flow_seed.sql:/docker-entrypoint-initdb.d/01_flow_seed.sql:ro
+      - ./init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flow_user} -d ${POSTGRES_DB:-flow_db}"]
       interval: 10s
