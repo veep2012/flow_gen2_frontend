@@ -75,10 +75,10 @@ The compose file mounts `../.local/keycloak` (repo root `.local/keycloak`) for K
 ```bash
 mkdir -p .local/keycloak
 ```
-Use an env file for secrets (example template in `.env.example`):
+Use an env file for compose secrets (example template in `.env.example`):
 ```bash
-cp .env.example .env
-podman-compose --env-file .env -f ci/docker-compose.yml up -d
+cp .env.example .env.compose
+podman-compose --env-file .env.compose -f ci/docker-compose.yml up -d
 ```
 Defaults:
 - Keycloak: `http://localhost:8081` (realm `flow-local`)
@@ -93,7 +93,7 @@ Create a confidential client in the `flow-local` realm:
 4) Valid redirect URIs: `http://localhost/oauth2/callback` (match `OAUTH2_PROXY_REDIRECT_URL`).
 5) Copy the generated client secret.
 
-Provide the secret to oauth2-proxy via environment variables (Makefile uses `--env-file /dev/null` so export in shell or edit defaults in `ci/docker-compose.yml`):
+Provide the secret to oauth2-proxy via environment variables (Makefile uses `.env.compose` for compose runs, so set it there or export in shell):
 ```bash
 export OAUTH2_PROXY_CLIENT_SECRET="your-client-secret"
 ```

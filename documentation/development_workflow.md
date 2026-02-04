@@ -48,6 +48,10 @@ flowchart TD
   ```bash
   mkdir -p .local/keycloak
   ```
+- Compose reads environment from `.env.compose` (copy from `.env.example` as needed):
+  ```bash
+  cp .env.example .env.compose
+  ```
 - Create a Python venv and install dev dependencies:
   ```bash
   make local-venv

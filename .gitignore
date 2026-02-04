@@ -12,6 +12,7 @@ ui/.vite/
 ui_alt/.vite/
 .venv/
 .env
+.env.compose
 ui/.local/
 ui_alt/.local/
 /.local/
