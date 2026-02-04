@@ -8,7 +8,6 @@ exclude = '''
   |node_modules
   |ui
   |ui_alt
-  |ui_api_test
   |documentation
   |ci
   |tests/.seed_db
@@ -21,7 +20,6 @@ line_length = 100
 skip_glob = [
   "ui/**",
   "ui_alt/**",
-  "ui_api_test/**",
   "documentation/**",
   "ci/**",
   "tests/.seed_db/**",
@@ -33,7 +31,6 @@ target-version = "py311"
 extend-exclude = [
   "ui",
   "ui_alt",
-  "ui_api_test",
   "documentation",
   "ci",
   "tests/.seed_db",

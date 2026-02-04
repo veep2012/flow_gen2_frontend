@@ -1,15 +1,19 @@
 CONTAINER_ENGINE ?= podman
 COMPOSE_FILE ?= ci/docker-compose.yml
 COMPOSE_PROJECT_NAME ?= flow_gen2
+COMPOSE_ENV_FILE ?= .env.compose
 NO_CACHE ?=
 DB_CONTAINER_NAME ?= flow_gen2_postgres_local
 DB_IMAGE ?= postgres:18.1
+INIT_SQL ?= ci/init/00_flow_init.sql
 DB_VOLUME ?= flow_gen2_local_pg_data
 DB_PORT ?= 5432
 DB_PORT_FLAG := $(if $(DB_PORT),-p $(DB_PORT):5432,)
 POSTGRES_USER ?= flow_user
 POSTGRES_PASSWORD ?= flow_pass
 POSTGRES_DB ?= flow_db
+APP_DB_USER ?= app_user
+APP_DB_PASSWORD ?= app_pass
 MINIO_CONTAINER_NAME ?= flow_gen2_minio_local
 MINIO_IMAGE ?= minio/minio:RELEASE.2025-09-07T16-13-09Z
 MINIO_VOLUME ?= flow_gen2_local_minio_data
@@ -96,7 +100,7 @@ help: | ensure-pid-dir ## Show available targets
 test: | ensure-pid-dir ## Run unit tests
 	$(MAKE) test-db-up
 	$(MAKE) test-minio-up
-	DATABASE_URL=postgresql+psycopg://$(TEST_DB_USER):$(TEST_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
+	APP_DATABASE_URL=postgresql+psycopg://$(APP_DB_USER):$(APP_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
 		MINIO_ENDPOINT=$(TEST_MINIO_ENDPOINT) \
 		MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
 		MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
@@ -110,7 +114,7 @@ test: | ensure-pid-dir ## Run unit tests
 	for i in 1 2 3; do \
 		API_BASE=http://localhost:4175 API_PREFIX= API_WAIT_TIMEOUT=$(API_WAIT_TIMEOUT) $(PYTHON_BIN) scripts/wait-for-api.py && ready=1 && break; \
 		PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
-		DATABASE_URL=postgresql+psycopg://$(TEST_DB_USER):$(TEST_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
+		APP_DATABASE_URL=postgresql+psycopg://$(APP_DB_USER):$(APP_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
 			MINIO_ENDPOINT=$(TEST_MINIO_ENDPOINT) \
 			MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
 			MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
@@ -166,31 +170,31 @@ lint: ## Run UI lint and format
 
 .PHONY: build
 build: ## Build services with compose
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) build $(if $(NO_CACHE),--no-cache,)
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) build $(if $(NO_CACHE),--no-cache,)
 
 .PHONY: up
 up: ensure-keycloak-log-dir ## Start services with compose
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) up -d
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) up -d
 
 .PHONY: down
 down: ## Stop services with compose
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) down
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) down
 
 .PHONY: completely-rebuild
 completely-rebuild: ## Drop containers and volumes, then rebuild services
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) kill --all || true
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) down -v --remove-orphans --timeout 0 || true
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) build
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) kill --all || true
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) down -v --remove-orphans --timeout 0 || true
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) build
 
 .PHONY: rebuild
 rebuild: ## Stop containers, remove them (keep volumes), then rebuild services
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) kill --all || true
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) down --remove-orphans --timeout 0 || true
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) build
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) kill --all || true
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) down --remove-orphans --timeout 0 || true
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) build
 
 .PHONY: logs
 logs: ## Tail logs from compose services
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file /dev/null -f $(COMPOSE_FILE) logs -f
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) logs -f
 
 .PHONY: db-up
 db-up: ## Start standalone Postgres with podman (no port exposed unless DB_PORT is set)
@@ -199,7 +203,7 @@ db-up: ## Start standalone Postgres with podman (no port exposed unless DB_PORT 
 		--env POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
 		--env POSTGRES_DB=$(POSTGRES_DB) \
 		$(DB_PORT_FLAG) \
-		-v $(CURDIR)/ci/init/flow_init.sql:/docker-entrypoint-initdb.d/00_flow_init.sql:ro \
+		-v $(CURDIR)/$(INIT_SQL):/docker-entrypoint-initdb.d/00_flow_init.sql:ro \
 		-v $(CURDIR)/ci/init/flow_seed.sql:/docker-entrypoint-initdb.d/01_flow_seed.sql:ro \
 		-v $(DB_VOLUME):/var/lib/postgresql \
 		$(DB_IMAGE)
@@ -208,6 +212,10 @@ db-up: ## Start standalone Postgres with podman (no port exposed unless DB_PORT 
 db-down: ## Stop and remove standalone Postgres container started by db-up
 	-$(CONTAINER_ENGINE) stop $(DB_CONTAINER_NAME)
 	-$(CONTAINER_ENGINE) rm $(DB_CONTAINER_NAME)
+
+.PHONY: db-reset
+db-reset: ## Drop standalone Postgres volume only (DESTROYS DATA)
+	-$(CONTAINER_ENGINE) volume rm $(DB_VOLUME)
 
 .PHONY: minio-up
 minio-up: ## Start standalone MinIO with podman (no ports exposed unless MINIO_PORT is set)
@@ -257,7 +265,7 @@ test-db-up: ## Start temporary Postgres for tests (no volume)
 		sleep 1; \
 	done; \
 	if [ -z "$$ready" ]; then echo "Test DB not ready"; exit 1; fi
-	$(CONTAINER_ENGINE) cp $(CURDIR)/ci/init/flow_init.sql $(TEST_DB_CONTAINER_NAME):/tmp/flow_init.sql
+	$(CONTAINER_ENGINE) cp $(CURDIR)/$(INIT_SQL) $(TEST_DB_CONTAINER_NAME):/tmp/flow_init.sql
 	$(CONTAINER_ENGINE) cp $(CURDIR)/ci/init/flow_seed.sql $(TEST_DB_CONTAINER_NAME):/tmp/flow_seed.sql
 	$(CONTAINER_ENGINE) exec -e PGPASSWORD=$(TEST_DB_PASSWORD) $(TEST_DB_CONTAINER_NAME) \
 		psql -U $(TEST_DB_USER) -d $(TEST_DB_NAME) -v ON_ERROR_STOP=1 -f /tmp/flow_init.sql

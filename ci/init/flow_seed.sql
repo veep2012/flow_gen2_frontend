@@ -3,9 +3,11 @@
 -- ========================================================
 -- 1. Populates lookup tables from your 5_base_content.sql
 -- 2. Generates fake Documents and Revisions for testing
+-- NOTE: Must be executed by a privileged role (e.g., postgres/db_owner).
+--       app_user is read-only on workflow tables and cannot run this seed.
 -- ========================================================
 
-SET search_path TO flow;
+SET search_path TO ref, core, workflow;
 
 -- --------------------------------------------------------
 -- 1. Base Content (Lookup Tables)
@@ -114,24 +116,24 @@ INSERT INTO permissions (permission_id, user_id, project_id, discipline_id) VALU
 -- --------------------------------------------------------
 -- Since we manually inserted IDs, we must update the auto-increment sequences
 -- so the next INSERT doesn't crash with "Duplicate Key".
-SELECT setval(pg_get_serial_sequence('areas', 'area_id'), max(area_id)) FROM areas;
-SELECT setval(pg_get_serial_sequence('disciplines', 'discipline_id'), max(discipline_id)) FROM disciplines;
-SELECT setval(pg_get_serial_sequence('projects', 'project_id'), max(project_id)) FROM projects;
-SELECT setval(pg_get_serial_sequence('units', 'unit_id'), max(unit_id)) FROM units;
-SELECT setval(pg_get_serial_sequence('jobpacks', 'jobpack_id'), max(jobpack_id)) FROM jobpacks;
-SELECT setval(pg_get_serial_sequence('roles', 'role_id'), max(role_id)) FROM roles;
-SELECT setval(pg_get_serial_sequence('revision_overview', 'rev_code_id'), max(rev_code_id)) FROM revision_overview;
-SELECT setval(pg_get_serial_sequence('doc_rev_statuses', 'rev_status_id'), max(rev_status_id)) FROM doc_rev_statuses;
+SELECT setval(pg_get_serial_sequence('ref.areas', 'area_id'), max(area_id)) FROM ref.areas;
+SELECT setval(pg_get_serial_sequence('ref.disciplines', 'discipline_id'), max(discipline_id)) FROM ref.disciplines;
+SELECT setval(pg_get_serial_sequence('ref.projects', 'project_id'), max(project_id)) FROM ref.projects;
+SELECT setval(pg_get_serial_sequence('ref.units', 'unit_id'), max(unit_id)) FROM ref.units;
+SELECT setval(pg_get_serial_sequence('ref.jobpacks', 'jobpack_id'), max(jobpack_id)) FROM ref.jobpacks;
+SELECT setval(pg_get_serial_sequence('ref.roles', 'role_id'), max(role_id)) FROM ref.roles;
+SELECT setval(pg_get_serial_sequence('ref.revision_overview', 'rev_code_id'), max(rev_code_id)) FROM ref.revision_overview;
+SELECT setval(pg_get_serial_sequence('ref.doc_rev_statuses', 'rev_status_id'), max(rev_status_id)) FROM ref.doc_rev_statuses;
 SELECT setval(
-    pg_get_serial_sequence('flow.doc_rev_milestones', 'milestone_id'),
-    (SELECT COALESCE(MAX(milestone_id), 0) FROM flow.doc_rev_milestones),
+    pg_get_serial_sequence('ref.doc_rev_milestones', 'milestone_id'),
+    (SELECT COALESCE(MAX(milestone_id), 0) FROM ref.doc_rev_milestones),
     true
 );
-SELECT setval(pg_get_serial_sequence('person', 'person_id'), max(person_id)) FROM person;
-SELECT setval(pg_get_serial_sequence('doc_types', 'type_id'), max(type_id)) FROM doc_types;
-SELECT setval(pg_get_serial_sequence('users', 'user_id'), max(user_id)) FROM users;
-SELECT setval(pg_get_serial_sequence('permissions', 'permission_id'), max(permission_id)) FROM permissions;
-SELECT setval(pg_get_serial_sequence('doc_rev_status_ui_behaviors', 'ui_behavior_id'), max(ui_behavior_id)) FROM doc_rev_status_ui_behaviors;
+SELECT setval(pg_get_serial_sequence('ref.person', 'person_id'), max(person_id)) FROM ref.person;
+SELECT setval(pg_get_serial_sequence('ref.doc_types', 'type_id'), max(type_id)) FROM ref.doc_types;
+SELECT setval(pg_get_serial_sequence('ref.users', 'user_id'), max(user_id)) FROM ref.users;
+SELECT setval(pg_get_serial_sequence('ref.permissions', 'permission_id'), max(permission_id)) FROM ref.permissions;
+SELECT setval(pg_get_serial_sequence('ref.doc_rev_status_ui_behaviors', 'ui_behavior_id'), max(ui_behavior_id)) FROM ref.doc_rev_status_ui_behaviors;
 
 -- --------------------------------------------------------
 -- 3. Generate Fake Documents & Revisions
@@ -150,7 +152,7 @@ DECLARE
     v_doc_name TEXT;
     v_author INT;
     v_rev_code_id INT;
-    v_rev_date TIMESTAMP;
+    v_final_status_id INT;
     v_user_id INT;
 BEGIN
     SELECT rev_code_id INTO v_rev_code_id
@@ -161,6 +163,12 @@ BEGIN
     IF v_rev_code_id IS NULL THEN
         v_rev_code_id := 6;
     END IF;
+
+    SELECT rev_status_id INTO v_final_status_id
+    FROM doc_rev_statuses
+    WHERE final = TRUE
+    ORDER BY rev_status_id
+    LIMIT 1;
 
     FOR i IN 1..50 LOOP
         -- 1. Randomly select FKs
@@ -176,12 +184,11 @@ BEGIN
         v_doc_name := 'DOC-' || lpad(i::text, 4, '0');
 
         -- 3. Insert document + initial revision via DB function
-        v_rev_date := NOW() - (random() * interval '30 days');
         PERFORM set_config('app.user', v_user_id::text, true);
 
-        SELECT out_doc_id AS doc_id, out_rev_id AS rev_id
+        SELECT doc_id, rev_id
         INTO v_doc_id, v_rev_id
-        FROM flow.create_doc_with_revision(
+        FROM workflow.create_document(
             v_doc_name::VARCHAR(45),
             ('Generated Document Title ' || i)::VARCHAR(45),
             v_project_id::SMALLINT,
@@ -190,7 +197,6 @@ BEGIN
             v_area_id::SMALLINT,
             v_unit_id::SMALLINT,
             v_rev_code_id::SMALLINT,
-            v_rev_date::TIMESTAMPTZ,
             v_author::SMALLINT,
             v_author::SMALLINT,
             v_author::SMALLINT,
@@ -201,8 +207,19 @@ BEGIN
             NULL::TIMESTAMPTZ,
             NULL::TIMESTAMPTZ,
             NULL::TIMESTAMPTZ,
-            NULL::TIMESTAMPTZ
+            FALSE
         );
+
+        IF v_final_status_id IS NOT NULL THEN
+            UPDATE core.doc_revision
+            SET rev_status_id = v_final_status_id
+            WHERE rev_id = v_rev_id;
+
+            UPDATE core.doc
+            SET rev_current_id = v_rev_id,
+                rev_actual_id = v_rev_id
+            WHERE doc_id = v_doc_id;
+        END IF;
 
     END LOOP;
 END $$;

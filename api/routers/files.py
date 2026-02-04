@@ -12,14 +12,20 @@ from urllib.parse import quote
 from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query, Request, UploadFile
 from fastapi import File as UploadFileField
 from fastapi.responses import StreamingResponse
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
-from api.db.models import DocRevision, File, FileAccepted
 from api.schemas.files import FileOut, FileUpdate
 from api.utils.database import get_db
-from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
+from api.utils.helpers import (
+    _example_for,
+    _handle_integrity_error,
+    _model_list,
+    _model_out,
+    _raise_for_dbapi_error,
+)
 from api.utils.minio import (
     _build_file_object_key,
     _build_minio_client,
@@ -33,6 +39,7 @@ logger = logging.getLogger(__name__)
 
 _ACCEPTED_TYPES_CACHE: dict[str, str] = {}
 _ACCEPTED_TYPES_CACHE_AT = 0.0
+_FILE_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (("file not found", 404, "File not found"),)
 
 
 class _PrefixedStream:
@@ -79,7 +86,8 @@ def _parse_accepted_file_mime_map() -> dict[str, str]:
 
 
 def _load_accepted_types(db: Session) -> dict[str, str]:
-    mapping = {row.file_type.lower(): row.mimetype for row in db.query(FileAccepted).all()}
+    rows = db.execute(text("SELECT file_type, mimetype FROM workflow.files_accepted")).mappings()
+    mapping = {row["file_type"].lower(): row["mimetype"] for row in rows}
     mapping.update(_parse_accepted_file_mime_map())
     return mapping
 
@@ -179,8 +187,31 @@ def list_files_for_revision(
         List of files with metadata. If no files exist for the specified revision, an empty list is
         returned.
     """
-    files = db.query(File).filter(File.rev_id == rev_id).order_by(File.filename, File.id).all()
-    return _model_list(FileOut, files)
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    id,
+                    filename,
+                    s3_uid,
+                    mimetype,
+                    rev_id,
+                    created_at,
+                    updated_at,
+                    created_by,
+                    updated_by
+                FROM workflow.v_files
+                WHERE rev_id = :rev_id
+                ORDER BY filename, id
+                """
+            ),
+            {"rev_id": rev_id},
+        )
+        .mappings()
+        .all()
+    )
+    return _model_list(FileOut, rows)
 
 
 def insert_file(
@@ -208,8 +239,28 @@ def insert_file(
         HTTPException: 404 if revision not found.
         HTTPException: 413 if file exceeds size limit.
     """
-    revision = db.get(DocRevision, rev_id)
-    if not revision:
+    rev_row = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    r.rev_id,
+                    r.transmital_current_revision,
+                    d.doc_name_unique,
+                    d.voided,
+                    p.project_name
+                FROM workflow.v_document_revisions AS r
+                JOIN workflow.v_documents AS d ON d.doc_id = r.doc_id
+                LEFT JOIN workflow.projects AS p ON p.project_id = d.project_id
+                WHERE r.rev_id = :rev_id
+                """
+            ),
+            {"rev_id": rev_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if not rev_row or rev_row["voided"]:
         raise HTTPException(status_code=404, detail="Revision not found")
 
     if not file.filename:
@@ -231,19 +282,13 @@ def insert_file(
     accepted_types = _get_cached_accepted_types(db)
     accepted_mimetype = accepted_types.get(file_extension)
     if not accepted_mimetype:
-        accepted_file = (
-            db.query(FileAccepted).filter(FileAccepted.file_type == file_extension).first()
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, "
+                "PDF, AutoCAD."
+            ),
         )
-        if not accepted_file:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, "
-                    "PDF, AutoCAD."
-                ),
-            )
-        accepted_mimetype = accepted_file.mimetype
-        accepted_types[file_extension] = accepted_mimetype
     _validate_mimetype(file_extension, content_type, accepted_mimetype)
     stream: BinaryIO = cast(BinaryIO, file.file)
     size = None
@@ -263,13 +308,12 @@ def insert_file(
             raise HTTPException(status_code=400, detail="File is empty")
         stream = cast(BinaryIO, _PrefixedStream(peek, stream))
 
-    doc = revision.doc
-    project_name = doc.project.project_name if doc and doc.project else None
-    doc_name = doc.doc_name_unique if doc else f"doc_{revision.doc_id}"
+    project_name = rev_row["project_name"]
+    doc_name = rev_row["doc_name_unique"]
     object_key = _build_file_object_key(
         project_name=project_name,
         doc_name_unique=doc_name,
-        transmital_current_revision=revision.transmital_current_revision,
+        transmital_current_revision=rev_row["transmital_current_revision"],
         unique_id=uuid.uuid4().hex,
         filename=filename,
     )
@@ -303,14 +347,39 @@ def insert_file(
         logger.exception("MinIO upload failed for key %s", object_key)
         raise
 
-    new_file = File(
-        filename=filename,
-        s3_uid=object_key,
-        mimetype=content_type,
-        rev_id=rev_id,
-    )
-    db.add(new_file)
     try:
+        new_file = (
+            db.execute(
+                text(
+                    """
+                    SELECT
+                        id,
+                        filename,
+                        s3_uid,
+                        mimetype,
+                        rev_id,
+                        created_at,
+                        updated_at,
+                        created_by,
+                        updated_by
+                    FROM workflow.create_file(
+                        :rev_id,
+                        :filename,
+                        :s3_uid,
+                        :mimetype
+                    )
+                    """
+                ),
+                {
+                    "rev_id": rev_id,
+                    "filename": filename,
+                    "s3_uid": object_key,
+                    "mimetype": content_type,
+                },
+            )
+            .mappings()
+            .one()
+        )
         db.commit()
     except IntegrityError as err:
         db.rollback()
@@ -323,13 +392,23 @@ def insert_file(
         except HTTPException:
             logger.exception("Failed to cleanup MinIO object after DB error: %s", object_key)
         _handle_integrity_error("Failed to create file record", err, "insert_file")
+    except Exception as err:
+        db.rollback()
+        try:
+            _minio_with_retry(
+                "remove_object",
+                endpoint,
+                lambda: client.remove_object(bucket, object_key),
+            )
+        except HTTPException:
+            logger.exception("Failed to cleanup MinIO object after DB error: %s", object_key)
+        raise HTTPException(status_code=500, detail="Internal Server Error") from err
 
-    db.refresh(new_file)
     client_host = request.client.host if request.client else "unknown"
     logger.info(
         "File uploaded rev_id=%s file_id=%s filename=%s client=%s",
         rev_id,
-        new_file.id,
+        new_file["id"],
         filename,
         client_host,
     )
@@ -363,20 +442,39 @@ def update_file(
     if len(filename) > 90:
         raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
 
-    file_row = db.get(File, file_id)
-    if not file_row:
-        raise HTTPException(status_code=404, detail="File not found")
-
-    logger.info("event=file_update_attempt file_id=%s", file_row.id)
-    file_row.filename = filename
+    logger.info("event=file_update_attempt file_id=%s", file_id)
     try:
+        file_row = (
+            db.execute(
+                text(
+                    """
+                    SELECT
+                        id,
+                        filename,
+                        s3_uid,
+                        mimetype,
+                        rev_id,
+                        created_at,
+                        updated_at,
+                        created_by,
+                        updated_by
+                    FROM workflow.update_file(:file_id, :filename)
+                    """
+                ),
+                {"file_id": file_id, "filename": filename},
+            )
+            .mappings()
+            .one()
+        )
         db.commit()
     except IntegrityError as err:
         db.rollback()
         _handle_integrity_error("Failed to update file", err, "update_file")
+    except DBAPIError as err:
+        db.rollback()
+        _raise_for_dbapi_error(err, _FILE_DB_ERROR_MAP)
 
-    db.refresh(file_row)
-    logger.info("event=file_update_success file_id=%s", file_row.id)
+    logger.info("event=file_update_success file_id=%s", file_id)
     return _model_out(FileOut, file_row)
 
 
@@ -397,7 +495,14 @@ def delete_file(
     Raises:
         HTTPException: 404 if file not found.
     """
-    file_row = db.get(File, file_id)
+    file_row = (
+        db.execute(
+            text("SELECT id, s3_uid FROM workflow.files WHERE id = :file_id"),
+            {"file_id": file_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -407,31 +512,33 @@ def delete_file(
         _minio_with_retry(
             "remove_object",
             endpoint,
-            lambda: client.remove_object(bucket, file_row.s3_uid),
+            lambda: client.remove_object(bucket, file_row["s3_uid"]),
         )
-        logger.info("MinIO delete succeeded file_id=%s s3_uid=%s", file_row.id, file_row.s3_uid)
+        logger.info(
+            "MinIO delete succeeded file_id=%s s3_uid=%s", file_row["id"], file_row["s3_uid"]
+        )
     except HTTPException:
         logger.exception(
-            "MinIO delete failed for file_id=%s s3_uid=%s", file_row.id, file_row.s3_uid
+            "MinIO delete failed for file_id=%s s3_uid=%s", file_row["id"], file_row["s3_uid"]
         )
         raise
 
     try:
-        db.delete(file_row)
+        db.execute(text("SELECT workflow.delete_file(:file_id)"), {"file_id": file_id})
         db.commit()
     except Exception:
         db.rollback()
         logger.exception(
             "DB delete failed after MinIO delete file_id=%s s3_uid=%s",
-            file_row.id,
-            file_row.s3_uid,
+            file_row["id"],
+            file_row["s3_uid"],
         )
         raise HTTPException(status_code=500, detail="Internal Server Error")
     client_host = request.client.host if request.client else "unknown"
     logger.info(
         "File deleted file_id=%s s3_uid=%s client=%s",
-        file_row.id,
-        file_row.s3_uid,
+        file_row["id"],
+        file_row["s3_uid"],
         client_host,
     )
 
@@ -609,15 +716,28 @@ def download_file(
     if request.headers.get("range"):
         raise HTTPException(status_code=416, detail="Range requests are not supported")
 
-    file_row = db.get(File, file_id)
+    file_row = (
+        db.execute(
+            text(
+                """
+                SELECT id, filename, s3_uid, mimetype
+                FROM workflow.files
+                WHERE id = :file_id
+                """
+            ),
+            {"file_id": file_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
     if not file_row:
         raise HTTPException(status_code=404, detail="File not found")
 
     client_host = request.client.host if request.client else "unknown"
     logger.info(
         "event=file_download_start file_id=%s s3_uid=%s client=%s",
-        file_row.id,
-        file_row.s3_uid,
+        file_row["id"],
+        file_row["s3_uid"],
         client_host,
     )
     client, bucket = _build_minio_client()
@@ -625,22 +745,23 @@ def download_file(
     response = _minio_with_retry(
         "get_object",
         endpoint,
-        lambda: client.get_object(bucket, file_row.s3_uid),
+        lambda: client.get_object(bucket, file_row["s3_uid"]),
     )
     stat = _minio_with_retry(
         "stat_object",
         endpoint,
-        lambda: client.stat_object(bucket, file_row.s3_uid),
+        lambda: client.stat_object(bucket, file_row["s3_uid"]),
     )
 
     safe_name = (
-        file_row.filename.replace('"', "'")
+        file_row["filename"]
+        .replace('"', "'")
         .replace("\r", "")
         .replace("\n", "")
         .encode("latin-1", "ignore")
         .decode("latin-1")
     )
-    quoted_name = quote(file_row.filename)
+    quoted_name = quote(file_row["filename"])
     headers = {
         "Content-Disposition": (
             "attachment; filename=\"{}\"; filename*=UTF-8''{}".format(
@@ -657,13 +778,13 @@ def download_file(
         headers["Last-Modified"] = formatdate(stat.last_modified.timestamp(), usegmt=True)
     logger.info(
         "event=file_download_ready file_id=%s s3_uid=%s client=%s",
-        file_row.id,
-        file_row.s3_uid,
+        file_row["id"],
+        file_row["s3_uid"],
         client_host,
     )
     return StreamingResponse(
         _stream_minio(response),
-        media_type=file_row.mimetype or stat.content_type or "application/octet-stream",
+        media_type=file_row["mimetype"] or stat.content_type or "application/octet-stream",
         headers=headers,
         background=BackgroundTask(_close_minio_response, response),
     )

@@ -1,5 +1,6 @@
 import os
 import time
+import uuid
 
 import httpx
 import pytest
@@ -37,6 +38,21 @@ def _extract_first_id(items: list, keys: list[str]) -> int | None:
             if value is not None:
                 return value
     return None
+
+
+def _ensure_file_for_revision(client: httpx.Client, rev_id: int) -> None:
+    listed = _request(client, "GET", "/files", params={"rev_id": rev_id})
+    if 200 <= listed["status"] < 300 and listed["payload"]:
+        return
+    suffix = uuid.uuid4().hex[:6]
+    upload = _request(
+        client,
+        "POST",
+        "/files/",
+        files={"file": (f"rev-{rev_id}-{suffix}.pdf", b"test", "application/pdf")},
+        data={"rev_id": str(rev_id)},
+    )
+    assert 200 <= upload["status"] < 300, f"file upload failed: {upload['status']}"
 
 
 def _get_project_id(client: httpx.Client) -> int | None:
@@ -109,7 +125,22 @@ def test_documents_revisions_update():
         revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
         if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
             pytest.skip("No revisions available for revisions update test")
-        rev_id = revisions["payload"][0].get("rev_id")
+        statuses = _get_statuses(client)
+        if not statuses:
+            pytest.skip("No statuses available for revisions update test")
+        status_map = {
+            status["rev_status_id"]: status for status in statuses if "rev_status_id" in status
+        }
+        candidate = None
+        for rev in revisions["payload"]:
+            status = status_map.get(rev.get("rev_status_id"))
+            if status and status.get("final"):
+                continue
+            candidate = rev
+            break
+        if candidate is None:
+            pytest.skip("No non-final revision available for revisions update test")
+        rev_id = candidate.get("rev_id")
         if rev_id is None:
             pytest.skip("No rev_id available for revisions update test")
         updated = _request(
@@ -280,6 +311,7 @@ def test_documents_revisions_status_transition_forward():
         rev, status = candidate
         rev_id = rev["rev_id"]
         next_id = status["next_rev_status_id"]
+        _ensure_file_for_revision(client, rev_id)
         result = _request(
             client,
             "POST",

@@ -7,9 +7,10 @@ from typing import Any, Iterable, TypeVar
 
 from fastapi import HTTPException
 from pydantic import BaseModel
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
+DbErrorMapping = tuple[str, int, str]
 
 logger = logging.getLogger(__name__)
 DEBUG_MODE = os.getenv("DEBUG", "").lower() in {"1", "true", "yes", "on", "debug"}
@@ -75,3 +76,33 @@ def _handle_integrity_error(detail: str, err: IntegrityError, context: str | Non
     logger.exception("IntegrityError%s: %s", ctx, err)
     message = detail if not DEBUG_MODE else f"{detail} ({err})"
     raise HTTPException(status_code=400, detail=message)
+
+
+def _require_non_null_fields(payload: BaseModel, fields: Iterable[str]) -> None:
+    missing = [
+        field
+        for field in fields
+        if field in payload.model_fields_set and getattr(payload, field) is None
+    ]
+    if not missing:
+        return
+    label = "Field" if len(missing) == 1 else "Fields"
+    joined = ", ".join(missing)
+    raise HTTPException(status_code=400, detail=f"{label} cannot be null: {joined}")
+
+
+def _raise_for_dbapi_error(
+    err: DBAPIError,
+    mappings: Iterable[DbErrorMapping],
+    *,
+    default_status: int = 500,
+    default_detail: str = "Internal Server Error",
+) -> None:
+    message = str(err.orig) if getattr(err, "orig", None) else str(err)
+    lowered = message.lower()
+    for needle, status_code, detail in mappings:
+        if needle in lowered:
+            final_detail = detail if not DEBUG_MODE else f"{detail} ({message})"
+            raise HTTPException(status_code=status_code, detail=final_detail) from err
+    final_default = default_detail if not DEBUG_MODE else f"{default_detail} ({message})"
+    raise HTTPException(status_code=default_status, detail=final_default) from err

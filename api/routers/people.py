@@ -1,8 +1,7 @@
 """People and security endpoints for persons, users, and permissions."""
 
-from typing import Any
-
 from fastapi import APIRouter, Body, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Query, Session
 
@@ -20,7 +19,13 @@ from api.schemas.people import (
     UserUpdate,
 )
 from api.utils.database import get_db
-from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
+from api.utils.helpers import (
+    _example_for,
+    _handle_integrity_error,
+    _model_list,
+    _model_out,
+    _require_non_null_fields,
+)
 
 router = APIRouter(prefix="/api/v1/people", tags=["people"])
 
@@ -126,8 +131,20 @@ def list_roles(db: Session = Depends(get_db)) -> list[RoleOut]:
     Returns:
         List of roles with id and name.
     """
-    roles = db.query(Role).order_by(Role.role_name).all()
-    return _model_list(RoleOut, roles)
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT role_id, role_name
+                FROM workflow.roles
+                ORDER BY role_name
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return _model_list(RoleOut, rows)
 
 
 def insert_role(
@@ -180,13 +197,15 @@ def update_role(
         HTTPException: 400 if no fields provided.
         HTTPException: 404 if role not found.
     """
-    if payload.role_name is None:
+    if "role_name" not in payload.model_fields_set:
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("role_name",))
 
     role = db.get(Role, role_id)
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
 
+    assert payload.role_name is not None
     role.role_name = payload.role_name
     try:
         db.commit()
@@ -273,8 +292,20 @@ def list_persons(db: Session = Depends(get_db)) -> list[PersonOut]:
     Returns:
         List of persons with id, name, and photo S3 UID.
     """
-    persons = db.query(Person).order_by(Person.person_name).all()
-    return _model_list(PersonOut, persons)
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT person_id, person_name, photo_s3_uid
+                FROM workflow.person
+                ORDER BY person_name
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return _model_list(PersonOut, rows)
 
 
 def update_person(
@@ -298,8 +329,9 @@ def update_person(
         HTTPException: 400 if no fields provided.
         HTTPException: 404 if person not found.
     """
-    if payload.person_name is None and payload.photo_s3_uid is None:
+    if not {"person_name", "photo_s3_uid"}.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("person_name",))
 
     person = db.get(Person, person_id)
     if not person:
@@ -428,14 +460,28 @@ def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
     Returns:
         List of users with id, person details, acronym, and role information.
     """
-    users = (
-        db.query(User)
-        .join(Person, User.person_id == Person.person_id)
-        .join(Role, User.role_id == Role.role_id)
-        .order_by(User.user_acronym)
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    u.user_id,
+                    u.person_id,
+                    u.user_acronym,
+                    u.role_id,
+                    p.person_name,
+                    r.role_name
+                FROM workflow.users AS u
+                JOIN workflow.person AS p ON p.person_id = u.person_id
+                JOIN workflow.roles AS r ON r.role_id = u.role_id
+                ORDER BY u.user_acronym
+                """
+            )
+        )
+        .mappings()
         .all()
     )
-    return [_build_user_out(user) for user in users]
+    return _model_list(UserOut, rows)
 
 
 @router.get(
@@ -458,16 +504,30 @@ def get_current_user(db: Session = Depends(get_db)) -> UserOut:
 
     Returns the current user and person info. Currently hardcoded to user_id=2.
     """
-    user = (
-        db.query(User)
-        .join(Person, User.person_id == Person.person_id)
-        .join(Role, User.role_id == Role.role_id)
-        .filter(User.user_id == 2)
+    row = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    u.user_id,
+                    u.person_id,
+                    u.user_acronym,
+                    u.role_id,
+                    p.person_name,
+                    r.role_name
+                FROM workflow.users AS u
+                JOIN workflow.person AS p ON p.person_id = u.person_id
+                JOIN workflow.roles AS r ON r.role_id = u.role_id
+                WHERE u.user_id = 2
+                """
+            )
+        )
+        .mappings()
         .one_or_none()
     )
-    if not user:
+    if not row:
         raise HTTPException(status_code=404, detail="User not found")
-    return _build_user_out(user)
+    return _model_out(UserOut, row)
 
 
 def update_user(
@@ -491,8 +551,9 @@ def update_user(
         HTTPException: 400 if no fields provided or update fails.
         HTTPException: 404 if user, person, or role not found.
     """
-    if payload.person_id is None and payload.user_acronym is None and payload.role_id is None:
+    if not {"person_id", "user_acronym", "role_id"}.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("person_id", "user_acronym", "role_id"))
 
     user = db.get(User, user_id)
     if not user:
@@ -641,8 +702,32 @@ def list_permissions(db: Session = Depends(get_db)) -> list[PermissionOut]:
     Returns:
         List of permissions with comprehensive metadata.
     """
-    permissions = db.query(Permission).order_by(Permission.user_id).all()
-    return [_build_permission_out(p) for p in permissions]
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    perm.permission_id,
+                    perm.user_id,
+                    perm.project_id,
+                    perm.discipline_id,
+                    u.user_acronym,
+                    p.person_name,
+                    proj.project_name,
+                    d.discipline_name
+                FROM workflow.permissions AS perm
+                JOIN workflow.users AS u ON u.user_id = perm.user_id
+                JOIN workflow.person AS p ON p.person_id = u.person_id
+                LEFT JOIN workflow.projects AS proj ON proj.project_id = perm.project_id
+                LEFT JOIN workflow.disciplines AS d ON d.discipline_id = perm.discipline_id
+                ORDER BY perm.user_id
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return _model_list(PermissionOut, rows)
 
 
 def insert_permission(
@@ -786,214 +871,3 @@ def delete_permission(permission_id: int, db: Session = Depends(get_db)) -> None
         raise HTTPException(status_code=404, detail="Permission not found")
     db.delete(permission)
     db.commit()
-
-
-# ---------------------------------------------------------------------------
-# RESTful aliases (POST collection, PUT/DELETE item)
-# ---------------------------------------------------------------------------
-
-_REST_RESPONSES: dict[int | str, dict[str, Any]] = {
-    400: {
-        "description": "Bad Request",
-        "content": {"application/json": {"example": {"detail": "Bad Request"}}},
-    },
-    404: {
-        "description": "Not Found",
-        "content": {"application/json": {"example": {"detail": "Not Found"}}},
-    },
-    422: {
-        "description": "Validation Error",
-        "content": {
-            "application/json": {
-                "example": {
-                    "detail": [
-                        {"loc": ["body", "field"], "msg": "Field required", "type": "missing"}
-                    ]
-                }
-            }
-        },
-    },
-    500: {
-        "description": "Internal Server Error",
-        "content": {"application/json": {"example": {"detail": "Internal Server Error"}}},
-    },
-}
-
-
-@router.post(
-    "/roles",
-    summary="Create a new role (REST).",
-    description="Creates a new role with the specified name.",
-    response_model=RoleOut,
-    status_code=201,
-    tags=["people"],
-    responses=_REST_RESPONSES,
-)
-def create_role_rest(
-    payload: RoleCreate = Body(..., openapi_examples=_example_for(RoleCreate)),
-    db: Session = Depends(get_db),
-) -> RoleOut:
-    return insert_role(payload, db)
-
-
-@router.put(
-    "/roles/{role_id}",
-    summary="Update an existing role (REST).",
-    description="Updates the name of an existing role.",
-    response_model=RoleOut,
-    tags=["people"],
-    responses=_REST_RESPONSES,
-)
-def update_role_rest(
-    role_id: int,
-    payload: RoleUpdate = Body(..., openapi_examples=_example_for(RoleUpdate)),
-    db: Session = Depends(get_db),
-) -> RoleOut:
-    return update_role(role_id, payload, db)
-
-
-@router.delete(
-    "/roles/{role_id}",
-    summary="Delete a role (REST).",
-    description="Removes a role from the database by its ID.",
-    status_code=204,
-    tags=["people"],
-    responses=_REST_RESPONSES,
-)
-def delete_role_rest(role_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_role(role_id, db)
-
-
-@router.post(
-    "/persons",
-    summary="Create a new person (REST).",
-    description="Creates a new person with the specified name.",
-    response_model=PersonOut,
-    status_code=201,
-    tags=["people"],
-    responses=_REST_RESPONSES,
-)
-def create_person_rest(
-    payload: PersonCreate = Body(..., openapi_examples=_example_for(PersonCreate)),
-    db: Session = Depends(get_db),
-) -> PersonOut:
-    return insert_person(payload, db)
-
-
-@router.put(
-    "/persons/{person_id}",
-    summary="Update an existing person (REST).",
-    description="Updates the name of an existing person.",
-    response_model=PersonOut,
-    tags=["people"],
-    responses=_REST_RESPONSES,
-)
-def update_person_rest(
-    person_id: int,
-    payload: PersonUpdate = Body(..., openapi_examples=_example_for(PersonUpdate)),
-    db: Session = Depends(get_db),
-) -> PersonOut:
-    return update_person(person_id, payload, db)
-
-
-@router.delete(
-    "/persons/{person_id}",
-    summary="Delete a person (REST).",
-    description="Removes a person from the database by its ID.",
-    status_code=204,
-    tags=["people"],
-    responses=_REST_RESPONSES,
-)
-def delete_person_rest(person_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_person(person_id, db)
-
-
-@router.post(
-    "/users",
-    summary="Create a new user (REST).",
-    description="Creates a new user with the specified fields.",
-    response_model=UserOut,
-    status_code=201,
-    tags=["people"],
-    responses=_REST_RESPONSES,
-)
-def create_user_rest(
-    payload: UserCreate = Body(..., openapi_examples=_example_for(UserCreate)),
-    db: Session = Depends(get_db),
-) -> UserOut:
-    return insert_user(payload, db)
-
-
-@router.put(
-    "/users/{user_id}",
-    summary="Update an existing user (REST).",
-    description="Updates the fields of an existing user.",
-    response_model=UserOut,
-    tags=["people"],
-    responses=_REST_RESPONSES,
-)
-def update_user_rest(
-    user_id: int,
-    payload: UserUpdate = Body(..., openapi_examples=_example_for(UserUpdate)),
-    db: Session = Depends(get_db),
-) -> UserOut:
-    return update_user(user_id, payload, db)
-
-
-@router.delete(
-    "/users/{user_id}",
-    summary="Delete a user (REST).",
-    description="Removes a user from the database by its ID.",
-    status_code=204,
-    tags=["people"],
-    responses=_REST_RESPONSES,
-)
-def delete_user_rest(user_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_user(user_id, db)
-
-
-@router.post(
-    "/permissions",
-    summary="Create a new permission (REST).",
-    description="Creates a new permission with the specified scope.",
-    response_model=PermissionOut,
-    status_code=201,
-    tags=["people"],
-    responses=_REST_RESPONSES,
-)
-def create_permission_rest(
-    payload: PermissionCreate = Body(..., openapi_examples=_example_for(PermissionCreate)),
-    db: Session = Depends(get_db),
-) -> PermissionOut:
-    return insert_permission(payload, db)
-
-
-@router.put(
-    "/permissions/{permission_id}",
-    summary="Update an existing permission (REST).",
-    description="Updates the scope of an existing permission.",
-    response_model=PermissionOut,
-    tags=["people"],
-    responses=_REST_RESPONSES,
-)
-def update_permission_rest(
-    permission_id: int,
-    payload: PermissionUpdate = Body(..., openapi_examples=_example_for(PermissionUpdate)),
-    db: Session = Depends(get_db),
-) -> PermissionOut:
-    return update_permission(permission_id, payload, db)
-
-
-@router.delete(
-    "/permissions/{permission_id}",
-    summary="Delete a permission (REST).",
-    description="Removes a permission by its ID or scope.",
-    status_code=204,
-    tags=["people"],
-    responses=_REST_RESPONSES,
-)
-def delete_permission_rest(
-    permission_id: int,
-    db: Session = Depends(get_db),
-) -> None:
-    return delete_permission(permission_id, db)

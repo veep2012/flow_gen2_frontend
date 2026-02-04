@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 
-$presetDatabaseUrl = $env:DATABASE_URL
+$presetDatabaseUrl = $env:APP_DATABASE_URL
 $presetApiHost = $env:API_HOST
 $presetApiPort = $env:API_PORT
 $presetMinioEndpoint = $env:MINIO_ENDPOINT
@@ -24,7 +24,7 @@ if (Test-Path $envPath) {
 }
 
 if ($presetDatabaseUrl) {
-    $env:DATABASE_URL = $presetDatabaseUrl
+    $env:APP_DATABASE_URL = $presetDatabaseUrl
 }
 if ($presetApiHost) {
     $env:API_HOST = $presetApiHost

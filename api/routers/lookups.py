@@ -1,8 +1,7 @@
 """Lookups endpoints for areas, disciplines, projects, units, jobpacks, roles, and doc types."""
 
-from typing import Any
-
 from fastapi import APIRouter, Body, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -41,7 +40,13 @@ from api.schemas.lookups import (
     UnitUpdate,
 )
 from api.utils.database import get_db
-from api.utils.helpers import _example_for, _handle_integrity_error, _model_list, _model_out
+from api.utils.helpers import (
+    _example_for,
+    _handle_integrity_error,
+    _model_list,
+    _model_out,
+    _require_non_null_fields,
+)
 
 router = APIRouter(prefix="/api/v1/lookups", tags=["lookups"])
 
@@ -104,8 +109,16 @@ def list_areas(db: Session = Depends(get_db)) -> list[AreaOut]:
         List of areas with id, name, and acronym.
 
     """
-    areas = db.query(Area).order_by(Area.area_name).all()
-    return _model_list(AreaOut, areas)
+    rows = db.execute(
+        text(
+            """
+            SELECT area_id, area_name, area_acronym
+            FROM workflow.areas
+            ORDER BY area_name
+            """
+        )
+    ).mappings()
+    return _model_list(AreaOut, rows.all())
 
 
 def update_area(
@@ -129,8 +142,9 @@ def update_area(
         HTTPException: 400 if no fields provided or name/acronym already exists.
         HTTPException: 404 if area not found.
     """
-    if payload.area_name is None and payload.area_acronym is None:
+    if not {"area_name", "area_acronym"}.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("area_name", "area_acronym"))
 
     area = db.get(Area, area_id)
     if not area:
@@ -256,8 +270,16 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[DisciplineOut]:
     Returns:
         List of disciplines with id, name, and acronym.
     """
-    disciplines = db.query(Discipline).order_by(Discipline.discipline_name).all()
-    return _model_list(DisciplineOut, disciplines)
+    rows = db.execute(
+        text(
+            """
+            SELECT discipline_id, discipline_name, discipline_acronym
+            FROM workflow.disciplines
+            ORDER BY discipline_name
+            """
+        )
+    ).mappings()
+    return _model_list(DisciplineOut, rows.all())
 
 
 def update_discipline(
@@ -281,8 +303,9 @@ def update_discipline(
         HTTPException: 400 if no fields provided or name/acronym already exists.
         HTTPException: 404 if discipline not found.
     """
-    if payload.discipline_name is None and payload.discipline_acronym is None:
+    if not {"discipline_name", "discipline_acronym"}.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("discipline_name", "discipline_acronym"))
 
     discipline = db.get(Discipline, discipline_id)
     if not discipline:
@@ -419,8 +442,16 @@ def list_projects(db: Session = Depends(get_db)) -> list[ProjectOut]:
     Returns:
         List of projects with id and name.
     """
-    projects = db.query(Project).order_by(Project.project_name).all()
-    return _model_list(ProjectOut, projects)
+    rows = db.execute(
+        text(
+            """
+            SELECT project_id, project_name
+            FROM workflow.projects
+            ORDER BY project_name
+            """
+        )
+    ).mappings()
+    return _model_list(ProjectOut, rows.all())
 
 
 def update_project(
@@ -444,8 +475,9 @@ def update_project(
         HTTPException: 400 if no fields provided or project name already exists.
         HTTPException: 404 if project not found.
     """
-    if payload.project_name is None:
+    if "project_name" not in payload.model_fields_set:
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("project_name",))
 
     project = db.get(Project, project_id)
     if not project:
@@ -569,8 +601,16 @@ def list_units(db: Session = Depends(get_db)) -> list[UnitOut]:
     Returns:
         List of units with id and name.
     """
-    units = db.query(Unit).order_by(Unit.unit_name).all()
-    return _model_list(UnitOut, units)
+    rows = db.execute(
+        text(
+            """
+            SELECT unit_id, unit_name
+            FROM workflow.units
+            ORDER BY unit_name
+            """
+        )
+    ).mappings()
+    return _model_list(UnitOut, rows.all())
 
 
 def update_unit(
@@ -594,8 +634,9 @@ def update_unit(
         HTTPException: 400 if no fields provided or unit name already exists.
         HTTPException: 404 if unit not found.
     """
-    if payload.unit_name is None:
+    if "unit_name" not in payload.model_fields_set:
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("unit_name",))
 
     unit = db.get(Unit, unit_id)
     if not unit:
@@ -719,8 +760,16 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[JobpackOut]:
     Returns:
         List of jobpacks with id and name.
     """
-    jobpacks = db.query(Jobpack).order_by(Jobpack.jobpack_name).all()
-    return _model_list(JobpackOut, jobpacks)
+    rows = db.execute(
+        text(
+            """
+            SELECT jobpack_id, jobpack_name
+            FROM workflow.jobpacks
+            ORDER BY jobpack_name
+            """
+        )
+    ).mappings()
+    return _model_list(JobpackOut, rows.all())
 
 
 def update_jobpack(
@@ -744,8 +793,9 @@ def update_jobpack(
         HTTPException: 400 if no fields provided or jobpack name already exists.
         HTTPException: 404 if jobpack not found.
     """
-    if payload.jobpack_name is None:
+    if "jobpack_name" not in payload.model_fields_set:
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("jobpack_name",))
 
     jobpack = db.get(Jobpack, jobpack_id)
     if not jobpack:
@@ -868,10 +918,16 @@ def list_doc_rev_status_ui_behaviors(
     Returns:
         List of document revision status UI behaviors with id and name.
     """
-    behaviors = (
-        db.query(DocRevStatusUiBehavior).order_by(DocRevStatusUiBehavior.ui_behavior_name).all()
-    )
-    return _model_list(DocRevStatusUiBehaviorOut, behaviors)
+    rows = db.execute(
+        text(
+            """
+            SELECT ui_behavior_id, ui_behavior_name, ui_behavior_file
+            FROM workflow.doc_rev_status_ui_behaviors
+            ORDER BY ui_behavior_name
+            """
+        )
+    ).mappings()
+    return _model_list(DocRevStatusUiBehaviorOut, rows.all())
 
 
 def insert_doc_rev_status_ui_behavior(
@@ -930,8 +986,9 @@ def update_doc_rev_status_ui_behavior(
         HTTPException: 400 if no fields provided.
         HTTPException: 404 if UI behavior not found.
     """
-    if payload.ui_behavior_name is None and payload.ui_behavior_file is None:
+    if not {"ui_behavior_name", "ui_behavior_file"}.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
+    _require_non_null_fields(payload, ("ui_behavior_name", "ui_behavior_file"))
 
     behavior = db.get(DocRevStatusUiBehavior, ui_behavior_id)
     if not behavior:
@@ -953,9 +1010,7 @@ def update_doc_rev_status_ui_behavior(
     return _model_out(DocRevStatusUiBehaviorOut, behavior)
 
 
-def delete_doc_rev_status_ui_behavior(
-    ui_behavior_id: int, db: Session = Depends(get_db)
-) -> None:
+def delete_doc_rev_status_ui_behavior(ui_behavior_id: int, db: Session = Depends(get_db)) -> None:
     """
     Delete a document revision status UI behavior.
 
@@ -1029,8 +1084,23 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatusOut
     Returns:
         List of document revision statuses with id and name.
     """
-    statuses = db.query(DocRevStatus).order_by(DocRevStatus.rev_status_name).all()
-    return _model_list(DocRevStatusOut, statuses)
+    rows = db.execute(
+        text(
+            """
+            SELECT rev_status_id,
+                   rev_status_name,
+                   ui_behavior_id,
+                   next_rev_status_id,
+                   revertible,
+                   editable,
+                   final,
+                   start
+            FROM workflow.doc_rev_statuses
+            ORDER BY rev_status_name
+            """
+        )
+    ).mappings()
+    return _model_list(DocRevStatusOut, rows.all())
 
 
 def insert_doc_rev_status(
@@ -1253,350 +1323,3 @@ def delete_doc_rev_status(rev_status_id: int, db: Session = Depends(get_db)) -> 
         raise HTTPException(status_code=404, detail="Revision status not found")
     db.delete(status)
     db.commit()
-
-
-# ---------------------------------------------------------------------------
-# RESTful aliases (POST collection, PUT/DELETE item)
-# ---------------------------------------------------------------------------
-
-_REST_RESPONSES: dict[int | str, dict[str, Any]] = {
-    400: {
-        "description": "Bad Request",
-        "content": {"application/json": {"example": {"detail": "Bad Request"}}},
-    },
-    404: {
-        "description": "Not Found",
-        "content": {"application/json": {"example": {"detail": "Not Found"}}},
-    },
-    422: {
-        "description": "Validation Error",
-        "content": {
-            "application/json": {
-                "example": {
-                    "detail": [
-                        {"loc": ["body", "field"], "msg": "Field required", "type": "missing"}
-                    ]
-                }
-            }
-        },
-    },
-    500: {
-        "description": "Internal Server Error",
-        "content": {"application/json": {"example": {"detail": "Internal Server Error"}}},
-    },
-}
-
-
-@router.post(
-    "/areas",
-    summary="Create a new area (REST).",
-    description="Creates a new area with the specified name and acronym.",
-    response_model=AreaOut,
-    status_code=201,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def create_area_rest(
-    payload: AreaCreate = Body(..., openapi_examples=_example_for(AreaCreate)),
-    db: Session = Depends(get_db),
-) -> AreaOut:
-    return insert_area(payload, db)
-
-
-@router.put(
-    "/areas/{area_id}",
-    summary="Update an existing area (REST).",
-    description="Updates the name and/or acronym of an existing area.",
-    response_model=AreaOut,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def update_area_rest(
-    area_id: int,
-    payload: AreaUpdate = Body(..., openapi_examples=_example_for(AreaUpdate)),
-    db: Session = Depends(get_db),
-) -> AreaOut:
-    return update_area(area_id, payload, db)
-
-
-@router.delete(
-    "/areas/{area_id}",
-    summary="Delete an area (REST).",
-    description="Removes an area from the database by its ID.",
-    status_code=204,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def delete_area_rest(area_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_area(area_id, db)
-
-
-@router.post(
-    "/disciplines",
-    summary="Create a new discipline (REST).",
-    description="Creates a new discipline with the specified name and acronym.",
-    response_model=DisciplineOut,
-    status_code=201,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def create_discipline_rest(
-    payload: DisciplineCreate = Body(..., openapi_examples=_example_for(DisciplineCreate)),
-    db: Session = Depends(get_db),
-) -> DisciplineOut:
-    return insert_discipline(payload, db)
-
-
-@router.put(
-    "/disciplines/{discipline_id}",
-    summary="Update an existing discipline (REST).",
-    description="Updates the name and/or acronym of an existing discipline.",
-    response_model=DisciplineOut,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def update_discipline_rest(
-    discipline_id: int,
-    payload: DisciplineUpdate = Body(..., openapi_examples=_example_for(DisciplineUpdate)),
-    db: Session = Depends(get_db),
-) -> DisciplineOut:
-    return update_discipline(discipline_id, payload, db)
-
-
-@router.delete(
-    "/disciplines/{discipline_id}",
-    summary="Delete a discipline (REST).",
-    description="Removes a discipline from the database by its ID.",
-    status_code=204,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def delete_discipline_rest(discipline_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_discipline(discipline_id, db)
-
-
-@router.post(
-    "/projects",
-    summary="Create a new project (REST).",
-    description="Creates a new project with the specified name.",
-    response_model=ProjectOut,
-    status_code=201,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def create_project_rest(
-    payload: ProjectCreate = Body(..., openapi_examples=_example_for(ProjectCreate)),
-    db: Session = Depends(get_db),
-) -> ProjectOut:
-    return insert_project(payload, db)
-
-
-@router.put(
-    "/projects/{project_id}",
-    summary="Update an existing project (REST).",
-    description="Updates the name of an existing project.",
-    response_model=ProjectOut,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def update_project_rest(
-    project_id: int,
-    payload: ProjectUpdate = Body(..., openapi_examples=_example_for(ProjectUpdate)),
-    db: Session = Depends(get_db),
-) -> ProjectOut:
-    return update_project(project_id, payload, db)
-
-
-@router.delete(
-    "/projects/{project_id}",
-    summary="Delete a project (REST).",
-    description="Removes a project from the database by its ID.",
-    status_code=204,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def delete_project_rest(project_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_project(project_id, db)
-
-
-@router.post(
-    "/units",
-    summary="Create a new unit (REST).",
-    description="Creates a new unit with the specified name.",
-    response_model=UnitOut,
-    status_code=201,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def create_unit_rest(
-    payload: UnitCreate = Body(..., openapi_examples=_example_for(UnitCreate)),
-    db: Session = Depends(get_db),
-) -> UnitOut:
-    return insert_unit(payload, db)
-
-
-@router.put(
-    "/units/{unit_id}",
-    summary="Update an existing unit (REST).",
-    description="Updates the name of an existing unit.",
-    response_model=UnitOut,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def update_unit_rest(
-    unit_id: int,
-    payload: UnitUpdate = Body(..., openapi_examples=_example_for(UnitUpdate)),
-    db: Session = Depends(get_db),
-) -> UnitOut:
-    return update_unit(unit_id, payload, db)
-
-
-@router.delete(
-    "/units/{unit_id}",
-    summary="Delete a unit (REST).",
-    description="Removes a unit from the database by its ID.",
-    status_code=204,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def delete_unit_rest(unit_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_unit(unit_id, db)
-
-
-@router.post(
-    "/jobpacks",
-    summary="Create a new jobpack (REST).",
-    description="Creates a new jobpack with the specified name.",
-    response_model=JobpackOut,
-    status_code=201,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def create_jobpack_rest(
-    payload: JobpackCreate = Body(..., openapi_examples=_example_for(JobpackCreate)),
-    db: Session = Depends(get_db),
-) -> JobpackOut:
-    return insert_jobpack(payload, db)
-
-
-@router.put(
-    "/jobpacks/{jobpack_id}",
-    summary="Update an existing jobpack (REST).",
-    description="Updates the name of an existing jobpack.",
-    response_model=JobpackOut,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def update_jobpack_rest(
-    jobpack_id: int,
-    payload: JobpackUpdate = Body(..., openapi_examples=_example_for(JobpackUpdate)),
-    db: Session = Depends(get_db),
-) -> JobpackOut:
-    return update_jobpack(jobpack_id, payload, db)
-
-
-@router.delete(
-    "/jobpacks/{jobpack_id}",
-    summary="Delete a jobpack (REST).",
-    description="Removes a jobpack from the database by its ID.",
-    status_code=204,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def delete_jobpack_rest(jobpack_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_jobpack(jobpack_id, db)
-
-
-@router.post(
-    "/doc_rev_status_ui_behaviors",
-    summary="Create a new document revision status UI behavior (REST).",
-    description="Creates a new document revision status UI behavior with the specified name.",
-    response_model=DocRevStatusUiBehaviorOut,
-    status_code=201,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def create_doc_rev_status_ui_behavior_rest(
-    payload: DocRevStatusUiBehaviorCreate = Body(
-        ..., openapi_examples=_example_for(DocRevStatusUiBehaviorCreate)
-    ),
-    db: Session = Depends(get_db),
-) -> DocRevStatusUiBehaviorOut:
-    return insert_doc_rev_status_ui_behavior(payload, db)
-
-
-@router.put(
-    "/doc_rev_status_ui_behaviors/{ui_behavior_id}",
-    summary="Update an existing document revision status UI behavior (REST).",
-    description="Updates the name of an existing document revision status UI behavior.",
-    response_model=DocRevStatusUiBehaviorOut,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def update_doc_rev_status_ui_behavior_rest(
-    ui_behavior_id: int,
-    payload: DocRevStatusUiBehaviorUpdate = Body(
-        ..., openapi_examples=_example_for(DocRevStatusUiBehaviorUpdate)
-    ),
-    db: Session = Depends(get_db),
-) -> DocRevStatusUiBehaviorOut:
-    return update_doc_rev_status_ui_behavior(ui_behavior_id, payload, db)
-
-
-@router.delete(
-    "/doc_rev_status_ui_behaviors/{ui_behavior_id}",
-    summary="Delete a document revision status UI behavior (REST).",
-    description="Removes a document revision status UI behavior from the database by its ID.",
-    status_code=204,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def delete_doc_rev_status_ui_behavior_rest(
-    ui_behavior_id: int,
-    db: Session = Depends(get_db),
-) -> None:
-    return delete_doc_rev_status_ui_behavior(ui_behavior_id, db)
-
-
-@router.post(
-    "/doc_rev_statuses",
-    summary="Create a new document revision status (REST).",
-    description="Creates a new document revision status with the specified name.",
-    response_model=DocRevStatusOut,
-    status_code=201,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def create_doc_rev_status_rest(
-    payload: DocRevStatusCreate = Body(..., openapi_examples=_example_for(DocRevStatusCreate)),
-    db: Session = Depends(get_db),
-) -> DocRevStatusOut:
-    return insert_doc_rev_status(payload, db)
-
-
-@router.put(
-    "/doc_rev_statuses/{rev_status_id}",
-    summary="Update an existing document revision status (REST).",
-    description="Updates the name and attributes of an existing document revision status.",
-    response_model=DocRevStatusOut,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def update_doc_rev_status_rest(
-    rev_status_id: int,
-    payload: DocRevStatusUpdate = Body(..., openapi_examples=_example_for(DocRevStatusUpdate)),
-    db: Session = Depends(get_db),
-) -> DocRevStatusOut:
-    return update_doc_rev_status(rev_status_id, payload, db)
-
-
-@router.delete(
-    "/doc_rev_statuses/{rev_status_id}",
-    summary="Delete a document revision status (REST).",
-    description="Removes a document revision status from the database by its ID.",
-    status_code=204,
-    tags=["lookups"],
-    responses=_REST_RESPONSES,
-)
-def delete_doc_rev_status_rest(rev_status_id: int, db: Session = Depends(get_db)) -> None:
-    return delete_doc_rev_status(rev_status_id, db)

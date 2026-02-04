@@ -10,8 +10,7 @@ services:
       - ${POSTGRES_PORT:-5432}
     volumes:
       - flow_gen2_compose_pg_data:/var/lib/postgresql
-      - ./init/flow_init.sql:/docker-entrypoint-initdb.d/00_flow_init.sql:ro
-      - ./init/flow_seed.sql:/docker-entrypoint-initdb.d/01_flow_seed.sql:ro
+      - ./init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flow_user} -d ${POSTGRES_DB:-flow_db}"]
       interval: 10s
@@ -87,6 +86,8 @@ services:
       PORT: 5556
       # Comma-separated list; include deployed UI origins
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://localhost:5557,http://89.35.124.200:5557}
+      APP_DB_USER: ${APP_DB_USER:-app_user}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-app_pass}
     expose:
       - "5556"
     depends_on:
@@ -100,17 +101,6 @@ services:
       dockerfile: ci/Dockerfile.ui
     expose:
       - "5558"
-    depends_on:
-      - api
-    restart: unless-stopped
-
-  ui_api_test:
-    container_name: flow_gen2_ui_api_test
-    build:
-      context: ..
-      dockerfile: ci/Dockerfile.ui_api_test
-    expose:
-      - "5557"
     depends_on:
       - api
     restart: unless-stopped

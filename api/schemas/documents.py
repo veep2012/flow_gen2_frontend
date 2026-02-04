@@ -232,7 +232,6 @@ class DocRevisionOut(BaseModel):
         examples=["Issued for Construction."],
         min_length=1,
     )
-    rev_date: datetime = Field(..., description="Revision date.", examples=["2024-01-01T12:00:00Z"])
     rev_author_id: int = Field(..., description="Revision author person ID.", examples=[1], gt=0)
     rev_originator_id: int = Field(
         ..., description="Revision originator person ID.", examples=[1], gt=0
@@ -268,7 +267,6 @@ class DocRevisionOut(BaseModel):
     )
     as_built: bool = Field(False, description="As-built flag.", examples=[False])
     superseded: bool = Field(False, description="Superseded flag.", examples=[False])
-    voided: bool = Field(False, description="Voided flag.", examples=[False])
     modified_doc_date: datetime = Field(
         ..., description="Modified document date.", examples=["2024-01-05T12:00:00Z"]
     )
@@ -283,9 +281,6 @@ class DocRevisionUpdate(BaseModel):
 
     seq_num: int | None = Field(None, description="Revision sequence number.", examples=[1], gt=0)
     rev_code_id: int | None = Field(None, description="Revision code ID.", examples=[1], gt=0)
-    rev_date: datetime | None = Field(
-        None, description="Revision date.", examples=["2024-01-01T12:00:00Z"]
-    )
     rev_author_id: int | None = Field(
         None, description="Revision author person ID.", examples=[1], gt=0
     )
@@ -311,12 +306,7 @@ class DocRevisionUpdate(BaseModel):
     actual_finish_date: datetime | None = Field(
         None, description="Actual finish date.", examples=["2024-01-06T12:00:00Z"]
     )
-    canceled_date: datetime | None = Field(
-        None, description="Canceled date.", examples=["2024-01-04T12:00:00Z"]
-    )
     as_built: bool | None = Field(None, description="As-built flag.", examples=[False])
-    superseded: bool | None = Field(None, description="Superseded flag.", examples=[False])
-    voided: bool | None = Field(None, description="Voided flag.", examples=[False])
     modified_doc_date: datetime | None = Field(
         None, description="Modified document date.", examples=["2024-01-05T12:00:00Z"]
     )
@@ -334,9 +324,6 @@ class DocRevisionCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rev_code_id: int = Field(..., description="Revision code ID.", examples=[1], gt=0)
-    rev_date: datetime | None = Field(
-        None, description="Revision date.", examples=["2024-01-01T12:00:00Z"]
-    )
     rev_author_id: int = Field(..., description="Revision author person ID.", examples=[1], gt=0)
     rev_originator_id: int = Field(
         ..., description="Revision originator person ID.", examples=[1], gt=0
@@ -360,12 +347,7 @@ class DocRevisionCreate(BaseModel):
     actual_finish_date: datetime | None = Field(
         None, description="Actual finish date.", examples=["2024-01-06T12:00:00Z"]
     )
-    canceled_date: datetime | None = Field(
-        None, description="Canceled date.", examples=["2024-01-04T12:00:00Z"]
-    )
     as_built: bool = Field(False, description="As-built flag.", examples=[False])
-    superseded: bool = Field(False, description="Superseded flag.", examples=[False])
-    voided: bool = Field(False, description="Voided flag.", examples=[False])
     modified_doc_date: datetime | None = Field(
         None, description="Modified document date.", examples=["2024-01-05T12:00:00Z"]
     )

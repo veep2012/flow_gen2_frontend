@@ -20,7 +20,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, foreign, mapped_column, relationship
 
-metadata = MetaData(schema="flow")
+metadata = MetaData()
 
 
 class Base(DeclarativeBase):
@@ -117,10 +117,10 @@ class DocRevStatus(Base):
     rev_status_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     rev_status_name: Mapped[str] = mapped_column(String(45), unique=True, nullable=False)
     ui_behavior_id: Mapped[int] = mapped_column(
-        ForeignKey("flow.doc_rev_status_ui_behaviors.ui_behavior_id"), nullable=False
+        ForeignKey("doc_rev_status_ui_behaviors.ui_behavior_id"), nullable=False
     )
     next_rev_status_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("flow.doc_rev_statuses.rev_status_id")
+        ForeignKey("doc_rev_statuses.rev_status_id")
     )
     revertible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     editable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -191,10 +191,10 @@ class User(Base):
 
     user_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     person_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.person.person_id"), nullable=False
+        SmallInteger, ForeignKey("person.person_id"), nullable=False
     )
     user_acronym: Mapped[str] = mapped_column(String(10), nullable=False)
-    role_id: Mapped[int] = mapped_column(ForeignKey("flow.roles.role_id"), nullable=False)
+    role_id: Mapped[int] = mapped_column(ForeignKey("roles.role_id"), nullable=False)
 
     person: Mapped[Person] = relationship(back_populates="user")
     role: Mapped[Role] = relationship(back_populates="users")
@@ -211,7 +211,7 @@ class DocType(Base):
     type_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     doc_type_name: Mapped[str] = mapped_column(String(45), nullable=False)
     ref_discipline_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.disciplines.discipline_id"), nullable=False
+        SmallInteger, ForeignKey("disciplines.discipline_id"), nullable=False
     )
     doc_type_acronym: Mapped[str] = mapped_column(String(10), nullable=False)
 
@@ -225,7 +225,7 @@ class DistributionList(Base):
 
     dist_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     distribution_list_name: Mapped[str] = mapped_column(String(45), nullable=False)
-    project_id: Mapped[int] = mapped_column(ForeignKey("flow.projects.project_id"), nullable=False)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.project_id"), nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="distribution_lists")
     members: Mapped[list["DistributionListContent"]] = relationship(
@@ -237,11 +237,9 @@ class DistributionListContent(Base):
     __tablename__ = "distribution_list_content"
     __table_args__ = (PrimaryKeyConstraint("dist_id", "person_id"),)
 
-    dist_id: Mapped[int] = mapped_column(
-        ForeignKey("flow.distribution_list.dist_id"), nullable=False
-    )
+    dist_id: Mapped[int] = mapped_column(ForeignKey("distribution_list.dist_id"), nullable=False)
     person_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.person.person_id"), nullable=False
+        SmallInteger, ForeignKey("person.person_id"), nullable=False
     )
 
     distribution_list: Mapped[DistributionList] = relationship(back_populates="members")
@@ -286,14 +284,12 @@ class Permission(Base):
     )
 
     permission_id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.users.user_id"), nullable=False
-    )
+    user_id: Mapped[int] = mapped_column(SmallInteger, ForeignKey("users.user_id"), nullable=False)
     project_id: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.projects.project_id")
+        SmallInteger, ForeignKey("projects.project_id")
     )
     discipline_id: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.disciplines.discipline_id")
+        SmallInteger, ForeignKey("disciplines.discipline_id")
     )
 
     user: Mapped[User] = relationship(back_populates="permissions")
@@ -308,25 +304,21 @@ class Doc(Base):
     doc_name_unique: Mapped[str] = mapped_column(String(45), unique=True, nullable=False)
     title: Mapped[str] = mapped_column(String(45), nullable=False)
     project_id: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.projects.project_id")
+        SmallInteger, ForeignKey("projects.project_id")
     )
     jobpack_id: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.jobpacks.jobpack_id")
+        SmallInteger, ForeignKey("jobpacks.jobpack_id")
     )
     type_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.doc_types.type_id"), nullable=False
+        SmallInteger, ForeignKey("doc_types.type_id"), nullable=False
     )
-    area_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.areas.area_id"), nullable=False
-    )
-    unit_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.units.unit_id"), nullable=False
-    )
+    area_id: Mapped[int] = mapped_column(SmallInteger, ForeignKey("areas.area_id"), nullable=False)
+    unit_id: Mapped[int] = mapped_column(SmallInteger, ForeignKey("units.unit_id"), nullable=False)
     rev_actual_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("flow.doc_revision.rev_id", use_alter=True, name="fk_doc_rev_actual")
+        ForeignKey("doc_revision.rev_id", use_alter=True, name="fk_doc_rev_actual")
     )
     rev_current_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("flow.doc_revision.rev_id", use_alter=True, name="fk_doc_rev_current")
+        ForeignKey("doc_revision.rev_id", use_alter=True, name="fk_doc_rev_current")
     )
     voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -338,12 +330,8 @@ class Doc(Base):
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=lambda: datetime.now(timezone.utc),
     )
-    created_by: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.users.user_id")
-    )
-    updated_by: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.users.user_id")
-    )
+    created_by: Mapped[Optional[int]] = mapped_column(SmallInteger, ForeignKey("users.user_id"))
+    updated_by: Mapped[Optional[int]] = mapped_column(SmallInteger, ForeignKey("users.user_id"))
 
     project: Mapped[Optional[Project]] = relationship(back_populates="docs")
     jobpack: Mapped[Optional[Jobpack]] = relationship(back_populates="docs")
@@ -353,6 +341,7 @@ class Doc(Base):
     revisions: Mapped[list["DocRevision"]] = relationship(
         back_populates="doc",
         foreign_keys="DocRevision.doc_id",
+        passive_deletes=True,
     )
     current_revision: Mapped[Optional["DocRevision"]] = relationship(
         foreign_keys=[rev_current_id],
@@ -371,21 +360,17 @@ class DocCache(Base):
     __table_args__ = (PrimaryKeyConstraint("user_id", "project_id", "doc_name_unique"),)
 
     user_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    project_id: Mapped[int] = mapped_column(ForeignKey("flow.projects.project_id"), nullable=False)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.project_id"), nullable=False)
     doc_name_unique: Mapped[str] = mapped_column(String(45), nullable=False)
     title: Mapped[str] = mapped_column(String(45), nullable=False)
     jobpack_id: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.jobpacks.jobpack_id")
+        SmallInteger, ForeignKey("jobpacks.jobpack_id")
     )
     type_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.doc_types.type_id"), nullable=False
+        SmallInteger, ForeignKey("doc_types.type_id"), nullable=False
     )
-    area_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.areas.area_id"), nullable=False
-    )
-    unit_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.units.unit_id"), nullable=False
-    )
+    area_id: Mapped[int] = mapped_column(SmallInteger, ForeignKey("areas.area_id"), nullable=False)
+    unit_id: Mapped[int] = mapped_column(SmallInteger, ForeignKey("units.unit_id"), nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="doc_cache_entries")
     jobpack: Mapped[Optional[Jobpack]] = relationship(back_populates="doc_cache_entries")
@@ -399,23 +384,19 @@ class DocRevision(Base):
 
     rev_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     rev_code_id: Mapped[int] = mapped_column(
-        ForeignKey("flow.revision_overview.rev_code_id"), nullable=False
-    )
-    rev_date: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+        ForeignKey("revision_overview.rev_code_id"), nullable=False
     )
     rev_author_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.person.person_id"), nullable=False
+        SmallInteger, ForeignKey("person.person_id"), nullable=False
     )
     rev_originator_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.person.person_id"), nullable=False
+        SmallInteger, ForeignKey("person.person_id"), nullable=False
     )
     as_built: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     superseded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     transmital_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
     milestone_id: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.doc_rev_milestones.milestone_id")
+        SmallInteger, ForeignKey("doc_rev_milestones.milestone_id")
     )
     planned_start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     planned_finish_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -423,14 +404,14 @@ class DocRevision(Base):
     actual_finish_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     canceled_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     rev_status_id: Mapped[int] = mapped_column(
-        ForeignKey("flow.doc_rev_statuses.rev_status_id"), nullable=False
+        ForeignKey("doc_rev_statuses.rev_status_id"), nullable=False
     )
     doc_id: Mapped[int] = mapped_column(
-        ForeignKey("flow.doc.doc_id", ondelete="CASCADE"), nullable=False
+        ForeignKey("doc.doc_id", ondelete="CASCADE"), nullable=False
     )
     seq_num: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)
     rev_modifier_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.person.person_id"), nullable=False
+        SmallInteger, ForeignKey("person.person_id"), nullable=False
     )
     modified_doc_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
@@ -444,12 +425,8 @@ class DocRevision(Base):
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=lambda: datetime.now(timezone.utc),
     )
-    created_by: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.users.user_id")
-    )
-    updated_by: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.users.user_id")
-    )
+    created_by: Mapped[Optional[int]] = mapped_column(SmallInteger, ForeignKey("users.user_id"))
+    updated_by: Mapped[Optional[int]] = mapped_column(SmallInteger, ForeignKey("users.user_id"))
 
     doc: Mapped[Doc] = relationship(
         back_populates="revisions",
@@ -484,7 +461,6 @@ class DocRevisionHistory(Base):
     rev_originator_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     as_built: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     superseded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     transmital_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
     milestone_id: Mapped[Optional[int]] = mapped_column(SmallInteger)
     planned_start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -513,7 +489,7 @@ class File(Base):
     s3_uid: Mapped[str] = mapped_column(Text, nullable=False)
     mimetype: Mapped[str] = mapped_column(String(90), nullable=False)
     rev_id: Mapped[int] = mapped_column(
-        ForeignKey("flow.doc_revision.rev_id", ondelete="CASCADE"), nullable=False
+        ForeignKey("doc_revision.rev_id", ondelete="CASCADE"), nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")
@@ -524,12 +500,8 @@ class File(Base):
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=lambda: datetime.now(timezone.utc),
     )
-    created_by: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.users.user_id")
-    )
-    updated_by: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.users.user_id")
-    )
+    created_by: Mapped[Optional[int]] = mapped_column(SmallInteger, ForeignKey("users.user_id"))
+    updated_by: Mapped[Optional[int]] = mapped_column(SmallInteger, ForeignKey("users.user_id"))
 
     revision: Mapped[DocRevision] = relationship(back_populates="files")
     comments: Mapped[list["FileCommented"]] = relationship(back_populates="file")
@@ -540,12 +512,8 @@ class FileCommented(Base):
     __table_args__ = (UniqueConstraint("file_id", "user_id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    file_id: Mapped[int] = mapped_column(
-        ForeignKey("flow.files.id", ondelete="CASCADE"), nullable=False
-    )
-    user_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("flow.users.user_id"), nullable=False
-    )
+    file_id: Mapped[int] = mapped_column(ForeignKey("files.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(SmallInteger, ForeignKey("users.user_id"), nullable=False)
     s3_uid: Mapped[str] = mapped_column(Text, nullable=False)
     mimetype: Mapped[str] = mapped_column(String(90), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -557,12 +525,8 @@ class FileCommented(Base):
         server_default=text("CURRENT_TIMESTAMP"),
         onupdate=lambda: datetime.now(timezone.utc),
     )
-    created_by: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.users.user_id")
-    )
-    updated_by: Mapped[Optional[int]] = mapped_column(
-        SmallInteger, ForeignKey("flow.users.user_id")
-    )
+    created_by: Mapped[Optional[int]] = mapped_column(SmallInteger, ForeignKey("users.user_id"))
+    updated_by: Mapped[Optional[int]] = mapped_column(SmallInteger, ForeignKey("users.user_id"))
 
     file: Mapped[File] = relationship(back_populates="comments")
     user: Mapped[User] = relationship(
@@ -582,7 +546,6 @@ class DocRevisionHistoryView(Base):
     rev_originator_id: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     as_built: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     superseded: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    voided: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     transmital_current_revision: Mapped[str] = mapped_column(String(45), nullable=False)
     milestone_id: Mapped[Optional[int]] = mapped_column(SmallInteger)
     planned_start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
