@@ -139,6 +139,12 @@ sequenceDiagram
 - DB should enforce recipient uniqueness and write consistency.
 - All updates should be transactional per notification creation.
 
+**Sync Now, Async Later**
+- Current implementation can remain synchronous inside the API for simplicity.
+- Design should keep notification creation and delivery in a single service path so it can be
+  swapped to an async worker later without changing API behavior.
+- Future async extension can enqueue delivery jobs and resolve recipients out of band.
+
 **Open Questions**
 - Are notifications immutable after creation.
 - Should users be able to delete notifications or only archive.
