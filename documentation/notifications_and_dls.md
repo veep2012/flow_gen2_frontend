@@ -9,19 +9,26 @@
 - Version: v1.2
 
 ## Purpose
-Document the implemented notification lifecycle and its integration with distribution list recipient targeting.
+Document the single Notifications + Distribution Lists module:
+- notification lifecycle and inbox semantics
+- distribution list recipient source model
+- current API/DB behavior and legacy removals
 
 ## Scope
 - In scope:
   - Notification create/list/replace/drop/read API behavior.
-  - Recipient resolution from direct users and distribution lists.
+  - Recipient resolution from direct users and distribution lists (DL).
   - Per-recipient unread/read delivery semantics.
+  - DL data model usage in notification delivery.
+  - Current backend status of legacy DL endpoints.
 - Out of scope:
   - Real-time push transport.
   - External email or mobile push delivery.
 
 ## Design / Behavior
 Notifications are created through workflow functions, recipients are resolved and deduplicated server-side, and each recipient gets an inbox delivery row with independent read state.
+
+Distribution lists are used as recipient sources only. At send time, DL membership is expanded to users and merged with direct user targets.
 
 ## Implemented API Surface
 Router: `api/routers/notifications.py` (`/api/v1/notifications`)
@@ -36,6 +43,25 @@ Router: `api/routers/notifications.py` (`/api/v1/notifications`)
   - Drops original notification and creates linked `dropped_notice`.
 - `POST /api/v1/notifications/{notification_id}/read`
   - Marks current recipient delivery row as read (idempotent).
+
+## Distribution List Integration
+- DL source tables:
+  - `ref.distribution_list`
+  - `ref.distribution_list_content`
+- Notification target and recipient tables:
+  - `core.notification_targets`
+  - `core.notification_recipients`
+- Resolution behavior:
+  - direct user IDs + DL IDs are accepted as targets
+  - DL members are resolved via `person -> users`
+  - final recipient set is deduplicated before inbox delivery rows are created
+
+## Legacy Distribution List Endpoints
+- Legacy endpoints under `/api/v1/documents/{doc_id}/distribution-lists/*` are removed from backend API.
+- Legacy router and payload schema were dropped:
+  - `api/routers/distribution_lists.py` (removed)
+  - `api/schemas/distribution_lists.py` (removed)
+- DL functionality remains part of this module through notification recipient targeting.
 
 ## Recipient Resolution Rules
 - Notification targets can include direct user IDs and distribution list IDs.
@@ -73,7 +99,6 @@ Router: `api/routers/notifications.py` (`/api/v1/notifications`)
 
 ## References
 - `documentation/api_interfaces.md`
-- `documentation/distribution_list_feature.md`
 - `api/routers/notifications.py`
 - `api/schemas/notifications.py`
 - `documentation/test_scenarios/notifications_api_test_plan.md`

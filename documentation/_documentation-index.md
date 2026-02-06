@@ -16,9 +16,9 @@
 - `development_workflow.md` - Branching, setup, and development process.
 
 ## Feature and Domain Docs
-- `distribution_list_feature.md` - Distribution list user-facing feature behavior.
-- `distribution_list_implementation.md` - Technical implementation details for distribution lists.
-- `notifications_and_dls.md` - Notification and DL delivery lifecycle.
+- `notifications_and_dls.md` - Unified Notifications + Distribution Lists module (active source of truth).
+- `distribution_list_feature.md` - Archived pointer; merged into `notifications_and_dls.md`.
+- `distribution_list_implementation.md` - Archived pointer; merged into `notifications_and_dls.md`.
 - `user_data_available.md` - User/person/role data availability summary.
 
 ## Test Scenarios
