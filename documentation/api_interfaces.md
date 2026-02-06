@@ -940,6 +940,128 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Permissions: none enforced by API (auth TBD).
 - Side effects: hard delete cascades to revisions/files/comments; voiding updates the document only.
 
+## Notifications
+Shape (inbox item):
+```json
+{
+  "notification_id": 10,
+  "sender_user_id": 1,
+  "event_type": "regular",
+  "title": "Review update",
+  "body": "Please review the latest revision.",
+  "remark": "manual send",
+  "rev_id": 51,
+  "commented_file_id": null,
+  "created_at": "2026-02-06T18:20:00Z",
+  "dropped_at": null,
+  "dropped_by_user_id": null,
+  "superseded_by_notification_id": null,
+  "recipient_user_id": 2,
+  "delivered_at": "2026-02-06T18:20:00Z",
+  "read_at": null
+}
+```
+Schema references:
+- Create: `api/schemas/notifications.py` `NotificationCreate`
+- Replace: `api/schemas/notifications.py` `NotificationReplace`
+- Delete: `api/schemas/notifications.py` `NotificationDelete`
+- Read mark: `api/schemas/notifications.py` `NotificationMarkRead`
+- Inbox rows: `api/schemas/notifications.py` `NotificationOut`
+- Action result: `api/schemas/notifications.py` `NotificationActionResult`
+Backend implementation:
+- Router: `api/routers/notifications.py`
+- DB functions: `workflow.create_notification`, `workflow.replace_notification`, `workflow.delete_notification`, `workflow.mark_notification_read`
+
+### Create
+- `POST /api/v1/notifications` — 201; creates notification, resolves recipients, stores unread delivery rows.
+- Headers: `Accept: application/json`, `Content-Type: application/json`
+- Optional header/body sender resolution:
+  - `sender_user_id` may be provided in body.
+  - If omitted, API uses `X-User-Id` session user.
+  - If neither is available, returns `400`.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -H "X-User-Id: 1" \
+  -d '{
+    "title": "Review update",
+    "body": "Please review revision 51",
+    "rev_id": 51,
+    "recipient_user_ids": [2],
+    "recipient_dist_ids": [1],
+    "remark": "manual send"
+  }' \
+  http://localhost:4175/api/v1/notifications
+```
+- Example response:
+```json
+{ "notification_id": 10, "recipient_count": 3 }
+```
+
+### List (recipient inbox)
+- `GET /api/v1/notifications` — 200; returns recipient inbox rows ordered by `delivered_at DESC, notification_id DESC`.
+- Recipient resolution:
+  - Query `recipient_user_id` is optional.
+  - If omitted, API uses `X-User-Id`.
+  - If neither is available, returns `400`.
+- Query params:
+  - `recipient_user_id` (int, optional)
+  - `unread_only` (bool, optional)
+  - `sender_user_id` (int, optional)
+  - `date_from` / `date_to` (ISO datetime, optional)
+- Validation:
+  - `date_from > date_to` returns `400`.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" \
+  "http://localhost:4175/api/v1/notifications?recipient_user_id=2&unread_only=true"
+```
+
+### Replace
+- `POST /api/v1/notifications/{notification_id}/replace` — 200; drops original notification and creates linked `changed_notice`.
+- Headers: `Accept: application/json`, `Content-Type: application/json`, `X-User-Id` (required)
+- Permissions: sender or superuser only.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -H "X-User-Id: 1" \
+  -d '{ "title": "Review update (changed)", "body": "Updated message", "remark": "changed" }' \
+  http://localhost:4175/api/v1/notifications/10/replace
+```
+
+### Drop
+- `POST /api/v1/notifications/{notification_id}/delete` — 200; drops original notification and creates linked `dropped_notice`.
+- Headers: `Accept: application/json`, `Content-Type: application/json`, `X-User-Id` (required)
+- Permissions: sender or superuser only.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -H "X-User-Id: 1" \
+  -d '{ "remark": "no longer valid" }' \
+  http://localhost:4175/api/v1/notifications/10/delete
+```
+
+### Mark as read
+- `POST /api/v1/notifications/{notification_id}/read` — 200; marks current recipient delivery row as read (idempotent).
+- Headers: `Accept: application/json`, `Content-Type: application/json`, `X-User-Id` (required)
+- Request body: empty JSON `{}`.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -H "X-User-Id: 2" \
+  -d '{}' \
+  http://localhost:4175/api/v1/notifications/10/read
+```
+- Example response:
+```json
+{
+  "notification_id": 10,
+  "recipient_user_id": 2,
+  "delivered_at": "2026-02-06T18:20:00Z",
+  "read_at": "2026-02-06T18:30:00Z"
+}
+```
+
 ## Error responses
 - `400` — Validation failed (missing required fields, duplicate/uniqueness, duplicate permissions, etc.).
 - `404` — Resource not found or empty table.

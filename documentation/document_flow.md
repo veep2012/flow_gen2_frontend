@@ -23,8 +23,6 @@ Describe the implemented document and revision lifecycle, including state transi
 ## Design / Behavior
 The tables below define the expected workflow mechanics and transition semantics for document processing.
 
-This document describes the technical flow of a document in the system. Populate the tables below with the exact steps, actors, APIs, and data model references.
-
 ## Overview
 
 | Item | Description |

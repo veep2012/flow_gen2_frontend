@@ -2,6 +2,7 @@
 
 This file defines the unified format for documents in `documentation/`.
 Naming rules are defined in `documentation/_naming_convention.md`.
+Navigation starts from `documentation/_documentation-index.md`.
 
 ## 1. File Naming
 - Use lowercase with underscores: `topic_name.md`.
@@ -11,6 +12,7 @@ Naming rules are defined in `documentation/_naming_convention.md`.
   - `_documentation_template.md`
   - `_documentation_standards.md`
   - `_naming_convention.md`
+  - `_documentation-index.md`
 
 ## 2. Required Sections
 Every new document should include at minimum:
@@ -63,3 +65,4 @@ Use `documentation/_documentation_template.md` as the starting point.
 2. Fill mandatory sections first.
 3. Remove non-applicable optional sections.
 4. Add links to related docs and implementation files.
+5. Add the new file to `documentation/_documentation-index.md`.

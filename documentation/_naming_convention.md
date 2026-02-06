@@ -11,6 +11,7 @@ Define filename rules for all Markdown files in `documentation/`.
   - standards
   - templates
   - conventions
+  - indexes
 
 ## Examples
 - Documentation files:
@@ -21,6 +22,7 @@ Define filename rules for all Markdown files in `documentation/`.
   - `_documentation_template.md`
   - `_documentation_standards.md`
   - `_naming_convention.md`
+  - `_documentation-index.md`
 
 ## Migration Guidance
 - When touching an existing file, rename it to this convention if safe.

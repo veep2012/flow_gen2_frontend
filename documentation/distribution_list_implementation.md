@@ -6,239 +6,65 @@
 - Reviewers: API and UI maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-02-06
-- Version: v1.1
+- Version: v1.2
 
 ## Purpose
-Describe the implementation details of distribution list read and send-for-review functionality across API and UI layers.
+Describe the implemented backend/frontend wiring for distribution-list retrieval and send-for-review behavior.
 
 ## Scope
 - In scope:
-  - Frontend integration points and feature behavior.
-  - API endpoints, schemas, and runtime handling.
-  - Validation, error handling, and compatibility notes.
+  - Active API endpoints in `api/routers/distribution_lists.py`.
+  - UI integration in IDC behavior and DistributionList component.
+  - Current validation and response behavior.
 - Out of scope:
-  - Full persistent administration tooling for distribution lists.
-  - External notification transport integrations.
+  - Historical in-memory prototypes.
+  - Future database redesign proposals.
 
 ## Design / Behavior
-This file captures how the feature is implemented today and how frontend/backend components coordinate in review flows.
+Distribution list operations are project-scoped through the target document. Backend validates document, project, and list ownership before returning lists/recipients or accepting send-for-review.
 
-## Overview
-The Distribution List feature allows users to view preconfigured recipient lists within the Document Flow application and send documents for review and comments to multiple recipients at once.
+## Backend
+### Router
+- File: `api/routers/distribution_lists.py`
+- Prefix: `/api/v1/documents`
+- Implemented endpoints:
+  - `GET /{doc_id}/distribution-lists`
+  - `GET /{doc_id}/distribution-lists/{list_id}/recipients`
+  - `POST /{doc_id}/distribution-lists/{list_id}/send-for-review`
 
-## Architecture
+### Validation
+- Document must exist.
+- Document must be linked to a project.
+- Distribution list must belong to the same project.
+- Send-for-review requires non-empty recipients and all recipients must belong to the list.
 
-### Frontend Components
-- **Location**: `ui/src/components/DistributionList/DistributionList.jsx`
-- **Integration**: Embedded in `IDCBehavior.jsx` as a subtab in the Document Flow workflow
-- **Features**:
-  - View distribution lists and recipients (read-only)
-  - Send documents for review to all recipients in a list
-  - Real-time error messages with API response details
-  - Recipient lists are managed outside the API (admin/seed workflows)
-
-### Backend API Endpoints
-All endpoints follow the pattern: `/api/v1/documents/{doc_id}/distribution-lists/*`
-
-#### Distribution List Management
-1. **Get All Distribution Lists for Document**
-   - `GET /documents/{doc_id}/distribution-lists`
-   - Response: `List[DistributionListOut]`
-
-#### Recipient Management
-1. **Get Recipients in List**
-   - `GET /documents/{doc_id}/distribution-lists/{list_id}/recipients`
-   - Response: `List[RecipientOut]`
-
-#### Review Workflow
-1. **Send Document for Review**
-   - `POST /documents/{doc_id}/distribution-lists/{list_id}/send-for-review`
-   - Request: `{"message": "string|null"}`
-   - Response: `{"status": "success", "message": "string", "list_name": "string"}`
-
-## Data Models
-
-### Pydantic Schemas (api/schemas/documents.py)
-
-```python
-class DistributionListOut(BaseModel):
-    dist_list_id: int
-    list_name: str
-    recipients: List[RecipientOut]
-
-class RecipientOut(BaseModel):
-    recipient_id: int
-    email: str
-    person_name: str | None
-
-class SendForReviewRequest(BaseModel):
-    message: str | None
-```
-
-### Storage
-Currently uses in-memory storage (`_distribution_lists_store` dictionary in `api/routers/documents.py`):
-```python
-{
-    doc_id: {
-        list_id: {
-            "name": "List Name",
-            "recipients": [
-                {"email": "user@example.com", "person_name": "John Doe"}
-            ]
-        }
-    }
-}
-```
-
-**Note**: This is a temporary solution. For production, extend the database schema to create a `DocDistributionList` table with proper relationships.
-
-## Implementation Details
-
-### Frontend Features
-- **Person Selection**: Dropdown populated from `/api/v1/people/persons` sorted by person name
-- **Error Handling**: Displays actual API error messages instead of generic messages
-- **Loading States**: Shows loading spinner during API calls
-- **Success Feedback**: Displays success messages with auto-dismiss after 3 seconds
-- **Responsive UI**: Component fits seamlessly in the Distribution list tab
-
-### Backend Features
-- **Document Validation**: Verifies document exists before operations
-- **Error Responses**: Returns detailed error messages with appropriate HTTP status codes
-  - 404: Document or list not found
-  - 400: Invalid request (e.g., no recipients when sending)
-- **Automatic ID Management**: Generates unique list and recipient IDs
-- **In-Memory State**: Lists and recipients exist for the session duration
-
-## Files Modified/Created
-
-### Backend
-- `api/routers/documents.py`
-  - Added imports for distribution list schemas
-  - Added in-memory storage variables
-  - Implemented 7 new endpoints for distribution list operations
-
-- `api/schemas/documents.py`
-  - Added `DistributionListOut`, `DistributionListCreate`
-  - Added `RecipientOut`, `RecipientCreate`
-  - Added `SendForReviewRequest`
-
-### Frontend
+## Frontend
+### Components
 - `ui/src/components/DistributionList/DistributionList.jsx`
-  - Complete implementation of distribution list UI
-  - State management for lists, recipients, loading states
-  - Event handlers for all CRUD operations
-  - Enhanced error handling with API response details
-
 - `ui/src/components/DocRevStatusBehaviors/IDCBehavior.jsx`
-  - Integration of DistributionList component
-  - Added "Distribution list" subtab
 
-- `ui/src/components/DistributionList/DistributionList.css`
-  - Styling for component UI
+### Behavior
+- Loads lists and recipient data from API.
+- Triggers send-for-review from selected list.
+- Displays API-side error detail where available.
 
-- `ui/src/App.jsx`
-  - Added `apiBase` prop passing to Behavior components
-
-## Testing the Feature
-
-### Prerequisites
-1. Ensure the API server is running
-2. Have a valid document ID
-3. Have at least one person in the system (from `/api/v1/people/persons`)
-
-### Manual Testing Steps
-1. Open a document in the Document Flow
-2. Navigate to the IDC (Integrated Design Control) tab
-3. Click on the "Distribution list" subtab
-4. Click the ➕ button to create a new distribution list
-5. Select a person from the dropdown
-6. Click "Create" to create the list
-7. Click on the created list to select it
-8. Add recipients by entering email addresses
-9. Click "Send for Review & Comments" to send the document
-
-### Expected Behavior
-- All CRUD operations succeed with appropriate feedback messages
-- Error messages display API details when operations fail
-- Lists persist for the duration of the session
-- Person dropdown loads persons from the database
-
-## Future Enhancements
-
-### Database Integration
-Replace in-memory storage with proper database tables:
-```sql
-CREATE TABLE doc_distribution_lists (
-    ddl_id INT PRIMARY KEY AUTO_INCREMENT,
-    doc_id INT NOT NULL,
-    list_name VARCHAR(255),
-    created_at TIMESTAMPTZ,
-    FOREIGN KEY (doc_id) REFERENCES docs(doc_id)
-);
-
-CREATE TABLE ddl_recipients (
-    ddl_recipient_id INT PRIMARY KEY AUTO_INCREMENT,
-    ddl_id INT NOT NULL,
-    email VARCHAR(255),
-    person_id INT,
-    FOREIGN KEY (ddl_id) REFERENCES doc_distribution_lists(ddl_id),
-    FOREIGN KEY (person_id) REFERENCES person(person_id)
-);
-```
-
-### Email Integration
-- Implement actual email sending on "Send for Review"
-- Add email templates for review requests
-- Track review status and comments from recipients
-
-### Enhanced Features
-- Archive old distribution lists
-- Reuse distribution lists across documents
-- Set review deadlines
-- Track recipient responses
-- Add comment threads on documents
-
-## Error Handling
-
-The feature includes comprehensive error handling:
-
-### Frontend
-- Validates user input before API calls
-- Displays API error messages from backend
-- Shows loading states to prevent double-submit
-- Auto-clears success/error messages after 3 seconds
-
-### Backend
-- Validates document existence
-- Validates list and recipient existence
-- Returns appropriate HTTP status codes
-- Provides detailed error messages in response body
-
-## Performance Considerations
-
-### Current (In-Memory)
-- O(1) lookups for lists and recipients
-- O(n) iteration when returning all lists/recipients
-- Memory grows linearly with document count
-
-### After Database Migration
-- Consider indexing on `doc_id` and `ddl_id`
-- Use pagination for large recipient lists
-- Implement caching for frequently accessed lists
+## Known Gap
+- Backend expects `SendForReviewRequest.recipients`.
+- Current UI send action may submit an empty JSON body.
+- This contract mismatch should be resolved in code so docs and behavior stay aligned.
 
 ## Compatibility
-
-- **Frontend**: React 18+ with hooks
-- **Backend**: FastAPI with SQLAlchemy ORM
-- **Database**: MySQL/MariaDB (when migrated to persistent storage)
-- **Browser**: Modern browsers with Fetch API support
+- Frontend: React 18+
+- Backend: FastAPI + SQLAlchemy
+- Database: PostgreSQL
 
 ## Edge Cases
-- Distribution list exists but has no recipients at send time.
-- Invalid recipient payload is returned from backend seed/admin data.
-- Send-for-review invoked for missing or voided document IDs.
+- Empty list returned for valid document/project.
+- Selected list deleted or no longer project-scoped.
+- Recipient membership changed between list fetch and send action.
 
 ## References
 - `documentation/distribution_list_feature.md`
-- `api/routers/documents.py`
+- `api/routers/distribution_lists.py`
+- `api/schemas/distribution_lists.py`
 - `ui/src/components/DistributionList/DistributionList.jsx`

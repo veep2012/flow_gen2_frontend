@@ -252,228 +252,44 @@ User data rights:
 - Provide opt-out or account deletion procedures.
 - Document how to export or delete user data on request.
 
-### Phase 1: Database-Based Authentication (Weeks 1-2)
-**Goal:** Establish basic authentication infrastructure with local user management
+## Roadmap (Planned, Not Current State)
 
-**Components:**
-- ✅ PostgreSQL schema with `users`, `roles`, `person` tables (already exists)
-- ✅ Keycloak running in development mode
-- ✅ oauth2-proxy configured for OIDC
-- ✅ NGINX with auth_request directive
+The phases below are planning guidance. They are not claims of implemented behavior.
 
-**Implementation Steps:**
-1. **User Provisioning Script**
-   - Create `/scripts/sync_users_to_keycloak.py`
-   - Reads from PostgreSQL `flow.users` and `flow.person` tables
-   - Synchronizes users to Keycloak realm via Admin API
-   - Runs periodically (cron job or systemd timer)
-   - Handles password hashing and initial credential setup
+### Phase 1: Baseline Authentication
+- Configure OIDC login flow through `oauth2-proxy` and Keycloak.
+- Validate trusted-header propagation (`X-User`, `X-Email`) to API/UI.
+- Define user provisioning process (manual or scripted) and operational owner.
 
-2. **Keycloak Configuration**
-   - Realm: `flow-local` (for dev) or `flow-production` (for prod)
-   - Client: `flow-oauth2-proxy` with confidential access
-   - Initial users from database export
-   - Password policy enforcement
+### Phase 2: Security Hardening
+- Enforce HTTPS and security headers at the edge.
+- Define session TTL, refresh policy, and revocation behavior.
+- Add authentication event logging and alerting.
 
-3. **Testing & Validation**
-   - Verify login flow with test users
-   - Test session management and logout
-   - Validate user header propagation to API/UI
+### Phase 3: External Identity Providers
+- Integrate AD/LDAP/SAML providers through Keycloak identity brokering.
+- Define identity mapping rules and conflict handling.
+- Plan schema extensions only after provider requirements are finalized.
 
-**Deliverables:**
-- User sync script with documentation
-- Keycloak realm export template
-- Updated docker-compose.yml with sync job
-- Testing checklist and validation procedures
+### Phase 4: Authorization Maturity
+- Expand RBAC/ABAC policy coverage.
+- Standardize permission evaluation middleware pattern.
+- Add group-based permission inheritance where required.
 
-**Migration Path:**
-```
-PostgreSQL Users (Source of Truth)
-    ↓ (sync script runs hourly)
-Keycloak Users (Authentication)
-    ↓ (OIDC flow)
-Application Access
-```
-
----
-
-### Phase 2: Enhanced Security & Session Management (Weeks 3-4)
-**Goal:** Harden security, improve session handling, add audit logging
-
-**Enhancements:**
-1. **TLS/HTTPS Enforcement**
-   - Add Let's Encrypt certificate automation (certbot)
-   - NGINX SSL termination with modern cipher suites
-   - HSTS headers and secure cookie flags
-   - HTTP to HTTPS redirect
-
-2. **Session Management**
-   - Configure session timeout policies (default: 8 hours)
-   - Implement sliding session windows
-   - Add "Remember Me" functionality (optional)
-   - Session revocation on password change
-
-3. **Audit Logging**
-   - Log authentication events (login/logout/failed attempts)
-   - Track API access with user attribution
-   - Store audit logs in PostgreSQL audit schema
-   - Implement log rotation and retention policies
-
-4. **Defense in Depth**
-   - Add API-level header validation
-   - Implement rate limiting (fail2ban or NGINX limit_req)
-   - Add CSRF protection for state-changing operations
-   - Input validation and sanitization
-
-**Configuration Updates:**
-```nginx
-# Enhanced NGINX security headers
-add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-add_header X-Frame-Options "SAMEORIGIN" always;
-add_header X-Content-Type-Options "nosniff" always;
-add_header X-XSS-Protection "1; mode=block" always;
-add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-```
-
----
-
-### Phase 3: External Identity Provider Integration (Weeks 5-8)
-**Goal:** Enable integration with enterprise identity providers (AD, LDAP, SSO)
-
-**Architecture Enhancement:**
-
-```mermaid
-flowchart TB
-    subgraph "Identity Sources"
-        ad[Active Directory]
-        ldap[LDAP Server]
-        saml[SAML IdP<br/>Okta/Azure AD]
-        google[Google Workspace]
-    end
-    
-    subgraph "Identity Broker"
-        keycloak[Keycloak<br/>Identity Broker]
-    end
-    
-    subgraph "Application"
-        oauth2[oauth2-proxy]
-        api[Flow API]
-    end
-    
-    ad -->|LDAP Protocol| keycloak
-    ldap -->|LDAP Protocol| keycloak
-    saml -->|SAML 2.0| keycloak
-    google -->|OpenID Connect| keycloak
-    
-    keycloak -->|OIDC| oauth2
-    oauth2 -->|Headers| api
-```
-
-**Integration Options:**
-
-1. **Active Directory (LDAP)**
-   - Configure Keycloak User Federation
-   - Map AD groups to Keycloak roles
-   - Sync user attributes (email, display name, department)
-   - Support for nested group memberships
-
-2. **SAML 2.0 Providers (Azure AD, Okta)**
-   - Add SAML Identity Provider in Keycloak
-   - Configure attribute mappings
-   - Test SSO flow with corporate accounts
-
-3. **Social Providers (Google, GitHub, Microsoft)**
-   - Enable social login for external collaborators
-   - Restrict by email domain whitelist
-   - Map social accounts to internal user records
-
-**User Mapping Strategy:**
-- **Primary Key:** Email address (must be unique across providers)
-- **Fallback:** Username from external provider
-- **Attribute Sync:** First name, last name, department, manager
-- **Role Assignment:** Based on AD group membership or manual provisioning
-
-**Database Schema Extension:**
-```sql
-ALTER TABLE flow.users ADD COLUMN external_id VARCHAR(255);
-ALTER TABLE flow.users ADD COLUMN identity_provider VARCHAR(50);
-ALTER TABLE flow.users ADD COLUMN last_login_at TIMESTAMPTZ;
-ALTER TABLE flow.users
-    ADD CONSTRAINT users_identity_provider_external_id_uniq
-    UNIQUE (identity_provider, external_id);
-
-CREATE TABLE flow.identity_provider_mappings (
-    mapping_id SERIAL,
-    user_id SMALLINT REFERENCES flow.users(user_id),
-    provider_name VARCHAR(50) NOT NULL,
-    external_user_id VARCHAR(255) NOT NULL,
-    attributes JSONB,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (provider_name, external_user_id),
-    PRIMARY KEY (mapping_id)
-);
-
-CREATE INDEX idx_identity_provider_mappings_user_id
-    ON flow.identity_provider_mappings(user_id);
-```
-
----
-
-### Phase 4: Advanced Authorization & Multi-Tenancy (Weeks 9-12)
-**Goal:** Implement fine-grained access control and support multi-project isolation
-
-**Features:**
-
-1. **Role-Based Access Control (RBAC)**
-   - Predefined roles: Admin, Coordinator, Engineer, Viewer
-   - Permission matrix per resource type
-   - Hierarchical role inheritance
-
-2. **Attribute-Based Access Control (ABAC)**
-   - Project-level isolation (users can only access assigned projects)
-   - Discipline-level filtering
-   - Document lifecycle-based permissions (draft vs. published)
-
-3. **Permission Model:**
-```sql
--- Existing permissions table structure (already in DB)
--- Supports project_id and discipline_id scoping
--- API enforces permissions based on user_id + resource scope
-```
-
-4. **API Authorization Middleware**
-```python
-# Pseudocode for API authorization
-def check_permission(user_id, resource_type, resource_id, action):
-    # 1. Extract user from X-User header (set by NGINX)
-    # 2. Query permissions table for user's access scope
-    # 3. Verify resource belongs to allowed project/discipline
-    # 4. Check if user's role permits the action (read/write/delete)
-    # 5. Return 200 (allow) or 403 (deny)
-```
-
-5. **Group-Based Permissions (Future)**
-   - Map AD/LDAP groups to Flow roles
-   - Automatic permission assignment on login
-   - Support for dynamic group membership changes
-
-**Permission Evaluation Flow:**
+### Permission Evaluation Target Pattern
 ```mermaid
 flowchart TD
     A[API Request] --> B{Authenticated?}
     B -->|No| C[401 Unauthorized]
-    B -->|Yes| D[Extract User ID from X-User header]
-    D --> E[Load User Permissions from DB]
-    E --> F{Has Project/Discipline Access?}
+    B -->|Yes| D[Extract User ID from trusted header]
+    D --> E[Load permissions from DB]
+    E --> F{Has scope access?}
     F -->|No| G[403 Forbidden]
-    F -->|Yes| H{Role Allows Action?}
+    F -->|Yes| H{Role allows action?}
     H -->|No| G
-    H -->|Yes| I[Process Request]
+    H -->|Yes| I[Process request]
     I --> J[200 OK]
 ```
-
----
 
 ## Application-Level Access Management
 

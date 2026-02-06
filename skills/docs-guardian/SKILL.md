@@ -11,6 +11,7 @@ Use this skill to keep project documentation consistent, complete, and aligned w
 - `documentation/_documentation_template.md`
 - `documentation/_documentation_standards.md`
 - `documentation/_naming_convention.md`
+- `documentation/_documentation-index.md`
 
 ## Workflow (Required)
 
@@ -24,6 +25,7 @@ Choose one:
 - Read `documentation/_documentation_standards.md`.
 - Read `documentation/_documentation_template.md`.
 - Read `documentation/_naming_convention.md`.
+- Read `documentation/_documentation-index.md`.
 
 ### Step 3: Validate required structure
 For each target file in `documentation/`:
@@ -33,6 +35,7 @@ For each target file in `documentation/`:
 - Confirm `References` section exists.
 - Confirm filename follows lowercase underscore convention.
 - Confirm helper/control files use `_` prefix.
+- Confirm any new/renamed documentation files are added to `documentation/_documentation-index.md`.
 
 ### Step 4: Normalize and tighten content
 - Keep wording implementation-focused and concise.
