@@ -84,11 +84,16 @@ sequenceDiagram
 3. Persist per-recipient delivery rows with `unread` state.
 4. Users fetch their notifications with read and unread filters.
 5. User marks a notification as read, changing only their delivery row.
+6. Sender or superuser can replace a notification when content must be changed.
+7. Replace flow: original notification is marked as dropped, then a new notification is created and linked to the original with a remark that it was changed.
+8. Sender or superuser can delete a notification.
+9. Delete flow: original notification is marked as dropped, then recipients receive a new notification that the previous one was dropped.
 
 **Read And Unread Rules**
 - New deliveries default to `unread`.
 - Marking read is idempotent.
 - Read state is per user and does not affect other recipients.
+- Replacement and deletion notices are new notifications and must be delivered as `unread`.
 - All notifications must be retained in the database (no hard deletes).
 
 **Delivery Rules**
@@ -97,18 +102,24 @@ sequenceDiagram
 - If a notification targets both a user and a DL containing that user, the user receives one delivery record.
 - For each notification target row, **exactly one** of `recipient_user_id` or `recipient_dist_id` is set.
 - API must deduplicate recipients across direct user IDs and DL membership.
+- Replacement/delete notices must be sent to the original recipient set.
 
 **Data Model Sketch**
 - `notifications`
   - `notification_id`
   - `sender_user_id`
+  - `event_type` (`regular`, `changed_notice`, `dropped_notice`)
   - `title`
   - `body`
+  - `remark` (optional system/user remark, e.g. "changed")
   - `rev_id` (required link to revision)
   - `commented_file_id` (optional link to commented file)
   - `recipient_user_id` (direct recipient, mutually exclusive with `recipient_dist_id`)
   - `recipient_dist_id` (DL recipient, mutually exclusive with `recipient_user_id`)
   - `created_at`
+  - `dropped_at` (nullable)
+  - `dropped_by_user_id` (nullable)
+  - `superseded_by_notification_id` (nullable)
 - `notification_recipients`
   - `notification_id`
   - `recipient_user_id`
@@ -126,6 +137,14 @@ sequenceDiagram
 - Create notification:
   - Inputs: sender, title, body, direct user IDs, DL IDs.
   - Output: notification ID and recipient count.
+- Replace notification:
+  - Allowed for sender or superuser.
+  - Behavior: mark original as dropped and create a new linked notification with change remark.
+  - Output: new notification ID and recipient count.
+- Delete notification:
+  - Allowed for sender or superuser.
+  - Behavior: mark original as dropped and create a new linked drop notice for recipients.
+  - Output: drop notice notification ID and recipient count.
 - List notifications for user:
   - Filters: unread only, date range, sender.
 - Mark notification read:
@@ -146,6 +165,4 @@ sequenceDiagram
 - Future async extension can enqueue delivery jobs and resolve recipients out of band.
 
 **Open Questions**
-- Are notifications immutable after creation.
-- Should users be able to delete notifications or only archive.
 - Should DL membership be scoped per project or global.
