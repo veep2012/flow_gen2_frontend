@@ -31,6 +31,18 @@ GRANT EXECUTE ON FUNCTION workflow.update_file(INTEGER, VARCHAR) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.delete_file(INTEGER) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.create_file_commented(INTEGER, INTEGER, TEXT, VARCHAR) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.delete_file_commented(INTEGER) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.create_notification(
+    SMALLINT, VARCHAR, TEXT, INTEGER, INTEGER, SMALLINT[], SMALLINT[], VARCHAR, TEXT, INTEGER
+) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.replace_notification(
+    SMALLINT, INTEGER, VARCHAR, TEXT, TEXT
+) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.delete_notification(
+    SMALLINT, INTEGER, TEXT
+) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.mark_notification_read(
+    INTEGER, SMALLINT
+) TO app_user;
 
 -- admin override only for db_admin
 GRANT EXECUTE ON FUNCTION workflow.admin_override_transition(INTEGER, SMALLINT, TEXT) TO db_admin;

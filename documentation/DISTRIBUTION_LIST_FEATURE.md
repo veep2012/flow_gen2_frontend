@@ -1,5 +1,28 @@
 # Distribution List Feature
 
+## Document Control
+- Status: Approved
+- Owner: Backend and Frontend Team
+- Reviewers: API and UI maintainers
+- Created: 2026-02-06
+- Last Updated: 2026-02-06
+- Version: v1.1
+
+## Purpose
+Describe the distribution list user feature, UI integration points, and backend API behaviors used to send documents for review.
+
+## Scope
+- In scope:
+  - IDC distribution list UI behavior.
+  - Distribution list and recipient API usage.
+  - Send-for-review interaction and validation behavior.
+- Out of scope:
+  - Persistent distribution list administration workflows.
+  - External email delivery implementation.
+
+## Design / Behavior
+The sections below define the user path, component interactions, API contracts, and operational behavior for distribution list usage in the IDC workflow.
+
 ## Overview
 
 The Distribution List feature has been added to the Flow document management application within the **Document Flow IDC (Integrated Design Control) tab**. This feature allows users to:
@@ -189,3 +212,13 @@ When testing the Distribution List feature:
 - Ensure CSS variables are defined in the application's theme
 - Check that DistributionList.css is properly imported
 - Verify no CSS conflicts with existing styles
+
+## Edge Cases
+- Distribution list API endpoint is reachable but returns an empty list.
+- A recipient list contains invalid entries and the API rejects send-for-review.
+- User triggers repeated sends while request state is still loading.
+
+## References
+- `documentation/distribution_list_implementation.md`
+- `api/routers/documents.py`
+- `ui/src/components/DistributionList/`

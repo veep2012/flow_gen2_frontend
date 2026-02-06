@@ -1,3 +1,27 @@
+# ER Diagram
+
+## Document Control
+- Status: Approved
+- Owner: Backend and Database Team
+- Reviewers: API maintainers
+- Created: 2026-02-06
+- Last Updated: 2026-02-06
+- Version: v1.1
+
+## Purpose
+Provide an entity-relationship view of core workflow, lookup, user, permissions, and distribution list data structures.
+
+## Scope
+- In scope:
+  - Logical entities and key relationships represented in the ER diagram.
+  - Core and supporting data domains used by the application.
+- Out of scope:
+  - Full physical DDL definitions and indexing strategy.
+  - API endpoint behavior.
+
+## Design / Behavior
+The Mermaid ER diagram below is the canonical visual model for entity linkage at documentation level.
+
 ```mermaid
 erDiagram
     %% ==========================================
@@ -270,3 +294,13 @@ erDiagram
     UNITS ||--o{ DOC_CACHE : "cached"
 
 ```
+
+## Edge Cases
+- Cardinality mismatches between diagram and enforced database constraints.
+- Schema updates made in code without ER diagram refresh.
+- Ambiguous relationship naming for multi-scope permission entities.
+
+## References
+- `documentation/api_db_rules.md`
+- `documentation/document_flow.md`
+- `documentation/api_interfaces.md`

@@ -1,5 +1,28 @@
 # Distribution List Feature Implementation
 
+## Document Control
+- Status: Review
+- Owner: Backend and Frontend Team
+- Reviewers: API and UI maintainers
+- Created: 2026-02-06
+- Last Updated: 2026-02-06
+- Version: v1.1
+
+## Purpose
+Describe the implementation details of distribution list read and send-for-review functionality across API and UI layers.
+
+## Scope
+- In scope:
+  - Frontend integration points and feature behavior.
+  - API endpoints, schemas, and runtime handling.
+  - Validation, error handling, and compatibility notes.
+- Out of scope:
+  - Full persistent administration tooling for distribution lists.
+  - External notification transport integrations.
+
+## Design / Behavior
+This file captures how the feature is implemented today and how frontend/backend components coordinate in review flows.
+
 ## Overview
 The Distribution List feature allows users to view preconfigured recipient lists within the Document Flow application and send documents for review and comments to multiple recipients at once.
 
@@ -209,3 +232,13 @@ The feature includes comprehensive error handling:
 - **Backend**: FastAPI with SQLAlchemy ORM
 - **Database**: MySQL/MariaDB (when migrated to persistent storage)
 - **Browser**: Modern browsers with Fetch API support
+
+## Edge Cases
+- Distribution list exists but has no recipients at send time.
+- Invalid recipient payload is returned from backend seed/admin data.
+- Send-for-review invoked for missing or voided document IDs.
+
+## References
+- `documentation/distribution_list_feature.md`
+- `api/routers/documents.py`
+- `ui/src/components/DistributionList/DistributionList.jsx`

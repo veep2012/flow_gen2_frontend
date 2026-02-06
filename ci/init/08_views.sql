@@ -25,6 +25,29 @@ CREATE OR REPLACE VIEW workflow.doc AS SELECT * FROM core.doc;
 CREATE OR REPLACE VIEW workflow.doc_revision AS SELECT * FROM core.doc_revision;
 CREATE OR REPLACE VIEW workflow.files AS SELECT * FROM core.files;
 CREATE OR REPLACE VIEW workflow.files_commented AS SELECT * FROM core.files_commented;
+CREATE OR REPLACE VIEW workflow.notifications AS SELECT * FROM core.notifications;
+CREATE OR REPLACE VIEW workflow.notification_targets AS SELECT * FROM core.notification_targets;
+CREATE OR REPLACE VIEW workflow.notification_recipients AS SELECT * FROM core.notification_recipients;
+
+CREATE OR REPLACE VIEW workflow.v_notification_inbox AS
+SELECT
+    nr.recipient_user_id,
+    nr.delivered_at,
+    nr.read_at,
+    n.notification_id,
+    n.sender_user_id,
+    n.event_type,
+    n.title,
+    n.body,
+    n.remark,
+    n.rev_id,
+    n.commented_file_id,
+    n.created_at,
+    n.dropped_at,
+    n.dropped_by_user_id,
+    n.superseded_by_notification_id
+FROM core.notification_recipients nr
+JOIN core.notifications n ON n.notification_id = nr.notification_id;
 
 CREATE OR REPLACE VIEW workflow.doc_revision_history AS SELECT * FROM audit.doc_revision_history;
 CREATE OR REPLACE VIEW workflow.doc_revision_history_view AS

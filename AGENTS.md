@@ -3,7 +3,7 @@
 ## Default Skill
 
 For any API or database change or review, always apply the **api-db-guardian** skill to enforce compliance with `documentation/api_db_rules.md`.
-For any documentation change or review, always apply the **docs-guardian** skill to enforce compliance with `documentation/DOCUMENTATION_TEMPLATE.md` and `documentation/DOCUMENTATION_STANDARDS.md`.
+For any documentation change or review, always apply the **docs-guardian** skill to enforce compliance with `documentation/_documentation_template.md` and `documentation/_documentation_standards.md`.
 
 ## Skills
 

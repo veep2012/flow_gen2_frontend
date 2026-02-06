@@ -1,4 +1,4 @@
 interface:
   display_name: "Docs Guardian"
   short_description: "Keep docs aligned to repo template and standards"
-  default_prompt: "Use $docs-guardian to create or review documentation files in documentation/ so they comply with DOCUMENTATION_TEMPLATE and DOCUMENTATION_STANDARDS."
+  default_prompt: "Use $docs-guardian to create or review documentation files in documentation/ so they comply with _documentation_template and _documentation_standards."

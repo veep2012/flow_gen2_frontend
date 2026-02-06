@@ -1,4 +1,29 @@
-## Branching Model
+# Development Workflow
+
+## Document Control
+- Status: Approved
+- Owner: Engineering Team
+- Reviewers: Repository maintainers
+- Created: 2026-02-06
+- Last Updated: 2026-02-06
+- Version: v1.1
+
+## Purpose
+Define the team development workflow, branch policy, and local setup requirements for this repository.
+
+## Scope
+- In scope:
+  - Branching, PR, and promotion rules.
+  - Local development environment setup and quality commands.
+  - Git workflow guidance for feature development.
+- Out of scope:
+  - Product architecture and business behavior.
+  - API endpoint specifications.
+
+## Design / Behavior
+Use the process below as the operational workflow for day-to-day development and integration.
+
+### Branching Model
 
 ```mermaid
 flowchart TD
@@ -124,3 +149,13 @@ git push --force-with-lease
   # push frontend to its upstream
   git push
   ```
+
+## Edge Cases
+- Local branch diverges significantly from `dev` and requires conflict resolution.
+- Missing local env variables cause backend startup or test failures.
+- Force-push is required after rebase and must use `--force-with-lease`.
+
+## References
+- `README.md`
+- `Makefile`
+- `.env.example`

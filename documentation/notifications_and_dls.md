@@ -1,4 +1,27 @@
-**Notifications And Distribution Lists**
+# Notifications and Distribution Lists
+
+## Document Control
+- Status: Draft
+- Owner: Backend Team
+- Reviewers: API maintainers
+- Created: 2026-02-06
+- Last Updated: 2026-02-06
+- Version: v1.1
+
+## Purpose
+Define notification and distribution list behavior, including recipient resolution and read-state lifecycle.
+
+## Scope
+- In scope:
+  - Notification creation and recipient delivery semantics.
+  - Distribution list usage for recipient targeting.
+  - Read/unread lifecycle and replacement/deletion notification behavior.
+- Out of scope:
+  - Real-time transport protocols.
+  - External email or push integrations.
+
+## Design / Behavior
+The sections below describe data and lifecycle behavior for notification delivery linked to document review workflows.
 
 **Purpose**
 Define how users exchange information through notifications and distribution lists in Flow, with clear read/unread tracking and delivery rules.
@@ -166,3 +189,13 @@ sequenceDiagram
 
 **Open Questions**
 - Should DL membership be scoped per project or global.
+
+## Edge Cases
+- Same user included both directly and through one or more DLs must receive one delivery row.
+- Replacement and drop notices must target the exact original recipient set.
+- Invalid users inside DL membership must be skipped and logged without breaking valid deliveries.
+
+## References
+- `documentation/document_flow.md`
+- `documentation/distribution_list_feature.md`
+- `api/routers/documents.py`

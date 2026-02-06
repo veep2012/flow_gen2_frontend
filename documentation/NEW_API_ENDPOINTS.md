@@ -1,5 +1,27 @@
 # New API Endpoints Documentation
 
+## Document Control
+- Status: Review
+- Owner: Backend Team
+- Reviewers: API maintainers
+- Created: 2026-02-06
+- Last Updated: 2026-02-06
+- Version: v1.1
+
+## Purpose
+Document new API endpoints and related model/schema changes so implementation and integration remain consistent.
+
+## Scope
+- In scope:
+  - Endpoint definitions, payloads, and expected statuses.
+  - Related schema and migration updates.
+- Out of scope:
+  - Full API reference for unaffected endpoints.
+  - UI implementation details.
+
+## Design / Behavior
+This document captures endpoint-specific behavior and storage impacts for cancellation and deletion flows.
+
 ## Cancel Revision
 
 ### Endpoint
@@ -108,3 +130,13 @@ The hard delete path relies on `doc_revision.doc_id` using `ON DELETE CASCADE` (
 ### DocOut Schema
 Added field to response:
 - `voided` (boolean): Whether the document is voided
+
+## Edge Cases
+- `cancel` called for a revision already canceled must stay idempotent.
+- Document delete must choose between hard delete and soft void based on revision status constraints.
+- Deleting non-existing documents must return `404` consistently.
+
+## References
+- `api/routers/documents.py`
+- `api/schemas/documents.py`
+- `documentation/api_interfaces.md`

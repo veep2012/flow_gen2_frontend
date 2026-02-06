@@ -1,6 +1,29 @@
 # Document & Revision Workflow  
 **Backend–Database Contract (Current Implementation)**
 
+## Document Control
+- Status: Approved
+- Owner: Backend and Database Team
+- Reviewers: API maintainers
+- Created: 2026-02-06
+- Last Updated: 2026-02-06
+- Version: v1.1
+
+## Purpose
+Define the enforced backend-database contract for document and revision lifecycle behavior.
+
+## Scope
+- In scope:
+  - Workflow enforcement boundaries between API and database.
+  - Security, grants, and audit guarantees.
+  - Data model and transition invariants.
+- Out of scope:
+  - UI interaction and presentation logic.
+  - Non-workflow domain modules.
+
+## Design / Behavior
+This document is the authoritative implementation contract. Numbered sections below provide enforceable architecture and behavior expectations.
+
 ## 1. Purpose and Scope
 
 This document describes the **current, implemented behavior** of the document and revision workflow system as realized in the backend API and PostgreSQL database.
@@ -317,3 +340,13 @@ Any divergence between code and this document should be treated as:
 - an unintended behavior change
 
 Both require explicit review.
+
+## Edge Cases
+- API attempts direct DML on protected schemas instead of workflow functions.
+- Concurrent revision updates that test invariant enforcement.
+- Cancellation and deletion requests for final or superseded revisions.
+
+## References
+- `documentation/api_interfaces.md`
+- `api/routers/documents.py`
+- `api/db/`

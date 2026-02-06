@@ -1,5 +1,28 @@
 # Authentication Architecture for Flow Gen2
 
+## Document Control
+- Status: Review
+- Owner: Platform and Backend Team
+- Reviewers: Security and API maintainers
+- Created: 2026-02-06
+- Last Updated: 2026-02-06
+- Version: v1.1
+
+## Purpose
+Define the target authentication and authorization architecture for Flow Gen2, including staged rollout guidance.
+
+## Scope
+- In scope:
+  - Edge authentication architecture and identity provider integration.
+  - Session, token, and operational security controls.
+  - Rollout and migration strategies.
+- Out of scope:
+  - Endpoint-by-endpoint API contracts.
+  - Non-authentication product workflows.
+
+## Design / Behavior
+The sections below describe layered auth architecture, implementation phases, and operational controls required for secure deployment.
+
 ## Executive Summary
 
 Flow Gen2 employs a **layered authentication architecture** that separates concerns between edge authentication (handled by NGINX + oauth2-proxy + Keycloak) and application-level authorization (managed within the API and database). This design minimizes code changes in the API/UI while providing enterprise-grade security, scalability, and flexibility for future identity provider integrations.
@@ -704,6 +727,12 @@ Flow Gen2 already has a robust authorization schema:
 
 ---
 
+## Edge Cases
+- Identity provider unavailable during active login flows.
+- Clock skew causing token validation failures.
+- Header spoofing attempts that bypass trusted proxy assumptions.
+- Session revocation lag across distributed services.
+
 ## Appendix
 
 ### Environment Variables Reference
@@ -765,7 +794,7 @@ curl -H "Authorization: Bearer $ADMIN_TOKEN" \
 openssl rand -base64 32
 ```
 
-### References
+## References
 
 - [Keycloak Documentation](https://www.keycloak.org/documentation)
 - [oauth2-proxy Documentation](https://oauth2-proxy.github.io/oauth2-proxy/)

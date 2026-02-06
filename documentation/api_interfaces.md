@@ -1,5 +1,27 @@
 # Flow API Interfaces
 
+## Document Control
+- Status: Approved
+- Owner: Backend Team
+- Reviewers: API maintainers
+- Created: 2026-02-06
+- Last Updated: 2026-02-06
+- Version: v1.1
+
+## Purpose
+Provide the current backend API surface and behavior contract for clients and maintainers.
+
+## Scope
+- In scope:
+  - Endpoint methods, payloads, statuses, and conventions.
+  - Error and validation behavior for the active API surface.
+- Out of scope:
+  - UI implementation details.
+  - Database DDL internals not exposed by API contracts.
+
+## Design / Behavior
+The sections below define endpoint groups and shared conventions. This document is manually maintained and must match implemented behavior.
+
 Current FastAPI surface (version 0.1.0). All endpoints are JSON unless noted, live under the backend root (no global prefix), and are CORS-open for any origin. Default database URL is `postgresql+psycopg://app_user:app_pass@postgres:5432/flow_db`; override via `APP_DATABASE_URL` or `APP_DB_USER/APP_DB_PASSWORD` with `POSTGRES_HOST/PORT/DB`. Object storage defaults to `MINIO_ENDPOINT=minio:9000` and `MINIO_BUCKET=flow-default`; override with `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_SECURE`.
 
 Update conventions (PUT/PATCH):
@@ -65,7 +87,7 @@ OpenAPI/Swagger:
 - OpenAPI YAML: `/openapi.yaml` (if enabled)
 - This document is maintained manually; verify against the OpenAPI schema when updating endpoints.
 
-Edge cases:
+## Edge Cases
 - Invalid path/query IDs: FastAPI validation returns `422 Unprocessable Entity` for non-integer values; valid-but-missing IDs return `404 Not Found`.
 - Malformed JSON bodies: FastAPI returns `422 Unprocessable Entity` with a validation error payload.
 - Concurrent modification: optimistic locking is not implemented; `409 Conflict` is reserved and not currently returned.
@@ -96,7 +118,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/health
 { "status": "ok" }
 ```
 
-# Lookups
+## Lookups
 
 These endpoints are read-only via API; create/update/delete is handled via seed/admin workflows.
 
@@ -268,7 +290,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/lookups/doc_
 ```json
 [ { "rev_status_id": 2, "rev_status_name": "In review" } ]
 ```
-# Files
+## Files
 
 Create conventions:
 - `POST` (Create) returns `201 Created`.
@@ -397,7 +419,7 @@ curl -sS -H "Accept: application/octet-stream" \
 <binary>
 ```
 
-# Files (commented)
+## Files (commented)
 
 Create conventions:
 - `POST` (Create) returns `201 Created`.
@@ -492,7 +514,7 @@ curl -sS -H "Accept: application/octet-stream" \
 ```
 - `Content-Disposition` filename is `<original>_commented_by_<user_acronym>`.
 
-# Persons/users/permissions
+## Persons/users/permissions
 
 These endpoints are read-only via API; create/update/delete is handled via seed/admin workflows.
 
@@ -596,7 +618,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/people/permi
 ```json
 [ { "permission_id": 42, "user_id": 7, "project_id": 3, "discipline_id": 2, "user_acronym": "ALV", "person_name": "Ada Lovelace", "project_name": "Delta Expansion", "discipline_name": "Piping" } ]
 ```
-# Docs
+## Docs
 
 Create conventions:
 - `POST` (Create) returns `201 Created`.
@@ -925,3 +947,8 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 ```json
 { "detail": "Reason for failure" }
 ```
+
+## References
+- `api/routers/`
+- `api/schemas/`
+- `documentation/api_db_rules.md`

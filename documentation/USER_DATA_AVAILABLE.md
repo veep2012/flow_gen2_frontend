@@ -1,5 +1,28 @@
 # User Data in Database - Summary
 
+## Document Control
+- Status: Review
+- Owner: Backend Team
+- Reviewers: API maintainers
+- Created: 2026-02-06
+- Last Updated: 2026-02-06
+- Version: v1.1
+
+## Purpose
+Clarify what user/person identity data exists in the database and how it is exposed through API responses.
+
+## Scope
+- In scope:
+  - User, person, and role data relationships.
+  - API endpoints that expose names and role metadata.
+  - Expected usage patterns in the UI.
+- Out of scope:
+  - Authentication and authorization architecture.
+  - Full schema reference for unrelated entities.
+
+## Design / Behavior
+The sections below explain entity relationships and how name data flows from database tables to API payloads and UI usage.
+
 ## YES, we have user names in the database! ✅
 
 ### Database Structure
@@ -167,3 +190,13 @@ ORDER BY u.user_acronym;
 **Summary**: ✅ YES, we have `person_name` in the database for all users, accessible via:
 - `/api/v1/people/persons` - Direct person names
 - `/api/v1/people/users` - User info with person names and roles
+
+## Edge Cases
+- Users with missing `person` linkage must be treated as data integrity defects.
+- Role records missing for a user should return deterministic API validation or fallback handling.
+- UI flows must handle missing optional profile photo fields.
+
+## References
+- `api/schemas/people.py`
+- `api/routers/people.py`
+- `documentation/api_interfaces.md`

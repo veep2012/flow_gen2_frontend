@@ -1,11 +1,16 @@
 # Documentation Standards
 
 This file defines the unified format for documents in `documentation/`.
+Naming rules are defined in `documentation/_naming_convention.md`.
 
 ## 1. File Naming
 - Use lowercase with underscores: `topic_name.md`.
 - Prefer descriptive names over abbreviations.
 - Keep one primary topic per file.
+- For helper/control files (standards, templates, conventions), prefix with `_`:
+  - `_documentation_template.md`
+  - `_documentation_standards.md`
+  - `_naming_convention.md`
 
 ## 2. Required Sections
 Every new document should include at minimum:
@@ -17,7 +22,7 @@ Every new document should include at minimum:
 6. `## Edge Cases`
 7. `## References`
 
-Use `documentation/DOCUMENTATION_TEMPLATE.md` as the starting point.
+Use `documentation/_documentation_template.md` as the starting point.
 
 ## 3. Header and Style Rules
 - Use one H1 (`#`) per file.
@@ -54,7 +59,7 @@ Use `documentation/DOCUMENTATION_TEMPLATE.md` as the starting point.
   3. Add missing edge cases/references
 
 ## 9. Quick Start
-1. Copy `documentation/DOCUMENTATION_TEMPLATE.md`.
+1. Copy `documentation/_documentation_template.md`.
 2. Fill mandatory sections first.
 3. Remove non-applicable optional sections.
 4. Add links to related docs and implementation files.
