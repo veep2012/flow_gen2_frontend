@@ -1,4 +1,4 @@
-# Distribution List Feature Implementation (Merged)
+# Distribution List Feature (Merged)
 
 ## Document Control
 - Status: Deprecated
@@ -10,13 +10,13 @@
 
 ## Purpose
 This document is retained as a compatibility pointer.
-The active implementation details are consolidated in:
+The active module documentation is consolidated in:
 - `documentation/notifications_and_dls.md`
 
 ## Status
 - This doc is deprecated.
-- Legacy distribution-list backend endpoints are removed.
-- Distribution lists are documented and used as notification recipient sources in the unified module doc.
+- Distribution list backend API endpoints described here are legacy and removed.
+- DL behavior is now documented as part of the Notifications + DL module.
 
 ## References
 - `documentation/notifications_and_dls.md`

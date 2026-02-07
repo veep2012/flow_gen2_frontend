@@ -40,7 +40,10 @@ make local-up
 - `psql` (optional, useful for inspecting local Postgres)
 
 ### Run tests locally (Makefile targets)
-- `make test` (runs API tests with temporary Postgres + MinIO containers)
+- `make test` (runs API tests + type checks + lint; runs UI test targets if configured)
+- `make test-up` / `make test-down` (bring test stack up/down for iterative debugging)
+- `make test-ui-unit` (runs UI unit tests if `ui/package.json` has a `test` script)
+- `make test-ui-e2e` (runs UI E2E tests if `ui/package.json` has a `test:e2e` script)
 - `make test-db-up` / `make test-db-down`
 - `make test-minio-up` / `make test-minio-down`
 - `make audit` (runs `pip-audit` + `npm audit` against lockfiles)
@@ -79,6 +82,10 @@ Use an env file for compose secrets (example template in `.env.example`):
 ```bash
 cp .env.example .env.compose
 podman-compose --env-file .env.compose -f ci/docker-compose.yml up -d
+```
+Fast startup without auth stack (no Keycloak/oauth2-proxy/nginx):
+```bash
+make up-no-keycloak
 ```
 Defaults:
 - Keycloak: `http://localhost:8081` (realm `flow-local`)

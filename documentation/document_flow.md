@@ -1,6 +1,27 @@
 # Document Workflow
 
-This document describes the technical flow of a document in the system. Populate the tables below with the exact steps, actors, APIs, and data model references.
+## Document Control
+- Status: Approved
+- Owner: Backend and Database Team
+- Reviewers: API maintainers
+- Created: 2026-02-06
+- Last Updated: 2026-02-06
+- Version: v1.1
+
+## Purpose
+Describe the implemented document and revision lifecycle, including state transitions and related data model entities.
+
+## Scope
+- In scope:
+  - Document and revision entities used by workflow.
+  - State model, transitions, and guard conditions.
+  - Related lifecycle actions such as cancel and delete.
+- Out of scope:
+  - Authentication and authorization architecture.
+  - UI presentation behavior.
+
+## Design / Behavior
+The tables below define the expected workflow mechanics and transition semantics for document processing.
 
 ## Overview
 
@@ -44,3 +65,13 @@ This document describes the technical flow of a document in the system. Populate
 | --- | --- |
 | Deletion of Document | Physical deletion in DB is allowed only if the document has 0 revisions whose status has `final=TRUE` in `doc_rev_statuses`. Otherwise document can only be voided. |
 | Deletion of Revision | Revisions can be deleted only with document deletion (see document deletion rule). Otherwise the revision is set to "Canceled". Cancelation is allowed only for Draft or Intermediate revisions. When canceled, set `rev_current_id = rev_actual_id` (previous actual). |
+
+## Edge Cases
+- Transition request sent when required file attachments are missing.
+- Concurrent transition attempts on the same revision.
+- Delete requested for documents with final revisions where only voiding is allowed.
+
+## References
+- `documentation/api_db_rules.md`
+- `documentation/api_interfaces.md`
+- `api/routers/documents.py`

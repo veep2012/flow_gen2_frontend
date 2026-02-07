@@ -1,53 +1,42 @@
-"""Pydantic schemas for distribution list-related entities."""
+"""Pydantic schemas for distribution list API."""
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class PersonOut(BaseModel):
-    """Schema for person information in distribution list."""
+class DistributionListOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    person_id: int = Field(..., description="Person ID", examples=[1], gt=0)
-    person_name: str = Field(..., description="Person name", examples=["John Doe"])
+    dist_id: int = Field(..., description="Distribution list ID.", examples=[1], gt=0)
+    distribution_list_name: str = Field(
+        ...,
+        description="Distribution list name.",
+        examples=["Review Team"],
+        min_length=1,
+    )
 
 
 class DistributionListCreate(BaseModel):
-    """Schema for creating a distribution list."""
+    model_config = ConfigDict(extra="forbid")
 
     distribution_list_name: str = Field(
-        ..., description="Distribution list name", examples=["Review Team"], min_length=1
+        ...,
+        description="Distribution list name.",
+        examples=["Review Team"],
+        min_length=1,
     )
 
 
-class DistributionListOut(BaseModel):
-    """Schema for distribution list output."""
+class DistributionListMemberOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    dist_id: int = Field(..., description="Distribution list ID", examples=[1], gt=0)
-    dist_list_id: int | None = Field(None, description="Alternative ID field for compatibility", examples=[1], gt=0)
-    distribution_list_name: str = Field(
-        ..., description="Distribution list name", examples=["Review Team"]
-    )
-    list_name: str | None = Field(None, description="Alternative name field for compatibility", examples=["Review Team"])
-    project_id: int = Field(..., description="Project ID", examples=[1], gt=0)
+    dist_id: int = Field(..., description="Distribution list ID.", examples=[1], gt=0)
+    user_id: int = Field(..., description="User ID.", examples=[2], gt=0)
+    person_id: int | None = Field(None, description="Person ID.", examples=[2], gt=0)
+    user_acronym: str | None = Field(None, description="User acronym.", examples=["FDQC"])
+    person_name: str | None = Field(None, description="Person name.", examples=["Aleksey Krutskih"])
 
 
-class DistributionListDetailOut(DistributionListOut):
-    """Schema for distribution list with members."""
+class DistributionListMemberCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
-    members: list[PersonOut] = Field(default=[], description="List of recipients/members")
-
-
-class RecipientAdd(BaseModel):
-    """Schema for adding a recipient to a distribution list."""
-
-    person_id: int | None = Field(None, description="Person ID", examples=[1], gt=0)
-    email: str | None = Field(None, description="Email address (optional, for reference)", examples=["john@example.com"])
-
-
-class SendForReviewRequest(BaseModel):
-    """Schema for sending document for review."""
-
-    recipients: list[str] = Field(
-        ..., description="List of recipient email addresses", examples=[["john@example.com"]]
-    )
+    user_id: int = Field(..., description="User ID to add.", examples=[2], gt=0)

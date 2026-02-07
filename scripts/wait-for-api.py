@@ -6,10 +6,14 @@ from urllib.request import urlopen
 
 def main() -> int:
     base = os.getenv("API_BASE", "http://localhost:5556").rstrip("/")
-    prefix = os.getenv("API_PREFIX", "").rstrip("/")
-    if prefix and not prefix.startswith("/"):
-        prefix = f"/{prefix}"
-    url = f"{base}{prefix}/health"
+    explicit_url = os.getenv("API_HEALTH_URL") or os.getenv("HEALTH_URL")
+    if explicit_url:
+        url = explicit_url.rstrip("/")
+    else:
+        health_path = os.getenv("API_HEALTH_PATH", "/health").strip()
+        if not health_path.startswith("/"):
+            health_path = f"/{health_path}"
+        url = f"{base}{health_path}"
     timeout = float(os.getenv("API_WAIT_TIMEOUT", "30"))
     deadline = time.time() + timeout
 

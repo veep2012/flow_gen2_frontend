@@ -1,5 +1,27 @@
 # Flow API Interfaces
 
+## Document Control
+- Status: Approved
+- Owner: Backend Team
+- Reviewers: API maintainers
+- Created: 2026-02-06
+- Last Updated: 2026-02-06
+- Version: v1.1
+
+## Purpose
+Provide the current backend API surface and behavior contract for clients and maintainers.
+
+## Scope
+- In scope:
+  - Endpoint methods, payloads, statuses, and conventions.
+  - Error and validation behavior for the active API surface.
+- Out of scope:
+  - UI implementation details.
+  - Database DDL internals not exposed by API contracts.
+
+## Design / Behavior
+The sections below define endpoint groups and shared conventions. This document is manually maintained and must match implemented behavior.
+
 Current FastAPI surface (version 0.1.0). All endpoints are JSON unless noted, live under the backend root (no global prefix), and are CORS-open for any origin. Default database URL is `postgresql+psycopg://app_user:app_pass@postgres:5432/flow_db`; override via `APP_DATABASE_URL` or `APP_DB_USER/APP_DB_PASSWORD` with `POSTGRES_HOST/PORT/DB`. Object storage defaults to `MINIO_ENDPOINT=minio:9000` and `MINIO_BUCKET=flow-default`; override with `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_SECURE`.
 
 Update conventions (PUT/PATCH):
@@ -65,7 +87,7 @@ OpenAPI/Swagger:
 - OpenAPI YAML: `/openapi.yaml` (if enabled)
 - This document is maintained manually; verify against the OpenAPI schema when updating endpoints.
 
-Edge cases:
+## Edge Cases
 - Invalid path/query IDs: FastAPI validation returns `422 Unprocessable Entity` for non-integer values; valid-but-missing IDs return `404 Not Found`.
 - Malformed JSON bodies: FastAPI returns `422 Unprocessable Entity` with a validation error payload.
 - Concurrent modification: optimistic locking is not implemented; `409 Conflict` is reserved and not currently returned.
@@ -96,7 +118,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/health
 { "status": "ok" }
 ```
 
-# Lookups
+## Lookups
 
 These endpoints are read-only via API; create/update/delete is handled via seed/admin workflows.
 
@@ -268,7 +290,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/lookups/doc_
 ```json
 [ { "rev_status_id": 2, "rev_status_name": "In review" } ]
 ```
-# Files
+## Files
 
 Create conventions:
 - `POST` (Create) returns `201 Created`.
@@ -397,7 +419,7 @@ curl -sS -H "Accept: application/octet-stream" \
 <binary>
 ```
 
-# Files (commented)
+## Files (commented)
 
 Create conventions:
 - `POST` (Create) returns `201 Created`.
@@ -492,7 +514,7 @@ curl -sS -H "Accept: application/octet-stream" \
 ```
 - `Content-Disposition` filename is `<original>_commented_by_<user_acronym>`.
 
-# Persons/users/permissions
+## Persons/users/permissions
 
 These endpoints are read-only via API; create/update/delete is handled via seed/admin workflows.
 
@@ -596,7 +618,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/people/permi
 ```json
 [ { "permission_id": 42, "user_id": 7, "project_id": 3, "discipline_id": 2, "user_acronym": "ALV", "person_name": "Ada Lovelace", "project_name": "Delta Expansion", "discipline_name": "Piping" } ]
 ```
-# Docs
+## Docs
 
 Create conventions:
 - `POST` (Create) returns `201 Created`.
@@ -918,6 +940,227 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Permissions: none enforced by API (auth TBD).
 - Side effects: hard delete cascades to revisions/files/comments; voiding updates the document only.
 
+## Distribution Lists
+Shape (distribution list):
+```json
+{
+  "dist_id": 1,
+  "distribution_list_name": "Review Team"
+}
+```
+Shape (distribution list member):
+```json
+{
+  "dist_id": 1,
+  "user_id": 2,
+  "person_id": 2,
+  "user_acronym": "FDQC",
+  "person_name": "Aleksey Krutskih"
+}
+```
+Schema references:
+- Create list: `api/schemas/distribution_lists.py` `DistributionListCreate`
+- List row: `api/schemas/distribution_lists.py` `DistributionListOut`
+- Add member: `api/schemas/distribution_lists.py` `DistributionListMemberCreate`
+- Member row: `api/schemas/distribution_lists.py` `DistributionListMemberOut`
+Backend implementation:
+- Router: `api/routers/distribution_lists.py`
+- DB functions: `workflow.create_distribution_list`, `workflow.delete_distribution_list`, `workflow.add_distribution_list_member`, `workflow.remove_distribution_list_member`
+
+### List
+- `GET /api/v1/distribution-lists` — 200; returns all distribution lists ordered by name and id.
+- Headers: `Accept: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" \
+  http://localhost:4175/api/v1/distribution-lists
+```
+
+### Create
+- `POST /api/v1/distribution-lists` — 201; creates a global distribution list.
+- Headers: `Accept: application/json`, `Content-Type: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{ "distribution_list_name": "Review Team" }' \
+  http://localhost:4175/api/v1/distribution-lists
+```
+- Example response:
+```json
+{ "dist_id": 1, "distribution_list_name": "Review Team" }
+```
+
+### Delete
+- `DELETE /api/v1/distribution-lists/{dist_id}` — 200 with `{ "result": "ok" }`; removes the list and membership rows.
+- Returns `409` if the list is referenced by notifications.
+- Headers: `Accept: application/json`
+- Example request:
+```bash
+curl -sS -X DELETE -H "Accept: application/json" \
+  http://localhost:4175/api/v1/distribution-lists/1
+```
+
+### List members
+- `GET /api/v1/distribution-lists/{dist_id}/members` — 200; returns users in the list.
+- Returns `404` if distribution list does not exist.
+- Headers: `Accept: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" \
+  http://localhost:4175/api/v1/distribution-lists/1/members
+```
+
+### Add member
+- `POST /api/v1/distribution-lists/{dist_id}/members` — 201; adds user membership.
+- Headers: `Accept: application/json`, `Content-Type: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{ "user_id": 2 }' \
+  http://localhost:4175/api/v1/distribution-lists/1/members
+```
+- Example response:
+```json
+{
+  "dist_id": 1,
+  "user_id": 2,
+  "person_id": 2,
+  "user_acronym": "FDQC",
+  "person_name": "Aleksey Krutskih"
+}
+```
+
+### Remove member
+- `DELETE /api/v1/distribution-lists/{dist_id}/members/{user_id}` — 200 with `{ "result": "ok" }`; removes user membership.
+- Headers: `Accept: application/json`
+- Example request:
+```bash
+curl -sS -X DELETE -H "Accept: application/json" \
+  http://localhost:4175/api/v1/distribution-lists/1/members/2
+```
+
+## Notifications
+Shape (inbox item):
+```json
+{
+  "notification_id": 10,
+  "sender_user_id": 1,
+  "event_type": "regular",
+  "title": "Review update",
+  "body": "Please review the latest revision.",
+  "remark": "manual send",
+  "rev_id": 51,
+  "commented_file_id": null,
+  "created_at": "2026-02-06T18:20:00Z",
+  "dropped_at": null,
+  "dropped_by_user_id": null,
+  "superseded_by_notification_id": null,
+  "recipient_user_id": 2,
+  "delivered_at": "2026-02-06T18:20:00Z",
+  "read_at": null
+}
+```
+Schema references:
+- Create: `api/schemas/notifications.py` `NotificationCreate`
+- Replace: `api/schemas/notifications.py` `NotificationReplace`
+- Delete: `api/schemas/notifications.py` `NotificationDelete`
+- Read mark: `api/schemas/notifications.py` `NotificationMarkRead`
+- Inbox rows: `api/schemas/notifications.py` `NotificationOut`
+- Action result: `api/schemas/notifications.py` `NotificationActionResult`
+Backend implementation:
+- Router: `api/routers/notifications.py`
+- DB functions: `workflow.create_notification`, `workflow.replace_notification`, `workflow.delete_notification`, `workflow.mark_notification_read`
+
+### Create
+- `POST /api/v1/notifications` — 201; creates notification, resolves recipients, stores unread delivery rows.
+- Headers: `Accept: application/json`, `Content-Type: application/json`
+- Optional header/body sender resolution:
+  - `sender_user_id` may be provided in body.
+  - If omitted, API uses `X-User-Id` session user.
+  - If neither is available, returns `400`.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -H "X-User-Id: 1" \
+  -d '{
+    "title": "Review update",
+    "body": "Please review revision 51",
+    "rev_id": 51,
+    "recipient_user_ids": [2],
+    "recipient_dist_ids": [1],
+    "remark": "manual send"
+  }' \
+  http://localhost:4175/api/v1/notifications
+```
+- Example response:
+```json
+{ "notification_id": 10, "recipient_count": 3 }
+```
+
+### List (recipient inbox)
+- `GET /api/v1/notifications` — 200; returns recipient inbox rows ordered by `delivered_at DESC, notification_id DESC`.
+- Recipient resolution:
+  - Query `recipient_user_id` is optional.
+  - If omitted, API uses `X-User-Id`.
+  - If neither is available, returns `400`.
+- Query params:
+  - `recipient_user_id` (int, optional)
+  - `unread_only` (bool, optional)
+  - `sender_user_id` (int, optional)
+  - `date_from` / `date_to` (ISO datetime, optional)
+- Validation:
+  - `date_from > date_to` returns `400`.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" \
+  "http://localhost:4175/api/v1/notifications?recipient_user_id=2&unread_only=true"
+```
+
+### Replace
+- `POST /api/v1/notifications/{notification_id}/replace` — 200; drops original notification and creates linked `changed_notice`.
+- Headers: `Accept: application/json`, `Content-Type: application/json`, `X-User-Id` (required)
+- Permissions: sender or superuser only.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -H "X-User-Id: 1" \
+  -d '{ "title": "Review update (changed)", "body": "Updated message", "remark": "changed" }' \
+  http://localhost:4175/api/v1/notifications/10/replace
+```
+
+### Drop
+- `POST /api/v1/notifications/{notification_id}/delete` — 200; drops original notification and creates linked `dropped_notice`.
+- Headers: `Accept: application/json`, `Content-Type: application/json`, `X-User-Id` (required)
+- Permissions: sender or superuser only.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -H "X-User-Id: 1" \
+  -d '{ "remark": "no longer valid" }' \
+  http://localhost:4175/api/v1/notifications/10/delete
+```
+
+### Mark as read
+- `POST /api/v1/notifications/{notification_id}/read` — 200; marks current recipient delivery row as read (idempotent).
+- Headers: `Accept: application/json`, `Content-Type: application/json`, `X-User-Id` (required)
+- Request body: empty JSON `{}`.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -H "X-User-Id: 2" \
+  -d '{}' \
+  http://localhost:4175/api/v1/notifications/10/read
+```
+- Example response:
+```json
+{
+  "notification_id": 10,
+  "recipient_user_id": 2,
+  "delivered_at": "2026-02-06T18:20:00Z",
+  "read_at": "2026-02-06T18:30:00Z"
+}
+```
+
 ## Error responses
 - `400` — Validation failed (missing required fields, duplicate/uniqueness, duplicate permissions, etc.).
 - `404` — Resource not found or empty table.
@@ -925,3 +1168,8 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 ```json
 { "detail": "Reason for failure" }
 ```
+
+## References
+- `api/routers/`
+- `api/schemas/`
+- `documentation/api_db_rules.md`

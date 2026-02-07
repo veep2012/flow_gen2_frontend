@@ -40,6 +40,9 @@ TEST_DB_HOST ?= localhost
 TEST_DB_NAME ?= flow_db_test
 TEST_DB_USER ?= postgres
 TEST_DB_PASSWORD ?= postgres
+TEST_API_PORT ?= 4175
+TEST_UI_PORT ?= 5174
+PLAYWRIGHT_PORT ?= $(TEST_UI_PORT)
 
 PID_DIR := .local
 KEYCLOAK_LOG_DIR := $(CURDIR)/.local/keycloak
@@ -91,28 +94,17 @@ ensure-keycloak-log-dir:
 .PHONY: help
 help: | ensure-pid-dir ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
-	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down minio-up minio-down up down build rebuild completely-rebuild logs help test audit mypy lint; do \
+	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-up test-down test-ui-unit test-ui-e2e test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down minio-up minio-down up up-no-keycloak down build rebuild completely-rebuild logs help test audit mypy lint; do \
 		grep -E "^$${target} " .local/.make-help.tmp || true; \
 	done
 	@rm -f .local/.make-help.tmp
 
 .PHONY: test
 test: | ensure-pid-dir ## Run unit tests
-	$(MAKE) test-db-up
-	$(MAKE) test-minio-up
-	APP_DATABASE_URL=postgresql+psycopg://$(APP_DB_USER):$(APP_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
-		MINIO_ENDPOINT=$(TEST_MINIO_ENDPOINT) \
-		MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
-		MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
-		MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
-		ENV=ci_test \
-		API_PORT=4175 \
-		PID_FILE="$(PID_DIR)/uvicorn-test.pid" \
-		LOG_FILE="$(PID_DIR)/uvicorn-test.log" \
-		$(LOCAL_API_CMD)
+	$(MAKE) test-up
 	@ready=; \
 	for i in 1 2 3; do \
-		API_BASE=http://localhost:4175 API_PREFIX= API_WAIT_TIMEOUT=$(API_WAIT_TIMEOUT) $(PYTHON_BIN) scripts/wait-for-api.py && ready=1 && break; \
+		API_BASE=http://localhost:$(TEST_API_PORT) API_PREFIX= API_WAIT_TIMEOUT=$(API_WAIT_TIMEOUT) $(PYTHON_BIN) scripts/wait-for-api.py && ready=1 && break; \
 		PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
 		APP_DATABASE_URL=postgresql+psycopg://$(APP_DB_USER):$(APP_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
 			MINIO_ENDPOINT=$(TEST_MINIO_ENDPOINT) \
@@ -120,7 +112,7 @@ test: | ensure-pid-dir ## Run unit tests
 			MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
 			MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
 			ENV=ci_test \
-			API_PORT=4175 \
+			API_PORT=$(TEST_API_PORT) \
 			PID_FILE="$(PID_DIR)/uvicorn-test.pid" \
 			LOG_FILE="$(PID_DIR)/uvicorn-test.log" \
 			$(LOCAL_API_CMD); \
@@ -129,7 +121,15 @@ test: | ensure-pid-dir ## Run unit tests
 	pytest -m "not api_smoke"; \
 	status=$$?; \
 	if [ $$status -eq 0 ]; then \
-		API_BASE=http://localhost:4175 API_PREFIX=/api/v1 pytest -m api_smoke; \
+		API_BASE=http://localhost:$(TEST_API_PORT) API_PREFIX=/api/v1 pytest -m api_smoke; \
+		status=$$?; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		$(MAKE) test-ui-unit; \
+		status=$$?; \
+	fi; \
+	if [ $$status -eq 0 ]; then \
+		PLAYWRIGHT_PORT=$(PLAYWRIGHT_PORT) TEST_API_PORT=$(TEST_API_PORT) $(MAKE) test-ui-e2e; \
 		status=$$?; \
 	fi; \
 	if [ $$status -eq 0 ]; then \
@@ -140,10 +140,45 @@ test: | ensure-pid-dir ## Run unit tests
 		$(MAKE) lint; \
 		status=$$?; \
 	fi; \
-	PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
-	$(MAKE) test-db-down; \
-	$(MAKE) test-minio-down; \
+	$(MAKE) test-down; \
 	exit $$status
+
+.PHONY: test-up
+test-up: | ensure-pid-dir ## Start test DB, MinIO, and API
+	$(MAKE) test-db-up
+	$(MAKE) test-minio-up
+	APP_DATABASE_URL=postgresql+psycopg://$(APP_DB_USER):$(APP_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
+		MINIO_ENDPOINT=$(TEST_MINIO_ENDPOINT) \
+		MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
+		MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
+		MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
+		ENV=ci_test \
+		API_PORT=$(TEST_API_PORT) \
+		PID_FILE="$(PID_DIR)/uvicorn-test.pid" \
+		LOG_FILE="$(PID_DIR)/uvicorn-test.log" \
+		$(LOCAL_API_CMD)
+
+.PHONY: test-down
+test-down: ## Stop test API, MinIO, and DB
+	PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true
+	$(MAKE) test-db-down
+	$(MAKE) test-minio-down
+
+.PHONY: test-ui-unit
+test-ui-unit: ## Run UI unit tests when configured
+	@if node -e "const s=require('./ui/package.json').scripts||{};process.exit(s.test?0:1)"; then \
+		cd ui && npm test; \
+	else \
+		echo "Skipping test-ui-unit: ui/package.json has no 'test' script"; \
+	fi
+
+.PHONY: test-ui-e2e
+test-ui-e2e: ## Run UI e2e tests when configured
+	@if node -e "const s=require('./ui/package.json').scripts||{};process.exit(s['test:e2e']?0:1)"; then \
+		cd ui && PLAYWRIGHT_PORT=$(PLAYWRIGHT_PORT) TEST_API_PORT=$(TEST_API_PORT) npm run test:e2e; \
+	else \
+		echo "Skipping test-ui-e2e: ui/package.json has no 'test:e2e' script"; \
+	fi
 
 .PHONY: audit audit-python audit-node
 audit: audit-python audit-node ## Run dependency vulnerability audits
@@ -175,6 +210,10 @@ build: ## Build services with compose
 .PHONY: up
 up: ensure-keycloak-log-dir ## Start services with compose
 	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) up -d
+
+.PHONY: up-no-keycloak
+up-no-keycloak: ## Start compose services without keycloak/oauth2/nginx
+	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) up -d postgres minio minio_init api ui
 
 .PHONY: down
 down: ## Stop services with compose

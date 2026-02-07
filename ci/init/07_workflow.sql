@@ -692,4 +692,439 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION workflow.is_superuser(
+    p_user_id SMALLINT
+) RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ref, pg_temp
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM ref.users u
+        JOIN ref.roles r ON r.role_id = u.role_id
+        WHERE u.user_id = p_user_id
+          AND lower(r.role_name) IN ('superuser', 'admin')
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.create_notification(
+    p_sender_user_id SMALLINT,
+    p_title VARCHAR,
+    p_body TEXT,
+    p_rev_id INTEGER,
+    p_commented_file_id INTEGER DEFAULT NULL,
+    p_direct_user_ids SMALLINT[] DEFAULT NULL,
+    p_dist_ids SMALLINT[] DEFAULT NULL,
+    p_event_type VARCHAR DEFAULT 'regular',
+    p_remark TEXT DEFAULT NULL
+) RETURNS TABLE(notification_id INTEGER, recipient_count INTEGER)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+DECLARE
+    v_notification_id INTEGER;
+BEGIN
+    IF p_event_type NOT IN ('regular', 'changed_notice', 'dropped_notice') THEN
+        RAISE EXCEPTION 'Invalid notification event type';
+    END IF;
+
+    PERFORM 1 FROM ref.users WHERE user_id = p_sender_user_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Sender user not found';
+    END IF;
+
+    PERFORM 1 FROM core.doc_revision WHERE rev_id = p_rev_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Revision not found';
+    END IF;
+
+    IF p_commented_file_id IS NOT NULL THEN
+        PERFORM 1
+        FROM core.files_commented fc
+        JOIN core.files f ON f.id = fc.file_id
+        WHERE fc.id = p_commented_file_id
+          AND f.rev_id = p_rev_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Commented file does not belong to revision';
+        END IF;
+    END IF;
+
+    INSERT INTO core.notifications (
+        sender_user_id,
+        event_type,
+        title,
+        body,
+        remark,
+        rev_id,
+        commented_file_id,
+        superseded_by_notification_id
+    ) VALUES (
+        p_sender_user_id,
+        p_event_type,
+        p_title,
+        p_body,
+        p_remark,
+        p_rev_id,
+        p_commented_file_id,
+        NULL
+    )
+    RETURNING core.notifications.notification_id INTO v_notification_id;
+
+    INSERT INTO core.notification_targets (notification_id, recipient_user_id)
+    SELECT v_notification_id, u.user_id
+    FROM (
+        SELECT DISTINCT x.user_id
+        FROM unnest(COALESCE(p_direct_user_ids, ARRAY[]::SMALLINT[])) AS x(user_id)
+    ) d
+    JOIN ref.users u ON u.user_id = d.user_id;
+
+    INSERT INTO core.notification_targets (notification_id, recipient_dist_id)
+    SELECT v_notification_id, dl.dist_id
+    FROM (
+        SELECT DISTINCT x.dist_id
+        FROM unnest(COALESCE(p_dist_ids, ARRAY[]::SMALLINT[])) AS x(dist_id)
+    ) d
+    JOIN ref.distribution_list dl ON dl.dist_id = d.dist_id;
+
+    INSERT INTO core.notification_recipients (notification_id, recipient_user_id)
+    SELECT v_notification_id, r.user_id
+    FROM (
+        SELECT nt.recipient_user_id AS user_id
+        FROM core.notification_targets nt
+        WHERE nt.notification_id = v_notification_id
+          AND nt.recipient_user_id IS NOT NULL
+
+        UNION
+
+        SELECT u.user_id
+        FROM core.notification_targets nt
+        JOIN ref.distribution_list_content dlc
+            ON dlc.dist_id = nt.recipient_dist_id
+        JOIN ref.users u
+            ON u.user_id = dlc.user_id
+        WHERE nt.notification_id = v_notification_id
+          AND nt.recipient_dist_id IS NOT NULL
+    ) r
+    ON CONFLICT DO NOTHING;
+
+    SELECT COUNT(*)
+    INTO recipient_count
+    FROM core.notification_recipients nr
+    WHERE nr.notification_id = v_notification_id;
+
+    IF recipient_count = 0 THEN
+        RAISE EXCEPTION 'No valid recipients resolved for notification';
+    END IF;
+
+    notification_id := v_notification_id;
+    RETURN NEXT;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.replace_notification(
+    p_actor_user_id SMALLINT,
+    p_notification_id INTEGER,
+    p_title VARCHAR,
+    p_body TEXT,
+    p_remark TEXT DEFAULT 'changed'
+) RETURNS TABLE(notification_id INTEGER, recipient_count INTEGER)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+DECLARE
+    v_old core.notifications%ROWTYPE;
+    v_is_superuser BOOLEAN;
+    v_new_notification_id INTEGER;
+BEGIN
+    SELECT * INTO v_old
+    FROM core.notifications
+    WHERE core.notifications.notification_id = p_notification_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Notification not found';
+    END IF;
+
+    IF v_old.dropped_at IS NOT NULL THEN
+        RAISE EXCEPTION 'Notification is already dropped';
+    END IF;
+
+    SELECT workflow.is_superuser(p_actor_user_id) INTO v_is_superuser;
+    IF p_actor_user_id <> v_old.sender_user_id AND NOT COALESCE(v_is_superuser, FALSE) THEN
+        RAISE EXCEPTION 'Only sender or superuser can replace notification';
+    END IF;
+
+    UPDATE core.notifications
+    SET dropped_at = CURRENT_TIMESTAMP,
+        dropped_by_user_id = p_actor_user_id
+    WHERE core.notifications.notification_id = p_notification_id;
+
+    INSERT INTO core.notifications (
+        sender_user_id,
+        event_type,
+        title,
+        body,
+        remark,
+        rev_id,
+        commented_file_id
+    ) VALUES (
+        v_old.sender_user_id,
+        'changed_notice',
+        p_title,
+        p_body,
+        COALESCE(p_remark, 'changed'),
+        v_old.rev_id,
+        v_old.commented_file_id
+    )
+    RETURNING core.notifications.notification_id INTO v_new_notification_id;
+
+    INSERT INTO core.notification_targets (notification_id, recipient_user_id, recipient_dist_id)
+    SELECT v_new_notification_id, nt.recipient_user_id, nt.recipient_dist_id
+    FROM core.notification_targets nt
+    WHERE nt.notification_id = p_notification_id;
+
+    INSERT INTO core.notification_recipients (notification_id, recipient_user_id)
+    SELECT v_new_notification_id, nr.recipient_user_id
+    FROM core.notification_recipients nr
+    WHERE nr.notification_id = p_notification_id
+    ON CONFLICT DO NOTHING;
+
+    UPDATE core.notifications
+    SET superseded_by_notification_id = v_new_notification_id
+    WHERE core.notifications.notification_id = p_notification_id;
+
+    SELECT COUNT(*)
+    INTO recipient_count
+    FROM core.notification_recipients nr
+    WHERE nr.notification_id = v_new_notification_id;
+
+    notification_id := v_new_notification_id;
+    RETURN NEXT;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.delete_notification(
+    p_actor_user_id SMALLINT,
+    p_notification_id INTEGER,
+    p_remark TEXT DEFAULT 'dropped'
+) RETURNS TABLE(notification_id INTEGER, recipient_count INTEGER)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+DECLARE
+    v_old core.notifications%ROWTYPE;
+    v_is_superuser BOOLEAN;
+    v_new_notification_id INTEGER;
+BEGIN
+    SELECT * INTO v_old
+    FROM core.notifications
+    WHERE core.notifications.notification_id = p_notification_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Notification not found';
+    END IF;
+
+    IF v_old.dropped_at IS NOT NULL THEN
+        RAISE EXCEPTION 'Notification is already dropped';
+    END IF;
+
+    SELECT workflow.is_superuser(p_actor_user_id) INTO v_is_superuser;
+    IF p_actor_user_id <> v_old.sender_user_id AND NOT COALESCE(v_is_superuser, FALSE) THEN
+        RAISE EXCEPTION 'Only sender or superuser can drop notification';
+    END IF;
+
+    UPDATE core.notifications
+    SET dropped_at = CURRENT_TIMESTAMP,
+        dropped_by_user_id = p_actor_user_id
+    WHERE core.notifications.notification_id = p_notification_id;
+
+    INSERT INTO core.notifications (
+        sender_user_id,
+        event_type,
+        title,
+        body,
+        remark,
+        rev_id,
+        commented_file_id
+    ) VALUES (
+        p_actor_user_id,
+        'dropped_notice',
+        'Notification dropped',
+        format(
+            'Previous notification #%s was dropped.',
+            p_notification_id
+        ),
+        COALESCE(p_remark, 'dropped'),
+        v_old.rev_id,
+        v_old.commented_file_id
+    )
+    RETURNING core.notifications.notification_id INTO v_new_notification_id;
+
+    INSERT INTO core.notification_targets (notification_id, recipient_user_id, recipient_dist_id)
+    SELECT v_new_notification_id, nt.recipient_user_id, nt.recipient_dist_id
+    FROM core.notification_targets nt
+    WHERE nt.notification_id = p_notification_id;
+
+    INSERT INTO core.notification_recipients (notification_id, recipient_user_id)
+    SELECT v_new_notification_id, nr.recipient_user_id
+    FROM core.notification_recipients nr
+    WHERE nr.notification_id = p_notification_id
+    ON CONFLICT DO NOTHING;
+
+    UPDATE core.notifications
+    SET superseded_by_notification_id = v_new_notification_id
+    WHERE core.notifications.notification_id = p_notification_id;
+
+    SELECT COUNT(*)
+    INTO recipient_count
+    FROM core.notification_recipients nr
+    WHERE nr.notification_id = v_new_notification_id;
+
+    notification_id := v_new_notification_id;
+    RETURN NEXT;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.mark_notification_read(
+    p_notification_id INTEGER,
+    p_recipient_user_id SMALLINT
+) RETURNS core.notification_recipients
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+DECLARE
+    v_row core.notification_recipients%ROWTYPE;
+BEGIN
+    UPDATE core.notification_recipients
+    SET read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+    WHERE notification_id = p_notification_id
+      AND recipient_user_id = p_recipient_user_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Notification delivery row not found';
+    END IF;
+
+    SELECT *
+    INTO v_row
+    FROM core.notification_recipients
+    WHERE notification_id = p_notification_id
+      AND recipient_user_id = p_recipient_user_id;
+
+    RETURN v_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.create_distribution_list(
+    p_distribution_list_name VARCHAR
+) RETURNS ref.distribution_list
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+DECLARE
+    v_row ref.distribution_list%ROWTYPE;
+BEGIN
+    INSERT INTO ref.distribution_list (
+        distribution_list_name
+    ) VALUES (
+        p_distribution_list_name
+    )
+    RETURNING * INTO v_row;
+
+    RETURN v_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.delete_distribution_list(
+    p_dist_id SMALLINT
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+BEGIN
+    PERFORM 1 FROM ref.distribution_list WHERE dist_id = p_dist_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Distribution list not found';
+    END IF;
+
+    PERFORM 1
+    FROM core.notification_targets
+    WHERE recipient_dist_id = p_dist_id
+    LIMIT 1;
+    IF FOUND THEN
+        RAISE EXCEPTION 'Distribution list is referenced by notifications';
+    END IF;
+
+    DELETE FROM ref.distribution_list_content
+    WHERE dist_id = p_dist_id;
+
+    DELETE FROM ref.distribution_list
+    WHERE dist_id = p_dist_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.add_distribution_list_member(
+    p_dist_id SMALLINT,
+    p_user_id SMALLINT
+) RETURNS ref.distribution_list_content
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+DECLARE
+    v_row ref.distribution_list_content%ROWTYPE;
+BEGIN
+    PERFORM 1 FROM ref.distribution_list WHERE dist_id = p_dist_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Distribution list not found';
+    END IF;
+
+    PERFORM 1 FROM ref.users WHERE user_id = p_user_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'User not found';
+    END IF;
+
+    INSERT INTO ref.distribution_list_content (
+        dist_id,
+        user_id
+    ) VALUES (
+        p_dist_id,
+        p_user_id
+    )
+    RETURNING * INTO v_row;
+
+    RETURN v_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.remove_distribution_list_member(
+    p_dist_id SMALLINT,
+    p_user_id SMALLINT
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+BEGIN
+    PERFORM 1
+    FROM ref.distribution_list_content
+    WHERE dist_id = p_dist_id
+      AND user_id = p_user_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Distribution list member not found';
+    END IF;
+
+    DELETE FROM ref.distribution_list_content
+    WHERE dist_id = p_dist_id
+      AND user_id = p_user_id;
+END;
+$$;
+
 -- --------------------------------------------------------

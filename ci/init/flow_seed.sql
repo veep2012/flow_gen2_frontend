@@ -32,10 +32,10 @@ INSERT INTO projects (project_id, project_name) VALUES
 (10,'PR-2345-DSN-0003-010');
 
 -- Person
-INSERT INTO person (person_id, person_name, photo_s3_uid) VALUES 
-(1,'ZHANDOS MYLTYKBAYEV',NULL),(2,'ALEKSEY KRUTSKIH',NULL),
-(3,'ASYLKHAN BOKHAYEV',NULL),(4,'KONSTANTIN NI',NULL),
-(5,'IVANOV IVANOV',NULL);
+INSERT INTO person (person_id, person_name, photo_s3_uid, email) VALUES 
+(1,'ZHANDOS MYLTYKBAYEV',NULL,NULL),(2,'ALEKSEY KRUTSKIH',NULL,NULL),
+(3,'ASYLKHAN BOKHAYEV',NULL,NULL),(4,'KONSTANTIN NI',NULL,NULL),
+(5,'IVANOV IVANOV',NULL,NULL);
 
 -- Doc Types (Truncated list for brevity, ensures key disciplines exist)
 INSERT INTO doc_types (type_id, doc_type_name, ref_discipline_id, doc_type_acronym) VALUES 

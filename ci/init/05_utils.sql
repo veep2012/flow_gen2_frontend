@@ -66,6 +66,14 @@ CREATE TRIGGER tr_files_commented_set_created_by
 BEFORE INSERT ON core.files_commented
 FOR EACH ROW EXECUTE FUNCTION core.fn_set_created_by();
 
+CREATE TRIGGER tr_notifications_update_timestamp
+BEFORE UPDATE ON core.notifications
+FOR EACH ROW EXECUTE FUNCTION core.fn_update_timestamp();
+
+CREATE TRIGGER tr_notifications_set_created_by
+BEFORE INSERT ON core.notifications
+FOR EACH ROW EXECUTE FUNCTION core.fn_set_created_by();
+
 CREATE OR REPLACE FUNCTION core.fn_files_commented_check_mimetype() RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
