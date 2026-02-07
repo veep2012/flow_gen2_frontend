@@ -1,7 +1,7 @@
 # Distribution List Feature (Merged)
 
 ## Document Control
-- Status: Review
+- Status: Archived
 - Owner: Backend and Frontend Team
 - Reviewers: API and UI maintainers
 - Created: 2026-02-06
