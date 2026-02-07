@@ -19,7 +19,7 @@
 - `notifications_and_dls.md` - Unified Notifications + Distribution Lists module (active source of truth).
 - `distribution_list_feature.md` - Archived pointer; merged into `notifications_and_dls.md`.
 - `distribution_list_implementation.md` - Archived pointer; merged into `notifications_and_dls.md`.
-- `USER_DATA_AVAILABLE.md` - User/person/role data availability summary.
+- `user_data_available.md` - User/person/role data availability summary.
 
 ## Test Scenarios
 - `test_scenarios/audit_fields_api_test_scenarios.md` - Scenario contract for audit-field API smoke tests.
