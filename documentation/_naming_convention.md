@@ -4,7 +4,7 @@
 Define filename rules for all Markdown files in `documentation/`.
 
 ## Rules
-- Use lowercase only.
+- Use lowercase only for every Markdown filename under `documentation/` (including subfolders).
 - Use underscores as word separators.
 - Use `.md` extension for Markdown files.
 - Use a leading underscore for helper/control files that are not product/feature documentation:
@@ -27,3 +27,5 @@ Define filename rules for all Markdown files in `documentation/`.
 ## Migration Guidance
 - When touching an existing file, rename it to this convention if safe.
 - Update all references in docs, skills, and `AGENTS.md` in the same change.
+- Verify compliance with:
+  - `find documentation -type f -name '*.md' | rg '[A-Z]'`

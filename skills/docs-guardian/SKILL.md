@@ -34,8 +34,10 @@ For each target file in `documentation/`:
 - Confirm `Document Control` is present with status, owner, and dates.
 - Confirm `References` section exists.
 - Confirm filename follows lowercase underscore convention.
+- Confirm no uppercase characters exist in any `documentation/*.md` filename.
 - Confirm helper/control files use `_` prefix.
 - Confirm any new/renamed documentation files are added to `documentation/_documentation-index.md`.
+ - Run `find documentation -type f -name '*.md' | rg '[A-Z]'` and require empty output.
 
 ### Step 4: Normalize and tighten content
 - Keep wording implementation-focused and concise.

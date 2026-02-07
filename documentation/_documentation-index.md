@@ -17,7 +17,7 @@
 
 ## Feature and Domain Docs
 - `notifications_and_dls.md` - Unified Notifications + Distribution Lists module (active source of truth).
-- `DISTRIBUTION_LIST_FEATURE.md` - Archived pointer; merged into `notifications_and_dls.md`.
+- `distribution_list_feature.md` - Archived pointer; merged into `notifications_and_dls.md`.
 - `distribution_list_implementation.md` - Archived pointer; merged into `notifications_and_dls.md`.
 - `USER_DATA_AVAILABLE.md` - User/person/role data availability summary.
 

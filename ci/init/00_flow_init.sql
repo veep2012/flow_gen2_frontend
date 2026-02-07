@@ -1413,8 +1413,7 @@ CREATE OR REPLACE FUNCTION workflow.create_notification(
     p_direct_user_ids SMALLINT[] DEFAULT NULL,
     p_dist_ids SMALLINT[] DEFAULT NULL,
     p_event_type VARCHAR DEFAULT 'regular',
-    p_remark TEXT DEFAULT NULL,
-    p_supersedes_notification_id INTEGER DEFAULT NULL
+    p_remark TEXT DEFAULT NULL
 ) RETURNS TABLE(notification_id INTEGER, recipient_count INTEGER)
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1448,13 +1447,6 @@ BEGIN
         END IF;
     END IF;
 
-    IF p_supersedes_notification_id IS NOT NULL THEN
-        PERFORM 1 FROM core.notifications WHERE notification_id = p_supersedes_notification_id;
-        IF NOT FOUND THEN
-            RAISE EXCEPTION 'Superseded notification not found';
-        END IF;
-    END IF;
-
     INSERT INTO core.notifications (
         sender_user_id,
         event_type,
@@ -1472,7 +1464,7 @@ BEGIN
         p_remark,
         p_rev_id,
         p_commented_file_id,
-        p_supersedes_notification_id
+        NULL
     )
     RETURNING core.notifications.notification_id INTO v_notification_id;
 
@@ -1960,7 +1952,7 @@ GRANT EXECUTE ON FUNCTION workflow.delete_file(INTEGER) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.create_file_commented(INTEGER, INTEGER, TEXT, VARCHAR) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.delete_file_commented(INTEGER) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.create_notification(
-    SMALLINT, VARCHAR, TEXT, INTEGER, INTEGER, SMALLINT[], SMALLINT[], VARCHAR, TEXT, INTEGER
+    SMALLINT, VARCHAR, TEXT, INTEGER, INTEGER, SMALLINT[], SMALLINT[], VARCHAR, TEXT
 ) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.replace_notification(
     SMALLINT, INTEGER, VARCHAR, TEXT, TEXT

@@ -27,6 +27,7 @@ Use for any of the following:
 
 ### Step 1: Create/Update scenario doc first
 - Ensure a scenario file exists in `documentation/test_scenarios/`.
+- Scenario filenames must be lowercase only (no uppercase characters).
 - Add `Document Control` metadata updates.
 - Define stable scenario IDs (for example: `TS-DL-001`).
 - For each scenario include:
@@ -54,6 +55,8 @@ Use for any of the following:
 - If scenario docs changed, update tests in the same change.
 - Reject partial updates that only modify one side when linkage is affected.
 - Resolve ambiguity by tightening the scenario doc first, then update tests accordingly in the same change.
+- Verify `documentation/` has no uppercase markdown filenames before finalizing:
+  - `find documentation -type f -name '*.md' | rg '[A-Z]'`
 
 ## Output Requirements
 

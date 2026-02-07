@@ -6,6 +6,7 @@ Navigation starts from `documentation/_documentation-index.md`.
 
 ## 1. File Naming
 - Use lowercase with underscores: `topic_name.md`.
+- Uppercase letters in Markdown filenames under `documentation/` are not allowed.
 - Prefer descriptive names over abbreviations.
 - Keep one primary topic per file.
 - For helper/control files (standards, templates, conventions), prefix with `_`:
@@ -66,3 +67,9 @@ Use `documentation/_documentation_template.md` as the starting point.
 3. Remove non-applicable optional sections.
 4. Add links to related docs and implementation files.
 5. Add the new file to `documentation/_documentation-index.md`.
+
+## 10. Naming Verification
+- Before finalizing documentation changes, run:
+  - `find documentation -type f -name '*.md' | rg '[A-Z]'`
+- Expected result: no output.
+- If any path is returned, rename it to lowercase and update all references in the same change.

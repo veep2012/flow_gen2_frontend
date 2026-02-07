@@ -152,8 +152,7 @@ def create_notification(
                         :recipient_user_ids,
                         :recipient_dist_ids,
                         :event_type,
-                        :remark,
-                        :supersedes_notification_id
+                        :remark
                     )
                     """
                 ),
@@ -167,7 +166,6 @@ def create_notification(
                     "recipient_dist_ids": payload.recipient_dist_ids,
                     "event_type": "regular",
                     "remark": payload.remark,
-                    "supersedes_notification_id": None,
                 },
             )
             .mappings()
