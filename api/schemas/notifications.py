@@ -40,12 +40,12 @@ class NotificationCreate(BaseModel):
         gt=0,
     )
     recipient_user_ids: list[int] = Field(
-        default=[],
+        default_factory=list,
         description="Direct recipient user IDs.",
         examples=[[2, 3]],
     )
     recipient_dist_ids: list[int] = Field(
-        default=[],
+        default_factory=list,
         description="Distribution list IDs.",
         examples=[[1, 2]],
     )
