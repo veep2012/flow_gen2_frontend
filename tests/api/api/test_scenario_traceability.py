@@ -214,6 +214,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/notifications_api_test_plan.md",
         ["TS-NTF-005"],
     ),
+    "test_notifications_create_requires_at_least_one_recipient_target": (
+        "documentation/test_scenarios/notifications_api_test_plan.md",
+        ["TS-NTF-006"],
+    ),
 }
 
 TEST_FILES = [

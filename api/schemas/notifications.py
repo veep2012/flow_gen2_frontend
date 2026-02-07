@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class NotificationCreate(BaseModel):
@@ -50,6 +50,14 @@ class NotificationCreate(BaseModel):
         examples=[[1, 2]],
     )
     remark: str | None = Field(None, description="Optional remark.", examples=["manual send"])
+
+    @model_validator(mode="after")
+    def validate_recipients(self) -> "NotificationCreate":
+        if not self.recipient_user_ids and not self.recipient_dist_ids:
+            raise ValueError(
+                "At least one recipient_user_ids or recipient_dist_ids entry is required"
+            )
+        return self
 
 
 class NotificationReplace(BaseModel):

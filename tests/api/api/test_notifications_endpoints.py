@@ -328,3 +328,32 @@ def test_notifications_create_on_behalf_sender():
         row = _find_notification(recipient_inbox["payload"], notification_id)
         assert row is not None
         assert row["sender_user_id"] == user_a
+
+
+@pytest.mark.api_smoke
+def test_notifications_create_requires_at_least_one_recipient_target():
+    with httpx.Client(timeout=10) as client:
+        _, _, _, superuser_id = _resolve_test_users(client)
+        rev_id = _get_first_revision_id(client)
+        if rev_id is None:
+            pytest.skip("No revision available for recipient validation test")
+
+        create = _request(
+            client,
+            "POST",
+            "/notifications",
+            headers={"X-User-Id": str(superuser_id)},
+            json={
+                "title": "No recipients",
+                "body": "No recipients body",
+                "rev_id": rev_id,
+                "recipient_user_ids": [],
+                "recipient_dist_ids": [],
+            },
+        )
+
+        assert create["status"] == 422
+        assert create["payload"] is not None
+        assert "At least one recipient_user_ids or recipient_dist_ids entry is required" in str(
+            create["payload"]
+        )

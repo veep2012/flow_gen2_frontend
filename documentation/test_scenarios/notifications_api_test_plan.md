@@ -26,6 +26,7 @@ Assumption: DB is already up and API is reachable on port `5556`.
 - `TS-NTF-003` Replace by non-sender/non-superuser must be forbidden (`403`).
 - `TS-NTF-004` Mark-read payload must reject `recipient_user_id` field (`422`).
 - `TS-NTF-005` Superuser on-behalf create must persist `sender_user_id`.
+- `TS-NTF-006` Notification create must reject empty `recipient_user_ids` and `recipient_dist_ids`.
 
 Any change to these acceptance criteria must be reflected in:
 - this scenario document
@@ -237,7 +238,25 @@ curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$USER_C" | jq \
   --argjson id "$ON_BEHALF_ID" '.[] | select(.notification_id==$id) | {notification_id,sender_user_id,recipient_user_id,event_type}'
 ```
 
-## 10. TS-DL-003 DL Used in Notification Cannot Be Deleted
+## 10. TS-NTF-006 Create Rejects Empty Recipient Targets
+
+```bash
+curl -i -X POST "$API_BASE$API_PREFIX/notifications" \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: $SUPERUSER_ID" \
+  -d "{
+    \"title\": \"No recipients\",
+    \"body\": \"No recipients body\",
+    \"rev_id\": $REV_ID,
+    \"recipient_user_ids\": [],
+    \"recipient_dist_ids\": []
+  }"
+```
+
+Expected result:
+- returns `422` with validation error mentioning at least one recipient target is required.
+
+## 11. TS-DL-003 DL Used in Notification Cannot Be Deleted
 
 ```bash
 DL_IN_USE=$(curl -s -X POST "$API_BASE$API_PREFIX/distribution-lists" \
@@ -264,7 +283,7 @@ curl -s -X POST "$API_BASE$API_PREFIX/notifications" \
 curl -i -X DELETE "$API_BASE$API_PREFIX/distribution-lists/$DIST_IN_USE_ID"
 ```
 
-## 11. Cleanup
+## 12. Cleanup
 
 ```bash
 # delete unused temporary DL (expected 200)
@@ -286,6 +305,7 @@ curl -s -X DELETE "$API_BASE$API_PREFIX/distribution-lists/$TMP_DIST_ID" | jq
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_replace_forbidden_for_non_sender_non_superuser` -> `TS-NTF-003`
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_mark_read_rejects_payload_user_field` -> `TS-NTF-004`
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_create_on_behalf_sender` -> `TS-NTF-005`
+- `tests/api/api/test_notifications_endpoints.py::test_notifications_create_requires_at_least_one_recipient_target` -> `TS-NTF-006`
 
 ## References
 - `api/routers/notifications.py`
