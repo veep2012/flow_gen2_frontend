@@ -61,7 +61,7 @@ _COMMON_RESPONSES: dict[int | str, dict[str, Any]] = {
 @router.get(
     "",
     summary="List distribution lists.",
-    description="Returns distribution lists, optionally filtered by project_id.",
+    description="Returns all distribution lists.",
     operation_id="list_distribution_lists",
     response_model=list[DistributionListOut],
     responses=_COMMON_RESPONSES,
