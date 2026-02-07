@@ -374,7 +374,7 @@ def drop_notification(
 )
 def mark_notification_read(
     notification_id: int = Path(..., description="Notification ID to mark as read.", gt=0),
-    payload: NotificationMarkRead = Body(..., openapi_examples=_example_for(NotificationMarkRead)),
+    _payload: NotificationMarkRead = Body(..., openapi_examples=_example_for(NotificationMarkRead)),
     db: Session = Depends(get_db),
 ) -> NotificationRecipientStateOut:
     """
