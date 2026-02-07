@@ -1,0 +1,135 @@
+# Files Commented API Test Plan (Curl, Port 5556)
+
+## Document Control
+- Status: Review
+- Owner: Backend Team
+- Reviewers: API maintainers
+- Created: 2026-02-07
+- Last Updated: 2026-02-07
+- Version: v1.1
+
+## Purpose
+Provide repeatable curl-based validation for commented-file endpoints.
+
+## Scope
+- In scope:
+  - list/filter behavior
+  - commented file insert/download/delete
+  - duplicate and validation checks
+- Out of scope:
+  - base files API full validation
+
+## Design / Behavior
+Commented files are user-specific derivatives and must enforce uniqueness for `(file_id, user_id)`.
+
+## 1. Set Env Vars
+
+```bash
+export API_BASE=http://localhost:5556
+export API_PREFIX=/api/v1
+```
+
+## 2. Resolve IDs and Upload Base File
+
+```bash
+PROJECT_ID=$(curl -s "$API_BASE$API_PREFIX/lookups/projects" | jq -r '.[0].project_id')
+DOC_ID=$(curl -s "$API_BASE$API_PREFIX/documents?project_id=$PROJECT_ID" | jq -r '.[0].doc_id')
+REV_ID=$(curl -s "$API_BASE$API_PREFIX/documents/$DOC_ID/revisions" | jq -r '.[0].rev_id')
+USER_ID=$(curl -s "$API_BASE$API_PREFIX/people/users" | jq -r '.[0].user_id')
+TS=$(date +%s)
+
+BASE_FILE=$(curl -s -X POST "$API_BASE$API_PREFIX/files/" \
+  -F "rev_id=$REV_ID" \
+  -F "file=@/etc/hosts;type=application/pdf;filename=base-$TS.pdf")
+FILE_ID=$(echo "$BASE_FILE" | jq -r '.id')
+echo "FILE_ID=$FILE_ID USER_ID=$USER_ID"
+```
+
+## 3. TS-FC-001..003 List Endpoints
+
+```bash
+# TS-FC-001
+curl -i "$API_BASE$API_PREFIX/files/commented/list?file_id=$FILE_ID"
+
+# TS-FC-002
+curl -i "$API_BASE$API_PREFIX/files/commented/list?file_id=$FILE_ID&user_id=$USER_ID"
+
+# TS-FC-003
+curl -i "$API_BASE$API_PREFIX/files/commented/list"
+```
+
+## 4. TS-FC-004 Insert/Download/Delete Flow
+
+```bash
+COMMENTED=$(curl -s -X POST "$API_BASE$API_PREFIX/files/commented/" \
+  -F "file_id=$FILE_ID" \
+  -F "user_id=$USER_ID" \
+  -F "file=@/etc/hosts;type=application/pdf;filename=commented-$TS.pdf")
+echo "$COMMENTED" | jq
+COMMENTED_ID=$(echo "$COMMENTED" | jq -r '.id')
+
+curl -i "$API_BASE$API_PREFIX/files/commented/download?file_id=$COMMENTED_ID"
+curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COMMENTED_ID"
+```
+
+## 5. TS-FC-005..010 Negative Checks
+
+```bash
+# TS-FC-005 duplicate insert
+curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" \
+  -F "file_id=$FILE_ID" \
+  -F "user_id=$USER_ID" \
+  -F "file=@/etc/hosts;type=application/pdf;filename=dup-$TS.pdf"
+
+# TS-FC-006 delete missing
+curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/999999"
+
+# TS-FC-007 download missing
+curl -i "$API_BASE$API_PREFIX/files/commented/download?file_id=999999"
+
+# TS-FC-008 missing fields
+curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" -F "file=@/etc/hosts;type=application/pdf;filename=missing.pdf" -F "user_id=$USER_ID"
+curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" -F "file=@/etc/hosts;type=application/pdf;filename=missing.pdf" -F "file_id=$FILE_ID"
+
+# TS-FC-009 nonexistent references
+curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" -F "file=@/etc/hosts;type=application/pdf;filename=missing.pdf" -F "file_id=999999" -F "user_id=$USER_ID"
+curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" -F "file=@/etc/hosts;type=application/pdf;filename=missing.pdf" -F "file_id=$FILE_ID" -F "user_id=999999"
+
+# TS-FC-010 mimetype mismatch
+curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" \
+  -F "file_id=$FILE_ID" \
+  -F "user_id=$USER_ID" \
+  -F "file=@/etc/hosts;type=application/vnd.openxmlformats-officedocument.wordprocessingml.document;filename=commented-$TS.docx"
+```
+
+## Edge Cases
+- Some environments may return `400` or `415` for mimetype mismatch.
+- If base file creation fails, remaining commented-file checks are blocked.
+
+## Scenario Catalog
+- `TS-FC-001` list commented files by `file_id` succeeds.
+- `TS-FC-002` list commented files by `file_id` and `user_id` succeeds.
+- `TS-FC-003` list without `file_id` is rejected (`422`).
+- `TS-FC-004` insert/list/download/delete commented file succeeds.
+- `TS-FC-005` duplicate commented insert is rejected (`400`).
+- `TS-FC-006` delete missing commented file returns `404`.
+- `TS-FC-007` download missing commented file returns `404`.
+- `TS-FC-008` missing insert fields are rejected (`422`).
+- `TS-FC-009` missing file/user references return `404`.
+- `TS-FC-010` mimetype mismatch rejected (`400`/`415`).
+
+## Automated Test Mapping
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_list` -> `TS-FC-001`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_list_with_user_filter` -> `TS-FC-002`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_list_missing_file_id` -> `TS-FC-003`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_and_download` -> `TS-FC-004`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_duplicate` -> `TS-FC-005`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_delete_nonexistent` -> `TS-FC-006`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_download_nonexistent` -> `TS-FC-007`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_missing_fields` -> `TS-FC-008`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_nonexistent_file_or_user` -> `TS-FC-009`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_mimetype_mismatch` -> `TS-FC-010`
+
+## References
+- `tests/api/api/test_files_commented_endpoints.py`
+- `api/routers/files_commented.py`

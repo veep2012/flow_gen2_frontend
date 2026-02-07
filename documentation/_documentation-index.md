@@ -22,6 +22,12 @@
 - `user_data_available.md` - User/person/role data availability summary.
 
 ## Test Scenarios
+- `test_scenarios/audit_fields_api_test_scenarios.md` - Scenario contract for audit-field API smoke tests.
+- `test_scenarios/cancel_delete_api_test_scenarios.md` - Scenario contract for revision cancel and document delete tests.
+- `test_scenarios/documents_revisions_api_test_scenarios.md` - Scenario contract for revisions list/create/update/status transitions.
+- `test_scenarios/files_api_test_scenarios.md` - Scenario contract for file upload/update/download/validation tests.
+- `test_scenarios/files_commented_api_test_scenarios.md` - Scenario contract for commented-file endpoints.
+- `test_scenarios/get_endpoints_api_test_scenarios.md` - Scenario contract for global GET endpoint smoke validation.
 - `test_scenarios/notifications_api_test_plan.md` - End-to-end curl plan for notification lifecycle API validation.
 
 ## Standards and Templates
