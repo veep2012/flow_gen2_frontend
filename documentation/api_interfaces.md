@@ -940,6 +940,105 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Permissions: none enforced by API (auth TBD).
 - Side effects: hard delete cascades to revisions/files/comments; voiding updates the document only.
 
+## Distribution Lists
+Shape (distribution list):
+```json
+{
+  "dist_id": 1,
+  "distribution_list_name": "Review Team"
+}
+```
+Shape (distribution list member):
+```json
+{
+  "dist_id": 1,
+  "user_id": 2,
+  "person_id": 2,
+  "user_acronym": "FDQC",
+  "person_name": "Aleksey Krutskih"
+}
+```
+Schema references:
+- Create list: `api/schemas/distribution_lists.py` `DistributionListCreate`
+- List row: `api/schemas/distribution_lists.py` `DistributionListOut`
+- Add member: `api/schemas/distribution_lists.py` `DistributionListMemberCreate`
+- Member row: `api/schemas/distribution_lists.py` `DistributionListMemberOut`
+Backend implementation:
+- Router: `api/routers/distribution_lists.py`
+- DB functions: `workflow.create_distribution_list`, `workflow.delete_distribution_list`, `workflow.add_distribution_list_member`, `workflow.remove_distribution_list_member`
+
+### List
+- `GET /api/v1/distribution-lists` — 200; returns all distribution lists ordered by name and id.
+- Headers: `Accept: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" \
+  http://localhost:4175/api/v1/distribution-lists
+```
+
+### Create
+- `POST /api/v1/distribution-lists` — 201; creates a global distribution list.
+- Headers: `Accept: application/json`, `Content-Type: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{ "distribution_list_name": "Review Team" }' \
+  http://localhost:4175/api/v1/distribution-lists
+```
+- Example response:
+```json
+{ "dist_id": 1, "distribution_list_name": "Review Team" }
+```
+
+### Delete
+- `DELETE /api/v1/distribution-lists/{dist_id}` — 200 with `{ "result": "ok" }`; removes the list and membership rows.
+- Returns `409` if the list is referenced by notifications.
+- Headers: `Accept: application/json`
+- Example request:
+```bash
+curl -sS -X DELETE -H "Accept: application/json" \
+  http://localhost:4175/api/v1/distribution-lists/1
+```
+
+### List members
+- `GET /api/v1/distribution-lists/{dist_id}/members` — 200; returns users in the list.
+- Returns `404` if distribution list does not exist.
+- Headers: `Accept: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" \
+  http://localhost:4175/api/v1/distribution-lists/1/members
+```
+
+### Add member
+- `POST /api/v1/distribution-lists/{dist_id}/members` — 201; adds user membership.
+- Headers: `Accept: application/json`, `Content-Type: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{ "user_id": 2 }' \
+  http://localhost:4175/api/v1/distribution-lists/1/members
+```
+- Example response:
+```json
+{
+  "dist_id": 1,
+  "user_id": 2,
+  "person_id": 2,
+  "user_acronym": "FDQC",
+  "person_name": "Aleksey Krutskih"
+}
+```
+
+### Remove member
+- `DELETE /api/v1/distribution-lists/{dist_id}/members/{user_id}` — 200 with `{ "result": "ok" }`; removes user membership.
+- Headers: `Accept: application/json`
+- Example request:
+```bash
+curl -sS -X DELETE -H "Accept: application/json" \
+  http://localhost:4175/api/v1/distribution-lists/1/members/2
+```
+
 ## Notifications
 Shape (inbox item):
 ```json
