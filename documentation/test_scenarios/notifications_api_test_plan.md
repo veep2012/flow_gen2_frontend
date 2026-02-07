@@ -1,4 +1,4 @@
-# Notifications API Test Plan (Curl, Port 5556)
+# Notifications + DL API Test Plan (Curl, Port 5556)
 
 ## Document Control
 - Status: Review
@@ -6,24 +6,13 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-02-06
-- Version: v1.1
+- Version: v1.2
 
 ## Purpose
-Provide a repeatable manual curl-based validation flow for notification lifecycle APIs.
-
-## Scope
-- In scope:
-  - API-level create/list/read/replace/delete flow checks.
-  - Seed-data-driven ID resolution.
-- Out of scope:
-  - UI notification behavior.
-  - Load/performance testing.
-
-## Design / Behavior
-This scenario validates end-to-end behavior of notification APIs against seeded PostgreSQL data.
-
-This plan runs against the seeded PostgreSQL state and verifies notification lifecycle behavior:
-`create -> read -> replace(drop+new) -> delete(drop+new)`.
+Provide a repeatable manual curl-based validation flow for:
+- Distribution List APIs
+- Notification lifecycle APIs
+- Notification delivery through Distribution Lists
 
 Assumption: DB is already up and API is reachable on port `5556`.
 
@@ -34,28 +23,19 @@ export API_BASE=http://localhost:5556
 export API_PREFIX=/api/v1
 ```
 
-## 2. Resolve Real IDs From Seeded Data
-
-Get current user and recipient from real seeded users:
+## 2. Resolve Seed IDs
 
 ```bash
 USERS_JSON=$(curl -s "$API_BASE$API_PREFIX/people/users")
 echo "$USERS_JSON" | jq
 
 CURRENT_USER_ID=$(curl -s "$API_BASE$API_PREFIX/people/users/current_user" | jq -r '.user_id')
-RECIPIENT_ID=$(echo "$USERS_JSON" | jq -r --arg cid "$CURRENT_USER_ID" '.[] | select((.user_id|tostring)!=$cid) | .user_id' | head -n1)
+MEMBER_USER_ID=$(echo "$USERS_JSON" | jq -r --arg cid "$CURRENT_USER_ID" '.[] | select((.user_id|tostring)!=$cid) | .user_id' | head -n1)
 
-echo "CURRENT_USER_ID=$CURRENT_USER_ID RECIPIENT_ID=$RECIPIENT_ID"
-```
-
-Find a project with documents and resolve one `doc_id` + `rev_id`:
-
-```bash
 for pid in $(seq 1 10); do
   DOCS=$(curl -s "$API_BASE$API_PREFIX/documents?project_id=$pid")
   CNT=$(echo "$DOCS" | jq 'length')
   if [ "$CNT" -gt 0 ]; then
-    PROJECT_ID=$pid
     DOC_ID=$(echo "$DOCS" | jq -r '.[0].doc_id')
     break
   fi
@@ -64,165 +44,160 @@ done
 REVISIONS=$(curl -s "$API_BASE$API_PREFIX/documents/$DOC_ID/revisions")
 REV_ID=$(echo "$REVISIONS" | jq -r '.[0].rev_id')
 
-echo "PROJECT_ID=$PROJECT_ID DOC_ID=$DOC_ID REV_ID=$REV_ID"
+echo "CURRENT_USER_ID=$CURRENT_USER_ID MEMBER_USER_ID=$MEMBER_USER_ID DOC_ID=$DOC_ID REV_ID=$REV_ID"
 ```
 
-Baseline inbox snapshot:
+## 3. Distribution List API Checks
+
+Create DL:
 
 ```bash
-BASELINE=$(curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$RECIPIENT_ID")
-BASELINE_COUNT=$(echo "$BASELINE" | jq 'length')
-echo "BASELINE_COUNT=$BASELINE_COUNT"
+TS=$(date +%s)
+DL_CREATE=$(curl -s -X POST "$API_BASE$API_PREFIX/distribution-lists" \
+  -H "Content-Type: application/json" \
+  -d "{\"distribution_list_name\":\"API DL $TS\"}")
+echo "$DL_CREATE" | jq
+DIST_ID=$(echo "$DL_CREATE" | jq -r '.dist_id')
 ```
 
-## 3. Create Notification
+List DLs:
+
+```bash
+curl -s "$API_BASE$API_PREFIX/distribution-lists" | jq --argjson id "$DIST_ID" \
+  '.[] | select(.dist_id==$id)'
+```
+
+Add member:
+
+```bash
+DL_MEMBER_ADD=$(curl -s -X POST "$API_BASE$API_PREFIX/distribution-lists/$DIST_ID/members" \
+  -H "Content-Type: application/json" \
+  -d "{\"user_id\":$MEMBER_USER_ID}")
+echo "$DL_MEMBER_ADD" | jq
+```
+
+List members:
+
+```bash
+curl -s "$API_BASE$API_PREFIX/distribution-lists/$DIST_ID/members" | jq
+```
+
+## 4. Create Notification Targeting DL
 
 ```bash
 CREATE_RESP=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications" \
   -H "Content-Type: application/json" \
   -H "X-User-Id: $CURRENT_USER_ID" \
   -d "{
-    \"title\": \"API test notification\",
+    \"title\": \"API test notification via DL\",
     \"body\": \"Please review revision $REV_ID\",
     \"rev_id\": $REV_ID,
-    \"recipient_user_ids\": [$RECIPIENT_ID],
-    \"recipient_dist_ids\": []
+    \"recipient_user_ids\": [],
+    \"recipient_dist_ids\": [$DIST_ID]
   }")
 
 echo "$CREATE_RESP" | jq
 CREATED_ID=$(echo "$CREATE_RESP" | jq -r '.notification_id')
 ```
 
-Verify recipient got unread `regular` event:
+Verify DL member got unread notification:
 
 ```bash
-curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$RECIPIENT_ID&unread_only=true" | jq \
+curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$MEMBER_USER_ID&unread_only=true" | jq \
   --argjson id "$CREATED_ID" \
-  '.[] | select(.notification_id==$id) | {notification_id,event_type,read_at,rev_id,sender_user_id}'
+  '.[] | select(.notification_id==$id) | {notification_id,event_type,read_at,sender_user_id,rev_id}'
 ```
 
-## Edge Cases
-- Empty recipient set should fail create/send validation.
-- Replace/delete as non-sender should return authorization failure.
-- Date-range filter with invalid order should return `400`.
-
-## References
-- `api/routers/notifications.py`
-- `api/schemas/notifications.py`
-- `documentation/notifications_and_dls.md`
-
-## 4. Mark Read
+## 5. Mark Read
 
 ```bash
 READ_RESP=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications/$CREATED_ID/read" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $RECIPIENT_ID" \
+  -H "X-User-Id: $MEMBER_USER_ID" \
   -d "{}")
-
 echo "$READ_RESP" | jq
 ```
 
-Verify `read_at` is set:
-
-```bash
-curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$RECIPIENT_ID" | jq \
-  --argjson id "$CREATED_ID" \
-  '.[] | select(.notification_id==$id) | {notification_id,read_at}'
-```
-
-## 5. Replace Notification (Drop Old + New Changed Notice)
+## 6. Replace Notification (Drop + Changed Notice)
 
 ```bash
 REPLACE_RESP=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications/$CREATED_ID/replace" \
   -H "Content-Type: application/json" \
   -H "X-User-Id: $CURRENT_USER_ID" \
   -d "{
-    \"title\": \"API test notification (changed)\",
+    \"title\": \"API test notification via DL (changed)\",
     \"body\": \"Updated content for revision $REV_ID\",
     \"remark\": \"changed during API test\"
   }")
-
 echo "$REPLACE_RESP" | jq
 CHANGED_ID=$(echo "$REPLACE_RESP" | jq -r '.notification_id')
 ```
 
-Verify chain state:
-- original notification has `dropped_at` and `superseded_by_notification_id = CHANGED_ID`
-- new notification has `event_type = changed_notice` and unread `read_at = null`
-
-```bash
-curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$RECIPIENT_ID" | jq \
-  --argjson old "$CREATED_ID" --argjson new "$CHANGED_ID" \
-  '[.[] | select(.notification_id==$old or .notification_id==$new) |
-    {notification_id,event_type,read_at,dropped_at,superseded_by_notification_id}]'
-```
-
-## 6. Delete Notification (Drop Changed + New Dropped Notice)
+## 7. Delete Notification (Drop + Dropped Notice)
 
 ```bash
 DELETE_RESP=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications/$CHANGED_ID/delete" \
   -H "Content-Type: application/json" \
   -H "X-User-Id: $CURRENT_USER_ID" \
   -d "{\"remark\":\"removed during API test\"}")
-
 echo "$DELETE_RESP" | jq
 DROPPED_NOTICE_ID=$(echo "$DELETE_RESP" | jq -r '.notification_id')
 ```
 
-Verify final chain and unread dropped notice:
+Verify chain:
 
 ```bash
-curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$RECIPIENT_ID" | jq \
-  --argjson old "$CHANGED_ID" --argjson notice "$DROPPED_NOTICE_ID" \
-  '[.[] | select(.notification_id==$old or .notification_id==$notice) |
-    {notification_id,event_type,read_at,dropped_at,superseded_by_notification_id,remark}]'
+curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$MEMBER_USER_ID" | jq \
+  --argjson a "$CREATED_ID" --argjson b "$CHANGED_ID" --argjson c "$DROPPED_NOTICE_ID" \
+  '[.[] | select(.notification_id==$a or .notification_id==$b or .notification_id==$c) |
+    {notification_id,event_type,read_at,dropped_at,superseded_by_notification_id}]'
 ```
 
-## 7. Negative Checks
+## 8. DL Negative Checks
 
-Make sure required vars are present:
-
-```bash
-echo "CURRENT_USER_ID=$CURRENT_USER_ID RECIPIENT_ID=$RECIPIENT_ID REV_ID=$REV_ID"
-```
-
-Create a fresh notification for negative tests:
+Duplicate member add should be `400`:
 
 ```bash
-NEG_CREATE=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications" \
+curl -i -X POST "$API_BASE$API_PREFIX/distribution-lists/$DIST_ID/members" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $CURRENT_USER_ID" \
-  -d "{
-    \"title\":\"Negative checks notification\",
-    \"body\":\"Negative checks body\",
-    \"rev_id\":$REV_ID,
-    \"recipient_user_ids\":[$RECIPIENT_ID],
-    \"recipient_dist_ids\":[]
-  }")
-
-echo "$NEG_CREATE" | jq
-NEG_ID=$(echo "$NEG_CREATE" | jq -r '.notification_id')
-echo "NEG_ID=$NEG_ID"
+  -d "{\"user_id\":$MEMBER_USER_ID}"
 ```
 
-Unauthorized replace by non-sender/non-superuser should be `403`:
+Remove missing member should be `404`:
 
 ```bash
-curl -i -X POST "$API_BASE$API_PREFIX/notifications/$NEG_ID/replace" \
-  -H "Content-Type: application/json" \
-  -H "X-User-Id: $RECIPIENT_ID" \
-  -d '{"title":"forbidden","body":"forbidden"}'
+curl -i -X DELETE "$API_BASE$API_PREFIX/distribution-lists/$DIST_ID/members/9999"
 ```
 
-Mark read with user that has no delivery row should be `404`:
+## 9. Cleanup
+
+Remove member:
 
 ```bash
-curl -i -X POST "$API_BASE$API_PREFIX/notifications/$NEG_ID/read" \
-  -H "Content-Type: application/json" \
-  -H "X-User-Id: $CURRENT_USER_ID" \
-  -d "{}"
+curl -s -X DELETE "$API_BASE$API_PREFIX/distribution-lists/$DIST_ID/members/$MEMBER_USER_ID" | jq
 ```
 
-## 8. Done
+Delete DL:
 
-You can rerun sections 3-7 as many times as needed; each run creates its own notification chain.
+```bash
+curl -i -X DELETE "$API_BASE$API_PREFIX/distribution-lists/$DIST_ID"
+```
+
+Expected result here: `409`, because this DL was used in notification targets and is protected from deletion.
+
+If you want to validate successful delete (`200`) as well, create a fresh unused DL and delete it:
+
+```bash
+TMP_DL=$(curl -s -X POST "$API_BASE$API_PREFIX/distribution-lists" \
+  -H "Content-Type: application/json" \
+  -d "{\"distribution_list_name\":\"TMP DELETE $(date +%s)\"}")
+TMP_DIST_ID=$(echo "$TMP_DL" | jq -r '.dist_id')
+curl -s -X DELETE "$API_BASE$API_PREFIX/distribution-lists/$TMP_DIST_ID" | jq
+```
+
+## References
+- `api/routers/notifications.py`
+- `api/schemas/notifications.py`
+- `api/routers/distribution_lists.py`
+- `api/schemas/distribution_lists.py`
+- `documentation/notifications_and_dls.md`

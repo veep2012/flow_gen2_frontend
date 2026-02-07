@@ -43,6 +43,18 @@ GRANT EXECUTE ON FUNCTION workflow.delete_notification(
 GRANT EXECUTE ON FUNCTION workflow.mark_notification_read(
     INTEGER, SMALLINT
 ) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.create_distribution_list(
+    VARCHAR
+) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.delete_distribution_list(
+    SMALLINT
+) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.add_distribution_list_member(
+    SMALLINT, SMALLINT
+) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.remove_distribution_list_member(
+    SMALLINT, SMALLINT
+) TO app_user;
 
 -- admin override only for db_admin
 GRANT EXECUTE ON FUNCTION workflow.admin_override_transition(INTEGER, SMALLINT, TEXT) TO db_admin;

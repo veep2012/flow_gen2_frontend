@@ -55,7 +55,6 @@ class Project(Base):
     project_name: Mapped[str] = mapped_column(String(45), unique=True, nullable=False)
 
     docs: Mapped[list["Doc"]] = relationship(back_populates="project")
-    distribution_lists: Mapped[list["DistributionList"]] = relationship(back_populates="project")
     permissions: Mapped[list["Permission"]] = relationship(back_populates="project")
     doc_cache_entries: Mapped[list["DocCache"]] = relationship(back_populates="project")
 
@@ -224,10 +223,8 @@ class DistributionList(Base):
     __tablename__ = "distribution_list"
 
     dist_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
-    distribution_list_name: Mapped[str] = mapped_column(String(45), nullable=False)
-    project_id: Mapped[int] = mapped_column(ForeignKey("projects.project_id"), nullable=False)
+    distribution_list_name: Mapped[str] = mapped_column(String(45), nullable=False, unique=True)
 
-    project: Mapped[Project] = relationship(back_populates="distribution_lists")
     members: Mapped[list["DistributionListContent"]] = relationship(
         back_populates="distribution_list"
     )
@@ -235,15 +232,13 @@ class DistributionList(Base):
 
 class DistributionListContent(Base):
     __tablename__ = "distribution_list_content"
-    __table_args__ = (PrimaryKeyConstraint("dist_id", "person_id"),)
+    __table_args__ = (PrimaryKeyConstraint("dist_id", "user_id"),)
 
     dist_id: Mapped[int] = mapped_column(ForeignKey("distribution_list.dist_id"), nullable=False)
-    person_id: Mapped[int] = mapped_column(
-        SmallInteger, ForeignKey("person.person_id"), nullable=False
-    )
+    user_id: Mapped[int] = mapped_column(SmallInteger, ForeignKey("users.user_id"), nullable=False)
 
     distribution_list: Mapped[DistributionList] = relationship(back_populates="members")
-    person: Mapped[Person] = relationship()
+    user: Mapped[User] = relationship()
 
 
 class Permission(Base):

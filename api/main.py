@@ -10,7 +10,16 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.routing import APIRoute
 
 # Import routers
-from api.routers import documents, files, files_commented, lookups, notifications, people, system
+from api.routers import (
+    distribution_lists,
+    documents,
+    files,
+    files_commented,
+    lookups,
+    notifications,
+    people,
+    system,
+)
 from api.utils.database import _build_database_url  # noqa: F401
 from api.utils.minio import _build_file_object_key, _s3_safe_segment  # noqa: F401
 
@@ -40,6 +49,7 @@ app.include_router(documents.router)
 app.include_router(files_commented.router)
 app.include_router(files.router)
 app.include_router(notifications.router)
+app.include_router(distribution_lists.router)
 app.include_router(people.router)
 
 

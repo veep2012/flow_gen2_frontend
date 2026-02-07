@@ -92,6 +92,7 @@ if [[ "$HOST_FOR_CHECK" == "0.0.0.0" ]]; then
 fi
 HEALTH_URL="http://${HOST_FOR_CHECK}:${API_PORT}/health"
 export API_BASE="http://${HOST_FOR_CHECK}:${API_PORT}"
+export HEALTH_URL
 # Reuse the same health-check logic as Makefile-driven workflows.
 PYTHON_CMD="python"
 if ! command -v "$PYTHON_CMD" >/dev/null 2>&1; then

@@ -811,7 +811,7 @@ BEGIN
         JOIN ref.distribution_list_content dlc
             ON dlc.dist_id = nt.recipient_dist_id
         JOIN ref.users u
-            ON u.person_id = dlc.person_id
+            ON u.user_id = dlc.user_id
         WHERE nt.notification_id = v_notification_id
           AND nt.recipient_dist_id IS NOT NULL
     ) r
@@ -1025,6 +1025,113 @@ BEGIN
       AND recipient_user_id = p_recipient_user_id;
 
     RETURN v_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.create_distribution_list(
+    p_distribution_list_name VARCHAR
+) RETURNS ref.distribution_list
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+DECLARE
+    v_row ref.distribution_list%ROWTYPE;
+BEGIN
+    INSERT INTO ref.distribution_list (
+        distribution_list_name
+    ) VALUES (
+        p_distribution_list_name
+    )
+    RETURNING * INTO v_row;
+
+    RETURN v_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.delete_distribution_list(
+    p_dist_id SMALLINT
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+BEGIN
+    PERFORM 1 FROM ref.distribution_list WHERE dist_id = p_dist_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Distribution list not found';
+    END IF;
+
+    PERFORM 1
+    FROM core.notification_targets
+    WHERE recipient_dist_id = p_dist_id
+    LIMIT 1;
+    IF FOUND THEN
+        RAISE EXCEPTION 'Distribution list is referenced by notifications';
+    END IF;
+
+    DELETE FROM ref.distribution_list_content
+    WHERE dist_id = p_dist_id;
+
+    DELETE FROM ref.distribution_list
+    WHERE dist_id = p_dist_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.add_distribution_list_member(
+    p_dist_id SMALLINT,
+    p_user_id SMALLINT
+) RETURNS ref.distribution_list_content
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+DECLARE
+    v_row ref.distribution_list_content%ROWTYPE;
+BEGIN
+    PERFORM 1 FROM ref.distribution_list WHERE dist_id = p_dist_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Distribution list not found';
+    END IF;
+
+    PERFORM 1 FROM ref.users WHERE user_id = p_user_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'User not found';
+    END IF;
+
+    INSERT INTO ref.distribution_list_content (
+        dist_id,
+        user_id
+    ) VALUES (
+        p_dist_id,
+        p_user_id
+    )
+    RETURNING * INTO v_row;
+
+    RETURN v_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.remove_distribution_list_member(
+    p_dist_id SMALLINT,
+    p_user_id SMALLINT
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+BEGIN
+    PERFORM 1
+    FROM ref.distribution_list_content
+    WHERE dist_id = p_dist_id
+      AND user_id = p_user_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Distribution list member not found';
+    END IF;
+
+    DELETE FROM ref.distribution_list_content
+    WHERE dist_id = p_dist_id
+      AND user_id = p_user_id;
 END;
 $$;
 

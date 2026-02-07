@@ -53,7 +53,7 @@ Router: `api/routers/notifications.py` (`/api/v1/notifications`)
   - `core.notification_recipients`
 - Resolution behavior:
   - direct user IDs + DL IDs are accepted as targets
-  - DL members are resolved via `person -> users`
+  - DL members are resolved directly via `distribution_list_content.user_id`
   - final recipient set is deduplicated before inbox delivery rows are created
 
 ## Legacy Distribution List Endpoints
