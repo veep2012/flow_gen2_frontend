@@ -37,4 +37,4 @@ export const useUI = () => {
     throw new Error("useUI must be used within UIProvider");
   }
   return context;
-};
+
