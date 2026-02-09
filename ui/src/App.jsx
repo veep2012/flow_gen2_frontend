@@ -1600,45 +1600,45 @@ function App() {
       <style>
         {`
         :root {
-          --color-bg: #f0f2f5;
+          --color-bg: #f5f6f8;
           --color-surface: #ffffff;
-          --color-surface-alt: #fafbfc;
-          --color-surface-muted: #f5f6f8;
-          --color-surface-muted-strong: #e8eaed;
-          --color-surface-subtle: #f9fafb;
+          --color-surface-alt: #f7f8fa;
+          --color-surface-muted: #f2f4f7;
+          --color-surface-muted-strong: #e4e7eb;
+          --color-surface-subtle: #fafbfc;
           --color-border: #d5d9de;
-          --color-border-soft: #dadde0;
-          --color-border-strong: #cdd0d5;
-          --color-text: #0a0e27;
-          --color-text-muted: #65676b;
-          --color-text-subtle: #8a8d91;
-          --color-text-strong: #1d1f26;
-          --color-text-secondary: #484a4f;
-          --color-primary: #1a5f7a;
+          --color-border-soft: #c9ccd1;
+          --color-border-strong: #bfc4ca;
+          --color-text: #2f3033;
+          --color-text-muted: #6b6f76;
+          --color-text-subtle: #8b9096;
+          --color-text-strong: #1f2428;
+          --color-text-secondary: #4a4f55;
+          --color-primary: #2f5fa6;
           --color-primary-contrast: #ffffff;
-          --color-primary-soft: #e7f3f7;
-          --color-primary-outline: rgba(26, 95, 122, 0.15);
-          --color-accent: #3d5a80;
+          --color-primary-soft: #e6eef9;
+          --color-primary-outline: rgba(47, 95, 166, 0.18);
+          --color-accent: #2f5fa6;
           --color-accent-contrast: #ffffff;
-          --color-info: #2563eb;
-          --color-info-dark: #1d4ed8;
-          --color-info-strong: #1e40af;
-          --color-info-soft: #eff6ff;
-          --color-warning: #d97706;
-          --color-danger: #dc2626;
-          --color-danger-soft: #fef2f2;
-          --color-success: #059669;
-          --color-success-dark: #047857;
-          --color-success-soft: #ecfdf5;
-          --color-success-border: #a7f3d0;
-          --color-success-border-strong: #6ee7b7;
-          --color-success-text: #065f46;
-          --color-row-selected: #f0f4ff;
-          --color-focus: #1d4ed8;
-          --color-error: #dc2626;
-          --color-error-dark: #b91c1c;
-          --color-spinner-start: #2563eb;
-          --color-spinner-end: #3b82f6;
+          --color-info: #2f5fa6;
+          --color-info-dark: #244c86;
+          --color-info-strong: #1f4173;
+          --color-info-soft: #e6eef9;
+          --color-warning: #b76a00;
+          --color-danger: #c62828;
+          --color-danger-soft: #fdeeee;
+          --color-success: #2e7d32;
+          --color-success-dark: #276a2b;
+          --color-success-soft: #e9f5ec;
+          --color-success-border: #bcdcc3;
+          --color-success-border-strong: #9ccaa7;
+          --color-success-text: #2e5b34;
+          --color-row-selected: #e8f0fe;
+          --color-focus: #2f5fa6;
+          --color-error: #c62828;
+          --color-error-dark: #a31f1f;
+          --color-spinner-start: #2f5fa6;
+          --color-spinner-end: #3b6fb8;
           color: var(--color-text);
           background: var(--color-bg);
           font-family: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
@@ -1647,6 +1647,50 @@ function App() {
         body {
           margin: 0;
           background: var(--color-bg);
+        }
+        button,
+        input,
+        select,
+        textarea {
+          font-family: inherit;
+        }
+        input,
+        select,
+        textarea {
+          border: 1px solid var(--color-border-soft);
+          border-radius: 4px;
+          padding: 6px 8px;
+          font-size: 13px;
+          color: var(--color-text);
+          background: var(--color-surface);
+        }
+        input:focus,
+        select:focus,
+        textarea:focus {
+          outline: none;
+          border-color: var(--color-focus);
+          box-shadow: 0 0 0 2px var(--color-primary-outline);
+        }
+        button {
+          border: 1px solid var(--color-border-soft);
+          border-radius: 4px;
+          padding: 6px 10px;
+          font-size: 13px;
+          color: var(--color-text);
+          background: var(--color-surface-alt);
+          cursor: pointer;
+          transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        button:hover {
+          background: var(--color-surface-muted);
+          border-color: var(--color-border);
+        }
+        button:active {
+          background: var(--color-surface-muted-strong);
+        }
+        button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
         .page {
           padding: 8px;
@@ -1661,10 +1705,10 @@ function App() {
         }
         .toolbar select {
           border: 1px solid var(--color-border-soft);
-          border-radius: 8px;
+          border-radius: 4px;
           padding: 6px 8px;
           font-size: 13px;
-          color: var(--color-text-muted);
+          color: var(--color-text);
           background: var(--color-surface);
         }
         .toolbar button {
@@ -1682,6 +1726,7 @@ function App() {
           color: var(--color-text-muted);
           font-size: 14px;
           background: var(--color-surface-alt);
+          border-bottom: 1px solid var(--color-border);
         }
         .status-row.error {
           color: var(--color-danger);
@@ -1751,61 +1796,64 @@ function App() {
         .card {
           background: var(--color-surface);
           border: 1px solid var(--color-border);
-          border-radius: 12px;
-          box-shadow:
-            0 10px 30px rgba(15, 23, 42, 0.05),
-            0 1px 3px rgba(15, 23, 42, 0.08);
+          border-radius: 6px;
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
           overflow: hidden;
         }
         .table {
           width: 100%;
-          border-collapse: collapse;
+          border-collapse: separate;
+          border-spacing: 0;
           white-space: nowrap;
           margin: 0 !important;
           padding: 0 !important;
+          color: var(--color-text);
+          font-size: 13px;
         }
         .table thead th {
-          background: var(--color-surface-alt);
-          font-weight: 700;
+          background: #f5f6f8;
+          font-weight: 600;
           text-align: left;
-          font-size: 14px;
-          color: var(--color-text);
-          padding: 6px 8px 2px;
-          border-bottom: 1px solid var(--color-border);
-          white-space: nowrap;
-          border-right: 1px solid var(--color-border);
-        }
-        .table thead th:not(:first-child) {
-          border-left: 1px solid var(--color-border);
-        }
-        .table thead input {
-          width: 100%;
-          margin-top: 2px;
-          padding: 4px 8px;
-          border: 1px solid var(--color-border-soft);
-          border-radius: 8px;
           font-size: 13px;
-          color: var(--color-text-muted);
-          background: var(--color-surface);
-          caret-color: transparent; /* Hide blinking text cursor in header filters */
+          color: #2f3033;
+          padding: 6px 10px;
+          border-bottom: 1px solid #d5d9de;
+          border-right: 1px solid #d5d9de;
+          white-space: nowrap;
+          vertical-align: middle;
+        }
+        .table thead th:first-child {
+          border-left: 1px solid #d5d9de;
+        }
+        .table thead th input {
+          width: 100%;
+          margin-top: 6px;
+          padding: 6px 8px;
+          border: 1px solid #c9ccd1;
+          border-radius: 4px;
+          font-size: 12px;
+          color: #3a3b3f;
+          background: #ffffff;
           line-height: 1.4;
         }
         .table td {
-          padding: 4px 8px;
-          border-bottom: 1px solid var(--color-border);
+          padding: 6px 10px;
+          border-bottom: 1px solid #e1e4e8;
+          border-right: 1px solid #e1e4e8;
           position: relative;
           font-size: 13px;
-          color: var(--color-text);
+          color: #1f2428;
           line-height: 1.4;
+          background: #ffffff;
         }
-        .table td:not(:first-child) {
-          border-left: 1px solid var(--color-border);
+        .table td:first-child {
+          border-left: 1px solid #e1e4e8;
         }
-        .table tbody tr {
-          border-bottom: 1px solid var(--color-border);
+        .table tbody tr:nth-child(even) td {
+          background: #fafbfc;
         }
         .table tbody tr:hover td {
-          background: var(--color-surface-subtle);
+          background: #eef2f6;
         }
         .meta {
           display: flex;
@@ -2457,7 +2505,35 @@ function App() {
                             : undefined,
                         }}
                       >
-                        <div>{col.label}</div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "6px",
+                          }}
+                        >
+                          <span>{col.label}</span>
+                          <button
+                            type="button"
+                            title={`${col.label} column menu`}
+                            aria-label={`${col.label} column menu`}
+                            style={{
+                              border: "none",
+                              background: "transparent",
+                              padding: 0,
+                              lineHeight: 1,
+                              cursor: "pointer",
+                              color: "var(--color-text-muted)",
+                              fontSize: "16px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            &#8942;
+                          </button>
+                        </div>
                         <input
                           value={filters[col.key]}
                           placeholder="Search..."
