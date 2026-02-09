@@ -15,6 +15,12 @@ const columns = documentGridColumns.map(({ id, label, field, hidden }) => ({
 
 const visibleColumns = columns.filter((col) => !col.hidden);
 
+const appMeta = {
+  name: "Flow Gen2",
+  version: "v1.0.0",
+  revision: "rev 1",
+};
+
 const normalizeApiBase = (raw) => {
   const fallback = "/api/v1";
   const value = (raw || fallback).toString().trim();
@@ -34,6 +40,17 @@ const normalizeApiBase = (raw) => {
 
 function App() {
   const apiBase = normalizeApiBase(import.meta.env.VITE_API_BASE_URL);
+  const formatDateTime = React.useCallback((value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    const hour = String(date.getHours()).padStart(2, "0");
+    const minute = String(date.getMinutes()).padStart(2, "0");
+    return `${day}/${month}/${year}, ${hour}:${minute}`;
+  }, []);
   const [revStatuses, setRevStatuses] = React.useState([]);
   const [revStatusBehaviors, setRevStatusBehaviors] = React.useState([]);
   const [revStatusError, setRevStatusError] = React.useState(null);
@@ -149,6 +166,7 @@ function App() {
   const [areas, setAreas] = React.useState([]);
   const [units, setUnits] = React.useState([]);
   const [revisionOverviews, setRevisionOverviews] = React.useState([]);
+  const [revCodeOptions, setRevCodeOptions] = React.useState([]);
   // Fetch revisions for selected document
   React.useEffect(() => {
     const fetchRevisions = async () => {
@@ -1102,7 +1120,7 @@ function App() {
     if (!newDocValues.type_id) missing.push("Type");
     if (!newDocValues.area_id) missing.push("Area");
     if (!newDocValues.unit_id) missing.push("Unit");
-    if (!revisionOverviews.length) missing.push("Revision code");
+    if (!revCodeOptions.length) missing.push("Revision code");
     if (!people.length) {
       missing.push("Revision author");
       missing.push("Revision originator");
@@ -1124,7 +1142,7 @@ function App() {
     const finishDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
       .toISOString()
       .slice(0, 10);
-    const revCodeId = toLookupId(revisionOverviews[0]?.rev_code_id);
+    const revCodeId = toLookupId(revCodeOptions[0]?.rev_code_id);
     const personId = toLookupId(people[0]?.person_id);
 
     const payload = {
@@ -1167,7 +1185,7 @@ function App() {
       setCreateStatus("error");
       setCreateError(err.message || "Unknown error while creating document");
     }
-  }, [apiBase, newDocValues, people, project, reloadDocuments, revisionOverviews]);
+  }, [apiBase, newDocValues, people, project, reloadDocuments, revCodeOptions]);
 
   const handleUploadFiles = React.useCallback(
     async (files, statusKey) => {
@@ -1538,7 +1556,7 @@ function App() {
         setJobpacks((await readJson(jobpacksRes)) || []);
         setAreas((await readJson(areasRes)) || []);
         setUnits((await readJson(unitsRes)) || []);
-        setRevisionOverviews((await readJson(revisionOverviewsRes)) || []);
+        setRevCodeOptions((await readJson(revisionOverviewsRes)) || []);
         setPeople((await readJson(peopleRes)) || []);
       } catch (err) {
         if (!isActive) return;
@@ -1548,7 +1566,7 @@ function App() {
         setJobpacks([]);
         setAreas([]);
         setUnits([]);
-        setRevisionOverviews([]);
+        setRevCodeOptions([]);
         setPeople([]);
       }
     };
@@ -1758,6 +1776,24 @@ function App() {
           color: var(--color-text-muted);
           font-size: 14px;
         }
+        .app-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 6px 10px;
+          margin: 8px 0 0;
+          border-top: 1px solid var(--color-border);
+          background: var(--color-surface);
+          color: var(--color-text);
+          font-size: 13px;
+          flex-shrink: 0;
+        }
+        .app-header__name {
+          font-weight: 600;
+        }
+        .app-header__meta {
+          color: var(--color-text-muted);
+        }
         .toolbar select {
           border: 1px solid var(--color-border-soft);
           border-radius: 4px;
@@ -1864,6 +1900,7 @@ function App() {
           padding: 0 !important;
           color: var(--color-text);
           font-size: 13px;
+          table-layout: auto;
         }
         .table thead th {
           background: #f5f6f8;
@@ -1936,8 +1973,7 @@ function App() {
         .table-wrapper {
           width: 100%;
           height: 100%;
-          overflow-y: auto;
-          overflow-x: visible;
+          overflow: auto;
           margin: 0 !important;
           padding: 0 !important;
         }
@@ -2504,10 +2540,11 @@ function App() {
         style={{
           background: "var(--color-surface)",
           border: "1px solid var(--color-border)",
-          borderRadius: "8px",
+          borderRadius: "6px",
           padding: "8px 4px",
           marginBottom: "4px",
           minHeight: "40px",
+          boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}>
@@ -2966,7 +3003,7 @@ function App() {
                                   disabled={createStatus === "saving"}
                                 >
                                   <option value="">Select rev code...</option>
-                                  {revisionOverviews.map((item) => (
+                                  {revCodeOptions.map((item) => (
                                     <option key={item.rev_code_id} value={String(item.rev_code_id)}>
                                       {item.rev_code_acronym
                                         ? `${item.rev_code_acronym} (${item.rev_code_name})`
@@ -3048,7 +3085,7 @@ function App() {
                             color: selectedDocId === rowId ? 'inherit' : undefined,
                             border: selectedDocId === rowId ? '1.5px solid var(--color-accent, #3d5a80)' : undefined,
                             outline: selectedDocId === rowId ? 'none' : undefined,
-                            fontWeight: selectedDocId === rowId ? 600 : undefined
+                            fontWeight: undefined
                           }}
                         >
                           {visibleColumns.map((col) => {
@@ -3355,7 +3392,7 @@ function App() {
                                     color: selectedRevisionIdx === idx ? 'inherit' : undefined,
                                     border: selectedRevisionIdx === idx ? '1.5px solid var(--color-accent, #3d5a80)' : undefined,
                                     outline: selectedRevisionIdx === idx ? 'none' : undefined,
-                                    fontWeight: selectedRevisionIdx === idx ? 600 : undefined
+                                    fontWeight: undefined
                                   }}
                                   onClick={() => setSelectedRevisionIdx(idx)}
                                 >
@@ -3364,7 +3401,11 @@ function App() {
                                   <td>{row.rev_description || ''}</td>
                                   <td>{row.progress || row.rev_percent || ''}</td>
                                   <td>{row.author || row.rev_author || row.rev_author_name || ''}</td>
-                                  <td>{row.date || row.rev_date || row.created_at || ''}</td>
+                                  <td>
+                                    {formatDateTime(
+                                      row.date || row.rev_date || row.created_at || "",
+                                    )}
+                                  </td>
                                   <td>{row.plan || row.plan_date || ''}</td>
                                   <td>{row.actualStart || row.actual_start || ''}</td>
                                   <td>{row.actualFinish || row.actual_finish || ''}</td>
@@ -3692,6 +3733,11 @@ function App() {
             </div>
           </div>
         </div>
+      </div>
+      <div className="app-header">
+        <span className="app-header__name">{appMeta.name}</span>
+        <span className="app-header__meta">Version: {appMeta.version}</span>
+        <span className="app-header__meta">Revision: {appMeta.revision}</span>
       </div>
     </main>
   );
