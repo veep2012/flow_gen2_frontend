@@ -1910,6 +1910,12 @@ function App() {
         .table tbody tr:hover td {
           background: #eef2f6;
         }
+        .table tbody tr.selected td {
+          background: var(--color-row-selected);
+        }
+        .table tbody tr.selected td:first-child {
+          box-shadow: inset 2px 0 0 var(--color-accent);
+        }
         .meta {
           display: flex;
           justify-content: space-between;
@@ -3023,6 +3029,7 @@ function App() {
                       return (
                         <tr
                           key={rowId}
+                          className={selectedDocId === rowId ? "selected" : undefined}
                           onClick={() => {
                             setSelectedDocId(rowId);
                             setActiveDetailTab("Revisions");
@@ -3283,9 +3290,9 @@ function App() {
               flex: isDetailPanelHidden ? "0 0 0" : `${detailRatio} 1 0`,
               background: "var(--color-surface)",
               border: "1px solid var(--color-border)",
-              borderRadius: "12px",
+              borderRadius: "6px",
               padding: 0,
-              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
               minHeight: 0,
               display: hideWindowsOnDrag || isDetailPanelHidden ? "none" : "flex",
               flexDirection: "column",
@@ -3341,6 +3348,7 @@ function App() {
                               return uniqueRows.map((row, idx) => (
                                 <tr
                                   key={row.rev_id || row.rev_code_id || row.revision_id || row.revision || idx}
+                                  className={selectedRevisionIdx === idx ? "selected" : undefined}
                                   style={{
                                     cursor: 'pointer',
                                     background: selectedRevisionIdx === idx ? 'var(--color-row-selected, #f0f4ff)' : undefined,
