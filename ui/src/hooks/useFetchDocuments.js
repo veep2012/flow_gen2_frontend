@@ -89,15 +89,57 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
     return () => controller.abort();
   }, [project, normalizedBase]);
 
+  const normalizeFilterConfig = useCallback((raw) => {
+    if (!raw) return null;
+    if (typeof raw === "string") {
+      const value = raw.trim();
+      if (!value) return null;
+      return { logic: "and", filters: [{ op: "contains", value }] };
+    }
+    if (typeof raw === "object") {
+      const logic = raw.logic === "or" ? "or" : "and";
+      const filters = Array.isArray(raw.filters) ? raw.filters : [];
+      const normalized = filters
+        .map((item) => ({
+          op: String(item?.op || "contains").toLowerCase(),
+          value: String(item?.value ?? "").trim(),
+        }))
+        .filter((item) => item.value);
+      if (normalized.length === 0) return null;
+      return { logic, filters: normalized };
+    }
+    return null;
+  }, []);
+
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) =>
       visibleColumns.every((col) => {
         const value = String(doc[col.key] ?? "").toLowerCase();
-        const filterValue = filters[col.key].trim().toLowerCase();
-        return value.includes(filterValue);
+        const config = normalizeFilterConfig(filters[col.key]);
+        if (!config) return true;
+        const matchesRule = (rule) => {
+          const ruleValue = String(rule.value ?? "").toLowerCase();
+          if (!ruleValue) return true;
+          switch (rule.op) {
+            case "equals":
+              return value === ruleValue;
+            case "startswith":
+              return value.startsWith(ruleValue);
+            case "endswith":
+              return value.endsWith(ruleValue);
+            case "doesnotcontain":
+              return !value.includes(ruleValue);
+            case "contains":
+            default:
+              return value.includes(ruleValue);
+          }
+        };
+        return config.logic === "or"
+          ? config.filters.some(matchesRule)
+          : config.filters.every(matchesRule);
       }),
     );
-  }, [filters, documents, visibleColumns]);
+  }, [filters, documents, visibleColumns, normalizeFilterConfig]);
 
   useEffect(() => {
     const extractProjects = (data) => {
