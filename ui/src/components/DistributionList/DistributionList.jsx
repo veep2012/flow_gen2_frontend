@@ -15,6 +15,9 @@ const DistributionList = ({ docId, apiBase }) => {
   const [error, setError] = React.useState(null);
   const [success, setSuccess] = React.useState(null);
   const [sentLists, setSentLists] = React.useState(new Set());
+  const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
+  const [modalPersonId, setModalPersonId] = React.useState("");
+  const [modalPurpose, setModalPurpose] = React.useState("");
 
   const loadPersons = React.useCallback(async () => {
     try {
@@ -49,7 +52,8 @@ const DistributionList = ({ docId, apiBase }) => {
   }, [apiBase]);
 
   const getRoleForPerson = (personId) => {
-    const personRole = roles.find((r) => r.person_id === personId);
+    if (!personId) return "-";
+    const personRole = roles.find((r) => String(r.person_id) === String(personId));
     return personRole ? personRole.role_name : "N/A";
   };
 
@@ -313,7 +317,96 @@ const DistributionList = ({ docId, apiBase }) => {
 
   return (
     <div className="distribution-list-container">
-      <div className="empty-state">Distribution list panel hidden.</div>
+      <div className="distribution-list-header">
+        <h3>Distribution List</h3>
+        <div className="button-group">
+          <button type="button" className="btn-add" onClick={() => setIsAddModalOpen(true)}>
+            + Add
+          </button>
+          <button type="button" className="btn-remove">Remove</button>
+          <button type="button" className="btn-send">Send</button>
+        </div>
+      </div>
+      <div className="empty-state">
+        No documents sent yet. Add recipients and click "Send" to start the distribution.
+      </div>
+
+      {isAddModalOpen ? (
+        <div className="distribution-modal-overlay" role="dialog" aria-modal="true">
+          <div className="distribution-modal">
+            <div className="distribution-modal__header">
+              <div className="distribution-modal__title">
+                <span className="distribution-modal__icon">＋</span>
+                <div>
+                  <div className="distribution-modal__headline">Add Distribution Entry</div>
+                  <div className="distribution-modal__subhead">
+                    Fill in the details to add a new distribution entry
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="distribution-modal__close"
+                onClick={() => setIsAddModalOpen(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="distribution-modal__body">
+              <label className="distribution-modal__label">Name *</label>
+              <select
+                className="distribution-modal__select"
+                value={modalPersonId}
+                onChange={(e) => setModalPersonId(e.target.value)}
+                disabled={loadingPersons}
+              >
+                <option value="" disabled>
+                  Select person...
+                </option>
+                {persons.map((person) => (
+                  <option key={person.person_id} value={person.person_id}>
+                    {person.person_name}
+                  </option>
+                ))}
+              </select>
+
+              <label className="distribution-modal__label">Role</label>
+              <input
+                className="distribution-modal__input"
+                value={modalPersonId ? getRoleForPerson(parseInt(modalPersonId, 10)) : "-"}
+                readOnly
+              />
+
+              <label className="distribution-modal__label">Purpose *</label>
+              <select
+                className="distribution-modal__select"
+                value={modalPurpose}
+                onChange={(e) => setModalPurpose(e.target.value)}
+              >
+                <option value="" disabled>
+                  Select purpose...
+                </option>
+              </select>
+            </div>
+            <div className="distribution-modal__footer">
+              <span className="distribution-modal__required">* Required fields</span>
+              <div className="distribution-modal__actions">
+                <button
+                  type="button"
+                  className="distribution-modal__btn"
+                  onClick={() => setIsAddModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button type="button" className="distribution-modal__btn distribution-modal__btn--primary">
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

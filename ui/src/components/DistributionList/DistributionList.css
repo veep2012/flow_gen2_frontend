@@ -45,6 +45,127 @@
   color: var(--color-text);
 }
 
+.distribution-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 30, 45, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.distribution-modal {
+  width: 640px;
+  max-width: calc(100% - 32px);
+  background: var(--color-surface);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.distribution-modal__header {
+  background: #4f6f8f;
+  color: #fff;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.distribution-modal__title {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.distribution-modal__icon {
+  font-size: 18px;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.distribution-modal__headline {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.distribution-modal__subhead {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.distribution-modal__close {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.distribution-modal__body {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.distribution-modal__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.distribution-modal__select,
+.distribution-modal__input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  font-size: 13px;
+}
+
+.distribution-modal__input[readonly] {
+  background: var(--color-surface-muted, #f5f5f5);
+}
+
+.distribution-modal__footer {
+  border-top: 1px solid var(--color-border);
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.distribution-modal__required {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.distribution-modal__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.distribution-modal__btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.distribution-modal__btn--primary {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  border-color: var(--color-accent);
+}
+
 .button-group {
   display: flex;
   gap: 8px;
