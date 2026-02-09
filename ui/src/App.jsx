@@ -395,7 +395,43 @@ function App() {
       startEdit(selectedDoc);
     };
     const handleDelete = () => handleDeleteDocument();
-    const handleExport = () => {};
+    const handleExport = () => {
+      if (!project) {
+        alert("Select a project to export documents.");
+        return;
+      }
+      if (!sortedDocuments.length) {
+        alert("No documents to export.");
+        return;
+      }
+      const escapeCsv = (value) => {
+        const stringValue = String(value ?? "");
+        if (/[",\n]/.test(stringValue)) {
+          return `"${stringValue.replace(/"/g, '""')}"`;
+        }
+        return stringValue;
+      };
+      const headers = visibleColumns.map((col) => escapeCsv(col.label));
+      const rows = sortedDocuments.map((doc) =>
+        visibleColumns.map((col) => {
+          if (col.id === "rev_percent") {
+            return escapeCsv(doc.rev_percent_display ?? doc.percentage ?? "");
+          }
+          return escapeCsv(doc[col.key] ?? "");
+        }),
+      );
+      const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+      const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const safeProject = String(project || "documents").replace(/[^\w.-]+/g, "_");
+      link.download = `documents_${safeProject}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
     const handleUndo = () => {};
     const handleRedo = () => {};
     const hasSelection = Boolean(selectedDoc);
@@ -476,10 +512,10 @@ function App() {
           Delete
         </button>
         <button
-          style={!hasSelection ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
+          style={!hasProject ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
           title="Export documents"
           onClick={handleExport}
-          disabled={!hasSelection}
+          disabled={!hasProject}
         >
           <span style={iconStyle}>⬇</span>
           Export to...

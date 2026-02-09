@@ -174,9 +174,9 @@
 .btn-add,
 .btn-remove,
 .btn-send {
-  padding: 8px 14px;
-  border: none;
-  border-radius: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 4px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
