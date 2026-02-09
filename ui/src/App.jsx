@@ -172,7 +172,7 @@ function App() {
   const [selectedRevisionIdx, setSelectedRevisionIdx] = React.useState(null);
   const [sortConfig, setSortConfig] = React.useState({ key: null, direction: null });
   const [columnMenuOpen, setColumnMenuOpen] = React.useState(null);
-  const [columnFilterDraft, setColumnFilterDraft] = React.useState({});
+  const [columnMenuPosition, setColumnMenuPosition] = React.useState({ top: 0, left: 0 });
 
   const editingDoc = React.useMemo(
     () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === editRowId),
@@ -201,49 +201,17 @@ function App() {
     return () => document.removeEventListener("mousedown", handleClickAway);
   }, []);
 
-  const normalizeFilterDraft = React.useCallback((value) => {
-    if (!value) {
-      return { logic: "and", filters: [{ op: "contains", value: "" }, { op: "contains", value: "" }] };
-    }
-    if (typeof value === "string") {
-      return {
-        logic: "and",
-        filters: [
-          { op: "contains", value },
-          { op: "contains", value: "" },
-        ],
-      };
-    }
-    const logic = value.logic === "or" ? "or" : "and";
-    const filters = Array.isArray(value.filters) ? value.filters : [];
-    const normalized = filters.map((item) => ({
-      op: item?.op || "contains",
-      value: item?.value ?? "",
-    }));
-    while (normalized.length < 2) {
-      normalized.push({ op: "contains", value: "" });
-    }
-    return { logic, filters: normalized.slice(0, 2) };
-  }, []);
-
-  const updateFilterDraft = React.useCallback(
-    (key, updater) => {
-      setColumnFilterDraft((prev) => {
-        const current = prev[key] ?? normalizeFilterDraft(filters[key]);
-        const next = typeof updater === "function" ? updater(current) : updater;
-        return { ...prev, [key]: next };
+  const toggleColumnMenu = React.useCallback((event, key) => {
+    event?.stopPropagation();
+    if (event?.currentTarget) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setColumnMenuPosition({
+        top: rect.top + window.scrollY - 2,
+        left: rect.right + window.scrollX + 6,
       });
-    },
-    [filters, normalizeFilterDraft],
-  );
-
-  const toggleColumnMenu = React.useCallback(
-    (key) => {
-      updateFilterDraft(key, (current) => current);
-      setColumnMenuOpen((prev) => (prev === key ? null : key));
-    },
-    [updateFilterDraft],
-  );
+    }
+    setColumnMenuOpen((prev) => (prev === key ? null : key));
+  }, []);
 
   const lookupOptionsByColumn = React.useMemo(
     () => ({
@@ -2584,8 +2552,6 @@ function App() {
                 <thead>
                   <tr>
                     {visibleColumns.map((col) => {
-                      const filterDraft =
-                        columnFilterDraft[col.key] ?? normalizeFilterDraft(filters[col.key]);
                       return (
                         <th
                           key={col.key}
@@ -2614,7 +2580,7 @@ function App() {
                                 type="button"
                                 title={`${col.label} column menu`}
                                 aria-label={`${col.label} column menu`}
-                                onClick={() => toggleColumnMenu(col.key)}
+                                onClick={(event) => toggleColumnMenu(event, col.key)}
                                 style={{
                                   border: "none",
                                   background: "transparent",
@@ -2633,17 +2599,17 @@ function App() {
                               {columnMenuOpen === col.key ? (
                                 <div
                                   style={{
-                                    position: "absolute",
-                                    top: "-2px",
-                                    left: "100%",
-                                    marginLeft: "6px",
+                                    position: "fixed",
+                                    top: columnMenuPosition.top,
+                                    left: columnMenuPosition.left,
                                     background: "var(--color-surface)",
                                     border: "1px solid var(--color-border)",
                                     borderRadius: "6px",
                                     boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
                                     zIndex: 20,
                                     minWidth: "230px",
-                                    overflow: "hidden",
+                                    overflow: "auto",
+                                    resize: "both",
                                   }}
                                 >
                                   <button
@@ -2693,145 +2659,19 @@ function App() {
                                   <div
                                     style={{
                                       borderTop: "1px solid var(--color-border-soft)",
-                                      margin: "4px 0",
+                                      margin: "2px 0",
                                     }}
                                   />
-                                  <div
-                                    style={{
-                                      padding: "6px 12px",
-                                      fontWeight: 600,
-                                      fontSize: "12px",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "8px",
-                                    }}
-                                  >
-                                    <span style={{ fontSize: "12px" }}>⎇</span>
-                                    Filter
-                                  </div>
-                                  <div style={{ padding: "0 12px 12px" }}>
-                                    <select
-                                      value={filterDraft.filters[0].op}
-                                      onChange={(e) =>
-                                        updateFilterDraft(col.key, (current) => {
-                                          const next = { ...current, filters: [...current.filters] };
-                                          next.filters[0] = {
-                                            ...next.filters[0],
-                                            op: e.target.value,
-                                          };
-                                          return next;
-                                        })
-                                      }
-                                      style={{ width: "100%" }}
-                                    >
-                                      <option value="contains">Contains</option>
-                                    </select>
-                                    <input
-                                      value={filterDraft.filters[0].value}
-                                      placeholder="Filter..."
-                                      onChange={(e) =>
-                                        updateFilterDraft(col.key, (current) => {
-                                          const next = { ...current, filters: [...current.filters] };
-                                          next.filters[0] = {
-                                            ...next.filters[0],
-                                            value: e.target.value,
-                                          };
-                                          return next;
-                                        })
-                                      }
-                                      style={{ width: "100%", marginTop: "6px" }}
-                                    />
-                                    <div style={{ marginTop: "8px" }}>
-                                      <select
-                                        value={filterDraft.logic}
-                                        onChange={(e) =>
-                                          updateFilterDraft(col.key, (current) => ({
-                                            ...current,
-                                            logic: e.target.value,
-                                          }))
-                                        }
-                                        style={{ width: "100%" }}
-                                      >
-                                        <option value="and">And</option>
-                                        <option value="or">Or</option>
-                                      </select>
-                                    </div>
-                                    <div style={{ marginTop: "8px" }}>
-                                      <select
-                                        value={filterDraft.filters[1].op}
-                                        onChange={(e) =>
-                                          updateFilterDraft(col.key, (current) => {
-                                            const next = { ...current, filters: [...current.filters] };
-                                            next.filters[1] = {
-                                              ...next.filters[1],
-                                              op: e.target.value,
-                                            };
-                                            return next;
-                                          })
-                                        }
-                                        style={{ width: "100%" }}
-                                      >
-                                        <option value="contains">Contains</option>
-                                      </select>
-                                      <input
-                                        value={filterDraft.filters[1].value}
-                                        placeholder="Filter..."
-                                        onChange={(e) =>
-                                          updateFilterDraft(col.key, (current) => {
-                                            const next = { ...current, filters: [...current.filters] };
-                                            next.filters[1] = {
-                                              ...next.filters[1],
-                                              value: e.target.value,
-                                            };
-                                            return next;
-                                          })
-                                        }
-                                        style={{ width: "100%", marginTop: "6px" }}
-                                      />
-                                    </div>
-                                    <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          handleFilterChange(col.key, {
-                                            logic: filterDraft.logic,
-                                            filters: filterDraft.filters,
-                                          });
-                                          setColumnMenuOpen(null);
-                                        }}
-                                        style={{
-                                          flex: 1,
-                                          background: "var(--color-accent)",
-                                          color: "var(--color-accent-contrast)",
-                                          border: "1px solid var(--color-accent)",
-                                        }}
-                                      >
-                                        Filter
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          handleFilterChange(col.key, "");
-                                          setColumnFilterDraft((prev) => {
-                                            const next = { ...prev };
-                                            delete next[col.key];
-                                            return next;
-                                          });
-                                          setColumnMenuOpen(null);
-                                        }}
-                                        style={{
-                                          flex: 1,
-                                          background: "var(--color-surface)",
-                                        }}
-                                      >
-                                        Clear
-                                      </button>
-                                    </div>
-                                  </div>
                                 </div>
                               ) : null}
                             </div>
                           </div>
+                          <input
+                            value={filters[col.key] || ""}
+                            placeholder="Search..."
+                            onChange={(e) => handleFilterChange(col.key, e.target.value)}
+                            style={{ width: "100%", marginTop: "6px" }}
+                          />
                           <button
                             type="button"
                             onMouseDown={(e) => startColResize(e, col.key)}

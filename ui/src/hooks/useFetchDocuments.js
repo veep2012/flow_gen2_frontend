@@ -104,7 +104,10 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
           op: String(item?.op || "contains").toLowerCase(),
           value: String(item?.value ?? "").trim(),
         }))
-        .filter((item) => item.value);
+        .filter((item) => {
+          if (item.op === "isnull" || item.op === "isnotnull") return true;
+          return Boolean(item.value);
+        });
       if (normalized.length === 0) return null;
       return { logic, filters: normalized };
     }
@@ -123,12 +126,18 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
           switch (rule.op) {
             case "equals":
               return value === ruleValue;
+            case "notequals":
+              return value !== ruleValue;
             case "startswith":
               return value.startsWith(ruleValue);
             case "endswith":
               return value.endsWith(ruleValue);
             case "doesnotcontain":
               return !value.includes(ruleValue);
+            case "isnull":
+              return value === "";
+            case "isnotnull":
+              return value !== "";
             case "contains":
             default:
               return value.includes(ruleValue);
