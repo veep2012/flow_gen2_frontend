@@ -39,9 +39,15 @@ const normalizeApiBase = (raw) => {
 function App() {
   const apiBase = normalizeApiBase(import.meta.env.VITE_API_BASE_URL);
   const [hiddenColumnIds, setHiddenColumnIds] = React.useState(() => new Set(["doc_id"]));
+  const [columnOrder, setColumnOrder] = React.useState(() => allColumns.map((col) => col.id));
+  const [dragColumnId, setDragColumnId] = React.useState(null);
   const visibleColumns = React.useMemo(
-    () => allColumns.filter((col) => !hiddenColumnIds.has(col.id)),
-    [hiddenColumnIds],
+    () =>
+      columnOrder
+        .map((id) => allColumns.find((col) => col.id === id))
+        .filter(Boolean)
+        .filter((col) => !hiddenColumnIds.has(col.id)),
+    [hiddenColumnIds, columnOrder],
   );
   React.useEffect(() => {
     if (visibleColumns.length === 0) {
@@ -244,6 +250,34 @@ function App() {
       return next;
     });
   }, []);
+
+  const handleColumnDragStart = React.useCallback((event, columnId) => {
+    setDragColumnId(columnId);
+    event.dataTransfer.effectAllowed = "move";
+  }, []);
+
+  const handleColumnDragOver = React.useCallback((event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const handleColumnDrop = React.useCallback(
+    (event, targetId) => {
+      event.preventDefault();
+      if (!dragColumnId || dragColumnId === targetId) return;
+      setColumnOrder((prev) => {
+        const next = [...prev];
+        const fromIndex = next.indexOf(dragColumnId);
+        const toIndex = next.indexOf(targetId);
+        if (fromIndex === -1 || toIndex === -1) return prev;
+        next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, dragColumnId);
+        return next;
+      });
+      setDragColumnId(null);
+    },
+    [dragColumnId],
+  );
 
   const toggleColumnMenu = React.useCallback((event, key) => {
     event?.stopPropagation();
@@ -2661,6 +2695,10 @@ function App() {
                       return (
                         <th
                           key={col.key}
+                          draggable
+                          onDragStart={(event) => handleColumnDragStart(event, col.id)}
+                          onDragOver={handleColumnDragOver}
+                          onDrop={(event) => handleColumnDrop(event, col.id)}
                           style={{
                             position: "relative",
                             width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
@@ -2878,7 +2916,9 @@ function App() {
                                             margin: "4px 0",
                                           }}
                                         />
-                                        {allColumns
+                                    {columnOrder
+                                          .map((id) => allColumns.find((colItem) => colItem.id === id))
+                                          .filter(Boolean)
                                           .filter((colItem) => colItem.id !== "doc_id")
                                           .map((colItem) => {
                                           const isVisible = !hiddenColumnIds.has(colItem.id);
@@ -2923,6 +2963,7 @@ function App() {
                           <button
                             type="button"
                             onMouseDown={(e) => startColResize(e, col.key)}
+                            draggable={false}
                             style={{
                               position: "absolute",
                               top: 0,
