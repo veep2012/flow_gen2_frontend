@@ -786,7 +786,7 @@ BEGIN
         SELECT DISTINCT x.dist_id
         FROM unnest(COALESCE(p_dist_ids, ARRAY[]::SMALLINT[])) AS x(dist_id)
     ) d
-    JOIN ref.distribution_list dl ON dl.dist_id = d.dist_id;
+    JOIN core.distribution_list dl ON dl.dist_id = d.dist_id;
 
     INSERT INTO core.notification_recipients (notification_id, recipient_user_id)
     SELECT v_notification_id, r.user_id
@@ -800,7 +800,7 @@ BEGIN
 
         SELECT u.user_id
         FROM core.notification_targets nt
-        JOIN ref.distribution_list_content dlc
+        JOIN core.distribution_list_content dlc
             ON dlc.dist_id = nt.recipient_dist_id
         JOIN ref.users u
             ON u.user_id = dlc.user_id
@@ -1022,15 +1022,15 @@ $$;
 
 CREATE OR REPLACE FUNCTION workflow.create_distribution_list(
     p_distribution_list_name VARCHAR
-) RETURNS ref.distribution_list
+) RETURNS core.distribution_list
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = core, ref, workflow, pg_temp
 AS $$
 DECLARE
-    v_row ref.distribution_list%ROWTYPE;
+    v_row core.distribution_list%ROWTYPE;
 BEGIN
-    INSERT INTO ref.distribution_list (
+    INSERT INTO core.distribution_list (
         distribution_list_name
     ) VALUES (
         p_distribution_list_name
@@ -1049,7 +1049,7 @@ SECURITY DEFINER
 SET search_path = core, ref, workflow, pg_temp
 AS $$
 BEGIN
-    PERFORM 1 FROM ref.distribution_list WHERE dist_id = p_dist_id;
+    PERFORM 1 FROM core.distribution_list WHERE dist_id = p_dist_id;
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Distribution list not found';
     END IF;
@@ -1062,10 +1062,10 @@ BEGIN
         RAISE EXCEPTION 'Distribution list is referenced by notifications';
     END IF;
 
-    DELETE FROM ref.distribution_list_content
+    DELETE FROM core.distribution_list_content
     WHERE dist_id = p_dist_id;
 
-    DELETE FROM ref.distribution_list
+    DELETE FROM core.distribution_list
     WHERE dist_id = p_dist_id;
 END;
 $$;
@@ -1073,15 +1073,15 @@ $$;
 CREATE OR REPLACE FUNCTION workflow.add_distribution_list_member(
     p_dist_id SMALLINT,
     p_user_id SMALLINT
-) RETURNS ref.distribution_list_content
+) RETURNS core.distribution_list_content
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = core, ref, workflow, pg_temp
 AS $$
 DECLARE
-    v_row ref.distribution_list_content%ROWTYPE;
+    v_row core.distribution_list_content%ROWTYPE;
 BEGIN
-    PERFORM 1 FROM ref.distribution_list WHERE dist_id = p_dist_id;
+    PERFORM 1 FROM core.distribution_list WHERE dist_id = p_dist_id;
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Distribution list not found';
     END IF;
@@ -1091,7 +1091,7 @@ BEGIN
         RAISE EXCEPTION 'User not found';
     END IF;
 
-    INSERT INTO ref.distribution_list_content (
+    INSERT INTO core.distribution_list_content (
         dist_id,
         user_id
     ) VALUES (
@@ -1114,14 +1114,14 @@ SET search_path = core, ref, workflow, pg_temp
 AS $$
 BEGIN
     PERFORM 1
-    FROM ref.distribution_list_content
+    FROM core.distribution_list_content
     WHERE dist_id = p_dist_id
       AND user_id = p_user_id;
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Distribution list member not found';
     END IF;
 
-    DELETE FROM ref.distribution_list_content
+    DELETE FROM core.distribution_list_content
     WHERE dist_id = p_dist_id
       AND user_id = p_user_id;
 END;

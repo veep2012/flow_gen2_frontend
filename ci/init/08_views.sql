@@ -16,8 +16,8 @@ CREATE OR REPLACE VIEW workflow.sql_queries AS SELECT * FROM ref.sql_queries;
 CREATE OR REPLACE VIEW workflow.person AS SELECT * FROM ref.person;
 CREATE OR REPLACE VIEW workflow.users AS SELECT * FROM ref.users;
 CREATE OR REPLACE VIEW workflow.doc_types AS SELECT * FROM ref.doc_types;
-CREATE OR REPLACE VIEW workflow.distribution_list AS SELECT * FROM ref.distribution_list;
-CREATE OR REPLACE VIEW workflow.distribution_list_content AS SELECT * FROM ref.distribution_list_content;
+CREATE OR REPLACE VIEW workflow.distribution_list AS SELECT * FROM core.distribution_list;
+CREATE OR REPLACE VIEW workflow.distribution_list_content AS SELECT * FROM core.distribution_list_content;
 CREATE OR REPLACE VIEW workflow.permissions AS SELECT * FROM ref.permissions;
 CREATE OR REPLACE VIEW workflow.doc_cache AS SELECT * FROM ref.doc_cache;
 

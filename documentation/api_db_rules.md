@@ -119,6 +119,11 @@ Authoritative business data:
 - `doc_revision`
 - `files`
 - `files_commented`
+- `distribution_list`
+- `distribution_list_content`
+- `notifications`
+- `notification_targets`
+- `notification_recipients`
 
 Direct mutation by the application is forbidden.
 
