@@ -6,14 +6,12 @@ import { useFetchDocuments } from "./hooks/useFetchDocuments";
 import { resolveBehaviorByFile } from "./components/DocRevStatusBehaviors";
 import DetailPanel from "./components/DetailPanel";
 
-const columns = documentGridColumns.map(({ id, label, field, hidden }) => ({
+const allColumns = documentGridColumns.map(({ id, label, field, hidden }) => ({
   key: field,
   id,
   label,
   hidden: Boolean(hidden),
 }));
-
-const visibleColumns = columns.filter((col) => !col.hidden);
 
 const appMeta = {
   name: "Flow Gen2",
@@ -40,6 +38,16 @@ const normalizeApiBase = (raw) => {
 
 function App() {
   const apiBase = normalizeApiBase(import.meta.env.VITE_API_BASE_URL);
+  const [hiddenColumnIds, setHiddenColumnIds] = React.useState(() => new Set(["doc_id"]));
+  const visibleColumns = React.useMemo(
+    () => allColumns.filter((col) => !hiddenColumnIds.has(col.id)),
+    [hiddenColumnIds],
+  );
+  React.useEffect(() => {
+    if (visibleColumns.length === 0) {
+      setHiddenColumnIds(new Set(["doc_id"]));
+    }
+  }, [visibleColumns.length]);
   const formatDateTime = React.useCallback((value) => {
     if (!value) return "";
     const date = new Date(value);
@@ -191,6 +199,7 @@ function App() {
   const [sortConfig, setSortConfig] = React.useState({ key: null, direction: null });
   const [columnMenuOpen, setColumnMenuOpen] = React.useState(null);
   const [columnMenuPosition, setColumnMenuPosition] = React.useState({ top: 0, left: 0 });
+  const [columnSubmenuOpen, setColumnSubmenuOpen] = React.useState(false);
 
   const editingDoc = React.useMemo(
     () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === editRowId),
@@ -219,6 +228,23 @@ function App() {
     return () => document.removeEventListener("mousedown", handleClickAway);
   }, []);
 
+
+  const toggleColumnVisibility = React.useCallback((columnId) => {
+    setHiddenColumnIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(columnId)) {
+        next.delete(columnId);
+      } else {
+        const nonIdColumns = allColumns.filter((col) => col.id !== "doc_id");
+        const visibleCount = nonIdColumns.filter((col) => !next.has(col.id)).length;
+        if (visibleCount > 1) {
+          next.add(columnId);
+        }
+      }
+      return next;
+    });
+  }, []);
+
   const toggleColumnMenu = React.useCallback((event, key) => {
     event?.stopPropagation();
     if (event?.currentTarget) {
@@ -228,6 +254,7 @@ function App() {
         left: rect.right + window.scrollX + 6,
       });
     }
+    setColumnSubmenuOpen(false);
     setColumnMenuOpen((prev) => (prev === key ? null : key));
   }, []);
 
@@ -2686,9 +2713,8 @@ function App() {
                                     borderRadius: "6px",
                                     boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
                                     zIndex: 20,
-                                    minWidth: "230px",
-                                    overflow: "auto",
-                                    resize: "both",
+                                    minWidth: "220px",
+                                    overflow: "visible",
                                   }}
                                 >
                                   <button
@@ -2696,6 +2722,12 @@ function App() {
                                     onClick={() => {
                                       setSortConfig({ key: col.key, direction: "asc" });
                                       setColumnMenuOpen(null);
+                                    }}
+                                    onMouseEnter={(event) => {
+                                      event.currentTarget.style.background = "var(--color-surface-muted)";
+                                    }}
+                                    onMouseLeave={(event) => {
+                                      event.currentTarget.style.background = "transparent";
                                     }}
                                     style={{
                                       width: "100%",
@@ -2705,6 +2737,7 @@ function App() {
                                       border: "none",
                                       cursor: "pointer",
                                       fontSize: "12px",
+                                      color: "var(--color-text)",
                                       display: "flex",
                                       alignItems: "center",
                                       gap: "8px",
@@ -2719,6 +2752,12 @@ function App() {
                                       setSortConfig({ key: col.key, direction: "desc" });
                                       setColumnMenuOpen(null);
                                     }}
+                                    onMouseEnter={(event) => {
+                                      event.currentTarget.style.background = "var(--color-surface-muted)";
+                                    }}
+                                    onMouseLeave={(event) => {
+                                      event.currentTarget.style.background = "transparent";
+                                    }}
                                     style={{
                                       width: "100%",
                                       padding: "8px 12px",
@@ -2727,6 +2766,7 @@ function App() {
                                       border: "none",
                                       cursor: "pointer",
                                       fontSize: "12px",
+                                      color: "var(--color-text)",
                                       display: "flex",
                                       alignItems: "center",
                                       gap: "8px",
@@ -2741,6 +2781,135 @@ function App() {
                                       margin: "2px 0",
                                     }}
                                   />
+                                  <div
+                                    onClick={() => setColumnSubmenuOpen((prev) => !prev)}
+                                    onMouseEnter={(event) => {
+                                      event.currentTarget.style.background = "var(--color-surface-muted)";
+                                    }}
+                                    onMouseLeave={(event) => {
+                                      event.currentTarget.style.background = "transparent";
+                                    }}
+                                    style={{
+                                      position: "relative",
+                                      padding: "6px 12px",
+                                      fontSize: "12px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      cursor: "pointer",
+                                      color: "var(--color-text)",
+                                    }}
+                                  >
+                                    <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                      <span style={{ fontSize: "12px" }}>▥</span>
+                                      Columns
+                                    </span>
+                                    <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>▶</span>
+                                    {columnSubmenuOpen ? (
+                                      <div
+                                        onClick={(event) => event.stopPropagation()}
+                                        onMouseDown={(event) => event.stopPropagation()}
+                                        data-column-menu
+                                        style={{
+                                          position: "absolute",
+                                          top: 0,
+                                          left: "100%",
+                                          marginLeft: "6px",
+                                          background: "var(--color-surface)",
+                                          border: "1px solid var(--color-border)",
+                                          borderRadius: "6px",
+                                          boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
+                                          minWidth: "220px",
+                                          maxHeight: "260px",
+                                          overflowY: "auto",
+                                          padding: "8px 12px",
+                                        }}
+                                      >
+                                        <label
+                                          style={{
+                                            display: "grid",
+                                            gridTemplateColumns: "16px 1fr",
+                                            alignItems: "center",
+                                            columnGap: "8px",
+                                            fontSize: "12px",
+                                            padding: "4px 0",
+                                            cursor: "pointer",
+                                            textAlign: "left",
+                                            fontWeight: 600,
+                                          }}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={
+                                              allColumns
+                                                .filter((colItem) => colItem.id !== "doc_id")
+                                                .every((colItem) => !hiddenColumnIds.has(colItem.id))
+                                            }
+                                            onClick={(event) => event.stopPropagation()}
+                                            onChange={(event) => {
+                                              const checked = event.target.checked;
+                                              setHiddenColumnIds((prev) => {
+                                                const next = new Set(prev);
+                                                const nonIdColumns = allColumns.filter(
+                                                  (colItem) => colItem.id !== "doc_id",
+                                                );
+                                                if (checked) {
+                                                  nonIdColumns.forEach((colItem) =>
+                                                    next.delete(colItem.id),
+                                                  );
+                                                } else {
+                                                  nonIdColumns.forEach((colItem) =>
+                                                    next.add(colItem.id),
+                                                  );
+                                                  if (nonIdColumns.length) {
+                                                    next.delete(nonIdColumns[0].id);
+                                                  }
+                                                }
+                                                return next;
+                                              });
+                                            }}
+                                            style={{ margin: 0 }}
+                                          />
+                                          <span style={{ textAlign: "left" }}>Show All</span>
+                                        </label>
+                                        <div
+                                          style={{
+                                            borderTop: "1px solid var(--color-border-soft)",
+                                            margin: "4px 0",
+                                          }}
+                                        />
+                                        {allColumns
+                                          .filter((colItem) => colItem.id !== "doc_id")
+                                          .map((colItem) => {
+                                          const isVisible = !hiddenColumnIds.has(colItem.id);
+                                          return (
+                                            <label
+                                              key={colItem.id}
+                                              style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "16px 1fr",
+                                                alignItems: "center",
+                                                columnGap: "8px",
+                                                fontSize: "12px",
+                                                padding: "4px 0",
+                                                cursor: "pointer",
+                                                textAlign: "left",
+                                              }}
+                                            >
+                                              <input
+                                                type="checkbox"
+                                                checked={isVisible}
+                                                onClick={(event) => event.stopPropagation()}
+                                                onChange={() => toggleColumnVisibility(colItem.id)}
+                                                style={{ margin: 0 }}
+                                              />
+                                              <span style={{ textAlign: "left" }}>{colItem.label}</span>
+                                            </label>
+                                          );
+                                        })}
+                                      </div>
+                                    ) : null}
+                                  </div>
                                 </div>
                               ) : null}
                             </div>
@@ -3116,12 +3285,7 @@ function App() {
                           }}
                           onDoubleClick={() => startEdit(doc)}
                           style={{
-                            background:
-                              selectedDocId === rowId ? 'var(--color-row-selected, #f0f4ff)' : undefined,
-                            color: selectedDocId === rowId ? 'inherit' : undefined,
-                            border: selectedDocId === rowId ? '1.5px solid var(--color-accent, #3d5a80)' : undefined,
-                            outline: selectedDocId === rowId ? 'none' : undefined,
-                            fontWeight: undefined
+                            cursor: "pointer",
                           }}
                         >
                           {visibleColumns.map((col) => {
@@ -3423,12 +3587,7 @@ function App() {
                                   key={row.rev_id || row.rev_code_id || row.revision_id || row.revision || idx}
                                   className={selectedRevisionIdx === idx ? "selected" : undefined}
                                   style={{
-                                    cursor: 'pointer',
-                                    background: selectedRevisionIdx === idx ? 'var(--color-row-selected, #f0f4ff)' : undefined,
-                                    color: selectedRevisionIdx === idx ? 'inherit' : undefined,
-                                    border: selectedRevisionIdx === idx ? '1.5px solid var(--color-accent, #3d5a80)' : undefined,
-                                    outline: selectedRevisionIdx === idx ? 'none' : undefined,
-                                    fontWeight: undefined
+                                    cursor: "pointer",
                                   }}
                                   onClick={() => setSelectedRevisionIdx(idx)}
                                 >

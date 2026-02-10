@@ -114,6 +114,18 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
     return null;
   }, []);
 
+  useEffect(() => {
+    setFilters((prev) => {
+      const next = { ...prev };
+      visibleColumns.forEach((col) => {
+        if (!(col.key in next)) {
+          next[col.key] = "";
+        }
+      });
+      return next;
+    });
+  }, [visibleColumns]);
+
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) =>
       visibleColumns.every((col) => {
