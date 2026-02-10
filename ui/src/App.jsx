@@ -385,43 +385,52 @@ function App() {
   }, [docTypes, newDocValues.discipline_id]);
 
   const handleDeleteDocument = React.useCallback(async () => {
-    if (!selectedDoc) {
+    const idsToDelete =
+      selectedDocIds.size > 0
+        ? Array.from(selectedDocIds)
+        : selectedDoc
+          ? [selectedDoc.doc_id ?? selectedDoc.id]
+          : [];
+    const cleanedIds = idsToDelete.filter(Boolean);
+    if (cleanedIds.length === 0) {
       setSaveStatus("error");
       setSaveError("Select a row to delete");
       return;
     }
 
-    const docId = selectedDoc.doc_id ?? selectedDoc.id;
-    if (!docId) {
-      setSaveStatus("error");
-      setSaveError("Unable to delete: missing document ID");
-      return;
-    }
-
-    const docLabel =
-      selectedDoc.doc_name_unique || selectedDoc.doc_name || selectedDoc.title || `#${docId}`;
-    if (!window.confirm(`Delete document "${docLabel}"?`)) {
+    if (
+      !window.confirm(
+        cleanedIds.length === 1
+          ? "Delete selected document?"
+          : `Delete ${cleanedIds.length} selected documents?`,
+      )
+    ) {
       return;
     }
 
     setSaveStatus("saving");
     setSaveError(null);
     try {
-      const res = await fetch(`${apiBase}/documents/${docId}`, { method: "DELETE" });
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || `Delete failed (${res.status})`);
-      }
-      await res.json();
+      await Promise.all(
+        cleanedIds.map(async (docId) => {
+          const res = await fetch(`${apiBase}/documents/${docId}`, { method: "DELETE" });
+          if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || `Delete failed (${res.status})`);
+          }
+          await res.json().catch(() => null);
+        }),
+      );
       setSaveStatus("idle");
       setSelectedDocId(null);
+      setSelectedDocIds(new Set());
       setEditRowId(null);
       reloadDocuments();
     } catch (err) {
       setSaveStatus("error");
       setSaveError(err.message || "Unknown error while deleting");
     }
-  }, [apiBase, reloadDocuments, selectedDoc]);
+  }, [apiBase, reloadDocuments, selectedDoc, selectedDocIds]);
 
   const ToolbarMenu = () => {
     const handleAddNew = () => {
