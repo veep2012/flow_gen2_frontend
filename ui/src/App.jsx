@@ -148,6 +148,9 @@ function App() {
   const [selectedDocId, setSelectedDocId] = React.useState(null);
   const [selectedDocIds, setSelectedDocIds] = React.useState(new Set());
   const [lastSelectedRowIndex, setLastSelectedRowIndex] = React.useState(null);
+  const [copiedDocIds, setCopiedDocIds] = React.useState(new Set());
+  const [copyMode, setCopyMode] = React.useState(false);
+  const [copiedRows, setCopiedRows] = React.useState([]);
   const [editRowId, setEditRowId] = React.useState(null);
   const [editValues, setEditValues] = React.useState({
     doc_name_unique: "",
@@ -168,6 +171,7 @@ function App() {
     area_id: "",
     unit_id: "",
   });
+  const [pastedRows, setPastedRows] = React.useState([]);
   const [createStatus, setCreateStatus] = React.useState("idle");
   const [createError, setCreateError] = React.useState(null);
   const [saveError, setSaveError] = React.useState(null);
@@ -459,6 +463,40 @@ function App() {
         unit_id: String(selectedDoc?.unit_id ?? units[0]?.unit_id ?? ""),
       });
     };
+    const buildEmptyPasteRow = () => {
+      const fallbackDisciplineId =
+        selectedDoc?.discipline_id ?? disciplines[0]?.discipline_id ?? "";
+      const fallbackTypeOptions = docTypes.filter(
+        (item) => String(item.ref_discipline_id ?? "") === String(fallbackDisciplineId),
+      );
+      const fallbackTypeId =
+        selectedDoc?.type_id ?? fallbackTypeOptions[0]?.type_id ?? docTypes[0]?.type_id ?? "";
+      const fallbackDisciplineFromType =
+        docTypes.find((item) => item.type_id === fallbackTypeId)?.ref_discipline_id ??
+        fallbackDisciplineId;
+      return {
+        doc_name_unique: "",
+        title: "",
+        discipline_id: String(fallbackDisciplineFromType || ""),
+        type_id: String(fallbackTypeId || ""),
+        jobpack_id: String(selectedDoc?.jobpack_id ?? ""),
+        area_id: String(selectedDoc?.area_id ?? areas[0]?.area_id ?? ""),
+        unit_id: String(selectedDoc?.unit_id ?? units[0]?.unit_id ?? ""),
+        rev_code_id: String(revCodeOptions[0]?.rev_code_id ?? ""),
+      };
+    };
+    const handleAddRows = (count = 3) => {
+      if (!project) return;
+      setCreateError(null);
+      setCreateStatus("idle");
+      setCopyMode(false);
+      setCopiedDocIds(new Set());
+      setCopiedRows([]);
+      setIsAdding(false);
+      setEditRowId(null);
+      const nextRows = Array.from({ length: count }, () => buildEmptyPasteRow());
+      setPastedRows((prev) => [...prev, ...nextRows]);
+    };
     const handleEdit = () => {
       if (!selectedDoc) {
         setSaveStatus("error");
@@ -468,6 +506,129 @@ function App() {
       startEdit(selectedDoc);
     };
     const handleDelete = () => handleDeleteDocument();
+    const handleCopy = async () => {
+      const selectedRows = sortedDocuments.filter((doc) =>
+        selectedDocIds.has(doc.doc_id || doc.doc_name || doc.id),
+      );
+      if (!selectedRows.length) return;
+      setCopiedDocIds(new Set(selectedRows.map((doc) => doc.doc_id || doc.doc_name || doc.id)));
+      setCopiedRows(selectedRows);
+      setCopyMode(true);
+      const headers = visibleColumns.map((col) => col.label);
+      const rows = selectedRows.map((doc) =>
+        visibleColumns.map((col) => {
+          if (col.id === "rev_percent") {
+            return doc.rev_percent_display ?? doc.percentage ?? "";
+          }
+          return doc[col.key] ?? "";
+        }),
+      );
+      const tsv = [headers.join("\t"), ...rows.map((row) => row.join("\t"))].join("\n");
+      await navigator.clipboard.writeText(tsv);
+    };
+    const handleCancelCopy = () => {
+      setCopiedDocIds(new Set());
+      setCopiedRows([]);
+      setCopyMode(false);
+    };
+    const handlePaste = () => {
+      if (!copiedRows.length) return;
+      const nextRows = copiedRows.map((doc, index) => {
+        const baseName = doc.doc_name_unique || doc.doc_name || "";
+        const baseTitle = doc.title || "";
+        return {
+          doc_name_unique: baseName ? `${baseName}-copy-${index + 1}` : "",
+          title: baseTitle,
+          discipline_id: String(doc.discipline_id ?? ""),
+          type_id: String(doc.type_id ?? ""),
+          jobpack_id: String(doc.jobpack_id ?? ""),
+          area_id: String(doc.area_id ?? ""),
+          unit_id: String(doc.unit_id ?? ""),
+          rev_code_id: String(doc.rev_code_id ?? revCodeOptions[0]?.rev_code_id ?? ""),
+        };
+      });
+      setPastedRows(nextRows);
+      setCopyMode(false);
+      setCopiedDocIds(new Set());
+      setIsAdding(false);
+      setEditRowId(null);
+    };
+    const handleCancelPaste = () => {
+      setPastedRows([]);
+      setCreateError(null);
+      setCreateStatus("idle");
+    };
+    const handleSavePastedRows = async () => {
+      if (!project) return;
+      if (!pastedRows.length) return;
+      const toLookupId = (value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      };
+      const toDateTime = (dateValue) => `${dateValue}T00:00:00Z`;
+      const today = new Date();
+      const startDate = today.toISOString().slice(0, 10);
+      const finishDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+      const revCodeIdFallback = toLookupId(revCodeOptions[0]?.rev_code_id);
+      const personId = toLookupId(people[0]?.person_id);
+
+      const invalid = pastedRows.find(
+        (row) =>
+          !String(row.doc_name_unique || "").trim() ||
+          !String(row.title || "").trim() ||
+          !row.type_id ||
+          !row.area_id ||
+          !row.unit_id,
+      );
+      if (invalid) {
+        setCreateStatus("error");
+        setCreateError("Please заполните обязательные поля для всех строк.");
+        return;
+      }
+
+      setCreateStatus("saving");
+      setCreateError(null);
+      try {
+        await Promise.all(
+          pastedRows.map(async (row) => {
+            const payload = {
+              doc_name_unique: String(row.doc_name_unique || "").trim(),
+              title: String(row.title || "").trim(),
+              project_id: Number(project),
+              type_id: toLookupId(row.type_id),
+              area_id: toLookupId(row.area_id),
+              unit_id: toLookupId(row.unit_id),
+              rev_code_id: toLookupId(row.rev_code_id) || revCodeIdFallback,
+              rev_author_id: personId,
+              rev_originator_id: personId,
+              rev_modifier_id: personId,
+              transmital_current_revision: "TR-001",
+              planned_start_date: toDateTime(startDate),
+              planned_finish_date: toDateTime(finishDate),
+            };
+            const jobpackId = toLookupId(row.jobpack_id);
+            if (jobpackId) payload.jobpack_id = jobpackId;
+            const res = await fetch(`${apiBase}/documents`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+              const errorText = await res.text();
+              throw new Error(errorText || `Create failed (${res.status})`);
+            }
+          }),
+        );
+        setCreateStatus("saved");
+        setPastedRows([]);
+        reloadDocuments();
+      } catch (err) {
+        setCreateStatus("error");
+        setCreateError(err.message || "Paste failed");
+      }
+    };
     const handleExport = () => {
       if (!project) {
         alert("Select a project to export documents.");
@@ -528,6 +689,7 @@ function App() {
             aria-label={editRowId ? "Save changes" : "Create document"}
           >
             <span style={iconStyle}>💾</span>
+            <span style={{ marginLeft: "6px" }}>{editRowId ? "Save" : "Create"}</span>
           </button>
           <button
             style={{
@@ -550,11 +712,61 @@ function App() {
             aria-label="Cancel"
           >
             <span style={iconStyle}>✕</span>
+            <span style={{ marginLeft: "6px" }}>Cancel</span>
           </button>
         </div>
       );
     }
 
+    if (copyMode) {
+      return (
+        <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
+          <button
+            style={!hasProject ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
+            title="Paste rows"
+            onClick={handlePaste}
+            disabled={!hasProject}
+            aria-label="Paste rows"
+          >
+            <span style={iconStyle}>📋</span>
+            <span style={{ marginLeft: "6px" }}>Paste</span>
+          </button>
+          <button
+            style={buttonStyle}
+            title="Cancel copy"
+            onClick={handleCancelCopy}
+            aria-label="Cancel copy"
+          >
+            <span style={iconStyle}>✕</span>
+            <span style={{ marginLeft: "6px" }}>Cancel</span>
+          </button>
+        </div>
+      );
+    }
+    if (pastedRows.length > 0) {
+      return (
+        <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
+          <button
+            style={buttonStyle}
+            title="Save pasted rows"
+            onClick={handleSavePastedRows}
+            aria-label="Save pasted rows"
+          >
+            <span style={iconStyle}>💾</span>
+            <span style={{ marginLeft: "6px" }}>Save</span>
+          </button>
+          <button
+            style={buttonStyle}
+            title="Cancel paste"
+            onClick={handleCancelPaste}
+            aria-label="Cancel paste"
+          >
+            <span style={iconStyle}>✕</span>
+            <span style={{ marginLeft: "6px" }}>Cancel</span>
+          </button>
+        </div>
+      );
+    }
     return (
       <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
         <button
@@ -565,6 +777,7 @@ function App() {
           aria-label="Add new document"
         >
           <span style={iconStyle}>+</span>
+          <span style={{ marginLeft: "6px" }}>Add</span>
         </button>
         <button
           style={!hasSelection ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
@@ -574,6 +787,7 @@ function App() {
           aria-label="Edit selected document"
         >
           <span style={iconStyle}>✎</span>
+          <span style={{ marginLeft: "6px" }}>Edit</span>
         </button>
         <button
           style={!hasSelection ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
@@ -583,6 +797,17 @@ function App() {
           aria-label="Delete selected document"
         >
           <span style={iconStyle}>🗑</span>
+          <span style={{ marginLeft: "6px" }}>Delete</span>
+        </button>
+        <button
+          style={!hasSelection ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
+          title="Copy selected rows"
+          onClick={handleCopy}
+          disabled={!hasSelection}
+          aria-label="Copy selected rows"
+        >
+          <span style={iconStyle}>⧉</span>
+          <span style={{ marginLeft: "6px" }}>Copy</span>
         </button>
         <button
           style={!hasProject ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
@@ -592,12 +817,7 @@ function App() {
           aria-label="Export documents"
         >
           <span style={iconStyle}>⬇</span>
-        </button>
-        <button style={buttonStyle} title="Undo" onClick={handleUndo} aria-label="Undo">
-          <span style={iconStyle}>↶</span>
-        </button>
-        <button style={buttonStyle} title="Redo" onClick={handleRedo} aria-label="Redo">
-          <span style={iconStyle}>↷</span>
+          <span style={{ marginLeft: "6px" }}>Export</span>
         </button>
       </div>
     );
@@ -2062,6 +2282,16 @@ function App() {
         .table tbody tr.selected td:first-child {
           box-shadow: inset 2px 0 0 var(--color-accent);
         }
+        .table tbody tr.copied td {
+          box-shadow: inset 0 0 0 2px var(--color-accent);
+        }
+        .table tbody tr.editing td {
+          background: #fff7d6;
+          box-shadow: inset 0 0 0 1px var(--color-accent);
+        }
+        .table tbody tr.editing td:first-child {
+          box-shadow: inset 2px 0 0 var(--color-accent), inset 0 0 0 1px var(--color-accent);
+        }
         .meta {
           display: flex;
           justify-content: space-between;
@@ -2996,9 +3226,9 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {isAdding && project && !documentsLoading && (
+                  {false && isAdding && project && !documentsLoading && (
                     <>
-                      <tr>
+                      <tr className="editing">
                         {visibleColumns.map((col) => {
                           const cellStyle = {
                             width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
@@ -3310,7 +3540,7 @@ function App() {
                         Select a project to load documents.
                       </td>
                     </tr>
-                  ) : filteredDocuments.length === 0 ? (
+                  ) : filteredDocuments.length === 0 && pastedRows.length === 0 ? (
                     <tr>
                       <td className="status-row" colSpan={visibleColumns.length}>
                         No documents match your filters.
@@ -3322,11 +3552,12 @@ function App() {
                       const rowId = doc.doc_id || doc.doc_name || doc.id;
                       const isEditing = editRowId === rowId;
                       const isSelected = selectedDocIds.has(rowId);
+                      const isCopied = copiedDocIds.has(rowId);
 
                       return (
                         <tr
                           key={rowId}
-                          className={isSelected ? "selected" : undefined}
+                          className={`${isSelected ? "selected" : ""} ${isCopied ? "copied" : ""} ${isEditing ? "editing" : ""}`.trim() || undefined}
                           onClick={(event) => {
                             const isMultiToggle = event.ctrlKey || event.metaKey;
                             const isRange = event.shiftKey;
@@ -3493,8 +3724,583 @@ function App() {
                         </tr>
                       );
                       })}
+                      {isAdding && project && !documentsLoading && (
+                        <>
+                          <tr className="editing">
+                            {visibleColumns.map((col) => {
+                              const cellStyle = {
+                                width: columnWidths[col.key]
+                                  ? `${columnWidths[col.key]}px`
+                                  : undefined,
+                                minWidth: columnWidths[col.key]
+                                  ? `${columnWidths[col.key]}px`
+                                  : undefined,
+                              };
+
+                              if (col.id === "doc_name") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <input
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                      }}
+                                      value={newDocValues.doc_name_unique}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          doc_name_unique: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                      placeholder="Document name"
+                                    />
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "title") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <input
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                      }}
+                                      value={newDocValues.title}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          title: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                      placeholder="Title"
+                                    />
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "discipline") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <select
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                        background: "var(--color-surface)",
+                                      }}
+                                      value={String(newDocValues.discipline_id ?? "")}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => {
+                                          const nextDiscipline = e.target.value;
+                                          const nextTypes = docTypes.filter(
+                                            (item) =>
+                                              String(item.ref_discipline_id ?? "") ===
+                                              nextDiscipline,
+                                          );
+                                          const currentTypeMatches = docTypes.find(
+                                            (item) =>
+                                              String(item.type_id) === String(prev.type_id) &&
+                                              String(item.ref_discipline_id ?? "") ===
+                                                nextDiscipline,
+                                          );
+                                          return {
+                                            ...prev,
+                                            discipline_id: nextDiscipline,
+                                            type_id: currentTypeMatches
+                                              ? prev.type_id
+                                              : String(nextTypes[0]?.type_id ?? ""),
+                                          };
+                                        })
+                                      }
+                                      disabled={createStatus === "saving"}
+                                    >
+                                      <option value="">Select discipline...</option>
+                                      {disciplines.map((item) => (
+                                        <option
+                                          key={item.discipline_id}
+                                          value={String(item.discipline_id)}
+                                        >
+                                          {item.discipline_name}
+                                          {item.discipline_acronym
+                                            ? ` (${item.discipline_acronym})`
+                                            : ""}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "doc_type") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <select
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                        background: "var(--color-surface)",
+                                      }}
+                                      value={String(newDocValues.type_id ?? "")}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          type_id: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                    >
+                                      <option value="">Select type...</option>
+                                      {filteredDocTypes.map((item) => (
+                                        <option key={item.type_id} value={String(item.type_id)}>
+                                          {item.doc_type_name}
+                                          {item.discipline_acronym
+                                            ? ` (${item.discipline_acronym})`
+                                            : ""}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "jobpack") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <select
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                        background: "var(--color-surface)",
+                                      }}
+                                      value={String(newDocValues.jobpack_id ?? "")}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          jobpack_id: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                    >
+                                      <option value="">Select jobpack...</option>
+                                      {jobpacks.map((item) => (
+                                        <option key={item.jobpack_id} value={String(item.jobpack_id)}>
+                                          {item.jobpack_name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "area") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <select
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                        background: "var(--color-surface)",
+                                      }}
+                                      value={String(newDocValues.area_id ?? "")}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          area_id: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                    >
+                                      <option value="">Select area...</option>
+                                      {areas.map((item) => (
+                                        <option key={item.area_id} value={String(item.area_id)}>
+                                          {item.area_name}
+                                          {item.area_acronym ? ` (${item.area_acronym})` : ""}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "unit") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <select
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                        background: "var(--color-surface)",
+                                      }}
+                                      value={String(newDocValues.unit_id ?? "")}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          unit_id: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                    >
+                                      <option value="">Select unit...</option>
+                                      {units.map((item) => (
+                                        <option key={item.unit_id} value={String(item.unit_id)}>
+                                          {item.unit_name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "rev_code") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <select
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                        background: "var(--color-surface)",
+                                      }}
+                                      value={String(newDocValues.rev_code_id ?? "")}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          rev_code_id: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                    >
+                                      <option value="">Select rev code...</option>
+                                      {revCodeOptions.map((item) => (
+                                        <option
+                                          key={item.rev_code_id}
+                                          value={String(item.rev_code_id)}
+                                        >
+                                          {item.rev_code_acronym
+                                            ? `${item.rev_code_acronym} (${item.rev_code_name})`
+                                            : item.rev_code_name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                );
+                              }
+
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  —
+                                </td>
+                              );
+                            })}
+                          </tr>
+                          {createError && (
+                            <tr>
+                              <td
+                                colSpan={visibleColumns.length}
+                                style={{ color: "var(--color-danger)", padding: "6px 10px" }}
+                              >
+                                {createError}
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      )}
+                      {pastedRows.length > 0 && (
+                        <>
+                          {pastedRows.map((row, rowIdx) => (
+                            <tr key={`paste-${rowIdx}`} className="editing">
+                              {visibleColumns.map((col) => {
+                                const cellStyle = {
+                                  width: columnWidths[col.key]
+                                    ? `${columnWidths[col.key]}px`
+                                    : undefined,
+                                  minWidth: columnWidths[col.key]
+                                    ? `${columnWidths[col.key]}px`
+                                    : undefined,
+                                };
+                                const updateRow = (updates) =>
+                                  setPastedRows((prev) => {
+                                    const next = [...prev];
+                                    next[rowIdx] = { ...next[rowIdx], ...updates };
+                                    return next;
+                                  });
+
+                                if (col.id === "doc_name") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <input
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                        }}
+                                        value={row.doc_name_unique}
+                                        onChange={(e) =>
+                                          updateRow({ doc_name_unique: e.target.value })
+                                        }
+                                        placeholder="Document name"
+                                      />
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "title") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <input
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                        }}
+                                        value={row.title}
+                                        onChange={(e) => updateRow({ title: e.target.value })}
+                                        placeholder="Title"
+                                      />
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "discipline") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(row.discipline_id ?? "")}
+                                        onChange={(e) => {
+                                          const nextDiscipline = e.target.value;
+                                          const nextTypes = docTypes.filter(
+                                            (item) =>
+                                              String(item.ref_discipline_id ?? "") ===
+                                              nextDiscipline,
+                                          );
+                                          const currentTypeMatches = docTypes.find(
+                                            (item) =>
+                                              String(item.type_id) === String(row.type_id) &&
+                                              String(item.ref_discipline_id ?? "") ===
+                                                nextDiscipline,
+                                          );
+                                          updateRow({
+                                            discipline_id: nextDiscipline,
+                                            type_id: currentTypeMatches
+                                              ? row.type_id
+                                              : String(nextTypes[0]?.type_id ?? ""),
+                                          });
+                                        }}
+                                      >
+                                        <option value="">Select discipline...</option>
+                                        {disciplines.map((item) => (
+                                          <option
+                                            key={item.discipline_id}
+                                            value={String(item.discipline_id)}
+                                          >
+                                            {item.discipline_name}
+                                            {item.discipline_acronym
+                                              ? ` (${item.discipline_acronym})`
+                                              : ""}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "doc_type") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(row.type_id ?? "")}
+                                        onChange={(e) =>
+                                          updateRow({ type_id: e.target.value })
+                                        }
+                                      >
+                                        <option value="">Select type...</option>
+                                        {docTypes
+                                          .filter(
+                                            (item) =>
+                                              !row.discipline_id ||
+                                              String(item.ref_discipline_id ?? "") ===
+                                                String(row.discipline_id),
+                                          )
+                                          .map((item) => (
+                                            <option
+                                              key={item.type_id}
+                                              value={String(item.type_id)}
+                                            >
+                                              {item.doc_type_name}
+                                              {item.discipline_acronym
+                                                ? ` (${item.discipline_acronym})`
+                                                : ""}
+                                            </option>
+                                          ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "jobpack") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(row.jobpack_id ?? "")}
+                                        onChange={(e) =>
+                                          updateRow({ jobpack_id: e.target.value })
+                                        }
+                                      >
+                                        <option value="">Select jobpack...</option>
+                                        {jobpacks.map((item) => (
+                                          <option
+                                            key={item.jobpack_id}
+                                            value={String(item.jobpack_id)}
+                                          >
+                                            {item.jobpack_name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "area") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(row.area_id ?? "")}
+                                        onChange={(e) => updateRow({ area_id: e.target.value })}
+                                      >
+                                        <option value="">Select area...</option>
+                                        {areas.map((item) => (
+                                          <option
+                                            key={item.area_id}
+                                            value={String(item.area_id)}
+                                          >
+                                            {item.area_name}
+                                            {item.area_acronym ? ` (${item.area_acronym})` : ""}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "unit") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(row.unit_id ?? "")}
+                                        onChange={(e) => updateRow({ unit_id: e.target.value })}
+                                      >
+                                        <option value="">Select unit...</option>
+                                        {units.map((item) => (
+                                          <option
+                                            key={item.unit_id}
+                                            value={String(item.unit_id)}
+                                          >
+                                            {item.unit_name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "rev_code") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(row.rev_code_id ?? "")}
+                                        onChange={(e) =>
+                                          updateRow({ rev_code_id: e.target.value })
+                                        }
+                                      >
+                                        <option value="">Select rev code...</option>
+                                        {revCodeOptions.map((item) => (
+                                          <option
+                                            key={item.rev_code_id}
+                                            value={String(item.rev_code_id)}
+                                          >
+                                            {item.rev_code_acronym
+                                              ? `${item.rev_code_acronym} (${item.rev_code_name})`
+                                              : item.rev_code_name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    —
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </>
+                      )}
                       {Array.from({
-                        length: Math.max(0, 30 - sortedDocuments.length),
+                        length: Math.max(0, 30 - sortedDocuments.length - pastedRows.length),
                       }).map((_, rowIdx) => (
                         <tr key={`blank-${rowIdx}`} aria-hidden="true">
                           {visibleColumns.map((col) => (
