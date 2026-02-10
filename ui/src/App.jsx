@@ -124,7 +124,7 @@ function App() {
 
   const iconStyle = {
     marginRight: "3px",
-    fontSize: "12px",
+    fontSize: "20px",
   };
 
   const [infoRatio, setInfoRatio] = React.useState(0.35);
@@ -515,9 +515,9 @@ function App() {
               }
             }}
             disabled={isSaving}
+            aria-label={editRowId ? "Save changes" : "Create document"}
           >
             <span style={iconStyle}>💾</span>
-            {editRowId ? "Save" : "Create"}
           </button>
           <button
             style={{
@@ -537,9 +537,9 @@ function App() {
               }
             }}
             disabled={isSaving}
+            aria-label="Cancel"
           >
             <span style={iconStyle}>✕</span>
-            Cancel
           </button>
         </div>
       );
@@ -552,41 +552,41 @@ function App() {
           title="Add new document"
           onClick={handleAddNew}
           disabled={!hasProject}
+          aria-label="Add new document"
         >
           <span style={iconStyle}>+</span>
-          Add new
         </button>
         <button
           style={!hasSelection ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
           title="Edit selected document"
           onClick={handleEdit}
           disabled={!hasSelection}
+          aria-label="Edit selected document"
         >
           <span style={iconStyle}>✎</span>
-          Edit
         </button>
         <button
           style={!hasSelection ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
           title="Delete selected document"
           onClick={handleDelete}
           disabled={!hasSelection}
+          aria-label="Delete selected document"
         >
           <span style={iconStyle}>🗑</span>
-          Delete
         </button>
         <button
           style={!hasProject ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
           title="Export documents"
           onClick={handleExport}
           disabled={!hasProject}
+          aria-label="Export documents"
         >
           <span style={iconStyle}>⬇</span>
-          Export to...
         </button>
-        <button style={buttonStyle} title="Undo" onClick={handleUndo}>
+        <button style={buttonStyle} title="Undo" onClick={handleUndo} aria-label="Undo">
           <span style={iconStyle}>↶</span>
         </button>
-        <button style={buttonStyle} title="Redo" onClick={handleRedo}>
+        <button style={buttonStyle} title="Redo" onClick={handleRedo} aria-label="Redo">
           <span style={iconStyle}>↷</span>
         </button>
       </div>
