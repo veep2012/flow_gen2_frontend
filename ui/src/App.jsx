@@ -2539,17 +2539,6 @@ function App() {
           border-radius: 999px;
           padding: 2px 8px;
         }
-        .flow-step[data-final="true"] {
-          background: #ecfdf3;
-        }
-        .flow-step[data-final="true"] .dot {
-          border-color: #16a34a;
-          color: #16a34a;
-        }
-        .flow-step[data-final="true"].active .dot {
-          background: #16a34a;
-          box-shadow: 0 0 0 3px rgba(22,163,74,0.2);
-        }
         .flow-step[data-ui-behavior="HistoryBehavior.jsx"] {
           background: #fef9c3;
         }
@@ -2602,11 +2591,6 @@ function App() {
           background: var(--color-primary);
           color: var(--color-surface);
           box-shadow: 0 0 0 3px rgba(15,118,110,0.15);
-        }
-        .flow-step[data-final="true"] .dot {
-          width: 22px;
-          height: 22px;
-          border-width: 3px;
         }
         .flow-inline-content {
           border-left: 4px solid var(--color-primary);
@@ -5105,13 +5089,9 @@ function App() {
                           disabled={!isFlowEnabled}
                         >
                           <span className="dot">
-                            {status.final ? (
-                              <span className="dot__inner" aria-hidden="true" />
-                            ) : (
-                              <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-                                <path d="M6 7.5 L9 10.5 L12 7.5" />
-                              </svg>
-                            )}
+                            <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
+                              <path d="M6 7.5 L9 10.5 L12 7.5" />
+                            </svg>
                           </span>
                           <span className="flow-step__label">{status.rev_status_name}</span>
                           <span className="flow-step__behavior" style={{ display: "none" }}>
