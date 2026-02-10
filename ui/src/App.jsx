@@ -146,6 +146,8 @@ function App() {
   const hasInitializedFlowRef = React.useRef(false);
   const uploadInputRef = React.useRef(null);
   const [selectedDocId, setSelectedDocId] = React.useState(null);
+  const [selectedDocIds, setSelectedDocIds] = React.useState(new Set());
+  const [lastSelectedRowIndex, setLastSelectedRowIndex] = React.useState(null);
   const [editRowId, setEditRowId] = React.useState(null);
   const [editValues, setEditValues] = React.useState({
     doc_name_unique: "",
@@ -495,7 +497,7 @@ function App() {
     };
     const handleUndo = () => {};
     const handleRedo = () => {};
-    const hasSelection = Boolean(selectedDoc);
+    const hasSelection = selectedDocIds.size > 0;
     const hasProject = Boolean(project);
 
     if (editRowId || isAdding) {
@@ -3305,18 +3307,45 @@ function App() {
                       </td>
                     </tr>
                   ) : (
-                    sortedDocuments.map((doc) => {
+                    sortedDocuments.map((doc, idx) => {
                       const rowId = doc.doc_id || doc.doc_name || doc.id;
                       const isEditing = editRowId === rowId;
+                      const isSelected = selectedDocIds.has(rowId);
 
                       return (
                         <tr
                           key={rowId}
-                          className={selectedDocId === rowId ? "selected" : undefined}
-                          onClick={() => {
+                          className={isSelected ? "selected" : undefined}
+                          onClick={(event) => {
+                            const isMultiToggle = event.ctrlKey || event.metaKey;
+                            const isRange = event.shiftKey;
+                            if (isRange && lastSelectedRowIndex !== null) {
+                              const start = Math.min(lastSelectedRowIndex, idx);
+                              const end = Math.max(lastSelectedRowIndex, idx);
+                              const rangeIds = sortedDocuments
+                                .slice(start, end + 1)
+                                .map((item) => item.doc_id || item.doc_name || item.id);
+                              setSelectedDocIds((prev) => {
+                                const next = new Set(prev);
+                                rangeIds.forEach((id) => next.add(id));
+                                return next;
+                              });
+                            } else if (isMultiToggle) {
+                              setSelectedDocIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(rowId)) {
+                                  next.delete(rowId);
+                                } else {
+                                  next.add(rowId);
+                                }
+                                return next;
+                              });
+                            } else {
+                              setSelectedDocIds(new Set([rowId]));
+                            }
                             setSelectedDocId(rowId);
+                            setLastSelectedRowIndex(idx);
                             setActiveDetailTab("Revisions");
-                            // Find and expand InDesign tab
                             const inDesignStatus = orderedStatuses.find(
                               (s) => s.rev_status_name?.toLowerCase() === "indesign",
                             );
