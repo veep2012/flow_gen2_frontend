@@ -63,7 +63,7 @@ const IDCBehavior = ({
 
   return (
     <>
-      <div className="detail-tabs" style={{ display: "flex" }}>
+      <div className="idc-subtabs" style={{ display: "flex" }}>
         {["Comments", "Distribution list"].map((tab) => {
           const isActive =
             tab === "Comments"
@@ -94,14 +94,14 @@ const IDCBehavior = ({
         })}
       </div>
       <div
-        className="detail-tab-panel"
+        className="idc-tab-panel"
         style={{
           display: "flex",
           flexDirection: "column",
           gap: "0",
           padding: "12px",
-          borderBottomLeftRadius: "10px",
-          borderBottomRightRadius: "10px",
+          borderBottomLeftRadius: "0",
+          borderBottomRightRadius: "0",
           overflow: "hidden",
           fontSize: "13px",
           color: "var(--color-text-muted)",

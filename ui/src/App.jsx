@@ -142,6 +142,7 @@ function App() {
   const [expandedRevisions, setExpandedRevisions] = React.useState({});
   const [statusMenuOpen, setStatusMenuOpen] = React.useState({});
   const [isDetailPanelHidden, setIsDetailPanelHidden] = React.useState(false);
+  const [isFlowPanelHidden, setIsFlowPanelHidden] = React.useState(false);
   const containerRef = React.useRef(null);
   const leftPanelRef = React.useRef(null);
   const hasInitializedFlowRef = React.useRef(false);
@@ -2110,11 +2111,17 @@ function App() {
         select,
         textarea {
           border: 1px solid var(--color-border-soft);
-          border-radius: 4px;
+          border-radius: 0;
           padding: 6px 8px;
           font-size: 13px;
           color: var(--color-text);
           background: var(--color-surface);
+        }
+        input,
+        select,
+        textarea,
+        button {
+          border-radius: 0 !important;
         }
         input:focus,
         select:focus,
@@ -2125,7 +2132,7 @@ function App() {
         }
         button {
           border: 1px solid var(--color-border-soft);
-          border-radius: 4px;
+          border-radius: 0;
           padding: 6px 10px;
           font-size: 13px;
           color: var(--color-text);
@@ -2266,7 +2273,7 @@ function App() {
         .card {
           background: var(--color-surface);
           border: 1px solid var(--color-border);
-          border-radius: 6px;
+          border-radius: 0;
           box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
           overflow: hidden;
         }
@@ -2330,7 +2337,7 @@ function App() {
           background: #eef2f6;
         }
         .table tbody tr.selected td {
-          background: var(--color-row-selected);
+          background: #f4f7fd;
         }
         .table tbody tr.selected td:first-child {
           box-shadow: inset 2px 0 0 var(--color-accent);
@@ -2391,7 +2398,7 @@ function App() {
           gap: 4px;
           background: var(--color-surface);
           border: 1px solid var(--color-success-border-strong);
-          border-radius: 6px;
+          border-radius: 0;
           padding: 4px 8px;
           font-size: 12px;
           font-weight: 600;
@@ -2422,7 +2429,7 @@ function App() {
           padding: 6px 12px;
           border: 1px solid var(--color-border);
           border-bottom: none;
-          border-radius: 6px 6px 0 0;
+          border-radius: 0;
           background: #f5f6f8;
           font-size: 12px;
           font-weight: 500;
@@ -2454,10 +2461,26 @@ function App() {
           flex-direction: column;
           flex: 1;
         }
+        .idc-subtabs {
+          display: flex;
+          gap: 2px;
+          border-bottom: 1px solid var(--color-border);
+          background: #f5f6f8;
+          padding: 0;
+        }
+        .idc-tab-panel {
+          border: none;
+          padding: 0 !important;
+          margin: 0 !important;
+          background: transparent;
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+        }
         .flow-card {
           background: var(--color-surface-alt);
           border: 1px solid var(--color-border);
-          border-radius: 12px;
+          border-radius: 0;
           box-shadow: 0 1px 2px rgba(0,0,0,0.04);
           display: flex;
           flex-direction: column;
@@ -2965,7 +2988,7 @@ function App() {
       >
         <div
           style={{
-            flex: `${1 - infoRatio} 1 0`,
+            flex: isFlowPanelHidden ? "1 1 0" : `${1 - infoRatio} 1 0`,
             display: "flex",
             flexDirection: "column",
             gap: "4px",
@@ -3058,7 +3081,7 @@ function App() {
                                       left: columnMenuPosition.left,
                                       background: "var(--color-surface)",
                                       border: "1px solid var(--color-border)",
-                                      borderRadius: "6px",
+                                      borderRadius: "0",
                                       boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
                                       zIndex: 5000,
                                       minWidth: "220px",
@@ -3165,7 +3188,7 @@ function App() {
                                           marginLeft: "6px",
                                           background: "var(--color-surface)",
                                           border: "1px solid var(--color-border)",
-                                          borderRadius: "6px",
+                                          borderRadius: "0",
                                           boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
                                           zIndex: 5001,
                                           minWidth: "220px",
@@ -4948,11 +4971,79 @@ function App() {
             title="Drag to resize panels"
             aria-label="Resize panels"
           />
+          {!isFlowPanelHidden && (
+            <button
+              type="button"
+              onClick={() => setIsFlowPanelHidden(true)}
+              style={{
+                position: "relative",
+                zIndex: 101,
+                width: "8px",
+                height: "80px",
+                padding: "0",
+                background: "var(--color-info)",
+                border: "1px solid var(--color-info)",
+                borderRadius: "0",
+                cursor: "pointer",
+                fontSize: "12px",
+                color: "white",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--color-info-dark)";
+                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--color-info)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+              title="Hide document flow"
+              aria-label="Hide document flow"
+            ></button>
+          )}
+          {isFlowPanelHidden && (
+            <button
+              type="button"
+              onClick={() => setIsFlowPanelHidden(false)}
+              style={{
+                position: "relative",
+                zIndex: 101,
+                width: "8px",
+                height: "80px",
+                padding: "0",
+                background: "var(--color-success)",
+                border: "1px solid var(--color-success)",
+                borderRadius: "0",
+                cursor: "pointer",
+                fontSize: "12px",
+                color: "white",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--color-success-dark)";
+                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--color-success)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+              title="Show document flow"
+              aria-label="Show document flow"
+            ></button>
+          )}
         </div>
         <div
           style={{
-            flex: `${infoRatio} 1 0`,
-            display: "flex",
+            flex: isFlowPanelHidden ? "0 0 0" : `${infoRatio} 1 0`,
+            display: hideWindowsOnDrag || isFlowPanelHidden ? "none" : "flex",
             flexDirection: "column",
             minWidth: 0,
             overflow: "visible",

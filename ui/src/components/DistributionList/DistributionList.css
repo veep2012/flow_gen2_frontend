@@ -11,7 +11,7 @@
 /* Alerts */
 .alert {
   padding: 12px 14px;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 13px;
   border-left: 4px solid;
 }
@@ -59,7 +59,7 @@
   width: 640px;
   max-width: calc(100% - 32px);
   background: var(--color-surface);
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid var(--color-border);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
   overflow: hidden;
@@ -123,7 +123,7 @@
   width: 100%;
   padding: 8px 10px;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: 0;
   background: var(--color-surface);
   font-size: 13px;
 }
@@ -153,7 +153,7 @@
 
 .distribution-modal__btn {
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   font-size: 13px;
@@ -176,7 +176,7 @@
 .btn-send {
   padding: 6px 10px;
   border: 1px solid var(--color-border-soft);
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
