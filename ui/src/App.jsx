@@ -1,4 +1,5 @@
 import React from "react";
+import ReactDOM from "react-dom";
 import { documentGridColumns } from "./grids/documents";
 import { getFileKey } from "./utils/fileKey";
 import { normalizeFile } from "./utils/normalizeFile";
@@ -101,9 +102,9 @@ function App() {
   };
 
   const buttonStyle = {
-    background: "var(--color-accent)",
-    color: "var(--color-accent-contrast)",
-    border: "none",
+    background: "var(--color-info-dark)",
+    color: "var(--color-primary-contrast)",
+    border: "1px solid var(--color-info-strong)",
     borderRadius: "4px",
     padding: "3px 6px",
     marginRight: "2px",
@@ -145,6 +146,7 @@ function App() {
   const leftPanelRef = React.useRef(null);
   const hasInitializedFlowRef = React.useRef(false);
   const uploadInputRef = React.useRef(null);
+  const tableWrapperRef = React.useRef(null);
   const [selectedDocId, setSelectedDocId] = React.useState(null);
   const [selectedDocIds, setSelectedDocIds] = React.useState(new Set());
   const [lastSelectedRowIndex, setLastSelectedRowIndex] = React.useState(null);
@@ -179,6 +181,34 @@ function App() {
       setLastCreatedDocIds(new Set());
     }, 10000);
     return () => window.clearTimeout(timeoutId);
+  }, [lastCreatedDocIds]);
+
+  React.useEffect(() => {
+    if (!lastCreatedDocIds.size) return undefined;
+    const ids = Array.from(lastCreatedDocIds);
+    let attempts = 0;
+    let rafId = 0;
+
+    const tryScroll = () => {
+      if (!tableWrapperRef.current) return;
+      const targetId = ids.find((id) =>
+        tableWrapperRef.current.querySelector(`[data-row-id="${id}"]`),
+      );
+      if (targetId) {
+        const row = tableWrapperRef.current.querySelector(`[data-row-id="${targetId}"]`);
+        if (row) {
+          row.scrollIntoView({ block: "nearest" });
+          return;
+        }
+      }
+      attempts += 1;
+      if (attempts < 10) {
+        rafId = window.requestAnimationFrame(tryScroll);
+      }
+    };
+
+    rafId = window.requestAnimationFrame(tryScroll);
+    return () => window.cancelAnimationFrame(rafId);
   }, [lastCreatedDocIds]);
   const [pastedRows, setPastedRows] = React.useState([]);
   const [createStatus, setCreateStatus] = React.useState("idle");
@@ -2956,7 +2986,11 @@ function App() {
             <div className="meta" style={{ display: "none" }}>
               {/* Document register header hidden */}
             </div>
-            <div className="table-wrapper" style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+            <div
+              className="table-wrapper"
+              ref={tableWrapperRef}
+              style={{ flex: 1, minHeight: 0, overflow: "auto" }}
+            >
               <table className="table">
                 <thead>
                   <tr>
@@ -3011,21 +3045,25 @@ function App() {
                               >
                                 ⋮
                               </button>
-                              {columnMenuOpen === col.key ? (
-                                <div
-                                  style={{
-                                    position: "fixed",
-                                    top: columnMenuPosition.top,
-                                    left: columnMenuPosition.left,
-                                    background: "var(--color-surface)",
-                                    border: "1px solid var(--color-border)",
-                                    borderRadius: "6px",
-                                    boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
-                                    zIndex: 20,
-                                    minWidth: "220px",
-                                    overflow: "visible",
-                                  }}
-                                >
+                              {columnMenuOpen === col.key
+                                ? ReactDOM.createPortal(
+                                  <div
+                                    data-column-menu
+                                    onClick={(event) => event.stopPropagation()}
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                    style={{
+                                      position: "fixed",
+                                      top: columnMenuPosition.top,
+                                      left: columnMenuPosition.left,
+                                      background: "var(--color-surface)",
+                                      border: "1px solid var(--color-border)",
+                                      borderRadius: "6px",
+                                      boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
+                                      zIndex: 5000,
+                                      minWidth: "220px",
+                                      overflow: "visible",
+                                    }}
+                                  >
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -3128,6 +3166,7 @@ function App() {
                                           border: "1px solid var(--color-border)",
                                           borderRadius: "6px",
                                           boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
+                                          zIndex: 5001,
                                           minWidth: "220px",
                                           maxHeight: "260px",
                                           overflowY: "auto",
@@ -3221,8 +3260,10 @@ function App() {
                                       </div>
                                     ) : null}
                                   </div>
-                                </div>
-                              ) : null}
+                                  </div>,
+                                  document.body,
+                                )
+                                : null}
                             </div>
                           </div>
                           <input
@@ -3587,6 +3628,7 @@ function App() {
                       return (
                         <tr
                           key={rowId}
+                          data-row-id={rowId}
                           className={`${isSelected ? "selected" : ""} ${isCopied ? "copied" : ""} ${isEditing ? "editing" : ""} ${isCreated ? "created" : ""}`.trim() || undefined}
                           onClick={(event) => {
                             const isMultiToggle = event.ctrlKey || event.metaKey;
