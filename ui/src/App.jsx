@@ -253,6 +253,7 @@ function App() {
     });
   }, []);
 
+
   const handleColumnDragStart = React.useCallback((event, columnId) => {
     setDragColumnId(columnId);
     event.dataTransfer.effectAllowed = "move";
@@ -3316,7 +3317,8 @@ function App() {
                       </td>
                     </tr>
                   ) : (
-                    sortedDocuments.map((doc, idx) => {
+                    <>
+                      {sortedDocuments.map((doc, idx) => {
                       const rowId = doc.doc_id || doc.doc_name || doc.id;
                       const isEditing = editRowId === rowId;
                       const isSelected = selectedDocIds.has(rowId);
@@ -3490,7 +3492,19 @@ function App() {
                           })}
                         </tr>
                       );
-                    })
+                      })}
+                      {Array.from({
+                        length: Math.max(0, 30 - sortedDocuments.length),
+                      }).map((_, rowIdx) => (
+                        <tr key={`blank-${rowIdx}`} aria-hidden="true">
+                          {visibleColumns.map((col) => (
+                            <td key={col.key} style={{ height: "24px" }}>
+                              &nbsp;
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </>
                   )}
                 </tbody>
               </table>
