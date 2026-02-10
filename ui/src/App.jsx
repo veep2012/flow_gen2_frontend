@@ -2262,6 +2262,9 @@ function App() {
           border-right: 1px solid #d5d9de;
           white-space: nowrap;
           vertical-align: middle;
+          position: sticky;
+          top: 0;
+          z-index: 2;
         }
         .table thead th:first-child {
           border-left: 1px solid #d5d9de;
@@ -2953,7 +2956,7 @@ function App() {
             <div className="meta" style={{ display: "none" }}>
               {/* Document register header hidden */}
             </div>
-            <div className="table-wrapper">
+            <div className="table-wrapper" style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
               <table className="table">
                 <thead>
                   <tr>
@@ -2966,7 +2969,9 @@ function App() {
                           onDragOver={handleColumnDragOver}
                           onDrop={(event) => handleColumnDrop(event, col.id)}
                           style={{
-                            position: "relative",
+                            position: "sticky",
+                            top: 0,
+                            zIndex: 3,
                             width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
                             minWidth: columnWidths[col.key]
                               ? `${columnWidths[col.key]}px`
@@ -4648,21 +4653,6 @@ function App() {
                           )}
                         </>
                       )}
-                      {!isAdding &&
-                        Array.from({
-                          length: Math.max(
-                            0,
-                          30 - sortedDocuments.length - pastedRows.length - (isAdding ? 1 : 0),
-                          ),
-                        }).map((_, rowIdx) => (
-                          <tr key={`blank-${rowIdx}`} aria-hidden="true">
-                            {visibleColumns.map((col) => (
-                              <td key={col.key} style={{ height: "24px" }}>
-                                &nbsp;
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
                     </>
                   )}
                 </tbody>
