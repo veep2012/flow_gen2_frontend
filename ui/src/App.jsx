@@ -3353,7 +3353,7 @@ function App() {
                               setInfoActiveStep(String(inDesignStatus.rev_status_id));
                             }
                           }}
-                          onDoubleClick={() => startEdit(doc)}
+                          onDoubleClick={(event) => event.preventDefault()}
                           style={{
                             cursor: "pointer",
                           }}
