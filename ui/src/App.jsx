@@ -2415,7 +2415,7 @@ function App() {
           display: flex;
           gap: 2px;
           border-bottom: 1px solid var(--color-border);
-          background: transparent;
+          background: #f5f6f8;
           padding: 0;
         }
         .detail-tab {
@@ -2423,7 +2423,7 @@ function App() {
           border: 1px solid var(--color-border);
           border-bottom: none;
           border-radius: 6px 6px 0 0;
-          background: var(--color-border);
+          background: #f5f6f8;
           font-size: 12px;
           font-weight: 500;
           cursor: pointer;
@@ -2435,12 +2435,13 @@ function App() {
           align-items: center;
         }
         .detail-tab:hover {
-          background: var(--color-border-strong);
+          background: #e9ecef;
         }
         .detail-tab.active {
-          background: var(--color-accent);
-          color: var(--color-accent-contrast);
-          border-color: var(--color-accent);
+          background: #e0e3e7;
+          color: var(--color-text);
+          border-color: #d5d9de;
+          box-shadow: none;
         }
         .detail-tab-panel {
           border: 1px solid var(--color-border);
