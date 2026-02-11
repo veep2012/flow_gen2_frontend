@@ -5,7 +5,7 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-06
+- Last Updated: 2026-02-11
 - Version: v1.1
 
 ## Purpose
@@ -138,7 +138,9 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/lookups/area
 ```
 - Example response:
 ```json
-[]
+[
+  { "area_id": 1, "area_name": "Newfoundland", "area_acronym": "NFLD" }
+]
 ```
 ## Disciplines
 Shape (single item):
@@ -457,7 +459,21 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/files/commen
 ```
 - Example response:
 ```json
-[]
+[
+  {
+    "id": 3,
+    "file_id": 12,
+    "user_id": 1,
+    "s3_uid": "Project/Doc/IFC/uuid_report.pdf",
+    "filename": "report.pdf",
+    "mimetype": "application/pdf",
+    "rev_id": 45,
+    "created_at": "2026-01-23T17:45:08.294332Z",
+    "updated_at": "2026-01-23T17:45:08.294332Z",
+    "created_by": 1,
+    "updated_by": 1
+  }
+]
 ```
 
 ### Create (multipart)
