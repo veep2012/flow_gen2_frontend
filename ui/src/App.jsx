@@ -191,7 +191,11 @@ function App() {
   const [statusMenuOpen, setStatusMenuOpen] = React.useState({});
   const [isDetailPanelHidden, setIsDetailPanelHidden] = React.useState(false);
   const [isFlowPanelHidden, setIsFlowPanelHidden] = React.useState(false);
+  const [isFlowArrowDragging, setIsFlowArrowDragging] = React.useState(false);
+  const [flowArrowTarget, setFlowArrowTarget] = React.useState(null);
+  const [flowArrowPos, setFlowArrowPos] = React.useState({ x: 0, y: 0 });
   const containerRef = React.useRef(null);
+  const flowStepsRef = React.useRef(null);
   const leftPanelRef = React.useRef(null);
   const hasInitializedFlowRef = React.useRef(false);
   const uploadInputRef = React.useRef(null);
@@ -323,6 +327,50 @@ function App() {
       setStatusMenuOpen({});
     }
   }, [isFlowEnabled]);
+
+  React.useEffect(() => {
+    if (!isFlowArrowDragging) {
+      return undefined;
+    }
+    const handleMouseMove = (event) => {
+      if (!flowStepsRef.current) {
+        setFlowArrowPos({ x: event.clientX, y: event.clientY });
+        return;
+      }
+      const rect = flowStepsRef.current.getBoundingClientRect();
+      const halfSize = 9;
+      const x = rect.left + rect.width / 2;
+      const y = Math.min(rect.bottom - halfSize, Math.max(rect.top + halfSize, event.clientY));
+      setFlowArrowPos({ x, y });
+    };
+    const handleMouseUp = () => {
+      setIsFlowArrowDragging(false);
+      if (!flowArrowTarget || !isFlowEnabled) {
+        setFlowArrowTarget(null);
+        return;
+      }
+      const confirmed = window.confirm(
+        "Are you sure you want to move this document to the selected status?",
+      );
+      if (!confirmed) {
+        setFlowArrowTarget(null);
+        return;
+      }
+      if (flowArrowTarget === "history") {
+        setInfoActiveStep("history");
+      } else {
+        setInfoActiveStep(flowArrowTarget);
+        setInfoActiveSubTab("Files with Comments");
+      }
+      setFlowArrowTarget(null);
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isFlowArrowDragging, flowArrowTarget, isFlowEnabled]);
 
   React.useEffect(() => {
     const handleClickAway = (event) => {
@@ -2582,49 +2630,109 @@ function App() {
           background: #e0f0e3;
           border-color: var(--color-success-border-strong);
         }
-        .flow-steps-column .flow-step.active:hover::after {
+        .flow-steps-column .flow-step__arrow {
+          position: absolute;
+          bottom: 4px;
+          left: 50%;
+          width: 18px;
+          height: 18px;
+          transform: translateX(-50%);
+          border: 1px solid var(--color-text);
+          background: var(--color-surface);
+          border-radius: 2px;
+          opacity: 0;
+          pointer-events: none;
+          cursor: pointer;
+        }
+        .flow-steps-column .flow-step__arrow::before {
           content: "";
           position: absolute;
-          bottom: 6px;
+          top: 3px;
+          left: 50%;
+          width: 2px;
+          height: 7px;
+          transform: translateX(-50%);
+          background: var(--color-text);
+          border-radius: 1px;
+        }
+        .flow-steps-column .flow-step__arrow::after {
+          content: "";
+          position: absolute;
+          bottom: 3px;
           left: 50%;
           transform: translateX(-50%);
           width: 0;
           height: 0;
-          border-left: 5px solid transparent;
-          border-right: 5px solid transparent;
-          border-top: 6px solid var(--color-text);
+          border-left: 4px solid transparent;
+          border-right: 4px solid transparent;
+          border-top: 5px solid var(--color-text);
+        }
+        .flow-steps-column .flow-step.active:hover .flow-step__arrow {
+          opacity: 0.95;
+          pointer-events: auto;
+          filter: drop-shadow(0 0 2px rgba(15, 118, 110, 0.35));
+          animation: flow-arrow-bounce 1.8s ease-in-out infinite;
+        }
+        .flow-arrow-drag {
+          position: fixed;
+          width: 18px;
+          height: 18px;
+          border: 1px solid var(--color-text);
+          background: var(--color-surface);
+          border-radius: 2px;
           pointer-events: none;
           opacity: 0.95;
           filter: drop-shadow(0 0 2px rgba(15, 118, 110, 0.35));
-          animation: flow-arrow-bounce 1.1s ease-in-out infinite,
-            flow-arrow-glow 1.6s ease-in-out infinite;
+          transform: translate(-50%, -50%);
+          transition: transform 0.18s ease-out;
+          z-index: 5000;
+        }
+        .flow-arrow-drag::before {
+          content: "";
+          position: absolute;
+          top: 3px;
+          left: 50%;
+          width: 2px;
+          height: 7px;
+          transform: translateX(-50%);
+          background: var(--color-text);
+          border-radius: 1px;
+        }
+        .flow-arrow-drag::after {
+          content: "";
+          position: absolute;
+          bottom: 3px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 0;
+          height: 0;
+          border-left: 4px solid transparent;
+          border-right: 4px solid transparent;
+          border-top: 5px solid var(--color-text);
         }
         @keyframes flow-arrow-bounce {
           0% {
-            transform: translate(-50%, -2px) scale(0.95);
-            opacity: 0.45;
+            transform: translate(-50%, -1px) scale(0.98);
+            opacity: 0.75;
           }
           50% {
-            transform: translate(-50%, 6px) scale(1.05);
-            opacity: 1;
+            transform: translate(-50%, 3px) scale(1.02);
+            opacity: 0.95;
           }
           100% {
-            transform: translate(-50%, -2px) scale(0.95);
-            opacity: 0.45;
+            transform: translate(-50%, -1px) scale(0.98);
+            opacity: 0.75;
           }
         }
-        @keyframes flow-arrow-glow {
-          0% {
-            filter: drop-shadow(0 0 1px rgba(15, 118, 110, 0.2));
-          }
-          50% {
-            filter: drop-shadow(0 0 6px rgba(15, 118, 110, 0.5));
-          }
-          100% {
-            filter: drop-shadow(0 0 1px rgba(15, 118, 110, 0.2));
-          }
+        .flow-steps-column .flow-step__label {
+          display: block;
+          writing-mode: vertical-rl;
+          transform: rotate(180deg);
+          font-size: 11px;
+          letter-spacing: 0.5px;
+          text-align: center;
+          color: var(--color-text);
         }
-        .flow-steps-column .flow-step__label,
         .flow-steps-column .flow-step__behavior {
           display: none;
         }
@@ -2636,21 +2744,7 @@ function App() {
           position: relative;
         }
         .flow-content-header {
-          padding: 8px 12px;
-          height: 32px;
-          border-bottom: 1px solid var(--color-border);
-          text-align: center;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--color-text-strong);
-          background: var(--color-surface);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          position: relative;
-          padding-right: 36px;
+          display: none;
         }
         .flow-header-menu {
           position: absolute;
@@ -5253,19 +5347,32 @@ function App() {
 
                   return (
                     <>
-                      <div className="flow-steps-column">
+                              <div className="flow-steps-column" ref={flowStepsRef}>
                         {orderedStatuses.map((status) => {
                           const key = String(status.rev_status_id);
                           const isActive = key === String(infoActiveStep);
                           const behaviorFileItem = behaviorFileById[status.ui_behavior_id];
+                          const hasFilesForStatus = Boolean(
+                            selectedDocId &&
+                              Array.isArray(uploadedFiles[selectedDocId]?.[key]) &&
+                              uploadedFiles[selectedDocId]?.[key]?.length,
+                          );
+                          const canDragArrow = isFlowEnabled && hasFilesForStatus;
                           return (
                             <button
                               key={status.rev_status_id}
                               type="button"
-                              className={`flow-step ${isActive ? "active" : ""}`}
+                              className={`flow-step ${isActive ? "active" : ""} ${
+                                isFlowArrowDragging && flowArrowTarget === key ? "drag-target" : ""
+                              }`}
                               aria-expanded={isActive}
                               data-ui-behavior={behaviorFileItem || "default"}
                               data-final={status.final ? "true" : "false"}
+                              onMouseEnter={() => {
+                                if (isFlowArrowDragging) {
+                                  setFlowArrowTarget(key);
+                                }
+                              }}
                               onClick={() => {
                                 if (!isFlowEnabled) {
                                   return;
@@ -5278,6 +5385,30 @@ function App() {
                             >
                               <span className="dot" style={{ display: "none" }} />
                               <span className="flow-step__label">{status.rev_status_name}</span>
+                              {canDragArrow && (
+                                <span
+                                  className="flow-step__arrow"
+                                  aria-hidden="true"
+                                  onMouseDown={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    setFlowArrowTarget(null);
+                                    setIsFlowArrowDragging(true);
+                                    if (flowStepsRef.current) {
+                                      const rect = flowStepsRef.current.getBoundingClientRect();
+                                      const halfSize = 9;
+                                      const x = rect.left + rect.width / 2;
+                                      const y = Math.min(
+                                        rect.bottom - halfSize,
+                                        Math.max(rect.top + halfSize, event.clientY),
+                                      );
+                                      setFlowArrowPos({ x, y });
+                                    } else {
+                                      setFlowArrowPos({ x: event.clientX, y: event.clientY });
+                                    }
+                                  }}
+                                />
+                              )}
                               <span className="flow-step__behavior" style={{ display: "none" }}>
                                 {behaviorFileItem || "Default"}
                               </span>
@@ -5286,10 +5417,19 @@ function App() {
                         })}
                         <button
                           type="button"
-                          className={`flow-step ${activeIsHistory ? "active" : ""}`}
+                          className={`flow-step ${activeIsHistory ? "active" : ""} ${
+                            isFlowArrowDragging && flowArrowTarget === "history"
+                              ? "drag-target"
+                              : ""
+                          }`}
                           aria-expanded={activeIsHistory}
                           data-ui-behavior="HistoryBehavior.jsx"
                           data-final="false"
+                          onMouseEnter={() => {
+                            if (isFlowArrowDragging) {
+                              setFlowArrowTarget("history");
+                            }
+                          }}
                           onClick={() => {
                             if (!isFlowEnabled) {
                               return;
@@ -5303,99 +5443,18 @@ function App() {
                           <span className="flow-step__label">History</span>
                           <span className="flow-step__behavior">History</span>
                         </button>
+                        {isFlowArrowDragging && (
+                          <div
+                            className="flow-arrow-drag"
+                            style={{ left: flowArrowPos.x, top: flowArrowPos.y }}
+                            aria-hidden="true"
+                          />
+                        )}
                       </div>
                       <div
                         className="flow-content-column"
                         style={{ display: isFlowPanelHidden ? "none" : "flex" }}
                       >
-                        <div className="flow-content-header">
-                          {activeStatus
-                            ? activeStatus.rev_status_name
-                            : activeIsHistory
-                              ? "History"
-                              : "Select status"}
-                          {activeStatus && isFlowEnabled && (
-                            <>
-                              <button
-                                type="button"
-                                className="flow-header-menu"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (!statusKey) return;
-                                  setStatusMenuOpen((prev) => ({
-                                    ...prev,
-                                    [statusKey]: !isMenuOpen,
-                                  }));
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.color = "white";
-                                  e.currentTarget.style.background = "var(--color-info)";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.color = "var(--color-text-muted)";
-                                  e.currentTarget.style.background = "transparent";
-                                }}
-                                title="Status menu"
-                                aria-label="Status menu"
-                                disabled={!isFlowEnabled}
-                              >
-                                ⋮
-                              </button>
-                              {isMenuOpen && (
-                                <div
-                                  style={{
-                                    position: "absolute",
-                                    top: "100%",
-                                    right: 0,
-                                    background: "var(--color-surface)",
-                                    border: "1px solid var(--color-border)",
-                                    borderRadius: "0",
-                                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                                    minWidth: "180px",
-                                    zIndex: 1000,
-                                    marginTop: "4px",
-                                  }}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (
-                                        window.confirm(
-                                          `Issue "${activeStatus.rev_status_name}" to IDC?`,
-                                        )
-                                      ) {
-                                        alert(
-                                          `Status "${activeStatus.rev_status_name}" issued to IDC`,
-                                        );
-                                      }
-                                      setStatusMenuOpen((prev) => ({ ...prev, [statusKey]: false }));
-                                    }}
-                                    style={{
-                                      display: "block",
-                                      width: "100%",
-                                      padding: "10px 16px",
-                                      background: "transparent",
-                                      border: "none",
-                                      textAlign: "left",
-                                      cursor: "pointer",
-                                      fontSize: "13px",
-                                      color: "var(--color-text)",
-                                      transition: "background 0.2s",
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.background = "var(--color-background)";
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.background = "transparent";
-                                    }}
-                                  >
-                                    Issue to IDC
-                                  </button>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
                         {activeIsHistory && isFlowEnabled && Behavior ? (
                           <div className="flow-inline-content" data-ui-behavior="HistoryBehavior.jsx">
                             <React.Suspense
