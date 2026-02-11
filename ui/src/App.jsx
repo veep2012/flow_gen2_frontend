@@ -2604,6 +2604,21 @@ function App() {
           background: var(--color-surface);
           text-transform: uppercase;
           letter-spacing: 0.5px;
+          position: relative;
+          padding-right: 36px;
+        }
+        .flow-header-menu {
+          position: absolute;
+          right: 6px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          padding: 4px 6px;
+          font-size: 20px;
+          color: var(--color-text-muted);
+          transition: color 0.2s;
         }
         .flow-empty {
           padding: 12px 14px;
@@ -2702,11 +2717,11 @@ function App() {
           border-color: #ffffff;
         }
         .flow-inline-content {
-          border-left: 4px solid var(--color-primary);
+          border-left: none;
           background: var(--color-surface-alt);
-          border: 1px solid var(--color-border);
-          border-radius: 10px;
-          margin: 4px 8px 10px 8px;
+          border: none;
+          border-radius: 4px;
+          margin: 0;
           padding: 0;
           display: flex;
           flex-direction: column;
@@ -2714,6 +2729,9 @@ function App() {
           min-height: 0;
           max-height: 100%;
           overflow: hidden;
+        }
+        .flow-inline-content * {
+          border-radius: 0 !important;
         }
         .flow-subtabs {
           display: flex;
@@ -5199,10 +5217,6 @@ function App() {
                                 if (!isFlowEnabled) {
                                   return;
                                 }
-                                if (isActive) {
-                                  setInfoActiveStep(null);
-                                  return;
-                                }
                                 setInfoActiveStep(key);
                                 setInfoActiveSubTab("Files with Comments");
                               }}
@@ -5227,10 +5241,6 @@ function App() {
                             if (!isFlowEnabled) {
                               return;
                             }
-                            if (activeIsHistory) {
-                              setInfoActiveStep(null);
-                              return;
-                            }
                             setInfoActiveStep("history");
                           }}
                           disabled={!isFlowEnabled}
@@ -5251,6 +5261,87 @@ function App() {
                             : activeIsHistory
                               ? "History"
                               : "Select status"}
+                          {activeStatus && isFlowEnabled && (
+                            <>
+                              <button
+                                type="button"
+                                className="flow-header-menu"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!statusKey) return;
+                                  setStatusMenuOpen((prev) => ({
+                                    ...prev,
+                                    [statusKey]: !isMenuOpen,
+                                  }));
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.color = "white";
+                                  e.currentTarget.style.background = "var(--color-info)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.color = "var(--color-text-muted)";
+                                  e.currentTarget.style.background = "transparent";
+                                }}
+                                title="Status menu"
+                                aria-label="Status menu"
+                                disabled={!isFlowEnabled}
+                              >
+                                ⋮
+                              </button>
+                              {isMenuOpen && (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    top: "100%",
+                                    right: 0,
+                                    background: "var(--color-surface)",
+                                    border: "1px solid var(--color-border)",
+                                    borderRadius: "0",
+                                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                                    minWidth: "180px",
+                                    zIndex: 1000,
+                                    marginTop: "4px",
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (
+                                        window.confirm(
+                                          `Issue "${activeStatus.rev_status_name}" to IDC?`,
+                                        )
+                                      ) {
+                                        alert(
+                                          `Status "${activeStatus.rev_status_name}" issued to IDC`,
+                                        );
+                                      }
+                                      setStatusMenuOpen((prev) => ({ ...prev, [statusKey]: false }));
+                                    }}
+                                    style={{
+                                      display: "block",
+                                      width: "100%",
+                                      padding: "10px 16px",
+                                      background: "transparent",
+                                      border: "none",
+                                      textAlign: "left",
+                                      cursor: "pointer",
+                                      fontSize: "13px",
+                                      color: "var(--color-text)",
+                                      transition: "background 0.2s",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = "var(--color-background)";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = "transparent";
+                                    }}
+                                  >
+                                    Issue to IDC
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
                         </div>
                         {activeIsHistory && isFlowEnabled && Behavior ? (
                           <div className="flow-inline-content" data-ui-behavior="HistoryBehavior.jsx">
@@ -5299,96 +5390,6 @@ function App() {
                           </div>
                         ) : (
                           <div className="flow-empty">Select a status to view details.</div>
-                        )}
-                        {activeStatus && isFlowEnabled && (
-                          <div style={{ position: "absolute", top: 6, right: 6 }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!statusKey) return;
-                                setStatusMenuOpen((prev) => ({
-                                  ...prev,
-                                  [statusKey]: !isMenuOpen,
-                                }));
-                              }}
-                              style={{
-                                background: "transparent",
-                                border: "none",
-                                cursor: "pointer",
-                                padding: "6px 8px",
-                                fontSize: "20px",
-                                color: "var(--color-text-muted)",
-                                transition: "color 0.2s",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.color = "white";
-                                e.currentTarget.style.background = "var(--color-info)";
-                                e.currentTarget.style.borderRadius = "0";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.color = "var(--color-text-muted)";
-                                e.currentTarget.style.background = "transparent";
-                              }}
-                              title="Status menu"
-                              aria-label="Status menu"
-                              disabled={!isFlowEnabled}
-                            >
-                              ⋮
-                            </button>
-                            {isMenuOpen && (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  top: "100%",
-                                  right: 0,
-                                  background: "var(--color-surface)",
-                                  border: "1px solid var(--color-border)",
-                                  borderRadius: "0",
-                                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                                  minWidth: "180px",
-                                  zIndex: 1000,
-                                  marginTop: "4px",
-                                }}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (
-                                      window.confirm(
-                                        `Issue "${activeStatus.rev_status_name}" to IDC?`,
-                                      )
-                                    ) {
-                                      alert(
-                                        `Status "${activeStatus.rev_status_name}" issued to IDC`,
-                                      );
-                                    }
-                                    setStatusMenuOpen((prev) => ({ ...prev, [statusKey]: false }));
-                                  }}
-                                  style={{
-                                    display: "block",
-                                    width: "100%",
-                                    padding: "10px 16px",
-                                    background: "transparent",
-                                    border: "none",
-                                    textAlign: "left",
-                                    cursor: "pointer",
-                                    fontSize: "13px",
-                                    color: "var(--color-text)",
-                                    transition: "background 0.2s",
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = "var(--color-background)";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = "transparent";
-                                  }}
-                                >
-                                  Issue to IDC
-                                </button>
-                              </div>
-                            )}
-                          </div>
                         )}
                       </div>
                     </>

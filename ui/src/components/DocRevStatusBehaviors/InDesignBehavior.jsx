@@ -80,9 +80,9 @@ const InDesignBehavior = ({
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "8px", minHeight: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "4px", minHeight: 0 }}>
       {/* File list area - takes 80% space and scrolls */}
-      <div style={{ flex: 4, overflow: "auto", padding: "8px 0", minHeight: 0 }}>
+      <div style={{ flex: 4, overflow: "auto", padding: "0", minHeight: 0 }}>
         {allFiles.length > 0 ? (
           <>
             {["Rev A", "Rev B", "Rev C", "Other"].map((revision) => {
@@ -94,7 +94,7 @@ const InDesignBehavior = ({
               const isExpanded = expandedRevisions[revKey]?.isOpen !== false;
 
               return (
-                <div key={revision} style={{ marginBottom: "4px" }}>
+                <div key={revision} style={{ marginBottom: "0" }}>
                   <button
                     type="button"
                     onClick={() => onRevisionToggle(revKey)}
@@ -102,7 +102,7 @@ const InDesignBehavior = ({
                       display: "flex",
                       alignItems: "center",
                       gap: "6px",
-                      padding: "6px 8px",
+                      padding: "3px",
                       cursor: "pointer",
                       color: "var(--color-text)",
                       fontSize: "13px",
@@ -128,7 +128,7 @@ const InDesignBehavior = ({
                     </span>
                     <span style={{ display: "flex", alignItems: "center" }}>{revision}</span>
                   </button>
-                  <div style={{ position: "relative" }}>
+                  <div style={{ position: "relative", marginLeft: "0" }}>
                     {isExpanded &&
                       revFiles.map((file, idx) => {
                         // Handle both string and object file formats
@@ -152,11 +152,11 @@ const InDesignBehavior = ({
                               display: "flex",
                               alignItems: "center",
                               gap: "0px",
-                              padding: "4px 8px 4px 8px",
+                              padding: "3px",
                               fontSize: "12px",
                               background: "transparent",
                               transition: "background 0.2s",
-                              marginLeft: "8px",
+                              marginLeft: "0px",
                               overflow: "hidden",
                             }}
                             onMouseEnter={(e) => {
@@ -185,7 +185,7 @@ const InDesignBehavior = ({
                                 color: "var(--color-text-muted)",
                                 fontSize: "12px",
                                 fontFamily: "monospace",
-                                minWidth: "20px",
+                                minWidth: "12px",
                               }}
                             >
                               {treeChar}
@@ -215,7 +215,7 @@ const InDesignBehavior = ({
                                 textAlign: "left",
                                 flex: 1,
                                 transition: "all 0.2s",
-                                borderRadius: "4px",
+                                borderRadius: "0",
                               }}
                               onMouseEnter={(e) => {
                                 if (selectedFileId !== selectedKey) {
@@ -284,7 +284,7 @@ const InDesignBehavior = ({
             })}
           </>
         ) : (
-          <div style={{ color: "var(--color-text-muted)", fontSize: "13px", padding: "8px" }}>
+          <div style={{ color: "var(--color-text-muted)", fontSize: "13px", padding: "0" }}>
             No files added yet
           </div>
         )}
@@ -298,7 +298,9 @@ const InDesignBehavior = ({
         onClick={onUploadClick}
         aria-label="Upload PDF files"
         style={{
-          padding: "16px",
+          padding: "3px",
+          margin: "3px",
+          borderRadius: "4px",
           flex: 1,
           minHeight: 0,
           overflow: "auto",
