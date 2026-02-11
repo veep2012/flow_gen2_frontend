@@ -5231,7 +5231,7 @@ function App() {
                               disabled={!isFlowEnabled}
                               title={status.rev_status_name}
                             >
-                              <span className="dot">{renderFlowIcon(status.rev_status_name)}</span>
+                              <span className="dot" style={{ display: "none" }} />
                               <span className="flow-step__label">{status.rev_status_name}</span>
                               <span className="flow-step__behavior" style={{ display: "none" }}>
                                 {behaviorFileItem || "Default"}
@@ -5254,7 +5254,7 @@ function App() {
                           disabled={!isFlowEnabled}
                           title="History"
                         >
-                          <span className="dot">{renderFlowIcon("History")}</span>
+                          <span className="dot" style={{ display: "none" }} />
                           <span className="flow-step__label">History</span>
                           <span className="flow-step__behavior">History</span>
                         </button>
