@@ -2582,6 +2582,48 @@ function App() {
           background: #e0f0e3;
           border-color: var(--color-success-border-strong);
         }
+        .flow-steps-column .flow-step.active:hover::after {
+          content: "";
+          position: absolute;
+          bottom: 6px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 0;
+          height: 0;
+          border-left: 5px solid transparent;
+          border-right: 5px solid transparent;
+          border-top: 6px solid var(--color-text);
+          pointer-events: none;
+          opacity: 0.95;
+          filter: drop-shadow(0 0 2px rgba(15, 118, 110, 0.35));
+          animation: flow-arrow-bounce 1.1s ease-in-out infinite,
+            flow-arrow-glow 1.6s ease-in-out infinite;
+        }
+        @keyframes flow-arrow-bounce {
+          0% {
+            transform: translate(-50%, -2px) scale(0.95);
+            opacity: 0.45;
+          }
+          50% {
+            transform: translate(-50%, 6px) scale(1.05);
+            opacity: 1;
+          }
+          100% {
+            transform: translate(-50%, -2px) scale(0.95);
+            opacity: 0.45;
+          }
+        }
+        @keyframes flow-arrow-glow {
+          0% {
+            filter: drop-shadow(0 0 1px rgba(15, 118, 110, 0.2));
+          }
+          50% {
+            filter: drop-shadow(0 0 6px rgba(15, 118, 110, 0.5));
+          }
+          100% {
+            filter: drop-shadow(0 0 1px rgba(15, 118, 110, 0.2));
+          }
+        }
         .flow-steps-column .flow-step__label,
         .flow-steps-column .flow-step__behavior {
           display: none;
