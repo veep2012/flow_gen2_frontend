@@ -2127,7 +2127,37 @@ function App() {
       infoActiveStep === null &&
       !hasInitializedFlowRef.current
     ) {
-      const firstStatus = orderedStatuses[0];
+      const docEntry = selectedDocId ? uploadedFiles[selectedDocId] || {} : {};
+      const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
+      const statusWithFiles = orderedStatuses.find((status) => {
+        const key = String(status.rev_status_id);
+        const behaviorFileItem = behaviorFileById[status.ui_behavior_id] || "";
+        if (String(behaviorFileItem).includes("InDesignBehavior")) {
+          const localFiles = Array.isArray(docEntry[key]) ? docEntry[key] : [];
+          const apiFilesForStatus = apiFiles.filter((file) => {
+            const issued = file?.issuedStatus ?? file?.issued_status ?? null;
+            const issuedString =
+              issued === null || issued === undefined ? "" : String(issued);
+            return (
+              issued === null ||
+              issued === undefined ||
+              issuedString === "" ||
+              issuedString === String(key)
+            );
+          });
+          return localFiles.length || apiFilesForStatus.length;
+        }
+        if (String(behaviorFileItem).includes("IDCBehavior")) {
+          const localFiles = Array.isArray(docEntry["2"]) ? docEntry["2"] : [];
+          const apiFilesForStatus = apiFiles.filter((file) => {
+            const issued = file?.issuedStatus ?? file?.issued_status ?? null;
+            return String(issued) === "2";
+          });
+          return localFiles.length || apiFilesForStatus.length;
+        }
+        return false;
+      });
+      const firstStatus = statusWithFiles || orderedStatuses[0];
       if (firstStatus) {
         setInfoActiveStep(String(firstStatus.rev_status_id));
         hasInitializedFlowRef.current = true;
@@ -2145,7 +2175,7 @@ function App() {
     if (exists) return;
     setInfoActiveStep(null);
     hasInitializedFlowRef.current = true;
-  }, [orderedStatuses, infoActiveStep, selectedDoc]);
+  }, [orderedStatuses, infoActiveStep, selectedDoc, selectedDocId, uploadedFiles, behaviorFileById]);
 
   return (
     <main
@@ -5352,11 +5382,35 @@ function App() {
                           const key = String(status.rev_status_id);
                           const isActive = key === String(infoActiveStep);
                           const behaviorFileItem = behaviorFileById[status.ui_behavior_id];
-                          const hasFilesForStatus = Boolean(
-                            selectedDocId &&
-                              Array.isArray(uploadedFiles[selectedDocId]?.[key]) &&
-                              uploadedFiles[selectedDocId]?.[key]?.length,
-                          );
+                          const docEntry = selectedDocId ? uploadedFiles[selectedDocId] || {} : {};
+                          const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
+                          const behaviorKey = String(behaviorFileItem || "");
+                          const hasFilesForStatus = (() => {
+                            if (behaviorKey.includes("InDesignBehavior")) {
+                              const localFiles = Array.isArray(docEntry[key]) ? docEntry[key] : [];
+                              const apiFilesForStatus = apiFiles.filter((file) => {
+                                const issued = file?.issuedStatus ?? file?.issued_status ?? null;
+                                const issuedString =
+                                  issued === null || issued === undefined ? "" : String(issued);
+                                return (
+                                  issued === null ||
+                                  issued === undefined ||
+                                  issuedString === "" ||
+                                  issuedString === String(key)
+                                );
+                              });
+                              return localFiles.length || apiFilesForStatus.length;
+                            }
+                            if (behaviorKey.includes("IDCBehavior")) {
+                              const localFiles = Array.isArray(docEntry["2"]) ? docEntry["2"] : [];
+                              const apiFilesForStatus = apiFiles.filter((file) => {
+                                const issued = file?.issuedStatus ?? file?.issued_status ?? null;
+                                return String(issued) === "2";
+                              });
+                              return localFiles.length || apiFilesForStatus.length;
+                            }
+                            return false;
+                          })();
                           const canDragArrow = isFlowEnabled && hasFilesForStatus;
                           return (
                             <button
@@ -5364,7 +5418,7 @@ function App() {
                               type="button"
                               className={`flow-step ${isActive ? "active" : ""} ${
                                 isFlowArrowDragging && flowArrowTarget === key ? "drag-target" : ""
-                              }`}
+                              } ${canDragArrow ? "has-arrow" : ""}`}
                               aria-expanded={isActive}
                               data-ui-behavior={behaviorFileItem || "default"}
                               data-final={status.final ? "true" : "false"}
