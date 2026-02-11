@@ -40,8 +40,9 @@ Helper script:
   - `python3 skills/monthly-doc-actualizer/scripts/check_due.py --state-file documentation/_documentation_actualization_state.md --mark-full`
 
 ### Step 4: Validate
+- Invariant: documentation markdown filenames must be lowercase (no uppercase letters).
 - Run:
-  - `find documentation -type f -name '*.md' | rg '[A-Z]'`
+  - `find documentation -type f -name '*[A-Z]*.md'`
 - Expected: no output.
 
 ## Output Requirements
