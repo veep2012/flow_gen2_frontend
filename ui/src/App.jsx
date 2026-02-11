@@ -5411,14 +5411,13 @@ function App() {
                             }
                             return false;
                           })();
-                          const canDragArrow = isFlowEnabled && hasFilesForStatus;
                           return (
                             <button
                               key={status.rev_status_id}
                               type="button"
                               className={`flow-step ${isActive ? "active" : ""} ${
                                 isFlowArrowDragging && flowArrowTarget === key ? "drag-target" : ""
-                              } ${canDragArrow ? "has-arrow" : ""}`}
+                              }`}
                               aria-expanded={isActive}
                               data-ui-behavior={behaviorFileItem || "default"}
                               data-final={status.final ? "true" : "false"}
@@ -5438,31 +5437,13 @@ function App() {
                               title={status.rev_status_name}
                             >
                               <span className="dot" style={{ display: "none" }} />
-                              <span className="flow-step__label">{status.rev_status_name}</span>
-                              {canDragArrow && (
-                                <span
-                                  className="flow-step__arrow"
-                                  aria-hidden="true"
-                                  onMouseDown={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    setFlowArrowTarget(null);
-                                    setIsFlowArrowDragging(true);
-                                    if (flowStepsRef.current) {
-                                      const rect = flowStepsRef.current.getBoundingClientRect();
-                                      const halfSize = 9;
-                                      const x = rect.left + rect.width / 2;
-                                      const y = Math.min(
-                                        rect.bottom - halfSize,
-                                        Math.max(rect.top + halfSize, event.clientY),
-                                      );
-                                      setFlowArrowPos({ x, y });
-                                    } else {
-                                      setFlowArrowPos({ x: event.clientX, y: event.clientY });
-                                    }
-                                  }}
-                                />
-                              )}
+                              <span className="flow-step__label">
+                                {((status.rev_status_name || "")
+                                  .replace(/^\s*\d+\s*[-–—]\s*/i, "")
+                                  .replace(/0/g, "")
+                                  .replace(/\s+/g, " ")
+                                  .trim()) || status.rev_status_name}
+                              </span>
                               <span className="flow-step__behavior" style={{ display: "none" }}>
                                 {behaviorFileItem || "Default"}
                               </span>
@@ -5495,7 +5476,6 @@ function App() {
                         >
                           <span className="dot" style={{ display: "none" }} />
                           <span className="flow-step__label">History</span>
-                          <span className="flow-step__behavior">History</span>
                         </button>
                         {isFlowArrowDragging && (
                           <div
