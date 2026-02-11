@@ -2559,36 +2559,28 @@ function App() {
           border-right: 1px solid var(--color-border);
           display: flex;
           flex-direction: column;
-          padding: 6px 4px;
+          padding: 4px;
           background: var(--color-surface);
           height: 100%;
         }
-        .flow-steps-group {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          flex: 0 0 auto;
-        }
-        .flow-steps-spacer {
-          flex: 0 0 0;
-          min-height: 0;
-        }
         .flow-steps-column .flow-step {
           padding: 4px 2px;
-          height: 28px;
+          height: auto;
           justify-content: center;
           border-radius: 0;
-          flex: 0 0 auto;
+          flex: 1 1 0;
           display: flex;
           align-items: center;
         }
         .flow-steps-column .flow-step.active {
-          flex: 1 1 auto;
+          flex: 1 1 0;
           align-items: center;
-          justify-content: flex-start;
-          padding-top: 6px;
+          justify-content: center;
+          padding-top: 0;
           flex-direction: column;
           height: auto;
+          background: var(--color-info-dark);
+          border-color: var(--color-info-strong);
         }
         .flow-steps-column .flow-step__label,
         .flow-steps-column .flow-step__behavior {
@@ -2704,6 +2696,10 @@ function App() {
           background: var(--color-primary);
           color: var(--color-surface);
           box-shadow: 0 0 0 3px rgba(15,118,110,0.15);
+          border-color: var(--color-primary);
+        }
+        .flow-steps-column .flow-step.active .dot {
+          border-color: #ffffff;
         }
         .flow-inline-content {
           border-left: 4px solid var(--color-primary);
@@ -5139,14 +5135,22 @@ function App() {
         </div>
         <div
           style={{
-            flex: isFlowPanelHidden ? "0 0 0" : `${infoRatio} 1 0`,
-            display: hideWindowsOnDrag || isFlowPanelHidden ? "none" : "flex",
+            flex: isFlowPanelHidden ? "0 0 40px" : `${infoRatio} 1 0`,
+            display: hideWindowsOnDrag ? "none" : "flex",
             flexDirection: "column",
             minWidth: 0,
             overflow: "visible",
           }}
         >
-          <div className="flow-card" style={{ flex: 1 }}>
+          <div
+            className="flow-card"
+            style={{
+              flex: 1,
+              border: isFlowPanelHidden ? "none" : undefined,
+              boxShadow: isFlowPanelHidden ? "none" : undefined,
+              background: isFlowPanelHidden ? "transparent" : undefined,
+            }}
+          >
             <div className="flow-header" style={{ display: "none" }}>
               DOCUMENT FLOW
             </div>
@@ -5179,83 +5183,68 @@ function App() {
                   return (
                     <>
                       <div className="flow-steps-column">
-                        {(() => {
-                          const steps = [
-                            ...orderedStatuses.map((status) => ({
-                              key: String(status.rev_status_id),
-                              label: status.rev_status_name,
-                              behaviorFileItem: behaviorFileById[status.ui_behavior_id],
-                              final: status.final,
-                            })),
-                            {
-                              key: "history",
-                              label: "History",
-                              behaviorFileItem: "HistoryBehavior.jsx",
-                              final: false,
-                            },
-                          ];
-                          const activeIndex = steps.findIndex(
-                            (step) => step.key === String(infoActiveStep),
-                          );
-                          const activeStep = activeIndex >= 0 ? steps[activeIndex] : null;
-                          const topSteps = activeStep ? steps.slice(0, activeIndex) : steps;
-                          const bottomSteps = activeStep ? steps.slice(activeIndex + 1) : [];
-
-                          const renderStepButton = (step) => {
-                            const isActive = step.key === String(infoActiveStep);
-                            return (
-                              <button
-                                key={step.key}
-                                type="button"
-                                className={`flow-step ${isActive ? "active" : ""}`}
-                                aria-expanded={isActive}
-                                data-ui-behavior={step.behaviorFileItem || "default"}
-                                data-final={step.final ? "true" : "false"}
-                                onClick={() => {
-                                  if (!isFlowEnabled) {
-                                    return;
-                                  }
-                                  if (isActive) {
-                                    setInfoActiveStep(null);
-                                    return;
-                                  }
-                                  setInfoActiveStep(step.key);
-                                  if (step.key !== "history") {
-                                    setInfoActiveSubTab("Files with Comments");
-                                  }
-                                }}
-                                disabled={!isFlowEnabled}
-                                title={step.label}
-                              >
-                                <span className="dot">{renderFlowIcon(step.label)}</span>
-                                <span className="flow-step__label">{step.label}</span>
-                                <span className="flow-step__behavior" style={{ display: "none" }}>
-                                  {step.behaviorFileItem || "Default"}
-                                </span>
-                              </button>
-                            );
-                          };
-
+                        {orderedStatuses.map((status) => {
+                          const key = String(status.rev_status_id);
+                          const isActive = key === String(infoActiveStep);
+                          const behaviorFileItem = behaviorFileById[status.ui_behavior_id];
                           return (
-                            <>
-                              <div className="flow-steps-group">
-                                {topSteps.map(renderStepButton)}
-                              </div>
-                              {activeStep ? (
-                                <>
-                                  <div className="flow-steps-spacer" />
-                                  {renderStepButton(activeStep)}
-                                  <div className="flow-steps-spacer" />
-                                </>
-                              ) : null}
-                              <div className="flow-steps-group">
-                                {bottomSteps.map(renderStepButton)}
-                              </div>
-                            </>
+                            <button
+                              key={status.rev_status_id}
+                              type="button"
+                              className={`flow-step ${isActive ? "active" : ""}`}
+                              aria-expanded={isActive}
+                              data-ui-behavior={behaviorFileItem || "default"}
+                              data-final={status.final ? "true" : "false"}
+                              onClick={() => {
+                                if (!isFlowEnabled) {
+                                  return;
+                                }
+                                if (isActive) {
+                                  setInfoActiveStep(null);
+                                  return;
+                                }
+                                setInfoActiveStep(key);
+                                setInfoActiveSubTab("Files with Comments");
+                              }}
+                              disabled={!isFlowEnabled}
+                              title={status.rev_status_name}
+                            >
+                              <span className="dot">{renderFlowIcon(status.rev_status_name)}</span>
+                              <span className="flow-step__label">{status.rev_status_name}</span>
+                              <span className="flow-step__behavior" style={{ display: "none" }}>
+                                {behaviorFileItem || "Default"}
+                              </span>
+                            </button>
                           );
-                        })()}
+                        })}
+                        <button
+                          type="button"
+                          className={`flow-step ${activeIsHistory ? "active" : ""}`}
+                          aria-expanded={activeIsHistory}
+                          data-ui-behavior="HistoryBehavior.jsx"
+                          data-final="false"
+                          onClick={() => {
+                            if (!isFlowEnabled) {
+                              return;
+                            }
+                            if (activeIsHistory) {
+                              setInfoActiveStep(null);
+                              return;
+                            }
+                            setInfoActiveStep("history");
+                          }}
+                          disabled={!isFlowEnabled}
+                          title="History"
+                        >
+                          <span className="dot">{renderFlowIcon("History")}</span>
+                          <span className="flow-step__label">History</span>
+                          <span className="flow-step__behavior">History</span>
+                        </button>
                       </div>
-                      <div className="flow-content-column">
+                      <div
+                        className="flow-content-column"
+                        style={{ display: isFlowPanelHidden ? "none" : "flex" }}
+                      >
                         <div className="flow-content-header">
                           {activeStatus
                             ? activeStatus.rev_status_name
