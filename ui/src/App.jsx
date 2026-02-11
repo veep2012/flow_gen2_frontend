@@ -2598,6 +2598,9 @@ function App() {
           height: 32px;
           border-bottom: 1px solid var(--color-border);
           text-align: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           font-size: 14px;
           font-weight: 600;
           color: var(--color-text-strong);

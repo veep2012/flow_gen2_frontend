@@ -82,7 +82,7 @@ const InDesignBehavior = ({
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: "4px", minHeight: 0 }}>
       {/* File list area - takes 80% space and scrolls */}
-      <div style={{ flex: 4, overflow: "auto", padding: "0", minHeight: 0 }}>
+      <div style={{ flex: 4, overflow: "auto", padding: "6px", minHeight: 0 }}>
         {allFiles.length > 0 ? (
           <>
             {["Rev A", "Rev B", "Rev C", "Other"].map((revision) => {
@@ -128,7 +128,7 @@ const InDesignBehavior = ({
                     </span>
                     <span style={{ display: "flex", alignItems: "center" }}>{revision}</span>
                   </button>
-                  <div style={{ position: "relative", marginLeft: "0" }}>
+                  <div style={{ position: "relative", marginLeft: "6px" }}>
                     {isExpanded &&
                       revFiles.map((file, idx) => {
                         // Handle both string and object file formats
@@ -284,7 +284,7 @@ const InDesignBehavior = ({
             })}
           </>
         ) : (
-          <div style={{ color: "var(--color-text-muted)", fontSize: "13px", padding: "0" }}>
+          <div style={{ color: "var(--color-text-muted)", fontSize: "13px", padding: "6px" }}>
             No files added yet
           </div>
         )}
