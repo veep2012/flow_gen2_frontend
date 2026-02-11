@@ -42,10 +42,14 @@ def _read_state(path: Path) -> State:
         needed = ", ".join(sorted(missing))
         raise ValueError(f"State file missing required fields: {needed}")
 
+    cadence_days = int(values["cadence_days"])
+    if cadence_days <= 0:
+        raise ValueError("State file invalid: Cadence Days must be > 0")
+
     return State(
         last_check=_parse_iso_day(values["last_check"]),
         last_full=_parse_iso_day(values["last_full"]),
-        cadence_days=int(values["cadence_days"]),
+        cadence_days=cadence_days,
     )
 
 
