@@ -2496,9 +2496,45 @@ function App() {
         }
         .flow-body {
           display: flex;
-          flex-direction: column;
+          flex-direction: row;
           flex: 1;
           min-height: 0;
+        }
+        .flow-steps-column {
+          width: 36px;
+          border-right: 1px solid var(--color-border);
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          padding: 8px 4px;
+          background: var(--color-surface);
+        }
+        .flow-steps-column .flow-step {
+          padding: 6px 4px;
+          justify-content: center;
+          border-radius: 0;
+        }
+        .flow-steps-column .flow-step__label,
+        .flow-steps-column .flow-step__behavior {
+          display: none;
+        }
+        .flow-content-column {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+          position: relative;
+        }
+        .flow-content-header {
+          padding: 10px 12px;
+          border-bottom: 1px solid var(--color-border);
+          text-align: center;
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--color-text-strong);
+          background: var(--color-surface);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
         .flow-empty {
           padding: 12px 14px;
@@ -5043,71 +5079,158 @@ function App() {
               ) : orderedStatuses.length === 0 ? (
                 <div className="flow-empty">No statuses configured.</div>
               ) : (
-                orderedStatuses.map((status) => {
-                  const behaviorName = behaviorNameById[status.ui_behavior_id];
-                  const behaviorFile = behaviorFileById[status.ui_behavior_id];
-                  const behaviorFileLabel =
-                    typeof behaviorFile === "string"
-                      ? behaviorFile.replace(/\.jsx$/i, "")
-                      : behaviorFile;
-                  const Behavior = resolveBehaviorByFile(behaviorFile);
-                  const statusKey = String(status.rev_status_id);
-                  const isActive = infoActiveStep === statusKey;
-                  const panelId = `flow-panel-${statusKey}`;
-                  const isMenuOpen = statusMenuOpen[statusKey] || false;
+                (() => {
+                  const activeIsHistory = infoActiveStep === "history";
+                  const activeStatus = orderedStatuses.find(
+                    (status) => String(status.rev_status_id) === String(infoActiveStep),
+                  );
+                  const statusKey = activeStatus ? String(activeStatus.rev_status_id) : null;
+                  const behaviorName = activeStatus
+                    ? behaviorNameById[activeStatus.ui_behavior_id]
+                    : null;
+                  const behaviorFile = activeStatus
+                    ? behaviorFileById[activeStatus.ui_behavior_id]
+                    : activeIsHistory
+                      ? "HistoryBehavior.jsx"
+                      : null;
+                  const Behavior =
+                    activeIsHistory || activeStatus ? resolveBehaviorByFile(behaviorFile) : null;
+                  const isMenuOpen = statusKey ? statusMenuOpen[statusKey] || false : false;
 
                   return (
-                    <React.Fragment key={status.rev_status_id}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: "4px",
-                          position: "relative",
-                        }}
-                      >
+                    <>
+                      <div className="flow-steps-column">
+                        {orderedStatuses.map((status) => {
+                          const key = String(status.rev_status_id);
+                          const isActive = key === String(infoActiveStep);
+                          const behaviorFileItem = behaviorFileById[status.ui_behavior_id];
+                          return (
+                            <button
+                              key={status.rev_status_id}
+                              type="button"
+                              className={`flow-step ${isActive ? "active" : ""}`}
+                              aria-expanded={isActive}
+                              data-ui-behavior={behaviorFileItem || "default"}
+                              data-final={status.final ? "true" : "false"}
+                              onClick={() => {
+                                if (!isFlowEnabled) {
+                                  return;
+                                }
+                                if (isActive) {
+                                  setInfoActiveStep(null);
+                                  return;
+                                }
+                                setInfoActiveStep(key);
+                                setInfoActiveSubTab("Files with Comments");
+                              }}
+                              disabled={!isFlowEnabled}
+                              title={status.rev_status_name}
+                            >
+                              <span className="dot">
+                                <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
+                                  <path d="M6 7.5 L9 10.5 L12 7.5" />
+                                </svg>
+                              </span>
+                              <span className="flow-step__label">{status.rev_status_name}</span>
+                              <span className="flow-step__behavior" style={{ display: "none" }}>
+                                {behaviorFileItem || "Default"}
+                              </span>
+                            </button>
+                          );
+                        })}
                         <button
                           type="button"
-                          className={`flow-step ${isActive ? "active" : ""}`}
-                          aria-expanded={isActive}
-                          aria-controls={panelId}
-                          data-ui-behavior={behaviorFile || "default"}
-                          data-final={status.final ? "true" : "false"}
+                          className={`flow-step ${activeIsHistory ? "active" : ""}`}
+                          aria-expanded={activeIsHistory}
+                          data-ui-behavior="HistoryBehavior.jsx"
+                          data-final="false"
                           onClick={() => {
                             if (!isFlowEnabled) {
                               return;
                             }
-                            if (isActive) {
+                            if (activeIsHistory) {
                               setInfoActiveStep(null);
                               return;
                             }
-                            setInfoActiveStep(statusKey);
-                            setInfoActiveSubTab("Files with Comments");
+                            setInfoActiveStep("history");
                           }}
-                          style={{ flex: 1 }}
                           disabled={!isFlowEnabled}
+                          title="History"
                         >
                           <span className="dot">
                             <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-                              <path d="M6 7.5 L9 10.5 L12 7.5" />
+                              <path d="M5 4 H13 V14 H5 Z" />
+                              <path d="M7 7 H11" />
+                              <path d="M7 10 H11" />
                             </svg>
                           </span>
-                          <span className="flow-step__label">{status.rev_status_name}</span>
-                          <span className="flow-step__behavior" style={{ display: "none" }}>
-                            {behaviorFileLabel || "Default"}
-                          </span>
+                          <span className="flow-step__label">History</span>
+                          <span className="flow-step__behavior">History</span>
                         </button>
-                        {isActive && isFlowEnabled && (
-                          <div
-                            style={{
-                              position: "relative",
-                            }}
-                          >
+                      </div>
+                      <div className="flow-content-column">
+                        <div className="flow-content-header">
+                          {activeStatus
+                            ? activeStatus.rev_status_name
+                            : activeIsHistory
+                              ? "History"
+                              : "Select status"}
+                        </div>
+                        {activeIsHistory && isFlowEnabled && Behavior ? (
+                          <div className="flow-inline-content" data-ui-behavior="HistoryBehavior.jsx">
+                            <React.Suspense
+                              fallback={<div className="flow-empty">Loading behavior…</div>}
+                            >
+                              <Behavior behaviorName="History" behaviorFile="HistoryBehavior.jsx" />
+                            </React.Suspense>
+                          </div>
+                        ) : activeStatus && isFlowEnabled && Behavior ? (
+                          <div className="flow-inline-content" data-ui-behavior={behaviorFile || ""}>
+                            <React.Suspense
+                              fallback={<div className="flow-empty">Loading behavior…</div>}
+                            >
+                              <Behavior
+                                selectedDoc={selectedDoc}
+                                behaviorName={behaviorName}
+                                behaviorFile={behaviorFile}
+                                statusKey={statusKey}
+                                infoActiveSubTab={infoActiveSubTab}
+                                onSubTabChange={setInfoActiveSubTab}
+                                uploadedFiles={Object.fromEntries(
+                                  Object.entries(uploadedFiles).map(([docId, value]) => [
+                                    docId,
+                                    Array.isArray(value)
+                                      ? value
+                                      : value && typeof value === "object" && !Array.isArray(value)
+                                        ? value
+                                        : [],
+                                  ]),
+                                )}
+                                expandedRevisions={expandedRevisions}
+                                onRevisionToggle={handleRevisionToggle}
+                                isDraggingUpload={isDraggingUpload}
+                                uploadDragProps={buildUploadDragProps}
+                                onUploadClick={() => uploadInputRef.current?.click()}
+                                uploadInputRef={uploadInputRef}
+                                onFileSelect={handleUploadSelect}
+                                onSelectFile={handleSelectFile}
+                                onDownloadFile={handleDownloadFile}
+                                onDeleteFile={handleDeleteFile}
+                                selectedFileId={selectedFileId}
+                                apiBase={apiBase}
+                              />
+                            </React.Suspense>
+                          </div>
+                        ) : (
+                          <div className="flow-empty">Select a status to view details.</div>
+                        )}
+                        {activeStatus && isFlowEnabled && (
+                          <div style={{ position: "absolute", top: 6, right: 6 }}>
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (!statusKey) return;
                                 setStatusMenuOpen((prev) => ({
                                   ...prev,
                                   [statusKey]: !isMenuOpen,
@@ -5117,7 +5240,7 @@ function App() {
                                 background: "transparent",
                                 border: "none",
                                 cursor: "pointer",
-                                padding: "6px 12px",
+                                padding: "6px 8px",
                                 fontSize: "20px",
                                 color: "var(--color-text-muted)",
                                 transition: "color 0.2s",
@@ -5125,7 +5248,7 @@ function App() {
                               onMouseEnter={(e) => {
                                 e.currentTarget.style.color = "white";
                                 e.currentTarget.style.background = "var(--color-info)";
-                                e.currentTarget.style.borderRadius = "4px";
+                                e.currentTarget.style.borderRadius = "0";
                               }}
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.color = "var(--color-text-muted)";
@@ -5145,7 +5268,7 @@ function App() {
                                   right: 0,
                                   background: "var(--color-surface)",
                                   border: "1px solid var(--color-border)",
-                                  borderRadius: "6px",
+                                  borderRadius: "0",
                                   boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                                   minWidth: "180px",
                                   zIndex: 1000,
@@ -5156,9 +5279,13 @@ function App() {
                                   type="button"
                                   onClick={() => {
                                     if (
-                                      window.confirm(`Issue "${status.rev_status_name}" to IDC?`)
+                                      window.confirm(
+                                        `Issue "${activeStatus.rev_status_name}" to IDC?`,
+                                      )
                                     ) {
-                                      alert(`Status "${status.rev_status_name}" issued to IDC`);
+                                      alert(
+                                        `Status "${activeStatus.rev_status_name}" issued to IDC`,
+                                      );
                                     }
                                     setStatusMenuOpen((prev) => ({ ...prev, [statusKey]: false }));
                                   }}
@@ -5188,98 +5315,9 @@ function App() {
                           </div>
                         )}
                       </div>
-                      {isActive && isFlowEnabled && (
-                        <div
-                          id={panelId}
-                          className="flow-inline-content"
-                          data-ui-behavior={behaviorFile || ""}
-                        >
-                          <React.Suspense
-                            fallback={<div className="flow-empty">Loading behavior…</div>}
-                          >
-                            <Behavior
-                              selectedDoc={selectedDoc}
-                              behaviorName={behaviorName}
-                              behaviorFile={behaviorFile}
-                              statusKey={statusKey}
-                              infoActiveSubTab={infoActiveSubTab}
-                              onSubTabChange={setInfoActiveSubTab}
-                              uploadedFiles={Object.fromEntries(
-                                Object.entries(uploadedFiles).map(([docId, value]) => [
-                                  docId,
-                                  Array.isArray(value) ? value : value && typeof value === 'object' && !Array.isArray(value) ? value : []
-                                ])
-                              )}
-                              expandedRevisions={expandedRevisions}
-                              onRevisionToggle={handleRevisionToggle}
-                              isDraggingUpload={isDraggingUpload}
-                              uploadDragProps={buildUploadDragProps}
-                              onUploadClick={() => uploadInputRef.current?.click()}
-                              uploadInputRef={uploadInputRef}
-                              onFileSelect={handleUploadSelect}
-                              onSelectFile={handleSelectFile}
-                              onDownloadFile={handleDownloadFile}
-                              onDeleteFile={handleDeleteFile}
-                              selectedFileId={selectedFileId}
-                              apiBase={apiBase}
-                            />
-                          </React.Suspense>
-                        </div>
-                      )}
-                    </React.Fragment>
+                    </>
                   );
-                })
-              )}
-              {!revStatusLoading && !revStatusError && (
-                <>
-                  <button
-                    type="button"
-                    className={`flow-step ${infoActiveStep === "history" ? "active" : ""}`}
-                    aria-expanded={infoActiveStep === "history"}
-                    aria-controls="flow-panel-history"
-                    data-ui-behavior="HistoryBehavior.jsx"
-                    data-final="false"
-                    onClick={() => {
-                      if (!isFlowEnabled) {
-                        return;
-                      }
-                      if (infoActiveStep === "history") {
-                        setInfoActiveStep(null);
-                        return;
-                      }
-                      setInfoActiveStep("history");
-                    }}
-                    disabled={!isFlowEnabled}
-                  >
-                    <span className="dot">
-                      <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-                        <path d="M5 4 H13 V14 H5 Z" />
-                        <path d="M7 7 H11" />
-                        <path d="M7 10 H11" />
-                      </svg>
-                    </span>
-                    <span className="flow-step__label">History</span>
-                    <span className="flow-step__behavior">History</span>
-                  </button>
-                  {infoActiveStep === "history" && isFlowEnabled && (
-                    <div
-                      id="flow-panel-history"
-                      className="flow-inline-content"
-                      data-ui-behavior="HistoryBehavior.jsx"
-                    >
-                      <React.Suspense
-                        fallback={<div className="flow-empty">Loading behavior…</div>}
-                      >
-                        {(() => {
-                          const Behavior = resolveBehaviorByFile("HistoryBehavior.jsx");
-                          return (
-                            <Behavior behaviorName="History" behaviorFile="HistoryBehavior.jsx" />
-                          );
-                        })()}
-                      </React.Suspense>
-                    </div>
-                  )}
-                </>
+                })()
               )}
             </div>
           </div>
