@@ -193,6 +193,7 @@ function App() {
   const [isFlowPanelHidden, setIsFlowPanelHidden] = React.useState(false);
   const [isFlowArrowDragging, setIsFlowArrowDragging] = React.useState(false);
   const [flowArrowTarget, setFlowArrowTarget] = React.useState(null);
+  const [flowArrowSourceKey, setFlowArrowSourceKey] = React.useState(null);
   const [flowArrowPos, setFlowArrowPos] = React.useState({ x: 0, y: 0 });
   const containerRef = React.useRef(null);
   const flowStepsRef = React.useRef(null);
@@ -344,25 +345,55 @@ function App() {
       setFlowArrowPos({ x, y });
     };
     const handleMouseUp = () => {
+      const sourceKey = flowArrowSourceKey;
+      const targetKey = flowArrowTarget;
       setIsFlowArrowDragging(false);
-      if (!flowArrowTarget || !isFlowEnabled) {
-        setFlowArrowTarget(null);
+      setFlowArrowSourceKey(null);
+      setFlowArrowTarget(null);
+      if (!targetKey || !isFlowEnabled) {
         return;
       }
       const confirmed = window.confirm(
-        "Are you sure you want to move this document to the selected status?",
+        "Move file(s) to the selected status? They will appear in that tab (e.g. Original Files for IDC).",
       );
       if (!confirmed) {
-        setFlowArrowTarget(null);
         return;
       }
-      if (flowArrowTarget === "history") {
+      if (targetKey === "history") {
         setInfoActiveStep("history");
-      } else {
-        setInfoActiveStep(flowArrowTarget);
-        setInfoActiveSubTab("Files with Comments");
+        return;
       }
-      setFlowArrowTarget(null);
+      // Migrate files from source step to target step (state only; API has no issued_status)
+      if (selectedDocId && sourceKey && sourceKey !== targetKey) {
+        const docEntry = uploadedFiles[selectedDocId] && typeof uploadedFiles[selectedDocId] === "object" && !Array.isArray(uploadedFiles[selectedDocId])
+          ? uploadedFiles[selectedDocId]
+          : {};
+        const currentRevStatusKey =
+          selectedDoc?.rev_status_id != null ? String(selectedDoc.rev_status_id) : null;
+        const sourceLocal = Array.isArray(docEntry[sourceKey]) ? docEntry[sourceKey] : [];
+        const targetLocal = Array.isArray(docEntry[targetKey]) ? docEntry[targetKey] : [];
+        const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
+        const updatedApiFiles = apiFiles.map((file) => {
+          const issued = file?.issuedStatus ?? file?.issued_status ?? null;
+          const belongsToSource =
+            (issued !== null && issued !== undefined && String(issued) === sourceKey) ||
+            ((issued === null || issued === undefined) && currentRevStatusKey === sourceKey);
+          if (belongsToSource) {
+            return { ...file, issuedStatus: targetKey, issued_status: targetKey };
+          }
+          return file;
+        });
+        const nextEntry = { ...docEntry };
+        nextEntry[sourceKey] = [];
+        nextEntry[targetKey] = [...targetLocal, ...sourceLocal];
+        nextEntry["$api"] = updatedApiFiles;
+        setUploadedFiles((prev) => ({
+          ...prev,
+          [selectedDocId]: nextEntry,
+        }));
+      }
+      setInfoActiveStep(targetKey);
+      setInfoActiveSubTab("Files with Comments");
     };
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
@@ -370,7 +401,15 @@ function App() {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isFlowArrowDragging, flowArrowTarget, isFlowEnabled]);
+  }, [
+    isFlowArrowDragging,
+    flowArrowTarget,
+    flowArrowSourceKey,
+    isFlowEnabled,
+    selectedDocId,
+    selectedDoc,
+    uploadedFiles,
+  ]);
 
   React.useEffect(() => {
     const handleClickAway = (event) => {
@@ -5448,6 +5487,7 @@ function App() {
                                   onMouseDown={(event) => {
                                     event.preventDefault();
                                     event.stopPropagation();
+                                    setFlowArrowSourceKey(key);
                                     setFlowArrowTarget(null);
                                     setIsFlowArrowDragging(true);
                                     if (flowStepsRef.current) {
