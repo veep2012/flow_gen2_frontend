@@ -2579,8 +2579,8 @@ function App() {
           padding-top: 0;
           flex-direction: column;
           height: auto;
-          background: var(--color-info-dark);
-          border-color: var(--color-info-strong);
+          background: #e0f0e3;
+          border-color: var(--color-success-border-strong);
         }
         .flow-steps-column .flow-step__label,
         .flow-steps-column .flow-step__behavior {
@@ -2643,11 +2643,14 @@ function App() {
           font-size: 13px;
           position: relative;
           background: var(--color-surface);
-          border: none;
+          border: 1px solid var(--color-border);
           border-bottom: 1px solid var(--color-border);
           width: 100%;
           text-align: left;
           font: inherit;
+        }
+        .flow-steps-column .flow-step {
+          border: 1px solid var(--color-border);
         }
         .flow-step:disabled {
           opacity: 0.5;
