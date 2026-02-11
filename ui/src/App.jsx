@@ -2612,16 +2612,21 @@ function App() {
         }
         .flow-header-menu {
           position: absolute;
-          right: 6px;
+          right: 0;
           top: 50%;
           transform: translateY(-50%);
           background: transparent;
           border: none;
           cursor: pointer;
-          padding: 4px 6px;
+          padding: 4px 0;
           font-size: 20px;
           color: var(--color-text-muted);
           transition: color 0.2s;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         .flow-empty {
           padding: 12px 14px;
