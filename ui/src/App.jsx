@@ -128,6 +128,54 @@ function App() {
     fontSize: "20px",
   };
 
+  const renderFlowIcon = (label) => {
+    const key = String(label || "").toLowerCase().trim();
+    if (key.includes("official")) {
+      return (
+        <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
+          <path d="M4.5 9 L7.5 12 L13.5 6" />
+        </svg>
+      );
+    }
+    if (key.includes("ready")) {
+      return (
+        <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
+          <path d="M5 3.5 V14.5" />
+          <path d="M5 4 H13 L11 7 L13 10 H5" />
+        </svg>
+      );
+    }
+    if (key.includes("idc")) {
+      return (
+        <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
+          <path d="M5 3.5 H11 L13.5 6 V14.5 H5 Z" />
+          <path d="M11 3.5 V6 H13.5" />
+        </svg>
+      );
+    }
+    if (key.includes("indesign")) {
+      return (
+        <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
+          <path d="M4.5 13.5 L7.5 13 L13.5 7 L11 4.5 L5 10.5 Z" />
+          <path d="M10.5 5 L13 7.5" />
+        </svg>
+      );
+    }
+    if (key.includes("history")) {
+      return (
+        <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
+          <path d="M9 4.5 A4.5 4.5 0 1 1 4.5 9" />
+          <path d="M4.5 4.5 V9 H9" />
+        </svg>
+      );
+    }
+    return (
+      <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
+        <path d="M6 7.5 L9 10.5 L12 7.5" />
+      </svg>
+    );
+  };
+
   const [infoRatio, setInfoRatio] = React.useState(0.35);
   const [detailRatio, setDetailRatio] = React.useState(0.25);
   const [columnWidths, setColumnWidths] = React.useState({});
@@ -183,6 +231,12 @@ function App() {
     }, 10000);
     return () => window.clearTimeout(timeoutId);
   }, [lastCreatedDocIds]);
+
+  React.useEffect(() => {
+    hasInitializedFlowRef.current = false;
+    setInfoActiveStep(null);
+    setInfoActiveSubTab("Files with Comments");
+  }, [selectedDocId]);
 
   React.useEffect(() => {
     if (!lastCreatedDocIds.size) return undefined;
@@ -2501,18 +2555,40 @@ function App() {
           min-height: 0;
         }
         .flow-steps-column {
-          width: 36px;
+          width: 40px;
           border-right: 1px solid var(--color-border);
           display: flex;
           flex-direction: column;
-          gap: 6px;
-          padding: 8px 4px;
+          padding: 6px 4px;
           background: var(--color-surface);
+          height: 100%;
+        }
+        .flow-steps-group {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          flex: 0 0 auto;
+        }
+        .flow-steps-spacer {
+          flex: 0 0 0;
+          min-height: 0;
         }
         .flow-steps-column .flow-step {
-          padding: 6px 4px;
+          padding: 4px 2px;
+          height: 28px;
           justify-content: center;
           border-radius: 0;
+          flex: 0 0 auto;
+          display: flex;
+          align-items: center;
+        }
+        .flow-steps-column .flow-step.active {
+          flex: 1 1 auto;
+          align-items: center;
+          justify-content: flex-start;
+          padding-top: 6px;
+          flex-direction: column;
+          height: auto;
         }
         .flow-steps-column .flow-step__label,
         .flow-steps-column .flow-step__behavior {
@@ -2526,7 +2602,8 @@ function App() {
           position: relative;
         }
         .flow-content-header {
-          padding: 10px 12px;
+          padding: 8px 12px;
+          height: 32px;
           border-bottom: 1px solid var(--color-border);
           text-align: center;
           font-size: 14px;
@@ -2597,13 +2674,13 @@ function App() {
           width: 16px;
           height: 16px;
           border-radius: 50%;
-          border: 2px solid var(--color-primary);
+          border: 2px solid var(--color-text-muted);
           background: var(--color-surface);
           display: inline-flex;
           align-items: center;
           justify-content: center;
           font-size: 10px;
-          color: var(--color-primary);
+          color: var(--color-text-muted);
           z-index: 1;
           position: relative;
         }
@@ -5070,7 +5147,9 @@ function App() {
           }}
         >
           <div className="flow-card" style={{ flex: 1 }}>
-            <div className="flow-header">DOCUMENT FLOW</div>
+            <div className="flow-header" style={{ display: "none" }}>
+              DOCUMENT FLOW
+            </div>
             <div className="flow-body">
               {revStatusLoading ? (
                 <div className="flow-empty">Loading statuses…</div>
@@ -5100,73 +5179,81 @@ function App() {
                   return (
                     <>
                       <div className="flow-steps-column">
-                        {orderedStatuses.map((status) => {
-                          const key = String(status.rev_status_id);
-                          const isActive = key === String(infoActiveStep);
-                          const behaviorFileItem = behaviorFileById[status.ui_behavior_id];
-                          return (
-                            <button
-                              key={status.rev_status_id}
-                              type="button"
-                              className={`flow-step ${isActive ? "active" : ""}`}
-                              aria-expanded={isActive}
-                              data-ui-behavior={behaviorFileItem || "default"}
-                              data-final={status.final ? "true" : "false"}
-                              onClick={() => {
-                                if (!isFlowEnabled) {
-                                  return;
-                                }
-                                if (isActive) {
-                                  setInfoActiveStep(null);
-                                  return;
-                                }
-                                setInfoActiveStep(key);
-                                setInfoActiveSubTab("Files with Comments");
-                              }}
-                              disabled={!isFlowEnabled}
-                              title={status.rev_status_name}
-                            >
-                              <span className="dot">
-                                <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-                                  <path d="M6 7.5 L9 10.5 L12 7.5" />
-                                </svg>
-                              </span>
-                              <span className="flow-step__label">{status.rev_status_name}</span>
-                              <span className="flow-step__behavior" style={{ display: "none" }}>
-                                {behaviorFileItem || "Default"}
-                              </span>
-                            </button>
+                        {(() => {
+                          const steps = [
+                            ...orderedStatuses.map((status) => ({
+                              key: String(status.rev_status_id),
+                              label: status.rev_status_name,
+                              behaviorFileItem: behaviorFileById[status.ui_behavior_id],
+                              final: status.final,
+                            })),
+                            {
+                              key: "history",
+                              label: "History",
+                              behaviorFileItem: "HistoryBehavior.jsx",
+                              final: false,
+                            },
+                          ];
+                          const activeIndex = steps.findIndex(
+                            (step) => step.key === String(infoActiveStep),
                           );
-                        })}
-                        <button
-                          type="button"
-                          className={`flow-step ${activeIsHistory ? "active" : ""}`}
-                          aria-expanded={activeIsHistory}
-                          data-ui-behavior="HistoryBehavior.jsx"
-                          data-final="false"
-                          onClick={() => {
-                            if (!isFlowEnabled) {
-                              return;
-                            }
-                            if (activeIsHistory) {
-                              setInfoActiveStep(null);
-                              return;
-                            }
-                            setInfoActiveStep("history");
-                          }}
-                          disabled={!isFlowEnabled}
-                          title="History"
-                        >
-                          <span className="dot">
-                            <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-                              <path d="M5 4 H13 V14 H5 Z" />
-                              <path d="M7 7 H11" />
-                              <path d="M7 10 H11" />
-                            </svg>
-                          </span>
-                          <span className="flow-step__label">History</span>
-                          <span className="flow-step__behavior">History</span>
-                        </button>
+                          const activeStep = activeIndex >= 0 ? steps[activeIndex] : null;
+                          const topSteps = activeStep ? steps.slice(0, activeIndex) : steps;
+                          const bottomSteps = activeStep ? steps.slice(activeIndex + 1) : [];
+
+                          const renderStepButton = (step) => {
+                            const isActive = step.key === String(infoActiveStep);
+                            return (
+                              <button
+                                key={step.key}
+                                type="button"
+                                className={`flow-step ${isActive ? "active" : ""}`}
+                                aria-expanded={isActive}
+                                data-ui-behavior={step.behaviorFileItem || "default"}
+                                data-final={step.final ? "true" : "false"}
+                                onClick={() => {
+                                  if (!isFlowEnabled) {
+                                    return;
+                                  }
+                                  if (isActive) {
+                                    setInfoActiveStep(null);
+                                    return;
+                                  }
+                                  setInfoActiveStep(step.key);
+                                  if (step.key !== "history") {
+                                    setInfoActiveSubTab("Files with Comments");
+                                  }
+                                }}
+                                disabled={!isFlowEnabled}
+                                title={step.label}
+                              >
+                                <span className="dot">{renderFlowIcon(step.label)}</span>
+                                <span className="flow-step__label">{step.label}</span>
+                                <span className="flow-step__behavior" style={{ display: "none" }}>
+                                  {step.behaviorFileItem || "Default"}
+                                </span>
+                              </button>
+                            );
+                          };
+
+                          return (
+                            <>
+                              <div className="flow-steps-group">
+                                {topSteps.map(renderStepButton)}
+                              </div>
+                              {activeStep ? (
+                                <>
+                                  <div className="flow-steps-spacer" />
+                                  {renderStepButton(activeStep)}
+                                  <div className="flow-steps-spacer" />
+                                </>
+                              ) : null}
+                              <div className="flow-steps-group">
+                                {bottomSteps.map(renderStepButton)}
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                       <div className="flow-content-column">
                         <div className="flow-content-header">
