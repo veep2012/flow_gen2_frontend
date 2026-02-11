@@ -6,7 +6,7 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-02-11
-- Version: v1.2
+- Version: v1.3
 
 ## Purpose
 Provide the current backend API surface and behavior contract for clients and maintainers.
@@ -23,6 +23,15 @@ Provide the current backend API surface and behavior contract for clients and ma
 The sections below define endpoint groups and shared conventions. This document is manually maintained and must match implemented behavior.
 
 Current FastAPI surface (version 0.1.0). All endpoints are JSON unless noted, live under the backend root (no global prefix), and are CORS-open for any origin. Default database URL is `postgresql+psycopg://app_user:app_pass@postgres:5432/flow_db`; override via `APP_DATABASE_URL` or `APP_DB_USER/APP_DB_PASSWORD` with `POSTGRES_HOST/PORT/DB`. Object storage defaults to `MINIO_ENDPOINT=minio:9000` and `MINIO_BUCKET=flow-default`; override with `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_SECURE`.
+
+Base URL convention used in examples:
+- `API_BASE` must be set to your running API host.
+- Local development default API: `http://localhost:5556`.
+- Test stack API (used by automated API tests): `http://localhost:4175`.
+- Example setup:
+```bash
+export API_BASE=http://localhost:5556
+```
 
 Update conventions (PUT/PATCH):
 - `PUT` is idempotent and used for updates; this API accepts partial updates via `PUT` (fields may be omitted unless noted).
@@ -41,7 +50,7 @@ Delete conventions:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -i -H "Accept: application/json" -X DELETE http://localhost:4175/resource/{id}
+curl -i -H "Accept: application/json" -X DELETE $API_BASE/resource/{id}
 ```
 - Success may return `204 No Content` (files endpoints) or `200 OK` with a JSON result body (documents and distribution lists).
 - If the resource does not exist, return `404 Not Found`.
@@ -100,7 +109,7 @@ Audit fields (created_by / updated_by):
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/
+curl -sS -H "Accept: application/json" $API_BASE/
 ```
 - Example response:
 ```json
@@ -110,7 +119,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/health
+curl -sS -H "Accept: application/json" $API_BASE/health
 ```
 - Example response:
 ```json
@@ -133,7 +142,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/lookups/areas
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/lookups/areas
 ```
 - Example response:
 ```json
@@ -153,7 +162,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/lookups/disciplines
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/lookups/disciplines
 ```
 - Example response:
 ```json
@@ -171,7 +180,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/lookups/projects
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/lookups/projects
 ```
 - Example response:
 ```json
@@ -189,7 +198,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/lookups/units
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/lookups/units
 ```
 - Example response:
 ```json
@@ -207,7 +216,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/lookups/jobpacks
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/lookups/jobpacks
 ```
 - Example response:
 ```json
@@ -225,7 +234,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/doc_rev_milestones
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents/doc_rev_milestones
 ```
 - Example response:
 ```json
@@ -249,7 +258,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/revision_overview
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents/revision_overview
 ```
 - Example response:
 ```json
@@ -267,7 +276,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/lookups/doc_rev_status_ui_behaviors
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/lookups/doc_rev_status_ui_behaviors
 ```
 - Example response:
 ```json
@@ -294,7 +303,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/lookups/doc_rev_statuses
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/lookups/doc_rev_statuses
 ```
 - Example response:
 ```json
@@ -342,7 +351,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/files?rev_id=45
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/files?rev_id=45
 ```
 - Example response:
 ```json
@@ -369,7 +378,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/files?rev_id
 curl -sS -H "Accept: application/json" \
   -F "rev_id=45" \
   -F "file=@report.pdf;type=application/pdf" \
-  http://localhost:4175/api/v1/files/
+  $API_BASE/api/v1/files/
 ```
 - Form fields: `rev_id` (int), `file` (binary).
 - Response: file shape.
@@ -395,7 +404,7 @@ curl -sS -H "Accept: application/json" \
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   -d '{ "filename": "new_report.pdf" }' \
-  http://localhost:4175/api/v1/files/{id}
+  $API_BASE/api/v1/files/{id}
 ```
 - Example response:
 ```json
@@ -421,7 +430,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -i -H "Accept: application/json" -X DELETE http://localhost:4175/api/v1/files/{id}
+curl -i -H "Accept: application/json" -X DELETE $API_BASE/api/v1/files/{id}
 ```
 - Example response: (empty)
 
@@ -433,7 +442,7 @@ curl -i -H "Accept: application/json" -X DELETE http://localhost:4175/api/v1/fil
 ```bash
 curl -sS -H "Accept: application/octet-stream" \
   -o report.pdf \
-  http://localhost:4175/api/v1/files/{file_id}/download
+  $API_BASE/api/v1/files/{file_id}/download
 ```
 - Example response (binary):
 ```
@@ -473,7 +482,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/files/commented/list?file_id=12
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/files/commented/list?file_id=12
 ```
 - Example response:
 ```json
@@ -503,7 +512,7 @@ curl -sS -H "Accept: application/json" \
   -F "file_id=12" \
   -F "user_id=1" \
   -F "file=@commented.pdf;type=application/pdf" \
-  http://localhost:4175/api/v1/files/commented/
+  $API_BASE/api/v1/files/commented/
 ```
 - Form fields: `file_id` (int), `user_id` (int), `file` (binary).
 - Validates mimetype against the original file; rejects duplicates per `(file_id, user_id)`.
@@ -529,7 +538,7 @@ curl -sS -H "Accept: application/json" \
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -i -H "Accept: application/json" -X DELETE http://localhost:4175/api/v1/files/commented/{id}
+curl -i -H "Accept: application/json" -X DELETE $API_BASE/api/v1/files/commented/{id}
 ```
 - Example response: (empty)
 
@@ -541,7 +550,7 @@ curl -i -H "Accept: application/json" -X DELETE http://localhost:4175/api/v1/fil
 ```bash
 curl -sS -H "Accept: application/octet-stream" \
   -o commented.pdf \
-  http://localhost:4175/api/v1/files/commented/download?file_id=3
+  $API_BASE/api/v1/files/commented/download?file_id=3
 ```
 - Example response (binary):
 ```
@@ -565,7 +574,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/people/roles
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/roles
 ```
 - Example response:
 ```json
@@ -583,7 +592,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/people/persons
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/persons
 ```
 - Example response:
 ```json
@@ -608,7 +617,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/people/users
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/users
 ```
 - Example response:
 ```json
@@ -619,7 +628,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/people/users
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/people/users/current_user
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/users/current_user
 ```
 - Example response:
 ```json
@@ -647,7 +656,7 @@ At least one of `project_id` or `discipline_id` is required.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/people/permissions
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/permissions
 ```
 - Example response:
 ```json
@@ -679,7 +688,7 @@ Read-only via API; create/update/delete is handled via seed/admin workflows.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/doc_types
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents/doc_types
 ```
 - Example response:
 ```json
@@ -698,7 +707,7 @@ Schema references:
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents?project_id=3
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents?project_id=3
 ```
 - Example response:
 ```json
@@ -761,7 +770,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "planned_start_date": "2024-01-02T12:00:00Z",
   "planned_finish_date": "2024-01-05T12:00:00Z"
 }' \
-  http://localhost:4175/api/v1/documents
+  $API_BASE/api/v1/documents
 ```
 - Example response:
 ```json
@@ -803,7 +812,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/11/revisions
+curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents/11/revisions
 ```
 - Schema references:
   - Response: `api/schemas/documents.py` `DocRevisionOut`
@@ -850,7 +859,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/11
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   -d '{ "rev_code_id": 6, "rev_author_id": 1, "rev_originator_id": 1, "rev_modifier_id": 1, "transmital_current_revision": "TR-NEW-001", "milestone_id": 1, "planned_start_date": "2024-01-02T12:00:00Z", "planned_finish_date": "2024-01-05T12:00:00Z", "actual_start_date": null, "actual_finish_date": null, "as_built": false, "modified_doc_date": "2024-01-05T12:00:00Z" }' \
-  http://localhost:4175/api/v1/documents/11/revisions
+  $API_BASE/api/v1/documents/11/revisions
 ```
 - Example response:
 ```json
@@ -888,7 +897,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   -d '{ "transmital_current_revision": "TR-UPDATED-001" }' \
-  http://localhost:4175/api/v1/documents/revisions/1
+  $API_BASE/api/v1/documents/revisions/1
 ```
 - Example response:
 ```json
@@ -925,7 +934,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   -d '{ "direction": "forward" }' \
-  http://localhost:4175/api/v1/documents/revisions/1/status-transitions
+  $API_BASE/api/v1/documents/revisions/1/status-transitions
 ```
 - Example response:
 ```json
@@ -962,7 +971,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" -X PATCH \
-  http://localhost:4175/api/v1/documents/revisions/1/cancel
+  $API_BASE/api/v1/documents/revisions/1/cancel
 ```
 - Example response:
 ```json
@@ -999,7 +1008,7 @@ curl -sS -H "Accept: application/json" -X PATCH \
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   -d '{ "title": "Piping Iso 001 (Updated)" }' \
-  http://localhost:4175/api/v1/documents/11
+  $API_BASE/api/v1/documents/11
 ```
 - Example response:
 ```json
@@ -1077,7 +1086,7 @@ Backend implementation:
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" \
-  http://localhost:4175/api/v1/distribution-lists
+  $API_BASE/api/v1/distribution-lists
 ```
 - Example response:
 ```json
@@ -1094,7 +1103,7 @@ curl -sS -H "Accept: application/json" \
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   -d '{ "distribution_list_name": "Review Team" }' \
-  http://localhost:4175/api/v1/distribution-lists
+  $API_BASE/api/v1/distribution-lists
 ```
 - Example response:
 ```json
@@ -1108,7 +1117,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Example request:
 ```bash
 curl -sS -X DELETE -H "Accept: application/json" \
-  http://localhost:4175/api/v1/distribution-lists/1
+  $API_BASE/api/v1/distribution-lists/1
 ```
 - Example response:
 ```json
@@ -1122,7 +1131,7 @@ curl -sS -X DELETE -H "Accept: application/json" \
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" \
-  http://localhost:4175/api/v1/distribution-lists/1/members
+  $API_BASE/api/v1/distribution-lists/1/members
 ```
 - Example response:
 ```json
@@ -1144,7 +1153,7 @@ curl -sS -H "Accept: application/json" \
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   -d '{ "user_id": 2 }' \
-  http://localhost:4175/api/v1/distribution-lists/1/members
+  $API_BASE/api/v1/distribution-lists/1/members
 ```
 - Example response:
 ```json
@@ -1163,7 +1172,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Example request:
 ```bash
 curl -sS -X DELETE -H "Accept: application/json" \
-  http://localhost:4175/api/v1/distribution-lists/1/members/2
+  $API_BASE/api/v1/distribution-lists/1/members/2
 ```
 - Example response:
 ```json
@@ -1221,7 +1230,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
     "recipient_dist_ids": [1],
     "remark": "manual send"
   }' \
-  http://localhost:4175/api/v1/notifications
+  $API_BASE/api/v1/notifications
 ```
 - Example response:
 ```json
@@ -1244,7 +1253,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" \
-  "http://localhost:4175/api/v1/notifications?recipient_user_id=2&unread_only=true"
+  "$API_BASE/api/v1/notifications?recipient_user_id=2&unread_only=true"
 ```
 - Example response:
 ```json
@@ -1278,7 +1287,7 @@ curl -sS -H "Accept: application/json" \
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   -H "X-User-Id: 1" \
   -d '{ "title": "Review update (changed)", "body": "Updated message", "remark": "changed" }' \
-  http://localhost:4175/api/v1/notifications/10/replace
+  $API_BASE/api/v1/notifications/10/replace
 ```
 - Example response:
 ```json
@@ -1294,7 +1303,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   -H "X-User-Id: 1" \
   -d '{ "remark": "no longer valid" }' \
-  http://localhost:4175/api/v1/notifications/10/delete
+  $API_BASE/api/v1/notifications/10/delete
 ```
 - Example response:
 ```json
@@ -1310,7 +1319,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   -H "X-User-Id: 2" \
   -d '{}' \
-  http://localhost:4175/api/v1/notifications/10/read
+  $API_BASE/api/v1/notifications/10/read
 ```
 - Example response:
 ```json

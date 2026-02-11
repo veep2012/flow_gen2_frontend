@@ -6,7 +6,7 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-02-11
-- Version: v1.2
+- Version: v1.3
 
 ## Purpose
 Clarify what user/person identity data exists in the database and how it is exposed through API responses.
@@ -29,18 +29,18 @@ The sections below explain entity relationships and how name data flows from dat
 
 The user/person data is stored across multiple related tables:
 
-#### 1. **Person Table** (`workflow.person`, backed by `core.person`)
+#### 1. **Person Table** (`workflow.person`, backed by `ref.person`)
 - `person_id` (PrimaryKey): Unique identifier
 - `person_name` (String): **Full name of the person** ✅
 - `photo_s3_uid` (Optional Text): Profile photo reference
 
-#### 2. **User Table** (`workflow.users`, backed by `core.users`)
+#### 2. **User Table** (`workflow.users`, backed by `ref.users`)
 - `user_id` (PrimaryKey): Unique identifier
 - `person_id` (ForeignKey): References Person table
 - `user_acronym` (String): Short abbreviation (e.g., "KN" for "Konstantin Ni")
 - `role_id` (ForeignKey): References Role table
 
-#### 3. **Role Table** (`workflow.roles`, backed by `core.roles`)
+#### 3. **Role Table** (`workflow.roles`, backed by `ref.roles`)
 - `role_id` (PrimaryKey): Unique identifier
 - `role_name` (String): Role name (e.g., "Designer", "Reviewer", etc.)
 

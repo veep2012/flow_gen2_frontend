@@ -5,8 +5,8 @@
 - Owner: Backend and Database Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-06
-- Version: v1.1
+- Last Updated: 2026-02-11
+- Version: v1.2
 
 ## Purpose
 Provide an entity-relationship view of core workflow, lookup, user, permissions, and distribution list data structures.
@@ -21,6 +21,13 @@ Provide an entity-relationship view of core workflow, lookup, user, permissions,
 
 ## Design / Behavior
 The Mermaid ER diagram below is the canonical visual model for entity linkage at documentation level.
+
+Schema ownership legend:
+- Diagram entity names are logical and map to physical tables/views by schema.
+- `core` owns workflow entities and notification/distribution list transactional data.
+- `ref` owns lookup/reference entities including user/role/permission dictionaries.
+- `workflow` provides API-facing views/functions over `core` and `ref`.
+- `audit` owns historical trace entities (for example revision history tables).
 
 ```mermaid
 erDiagram

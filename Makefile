@@ -304,12 +304,11 @@ test-db-up: ## Start temporary Postgres for tests (no volume)
 		sleep 1; \
 	done; \
 	if [ -z "$$ready" ]; then echo "Test DB not ready"; exit 1; fi
-	$(CONTAINER_ENGINE) cp $(CURDIR)/$(INIT_SQL) $(TEST_DB_CONTAINER_NAME):/tmp/flow_init.sql
-	$(CONTAINER_ENGINE) cp $(CURDIR)/ci/init/flow_seed.sql $(TEST_DB_CONTAINER_NAME):/tmp/flow_seed.sql
+	$(CONTAINER_ENGINE) cp $(CURDIR)/ci/init $(TEST_DB_CONTAINER_NAME):/tmp/init
 	$(CONTAINER_ENGINE) exec -e PGPASSWORD=$(TEST_DB_PASSWORD) $(TEST_DB_CONTAINER_NAME) \
-		psql -U $(TEST_DB_USER) -d $(TEST_DB_NAME) -v ON_ERROR_STOP=1 -f /tmp/flow_init.sql
+		psql -U $(TEST_DB_USER) -d $(TEST_DB_NAME) -v ON_ERROR_STOP=1 -f /tmp/init/$(notdir $(INIT_SQL))
 	$(CONTAINER_ENGINE) exec -e PGPASSWORD=$(TEST_DB_PASSWORD) $(TEST_DB_CONTAINER_NAME) \
-		psql -U $(TEST_DB_USER) -d $(TEST_DB_NAME) -v ON_ERROR_STOP=1 -f /tmp/flow_seed.sql
+		psql -U $(TEST_DB_USER) -d $(TEST_DB_NAME) -v ON_ERROR_STOP=1 -f /tmp/init/flow_seed.sql
 
 .PHONY: test-db-down
 test-db-down: ## Stop and remove temporary test Postgres container
