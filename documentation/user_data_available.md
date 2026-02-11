@@ -5,8 +5,8 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-06
-- Version: v1.1
+- Last Updated: 2026-02-11
+- Version: v1.2
 
 ## Purpose
 Clarify what user/person identity data exists in the database and how it is exposed through API responses.
@@ -29,18 +29,18 @@ The sections below explain entity relationships and how name data flows from dat
 
 The user/person data is stored across multiple related tables:
 
-#### 1. **Person Table** (`flow.person`)
+#### 1. **Person Table** (`workflow.person`, backed by `core.person`)
 - `person_id` (PrimaryKey): Unique identifier
 - `person_name` (String): **Full name of the person** ✅
 - `photo_s3_uid` (Optional Text): Profile photo reference
 
-#### 2. **User Table** (`flow.users`)
+#### 2. **User Table** (`workflow.users`, backed by `core.users`)
 - `user_id` (PrimaryKey): Unique identifier
 - `person_id` (ForeignKey): References Person table
 - `user_acronym` (String): Short abbreviation (e.g., "KN" for "Konstantin Ni")
 - `role_id` (ForeignKey): References Role table
 
-#### 3. **Role Table** (`flow.roles`)
+#### 3. **Role Table** (`workflow.roles`, backed by `core.roles`)
 - `role_id` (PrimaryKey): Unique identifier
 - `role_name` (String): Role name (e.g., "Designer", "Reviewer", etc.)
 
@@ -179,9 +179,9 @@ SELECT
     p.person_id,
     p.person_name,
     r.role_name
-FROM flow.users u
-JOIN flow.person p ON u.person_id = p.person_id
-JOIN flow.roles r ON u.role_id = r.role_id
+FROM workflow.users u
+JOIN workflow.person p ON u.person_id = p.person_id
+JOIN workflow.roles r ON u.role_id = r.role_id
 ORDER BY u.user_acronym;
 ```
 

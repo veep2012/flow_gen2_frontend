@@ -6,7 +6,7 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-02-11
-- Version: v1.1
+- Version: v1.2
 
 ## Purpose
 Provide the current backend API surface and behavior contract for clients and maintainers.
@@ -34,7 +34,7 @@ Update conventions (PUT/PATCH):
 ```json
 { "detail": "area_id mismatch" }
 ```
-- `PATCH` endpoints are not currently provided; consider adding `PATCH` for partial updates if needed.
+- `PATCH` is currently used only for revision cancel (`PATCH /api/v1/documents/revisions/{rev_id}/cancel`).
 
 Delete conventions:
 - DELETE endpoints do not accept a request body.
@@ -43,9 +43,8 @@ Delete conventions:
 ```bash
 curl -i -H "Accept: application/json" -X DELETE http://localhost:4175/resource/{id}
 ```
-- Success returns `204 No Content`.
+- Success may return `204 No Content` (files endpoints) or `200 OK` with a JSON result body (documents and distribution lists).
 - If the resource does not exist, return `404 Not Found`.
-- Idempotent delete (returning `204` when the resource is already deleted) is not currently documented; implement and document if desired.
 
 List conventions:
 - List endpoints return `200 OK` with an empty list when no records match.
@@ -71,13 +70,13 @@ Example error responses:
 
 Common status codes (by endpoint and context):
 - `200 OK` — Successful read/update responses.
-- `201 Created` — Successful create responses (with `Location` header).
+- `201 Created` — Successful create responses.
 - `204 No Content` — Successful delete responses.
 - `400 Bad Request` — Domain validation, id mismatch, or duplicate/uniqueness violations.
 - `401 Unauthorized` — Authentication required (not currently enforced in this API surface).
-- `403 Forbidden` — Authenticated but not authorized (not currently enforced in this API surface).
+- `403 Forbidden` — Authenticated but not authorized (enforced for notification replace/drop actions).
 - `404 Not Found` — Resource does not exist.
-- `409 Conflict` — Reserved for future use; not currently returned by these endpoints.
+- `409 Conflict` — Returned when workflow/business rules reject the action (for example: revision status transition/cancel constraints, distribution list in use).
 - `422 Unprocessable Entity` — FastAPI/Pydantic request validation errors.
 - `500 Internal Server Error` — Unhandled server errors.
 
@@ -90,11 +89,11 @@ OpenAPI/Swagger:
 ## Edge Cases
 - Invalid path/query IDs: FastAPI validation returns `422 Unprocessable Entity` for non-integer values; valid-but-missing IDs return `404 Not Found`.
 - Malformed JSON bodies: FastAPI returns `422 Unprocessable Entity` with a validation error payload.
-- Concurrent modification: optimistic locking is not implemented; `409 Conflict` is reserved and not currently returned.
+- Concurrent modification: optimistic locking is not implemented.
 
 Audit fields (created_by / updated_by):
 - `created_by` and `updated_by` are set by the application or by DB triggers when NULL.
-- DB triggers read the session setting `app.user` (a SMALLINT user id). The API sets it per request (via `set_config('app.user', ...)`) from the `X-User-Id` header when provided, otherwise a default user id is used.
+- DB triggers read the session setting `app.user` (a SMALLINT user id). The API sets it per request (via `set_config('app.user', ...)`) from the `X-User-Id` header when provided; otherwise it uses `DEFAULT_APP_USER` when configured (or leaves it empty).
 
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
@@ -277,7 +276,16 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/lookups/doc_
 ## Doc revision statuses
 Shape (single item):
 ```json
-{ "rev_status_id": 2, "rev_status_name": "In review" }
+{
+  "rev_status_id": 2,
+  "rev_status_name": "IDC",
+  "ui_behavior_id": 3,
+  "next_rev_status_id": 4,
+  "revertible": true,
+  "editable": true,
+  "final": false,
+  "start": false
+}
 ```
 Schema references:
 - Response: `api/schemas/documents.py` `DocRevStatusOut`
@@ -290,14 +298,24 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/lookups/doc_
 ```
 - Example response:
 ```json
-[ { "rev_status_id": 2, "rev_status_name": "In review" } ]
+[
+  {
+    "rev_status_id": 2,
+    "rev_status_name": "IDC",
+    "ui_behavior_id": 3,
+    "next_rev_status_id": 4,
+    "revertible": true,
+    "editable": true,
+    "final": false,
+    "start": false
+  }
+]
 ```
 ## Files
 
 Create conventions:
 - `POST` (Create) returns `201 Created`.
 - Response body includes the created resource (or at least the new id).
-- `Location` header points to the new resource, e.g. `Location: /api/v1/files/{id}`.
 
 Shape (single item):
 ```json
@@ -344,14 +362,14 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/files?rev_id
 ```
 
 ### Create (multipart)
-- `POST /api/v1/files` — 201; multipart form.
+- `POST /api/v1/files/` — 201; multipart form.
 - Headers: `Accept: application/json`, `Content-Type: multipart/form-data`
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" \
   -F "rev_id=45" \
   -F "file=@report.pdf;type=application/pdf" \
-  http://localhost:4175/api/v1/files
+  http://localhost:4175/api/v1/files/
 ```
 - Form fields: `rev_id` (int), `file` (binary).
 - Response: file shape.
@@ -409,6 +427,7 @@ curl -i -H "Accept: application/json" -X DELETE http://localhost:4175/api/v1/fil
 
 ### Download
 - `GET /api/v1/files/{file_id}/download` — streams the file with `Content-Disposition: attachment` and `ETag`/`Last-Modified`.
+- Returns `416` when a `Range` header is provided (range requests are not supported).
 - Headers: `Accept: application/octet-stream`
 - Example request:
 ```bash
@@ -426,7 +445,6 @@ curl -sS -H "Accept: application/octet-stream" \
 Create conventions:
 - `POST` (Create) returns `201 Created`.
 - Response body includes the created resource (or at least the new id).
-- `Location` header points to the new resource, e.g. `Location: /api/v1/files/commented/{id}`.
 
 Shape (single item):
 ```json
@@ -477,7 +495,7 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/files/commen
 ```
 
 ### Create (multipart)
-- `POST /api/v1/files/commented` — 201; multipart form.
+- `POST /api/v1/files/commented/` — 201; multipart form.
 - Headers: `Accept: application/json`, `Content-Type: multipart/form-data`
 - Example request:
 ```bash
@@ -485,7 +503,7 @@ curl -sS -H "Accept: application/json" \
   -F "file_id=12" \
   -F "user_id=1" \
   -F "file=@commented.pdf;type=application/pdf" \
-  http://localhost:4175/api/v1/files/commented
+  http://localhost:4175/api/v1/files/commented/
 ```
 - Form fields: `file_id` (int), `user_id` (int), `file` (binary).
 - Validates mimetype against the original file; rejects duplicates per `(file_id, user_id)`.
@@ -517,6 +535,7 @@ curl -i -H "Accept: application/json" -X DELETE http://localhost:4175/api/v1/fil
 
 ### Download
 - `GET /api/v1/files/commented/download?file_id=3` — streams the commented file.
+- Returns `416` when a `Range` header is provided (range requests are not supported).
 - Headers: `Accept: application/octet-stream`
 - Example request:
 ```bash
@@ -639,7 +658,6 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/people/permi
 Create conventions:
 - `POST` (Create) returns `201 Created`.
 - Response body includes the created resource (or at least the new id).
-- `Location` header points to the new resource, e.g. `Location: /api/v1/documents/{doc_id}`.
 
 ## Doc types
 Shape (single item):
@@ -669,18 +687,18 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents/do
 ```
 ## Documents
 Shape (single item) includes doc, linked names, and discipline/progress pointers:
-`doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `rev_seq_num`, `discipline_id`/`discipline_name`/`discipline_acronym`, `rev_code_name`, `rev_code_acronym`, `percentage`, `voided`, `created_at`, `updated_at`, `created_by`, `updated_by`.
+`doc_id`, `doc_name_unique`, `title`, `project_id`/`project_name`, `jobpack_id`/`jobpack_name`, `type_id`/`doc_type_name`/`doc_type_acronym`, `area_id`/`area_name`/`area_acronym`, `unit_id`/`unit_name`, `rev_actual_id`, `rev_current_id`, `rev_seq_num`, `discipline_id`/`discipline_name`/`discipline_acronym`, `rev_code_name`, `rev_code_acronym`, `rev_status_id`, `rev_status_name`, `percentage`, `voided`, `created_at`, `updated_at`, `created_by`, `updated_by`.
 Schema references:
 - Response: `api/schemas/documents.py` `DocOut`
 - Create: `api/schemas/documents.py` `DocCreate`
 - Update: `api/schemas/documents.py` `DocUpdate`
 ### List
-- `GET /api/v1/documents?project_id=` — 200 ordered by `doc_name_unique`; empty list if none for the project. Excludes voided documents by default. Requires `project_id` query param.
+- `GET /api/v1/documents?project_id=3` — 200 ordered by `doc_name_unique`; empty list if none for the project. Excludes voided documents by default. Requires `project_id` query param.
 - Optional query param: `show_voided=true` to include voided documents in the response.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents?project_id=
+curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents?project_id=3
 ```
 - Example response:
 ```json
@@ -688,7 +706,6 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents?pr
   {
     "doc_id": 11,
     "doc_name_unique": "PRJ-ISO-001",
-    "doc_name_uq": "PRJ-ISO-001",
     "title": "Piping Iso 001",
     "project_id": 3,
     "project_name": "Delta Expansion",
@@ -710,8 +727,14 @@ curl -sS -H "Accept: application/json" http://localhost:4175/api/v1/documents?pr
     "discipline_acronym": "PIP",
     "rev_code_name": "IFC",
     "rev_code_acronym": "E",
+    "rev_status_id": 2,
+    "rev_status_name": "IDC",
     "percentage": 90,
-    "voided": false
+    "voided": false,
+    "created_at": "2026-01-23T17:45:08.294332Z",
+    "updated_at": "2026-01-23T17:45:08.294332Z",
+    "created_by": 1,
+    "updated_by": 1
   }
 ]
 ```
@@ -936,18 +959,83 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - `PATCH /api/v1/documents/revisions/{rev_id}/cancel` — 200; 404 if revision/document not found (or voided); 409 if revision status is final. Idempotent: if already canceled, returns existing state.
 - Permissions: none enforced by API (auth TBD).
 - Side effects: sets `canceled_date` on the revision.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -X PATCH \
+  http://localhost:4175/api/v1/documents/revisions/1/cancel
+```
+- Example response:
+```json
+{
+  "rev_id": 1,
+  "doc_id": 11,
+  "seq_num": 1,
+  "rev_code_id": 6,
+  "rev_code_name": "INDESIGN",
+  "rev_code_acronym": "A",
+  "rev_description": "IN-DESIGN",
+  "rev_author_id": 1,
+  "rev_originator_id": 1,
+  "rev_modifier_id": 1,
+  "transmital_current_revision": "TR-UPDATED-001",
+  "milestone_id": 1,
+  "milestone_name": "Issued for Construction",
+  "planned_start_date": "2024-01-02T12:00:00Z",
+  "planned_finish_date": "2024-01-05T12:00:00Z",
+  "actual_start_date": null,
+  "actual_finish_date": null,
+  "canceled_date": "2026-02-06T18:30:00Z",
+  "rev_status_id": 2,
+  "rev_status_name": "IDC",
+  "as_built": false,
+  "superseded": false,
+  "modified_doc_date": "2024-01-05T12:00:00Z"
+}
+```
 ### Update
-- `PUT /api/v1/documents/{doc_id}` — 200; updates a document; 400 if no fields/uniqueness; 404 if doc or references not found.
+- `PUT /api/v1/documents/{doc_id}` — 200; updates a document; 400 if no fields/uniqueness/null required field; 404 if document not found.
 - Headers: `Accept: application/json`, `Content-Type: application/json`
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
-  -d '{ "detail": "Reason for failure" }' \
-  http://localhost:4175/api/v1/documents/{doc_id}
+  -d '{ "title": "Piping Iso 001 (Updated)" }' \
+  http://localhost:4175/api/v1/documents/11
 ```
 - Example response:
 ```json
-{ "detail": "Reason for failure" }
+{
+  "doc_id": 11,
+  "doc_name_unique": "PRJ-ISO-001",
+  "title": "Piping Iso 001 (Updated)",
+  "project_id": 3,
+  "project_name": "Delta Expansion",
+  "jobpack_id": 5,
+  "jobpack_name": "JP-01",
+  "type_id": 7,
+  "doc_type_name": "Piping Iso",
+  "doc_type_acronym": "ISO",
+  "area_id": 1,
+  "area_name": "Newfoundland",
+  "area_acronym": "NFLD",
+  "unit_id": 2,
+  "unit_name": "North Wing",
+  "rev_actual_id": null,
+  "rev_current_id": 1,
+  "rev_seq_num": 1,
+  "discipline_id": 2,
+  "discipline_name": "Piping",
+  "discipline_acronym": "PIP",
+  "rev_code_name": "INDESIGN",
+  "rev_code_acronym": "A",
+  "rev_status_id": 1,
+  "rev_status_name": "InDesign",
+  "percentage": 0,
+  "voided": false,
+  "created_at": "2026-01-23T17:45:08.294332Z",
+  "updated_at": "2026-02-11T09:15:00Z",
+  "created_by": 1,
+  "updated_by": 1
+}
 ```
 - Body includes any of: `doc_name_unique`, `title`, `project_id`, `jobpack_id`, `type_id`, `area_id`, `unit_id`, `rev_actual_id`, `rev_current_id`. 
 - Requires at least one updatable field. Validates references (project, jobpack, type, area, unit, revisions) and uniqueness of `doc_name_unique`. Returns the updated document.
@@ -991,6 +1079,13 @@ Backend implementation:
 curl -sS -H "Accept: application/json" \
   http://localhost:4175/api/v1/distribution-lists
 ```
+- Example response:
+```json
+[
+  { "dist_id": 1, "distribution_list_name": "Review Team" },
+  { "dist_id": 2, "distribution_list_name": "Construction Team" }
+]
+```
 
 ### Create
 - `POST /api/v1/distribution-lists` — 201; creates a global distribution list.
@@ -1015,6 +1110,10 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 curl -sS -X DELETE -H "Accept: application/json" \
   http://localhost:4175/api/v1/distribution-lists/1
 ```
+- Example response:
+```json
+{ "result": "ok" }
+```
 
 ### List members
 - `GET /api/v1/distribution-lists/{dist_id}/members` — 200; returns users in the list.
@@ -1024,6 +1123,18 @@ curl -sS -X DELETE -H "Accept: application/json" \
 ```bash
 curl -sS -H "Accept: application/json" \
   http://localhost:4175/api/v1/distribution-lists/1/members
+```
+- Example response:
+```json
+[
+  {
+    "dist_id": 1,
+    "user_id": 2,
+    "person_id": 2,
+    "user_acronym": "FDQC",
+    "person_name": "Aleksey Krutskih"
+  }
+]
 ```
 
 ### Add member
@@ -1053,6 +1164,10 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 ```bash
 curl -sS -X DELETE -H "Accept: application/json" \
   http://localhost:4175/api/v1/distribution-lists/1/members/2
+```
+- Example response:
+```json
+{ "result": "ok" }
 ```
 
 ## Notifications
@@ -1131,6 +1246,28 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 curl -sS -H "Accept: application/json" \
   "http://localhost:4175/api/v1/notifications?recipient_user_id=2&unread_only=true"
 ```
+- Example response:
+```json
+[
+  {
+    "notification_id": 10,
+    "sender_user_id": 1,
+    "event_type": "regular",
+    "title": "Review update",
+    "body": "Please review revision 51",
+    "remark": "manual send",
+    "rev_id": 51,
+    "commented_file_id": null,
+    "created_at": "2026-02-06T18:20:00Z",
+    "dropped_at": null,
+    "dropped_by_user_id": null,
+    "superseded_by_notification_id": null,
+    "recipient_user_id": 2,
+    "delivered_at": "2026-02-06T18:20:00Z",
+    "read_at": null
+  }
+]
+```
 
 ### Replace
 - `POST /api/v1/notifications/{notification_id}/replace` — 200; drops original notification and creates linked `changed_notice`.
@@ -1143,6 +1280,10 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   -d '{ "title": "Review update (changed)", "body": "Updated message", "remark": "changed" }' \
   http://localhost:4175/api/v1/notifications/10/replace
 ```
+- Example response:
+```json
+{ "notification_id": 11, "recipient_count": 3 }
+```
 
 ### Drop
 - `POST /api/v1/notifications/{notification_id}/delete` — 200; drops original notification and creates linked `dropped_notice`.
@@ -1154,6 +1295,10 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   -H "X-User-Id: 1" \
   -d '{ "remark": "no longer valid" }' \
   http://localhost:4175/api/v1/notifications/10/delete
+```
+- Example response:
+```json
+{ "notification_id": 12, "recipient_count": 3 }
 ```
 
 ### Mark as read
@@ -1179,7 +1324,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 
 ## Error responses
 - `400` — Validation failed (missing required fields, duplicate/uniqueness, duplicate permissions, etc.).
-- `404` — Resource not found or empty table.
+- `404` — Resource not found (including missing parent resources for nested lists).
 - All errors follow FastAPI's standard shape:
 ```json
 { "detail": "Reason for failure" }

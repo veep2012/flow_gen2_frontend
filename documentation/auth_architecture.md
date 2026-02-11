@@ -5,8 +5,8 @@
 - Owner: Platform and Backend Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-06
-- Version: v1.1
+- Last Updated: 2026-02-11
+- Version: v1.2
 
 ## Purpose
 Define the target authentication and authorization architecture for Flow Gen2, including staged rollout guidance.
@@ -297,16 +297,16 @@ flowchart TD
 Flow Gen2 already has a robust authorization schema:
 
 **Tables:**
-- `flow.roles` - User roles (Admin, Engineer, Viewer, etc.)
-- `flow.person` - Person entities with profile information
-- `flow.users` - User accounts linked to persons and roles
-- `flow.permissions` - Scoped access grants (project + discipline combinations)
+- `workflow.roles` - User roles (Admin, Engineer, Viewer, etc.)
+- `workflow.person` - Person entities with profile information
+- `workflow.users` - User accounts linked to persons and roles
+- `workflow.permissions` - Scoped access grants (project + discipline combinations)
 
 **Permission Enforcement:**
 ```python
 # API validates permissions before data access
 # Example: GET /api/v1/documents?project_id=3
-# 1. Extract user from X-User header
+# 1. Extract user from X-User-Id header
 # 2. Query: SELECT * FROM permissions WHERE user_id=? AND project_id=3
 # 3. If no matching permission → 403 Forbidden
 # 4. If permission exists → filter results to allowed disciplines

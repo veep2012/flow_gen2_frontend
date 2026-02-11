@@ -1,12 +1,12 @@
-# Cancel and Delete API Test Plan (Curl, Port 5556)
+# Cancel and Delete API Test Plan (Curl, Port 4175)
 
 ## Document Control
 - Status: Review
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-02-07
-- Version: v1.1
+- Last Updated: 2026-02-11
+- Version: v1.2
 
 ## Purpose
 Provide repeatable curl-based validation for revision cancel and document delete behavior.
@@ -24,7 +24,7 @@ Cancellation must apply only to cancellable revisions. Delete must hard-delete o
 ## 1. Set Env Vars
 
 ```bash
-export API_BASE=http://localhost:5556
+export API_BASE=http://localhost:4175
 export API_PREFIX=/api/v1
 ```
 
