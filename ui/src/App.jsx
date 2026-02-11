@@ -2660,6 +2660,12 @@ function App() {
           background: #e0f0e3;
           border-color: var(--color-success-border-strong);
         }
+        .flow-steps-column .flow-step:not(.has-arrow) .flow-step__arrow {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
         .flow-steps-column .flow-step__arrow {
           position: absolute;
           bottom: 4px;
@@ -5383,9 +5389,25 @@ function App() {
                           const isActive = key === String(infoActiveStep);
                           const behaviorFileItem = behaviorFileById[status.ui_behavior_id];
                           const docEntry = selectedDocId ? uploadedFiles[selectedDocId] || {} : {};
-                          const localFiles = Array.isArray(docEntry[key]) ? docEntry[key] : [];
-                          const hasUploadedFile = localFiles.length > 0;
-                          const showArrow = isFlowEnabled && hasUploadedFile;
+                          // Файлы для этого статуса: из БД (docEntry[key]) или API (issued_status === key или без issued = текущий статус ревизии)
+                          const filesForStatus = Array.isArray(docEntry[key]) ? docEntry[key] : [];
+                          const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
+                          const currentRevStatusKey =
+                            selectedDoc?.rev_status_id != null
+                              ? String(selectedDoc.rev_status_id)
+                              : null;
+                          const apiFilesForThisStatus = apiFiles.filter((file) => {
+                            const issued = file?.issuedStatus ?? file?.issued_status ?? null;
+                            if (issued !== null && issued !== undefined) {
+                              return String(issued) === key;
+                            }
+                            // API не возвращает issued_status: файлы ревизии считаем привязанными к текущему статусу ревизии
+                            return currentRevStatusKey === key;
+                          });
+                          const hasFilesForStatus =
+                            filesForStatus.length > 0 || apiFilesForThisStatus.length > 0;
+                          // Стрелка только там, где есть файлы; без файлов — не показывать и не реагировать на клики
+                          const showArrow = Boolean(isFlowEnabled && hasFilesForStatus);
                           return (
                             <button
                               key={status.rev_status_id}
