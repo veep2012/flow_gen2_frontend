@@ -31,11 +31,20 @@ const InDesignBehavior = ({
     () => (docId && uploadedFiles[docId]?.[statusKey]) || [],
     [docId, statusKey, uploadedFiles],
   );
+  const currentRevStatusKey =
+    selectedDoc?.rev_status_id != null ? String(selectedDoc.rev_status_id) : null;
 
-  // Filter API files that haven't been issued to other statuses
+  // API files without explicit issued status belong to the current revision status only.
   const availableApiFiles = React.useMemo(
-    () => apiFiles.filter((f) => !f.issuedStatus || f.issuedStatus === statusKey),
-    [apiFiles, statusKey],
+    () =>
+      apiFiles.filter((f) => {
+        const issued = f?.issuedStatus ?? f?.issued_status ?? null;
+        if (issued !== null && issued !== undefined && String(issued) !== "") {
+          return String(issued) === String(statusKey);
+        }
+        return currentRevStatusKey === String(statusKey);
+      }),
+    [apiFiles, statusKey, currentRevStatusKey],
   );
 
   // Deduplicate: only include status files that aren't already in API files
@@ -325,6 +334,7 @@ const InDesignBehavior = ({
 InDesignBehavior.propTypes = {
   selectedDoc: PropTypes.shape({
     doc_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    rev_status_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     doc_name_unique: PropTypes.string,
     title: PropTypes.string,
   }),

@@ -6,6 +6,7 @@ import { getFileKey } from "../../utils/fileKey";
 
 const IDCBehavior = ({
   selectedDoc,
+  statusKey,
   infoActiveSubTab,
   onSubTabChange,
   uploadedFiles = {},
@@ -27,14 +28,21 @@ const IDCBehavior = ({
         discipline: selectedDoc.discipline_name || "N/A",
       }
     : null;
+  const currentRevStatusKey =
+    selectedDoc?.rev_status_id != null ? String(selectedDoc.rev_status_id) : null;
 
-  // Get files from IDC status (statusKey "2" - copied from InDesign when "Issue to IDC" is clicked)
-  const idcLocalFiles = (docId && uploadedFiles[docId]?.["2"]) || [];
+  const idcLocalFiles = (docId && uploadedFiles[docId]?.[statusKey]) || [];
 
-  // Also get API files that have been issued to IDC (issuedStatus = "2")
+  // API files without explicit issued status belong to the current revision status only.
   const apiFiles = (docId && uploadedFiles[docId]?.["$api"]) || [];
   const issuedApiFiles = Array.isArray(apiFiles)
-    ? apiFiles.filter((f) => f.issuedStatus === "2")
+    ? apiFiles.filter((f) => {
+        const issued = f?.issuedStatus ?? f?.issued_status ?? null;
+        if (issued !== null && issued !== undefined && String(issued) !== "") {
+          return String(issued) === String(statusKey);
+        }
+        return currentRevStatusKey === String(statusKey);
+      })
     : [];
 
   const idcFiles = [...issuedApiFiles, ...(Array.isArray(idcLocalFiles) ? idcLocalFiles : [])];
@@ -170,7 +178,7 @@ const IDCBehavior = ({
 
                       if (!revFiles.length) return null;
 
-                      const revKey = `2-${revision}`;
+                      const revKey = `${statusKey}-${revision}`;
                       const isExpanded = expandedRevisions[revKey]?.isOpen !== false;
 
                       return (
@@ -621,12 +629,14 @@ const IDCBehavior = ({
 IDCBehavior.propTypes = {
   selectedDoc: PropTypes.shape({
     doc_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    rev_status_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     doc_name_unique: PropTypes.string,
     title: PropTypes.string,
     doc_type_name: PropTypes.string,
     area_name: PropTypes.string,
     discipline_name: PropTypes.string,
   }),
+  statusKey: PropTypes.string.isRequired,
   infoActiveSubTab: PropTypes.string.isRequired,
   onSubTabChange: PropTypes.func.isRequired,
   uploadedFiles: PropTypes.objectOf(

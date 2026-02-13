@@ -5,7 +5,6 @@ import { getFileKey } from "./utils/fileKey";
 import { normalizeFile } from "./utils/normalizeFile";
 import { useFetchDocuments } from "./hooks/useFetchDocuments";
 import { resolveBehaviorByFile } from "./components/DocRevStatusBehaviors";
-import DetailPanel from "./components/DetailPanel";
 
 const allColumns = documentGridColumns.map(({ id, label, field, hidden }) => ({
   key: field,
@@ -128,54 +127,6 @@ function App() {
     fontSize: "20px",
   };
 
-  const renderFlowIcon = (label) => {
-    const key = String(label || "").toLowerCase().trim();
-    if (key.includes("official")) {
-      return (
-        <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-          <path d="M4.5 9 L7.5 12 L13.5 6" />
-        </svg>
-      );
-    }
-    if (key.includes("ready")) {
-      return (
-        <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-          <path d="M5 3.5 V14.5" />
-          <path d="M5 4 H13 L11 7 L13 10 H5" />
-        </svg>
-      );
-    }
-    if (key.includes("idc")) {
-      return (
-        <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-          <path d="M5 3.5 H11 L13.5 6 V14.5 H5 Z" />
-          <path d="M11 3.5 V6 H13.5" />
-        </svg>
-      );
-    }
-    if (key.includes("indesign")) {
-      return (
-        <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-          <path d="M4.5 13.5 L7.5 13 L13.5 7 L11 4.5 L5 10.5 Z" />
-          <path d="M10.5 5 L13 7.5" />
-        </svg>
-      );
-    }
-    if (key.includes("history")) {
-      return (
-        <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-          <path d="M9 4.5 A4.5 4.5 0 1 1 4.5 9" />
-          <path d="M4.5 4.5 V9 H9" />
-        </svg>
-      );
-    }
-    return (
-      <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-        <path d="M6 7.5 L9 10.5 L12 7.5" />
-      </svg>
-    );
-  };
-
   const [infoRatio, setInfoRatio] = React.useState(0.35);
   const [detailRatio, setDetailRatio] = React.useState(0.25);
   const [columnWidths, setColumnWidths] = React.useState({});
@@ -188,7 +139,7 @@ function App() {
   const [hideWindowsOnDrag, setHideWindowsOnDrag] = React.useState(false);
   const [uploadedFiles, setUploadedFiles] = React.useState({});
   const [expandedRevisions, setExpandedRevisions] = React.useState({});
-  const [statusMenuOpen, setStatusMenuOpen] = React.useState({});
+  const [, setStatusMenuOpen] = React.useState({});
   const [isDetailPanelHidden, setIsDetailPanelHidden] = React.useState(false);
   const [isFlowPanelHidden, setIsFlowPanelHidden] = React.useState(false);
   const [isFlowArrowDragging, setIsFlowArrowDragging] = React.useState(false);
@@ -295,10 +246,10 @@ function App() {
       }
       try {
         const res = await fetch(`${apiBase}/documents/${selectedDocId}/revisions`);
-        if (!res.ok) throw new Error('Failed to fetch revisions');
+        if (!res.ok) throw new Error("Failed to fetch revisions");
         const data = await res.json();
         setRevisionOverviews(Array.isArray(data) ? data : []);
-      } catch (err) {
+      } catch {
         setRevisionOverviews([]);
       }
     };
@@ -375,8 +326,8 @@ function App() {
             }
           });
 
-          let startStatus = (Array.isArray(revStatuses) ? revStatuses : []).find(
-            (status) => Boolean(status.start),
+          let startStatus = (Array.isArray(revStatuses) ? revStatuses : []).find((status) =>
+            Boolean(status.start),
           );
           if (!startStatus) {
             startStatus = (Array.isArray(revStatuses) ? revStatuses : []).find(
@@ -419,9 +370,7 @@ function App() {
               );
               if (!response.ok) {
                 const errorText = await response.text().catch(() => "");
-                throw new Error(
-                  errorText || `Failed to move status (${response.status})`,
-                );
+                throw new Error(errorText || `Failed to move status (${response.status})`);
               }
             }
             reloadDocuments();
@@ -465,8 +414,7 @@ function App() {
       };
 
       finishDrop().catch((err) => {
-        const message =
-          err instanceof Error ? err.message : "Failed to move document status";
+        const message = err instanceof Error ? err.message : "Failed to move document status";
         alert(message);
       });
     };
@@ -499,7 +447,6 @@ function App() {
     return () => document.removeEventListener("mousedown", handleClickAway);
   }, []);
 
-
   const toggleColumnVisibility = React.useCallback((columnId) => {
     setHiddenColumnIds((prev) => {
       const next = new Set(prev);
@@ -515,7 +462,6 @@ function App() {
       return next;
     });
   }, []);
-
 
   const handleColumnDragStart = React.useCallback((event, columnId) => {
     setDragColumnId(columnId);
@@ -722,40 +668,6 @@ function App() {
         unit_id: String(selectedDoc?.unit_id ?? units[0]?.unit_id ?? ""),
       });
     };
-    const buildEmptyPasteRow = () => {
-      const fallbackDisciplineId =
-        selectedDoc?.discipline_id ?? disciplines[0]?.discipline_id ?? "";
-      const fallbackTypeOptions = docTypes.filter(
-        (item) => String(item.ref_discipline_id ?? "") === String(fallbackDisciplineId),
-      );
-      const fallbackTypeId =
-        selectedDoc?.type_id ?? fallbackTypeOptions[0]?.type_id ?? docTypes[0]?.type_id ?? "";
-      const fallbackDisciplineFromType =
-        docTypes.find((item) => item.type_id === fallbackTypeId)?.ref_discipline_id ??
-        fallbackDisciplineId;
-      return {
-        doc_name_unique: "",
-        title: "",
-        discipline_id: String(fallbackDisciplineFromType || ""),
-        type_id: String(fallbackTypeId || ""),
-        jobpack_id: String(selectedDoc?.jobpack_id ?? ""),
-        area_id: String(selectedDoc?.area_id ?? areas[0]?.area_id ?? ""),
-        unit_id: String(selectedDoc?.unit_id ?? units[0]?.unit_id ?? ""),
-        rev_code_id: String(revCodeOptions[0]?.rev_code_id ?? ""),
-      };
-    };
-    const handleAddRows = (count = 3) => {
-      if (!project) return;
-      setCreateError(null);
-      setCreateStatus("idle");
-      setCopyMode(false);
-      setCopiedDocIds(new Set());
-      setCopiedRows([]);
-      setIsAdding(false);
-      setEditRowId(null);
-      const nextRows = Array.from({ length: count }, () => buildEmptyPasteRow());
-      setPastedRows((prev) => [...prev, ...nextRows]);
-    };
     const handleEdit = () => {
       if (!selectedDoc) {
         setSaveStatus("error");
@@ -930,8 +842,6 @@ function App() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     };
-    const handleUndo = () => {};
-    const handleRedo = () => {};
     const hasSelection = selectedDocIds.size > 0;
     const hasProject = Boolean(project);
 
@@ -2058,13 +1968,16 @@ function App() {
 
           // Update uploadedFiles with fetched files in a persistent location
           setUploadedFiles((prev) => {
-            const existingFiles = prev[selectedDocId] && typeof prev[selectedDocId] === 'object' && !Array.isArray(prev[selectedDocId])
-              ? prev[selectedDocId]
-              : {};
+            const existingFiles =
+              prev[selectedDocId] &&
+              typeof prev[selectedDocId] === "object" &&
+              !Array.isArray(prev[selectedDocId])
+                ? prev[selectedDocId]
+                : {};
             // Ensure all statusKey values are arrays (except $api)
             const safeFiles = {};
             Object.entries(existingFiles).forEach(([key, value]) => {
-              if (key === '$api') {
+              if (key === "$api") {
                 safeFiles[key] = value;
               } else {
                 safeFiles[key] = Array.isArray(value) ? value : [];
@@ -2237,44 +2150,24 @@ function App() {
   React.useEffect(() => {
     if (orderedStatuses.length === 0) return;
 
-    // Auto-select first status when document is selected and no step is active
+    // Auto-open selected document's current status from grid data.
     if (
       selectedDoc &&
       selectedDoc.rev_current_id &&
       infoActiveStep === null &&
       !hasInitializedFlowRef.current
     ) {
-      const docEntry = selectedDocId ? uploadedFiles[selectedDocId] || {} : {};
-      const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
-      const statusWithFiles = orderedStatuses.find((status) => {
-        const key = String(status.rev_status_id);
-        const behaviorFileItem = behaviorFileById[status.ui_behavior_id] || "";
-        if (String(behaviorFileItem).includes("InDesignBehavior")) {
-          const localFiles = Array.isArray(docEntry[key]) ? docEntry[key] : [];
-          const apiFilesForStatus = apiFiles.filter((file) => {
-            const issued = file?.issuedStatus ?? file?.issued_status ?? null;
-            const issuedString =
-              issued === null || issued === undefined ? "" : String(issued);
-            return (
-              issued === null ||
-              issued === undefined ||
-              issuedString === "" ||
-              issuedString === String(key)
-            );
-          });
-          return localFiles.length || apiFilesForStatus.length;
-        }
-        if (String(behaviorFileItem).includes("IDCBehavior")) {
-          const localFiles = Array.isArray(docEntry["2"]) ? docEntry["2"] : [];
-          const apiFilesForStatus = apiFiles.filter((file) => {
-            const issued = file?.issuedStatus ?? file?.issued_status ?? null;
-            return String(issued) === "2";
-          });
-          return localFiles.length || apiFilesForStatus.length;
-        }
-        return false;
-      });
-      const firstStatus = statusWithFiles || orderedStatuses[0];
+      const currentStatusKey =
+        selectedDoc.rev_status_id != null ? String(selectedDoc.rev_status_id) : null;
+      const hasCurrentStatus =
+        currentStatusKey !== null &&
+        orderedStatuses.some((status) => String(status.rev_status_id) === currentStatusKey);
+      if (hasCurrentStatus) {
+        setInfoActiveStep(currentStatusKey);
+        hasInitializedFlowRef.current = true;
+        return;
+      }
+      const firstStatus = orderedStatuses[0];
       if (firstStatus) {
         setInfoActiveStep(String(firstStatus.rev_status_id));
         hasInitializedFlowRef.current = true;
@@ -2292,7 +2185,7 @@ function App() {
     if (exists) return;
     setInfoActiveStep(null);
     hasInitializedFlowRef.current = true;
-  }, [orderedStatuses, infoActiveStep, selectedDoc, selectedDocId, uploadedFiles, behaviorFileById]);
+  }, [orderedStatuses, infoActiveStep, selectedDoc, selectedDocId]);
 
   return (
     <main
@@ -2947,7 +2840,6 @@ function App() {
         }
         .flow-step__label {
           font-weight: 600;
-          text-transform: uppercase;
           font-size: 13px;
         }
         .flow-step__behavior {
@@ -3482,194 +3374,146 @@ function App() {
                               </button>
                               {columnMenuOpen === col.key
                                 ? ReactDOM.createPortal(
-                                  <div
-                                    data-column-menu
-                                    onClick={(event) => event.stopPropagation()}
-                                    onMouseDown={(event) => event.stopPropagation()}
-                                    style={{
-                                      position: "fixed",
-                                      top: columnMenuPosition.top,
-                                      left: columnMenuPosition.left,
-                                      background: "var(--color-surface)",
-                                      border: "1px solid var(--color-border)",
-                                      borderRadius: "0",
-                                      boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
-                                      zIndex: 5000,
-                                      minWidth: "220px",
-                                      overflow: "visible",
-                                    }}
-                                  >
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSortConfig({ key: col.key, direction: "asc" });
-                                      setColumnMenuOpen(null);
-                                    }}
-                                    onMouseEnter={(event) => {
-                                      event.currentTarget.style.background = "var(--color-surface-muted)";
-                                    }}
-                                    onMouseLeave={(event) => {
-                                      event.currentTarget.style.background = "transparent";
-                                    }}
-                                    style={{
-                                      width: "100%",
-                                      padding: "8px 12px",
-                                      textAlign: "left",
-                                      background: "transparent",
-                                      border: "none",
-                                      cursor: "pointer",
-                                      fontSize: "12px",
-                                      color: "var(--color-text)",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "8px",
-                                    }}
-                                  >
-                                    <span style={{ fontSize: "12px" }}>↑</span>
-                                    Sort Ascending
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSortConfig({ key: col.key, direction: "desc" });
-                                      setColumnMenuOpen(null);
-                                    }}
-                                    onMouseEnter={(event) => {
-                                      event.currentTarget.style.background = "var(--color-surface-muted)";
-                                    }}
-                                    onMouseLeave={(event) => {
-                                      event.currentTarget.style.background = "transparent";
-                                    }}
-                                    style={{
-                                      width: "100%",
-                                      padding: "8px 12px",
-                                      textAlign: "left",
-                                      background: "transparent",
-                                      border: "none",
-                                      cursor: "pointer",
-                                      fontSize: "12px",
-                                      color: "var(--color-text)",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "8px",
-                                    }}
-                                  >
-                                    <span style={{ fontSize: "12px" }}>↓</span>
-                                    Sort Descending
-                                  </button>
-                                  <div
-                                    style={{
-                                      borderTop: "1px solid var(--color-border-soft)",
-                                      margin: "2px 0",
-                                    }}
-                                  />
-                                  <div
-                                    onClick={() => setColumnSubmenuOpen((prev) => !prev)}
-                                    onMouseEnter={(event) => {
-                                      event.currentTarget.style.background = "var(--color-surface-muted)";
-                                    }}
-                                    onMouseLeave={(event) => {
-                                      event.currentTarget.style.background = "transparent";
-                                    }}
-                                    style={{
-                                      position: "relative",
-                                      padding: "6px 12px",
-                                      fontSize: "12px",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "space-between",
-                                      cursor: "pointer",
-                                      color: "var(--color-text)",
-                                    }}
-                                  >
-                                    <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                      <span style={{ fontSize: "12px" }}>▥</span>
-                                      Columns
-                                    </span>
-                                    <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>▶</span>
-                                    {columnSubmenuOpen ? (
-                                      <div
-                                        onClick={(event) => event.stopPropagation()}
-                                        onMouseDown={(event) => event.stopPropagation()}
-                                        data-column-menu
+                                    <div
+                                      data-column-menu
+                                      style={{
+                                        position: "fixed",
+                                        top: columnMenuPosition.top,
+                                        left: columnMenuPosition.left,
+                                        background: "var(--color-surface)",
+                                        border: "1px solid var(--color-border)",
+                                        borderRadius: "0",
+                                        boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
+                                        zIndex: 5000,
+                                        minWidth: "220px",
+                                        overflow: "visible",
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSortConfig({ key: col.key, direction: "asc" });
+                                          setColumnMenuOpen(null);
+                                        }}
+                                        onMouseEnter={(event) => {
+                                          event.currentTarget.style.background =
+                                            "var(--color-surface-muted)";
+                                        }}
+                                        onMouseLeave={(event) => {
+                                          event.currentTarget.style.background = "transparent";
+                                        }}
                                         style={{
-                                          position: "absolute",
-                                          top: 0,
-                                          left: "100%",
-                                          marginLeft: "6px",
-                                          background: "var(--color-surface)",
-                                          border: "1px solid var(--color-border)",
-                                          borderRadius: "0",
-                                          boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
-                                          zIndex: 5001,
-                                          minWidth: "220px",
-                                          maxHeight: "260px",
-                                          overflowY: "auto",
+                                          width: "100%",
                                           padding: "8px 12px",
+                                          textAlign: "left",
+                                          background: "transparent",
+                                          border: "none",
+                                          cursor: "pointer",
+                                          fontSize: "12px",
+                                          color: "var(--color-text)",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "8px",
                                         }}
                                       >
-                                        <label
+                                        <span style={{ fontSize: "12px" }}>↑</span>
+                                        Sort Ascending
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSortConfig({ key: col.key, direction: "desc" });
+                                          setColumnMenuOpen(null);
+                                        }}
+                                        onMouseEnter={(event) => {
+                                          event.currentTarget.style.background =
+                                            "var(--color-surface-muted)";
+                                        }}
+                                        onMouseLeave={(event) => {
+                                          event.currentTarget.style.background = "transparent";
+                                        }}
+                                        style={{
+                                          width: "100%",
+                                          padding: "8px 12px",
+                                          textAlign: "left",
+                                          background: "transparent",
+                                          border: "none",
+                                          cursor: "pointer",
+                                          fontSize: "12px",
+                                          color: "var(--color-text)",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "8px",
+                                        }}
+                                      >
+                                        <span style={{ fontSize: "12px" }}>↓</span>
+                                        Sort Descending
+                                      </button>
+                                      <div
+                                        style={{
+                                          borderTop: "1px solid var(--color-border-soft)",
+                                          margin: "2px 0",
+                                        }}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => setColumnSubmenuOpen((prev) => !prev)}
+                                        onMouseEnter={(event) => {
+                                          event.currentTarget.style.background =
+                                            "var(--color-surface-muted)";
+                                        }}
+                                        onMouseLeave={(event) => {
+                                          event.currentTarget.style.background = "transparent";
+                                        }}
+                                        style={{
+                                          position: "relative",
+                                          padding: "6px 12px",
+                                          fontSize: "12px",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "space-between",
+                                          cursor: "pointer",
+                                          color: "var(--color-text)",
+                                        }}
+                                      >
+                                        <span
                                           style={{
-                                            display: "grid",
-                                            gridTemplateColumns: "16px 1fr",
+                                            display: "flex",
                                             alignItems: "center",
-                                            columnGap: "8px",
-                                            fontSize: "12px",
-                                            padding: "4px 0",
-                                            cursor: "pointer",
-                                            textAlign: "left",
-                                            fontWeight: 600,
+                                            gap: "8px",
                                           }}
                                         >
-                                          <input
-                                            type="checkbox"
-                                            checked={
-                                              allColumns
-                                                .filter((colItem) => colItem.id !== "doc_id")
-                                                .every((colItem) => !hiddenColumnIds.has(colItem.id))
-                                            }
-                                            onClick={(event) => event.stopPropagation()}
-                                            onChange={(event) => {
-                                              const checked = event.target.checked;
-                                              setHiddenColumnIds((prev) => {
-                                                const next = new Set(prev);
-                                                const nonIdColumns = allColumns.filter(
-                                                  (colItem) => colItem.id !== "doc_id",
-                                                );
-                                                if (checked) {
-                                                  nonIdColumns.forEach((colItem) =>
-                                                    next.delete(colItem.id),
-                                                  );
-                                                } else {
-                                                  nonIdColumns.forEach((colItem) =>
-                                                    next.add(colItem.id),
-                                                  );
-                                                  if (nonIdColumns.length) {
-                                                    next.delete(nonIdColumns[0].id);
-                                                  }
-                                                }
-                                                return next;
-                                              });
-                                            }}
-                                            style={{ margin: 0 }}
-                                          />
-                                          <span style={{ textAlign: "left" }}>Show All</span>
-                                        </label>
-                                        <div
+                                          <span style={{ fontSize: "12px" }}>▥</span>
+                                          Columns
+                                        </span>
+                                        <span
                                           style={{
-                                            borderTop: "1px solid var(--color-border-soft)",
-                                            margin: "4px 0",
+                                            fontSize: "12px",
+                                            color: "var(--color-text-muted)",
                                           }}
-                                        />
-                                    {columnOrder
-                                          .map((id) => allColumns.find((colItem) => colItem.id === id))
-                                          .filter(Boolean)
-                                          .filter((colItem) => colItem.id !== "doc_id")
-                                          .map((colItem) => {
-                                          const isVisible = !hiddenColumnIds.has(colItem.id);
-                                          return (
+                                        >
+                                          ▶
+                                        </span>
+                                        {columnSubmenuOpen ? (
+                                          <div
+                                            data-column-menu
+                                            style={{
+                                              position: "absolute",
+                                              top: 0,
+                                              left: "100%",
+                                              marginLeft: "6px",
+                                              background: "var(--color-surface)",
+                                              border: "1px solid var(--color-border)",
+                                              borderRadius: "0",
+                                              boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
+                                              zIndex: 5001,
+                                              minWidth: "220px",
+                                              maxHeight: "260px",
+                                              overflowY: "auto",
+                                              padding: "8px 12px",
+                                            }}
+                                          >
                                             <label
-                                              key={colItem.id}
                                               style={{
                                                 display: "grid",
                                                 gridTemplateColumns: "16px 1fr",
@@ -3679,25 +3523,92 @@ function App() {
                                                 padding: "4px 0",
                                                 cursor: "pointer",
                                                 textAlign: "left",
+                                                fontWeight: 600,
                                               }}
                                             >
                                               <input
                                                 type="checkbox"
-                                                checked={isVisible}
+                                                checked={allColumns
+                                                  .filter((colItem) => colItem.id !== "doc_id")
+                                                  .every(
+                                                    (colItem) => !hiddenColumnIds.has(colItem.id),
+                                                  )}
                                                 onClick={(event) => event.stopPropagation()}
-                                                onChange={() => toggleColumnVisibility(colItem.id)}
+                                                onChange={(event) => {
+                                                  const checked = event.target.checked;
+                                                  setHiddenColumnIds((prev) => {
+                                                    const next = new Set(prev);
+                                                    const nonIdColumns = allColumns.filter(
+                                                      (colItem) => colItem.id !== "doc_id",
+                                                    );
+                                                    if (checked) {
+                                                      nonIdColumns.forEach((colItem) =>
+                                                        next.delete(colItem.id),
+                                                      );
+                                                    } else {
+                                                      nonIdColumns.forEach((colItem) =>
+                                                        next.add(colItem.id),
+                                                      );
+                                                      if (nonIdColumns.length) {
+                                                        next.delete(nonIdColumns[0].id);
+                                                      }
+                                                    }
+                                                    return next;
+                                                  });
+                                                }}
                                                 style={{ margin: 0 }}
                                               />
-                                              <span style={{ textAlign: "left" }}>{colItem.label}</span>
+                                              <span style={{ textAlign: "left" }}>Show All</span>
                                             </label>
-                                          );
-                                        })}
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                  </div>,
-                                  document.body,
-                                )
+                                            <div
+                                              style={{
+                                                borderTop: "1px solid var(--color-border-soft)",
+                                                margin: "4px 0",
+                                              }}
+                                            />
+                                            {columnOrder
+                                              .map((id) =>
+                                                allColumns.find((colItem) => colItem.id === id),
+                                              )
+                                              .filter(Boolean)
+                                              .filter((colItem) => colItem.id !== "doc_id")
+                                              .map((colItem) => {
+                                                const isVisible = !hiddenColumnIds.has(colItem.id);
+                                                return (
+                                                  <label
+                                                    key={colItem.id}
+                                                    style={{
+                                                      display: "grid",
+                                                      gridTemplateColumns: "16px 1fr",
+                                                      alignItems: "center",
+                                                      columnGap: "8px",
+                                                      fontSize: "12px",
+                                                      padding: "4px 0",
+                                                      cursor: "pointer",
+                                                      textAlign: "left",
+                                                    }}
+                                                  >
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={isVisible}
+                                                      onClick={(event) => event.stopPropagation()}
+                                                      onChange={() =>
+                                                        toggleColumnVisibility(colItem.id)
+                                                      }
+                                                      style={{ margin: 0 }}
+                                                    />
+                                                    <span style={{ textAlign: "left" }}>
+                                                      {colItem.label}
+                                                    </span>
+                                                  </label>
+                                                );
+                                              })}
+                                          </div>
+                                        ) : null}
+                                      </button>
+                                    </div>,
+                                    document.body,
+                                  )
                                 : null}
                             </div>
                           </div>
@@ -3731,302 +3642,313 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {false && isAdding && project && !documentsLoading && (
-                    <>
-                      <tr className="editing">
-                        {visibleColumns.map((col) => {
-                          const cellStyle = {
-                            width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
-                            minWidth: columnWidths[col.key]
-                              ? `${columnWidths[col.key]}px`
-                              : undefined,
-                          };
+                  {Boolean(window.__FLOW_ENABLE_INLINE_ADD__) &&
+                    isAdding &&
+                    project &&
+                    !documentsLoading && (
+                      <>
+                        <tr className="editing">
+                          {visibleColumns.map((col) => {
+                            const cellStyle = {
+                              width: columnWidths[col.key]
+                                ? `${columnWidths[col.key]}px`
+                                : undefined,
+                              minWidth: columnWidths[col.key]
+                                ? `${columnWidths[col.key]}px`
+                                : undefined,
+                            };
 
-                          if (col.id === "doc_name") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                  }}
-                                  value={newDocValues.doc_name_unique}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => ({
-                                      ...prev,
-                                      doc_name_unique: e.target.value,
-                                    }))
-                                  }
-                                  disabled={createStatus === "saving"}
-                                  placeholder="Document name"
-                                />
-                              </td>
-                            );
-                          }
-
-                          if (col.id === "title") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                  }}
-                                  value={newDocValues.title}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => ({ ...prev, title: e.target.value }))
-                                  }
-                                  disabled={createStatus === "saving"}
-                                  placeholder="Title"
-                                />
-                              </td>
-                            );
-                          }
-
-                          if (col.id === "discipline") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                    background: "var(--color-surface)",
-                                  }}
-                                  value={String(newDocValues.discipline_id ?? "")}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => {
-                                      const nextDiscipline = e.target.value;
-                                      const nextTypes = docTypes.filter(
-                                        (item) =>
-                                          String(item.ref_discipline_id ?? "") === nextDiscipline,
-                                      );
-                                      const currentTypeMatches = docTypes.find(
-                                        (item) =>
-                                          String(item.type_id) === String(prev.type_id) &&
-                                          String(item.ref_discipline_id ?? "") === nextDiscipline,
-                                      );
-                                      return {
+                            if (col.id === "doc_name") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <input
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                    }}
+                                    value={newDocValues.doc_name_unique}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => ({
                                         ...prev,
-                                        discipline_id: nextDiscipline,
-                                        type_id: currentTypeMatches
-                                          ? prev.type_id
-                                          : String(nextTypes[0]?.type_id ?? ""),
-                                      };
-                                    })
-                                  }
-                                  disabled={createStatus === "saving"}
-                                >
-                                  <option value="">Select discipline...</option>
-                                  {disciplines.map((item) => (
-                                    <option
-                                      key={item.discipline_id}
-                                      value={String(item.discipline_id)}
-                                    >
-                                      {item.discipline_name}
-                                      {item.discipline_acronym
-                                        ? ` (${item.discipline_acronym})`
-                                        : ""}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
+                                        doc_name_unique: e.target.value,
+                                      }))
+                                    }
+                                    disabled={createStatus === "saving"}
+                                    placeholder="Document name"
+                                  />
+                                </td>
+                              );
+                            }
 
-                          if (col.id === "doc_type") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                    background: "var(--color-surface)",
-                                  }}
-                                  value={String(newDocValues.type_id ?? "")}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => {
-                                      const nextType = e.target.value;
-                                      const selectedType = docTypes.find(
-                                        (item) => String(item.type_id) === nextType,
-                                      );
-                                      return {
+                            if (col.id === "title") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <input
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                    }}
+                                    value={newDocValues.title}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => ({
                                         ...prev,
-                                        type_id: nextType,
-                                        discipline_id:
-                                          selectedType?.ref_discipline_id ?? prev.discipline_id,
-                                      };
-                                    })
-                                  }
-                                  disabled={createStatus === "saving"}
-                                >
-                                  <option value="">Select type...</option>
-                                  {newDocTypeOptions.map((item) => (
-                                    <option key={item.type_id} value={String(item.type_id)}>
-                                      {item.doc_type_name}
-                                      {item.discipline_acronym
-                                        ? ` (${item.discipline_acronym})`
-                                        : ""}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
+                                        title: e.target.value,
+                                      }))
+                                    }
+                                    disabled={createStatus === "saving"}
+                                    placeholder="Title"
+                                  />
+                                </td>
+                              );
+                            }
 
-                          if (col.id === "jobpack") {
+                            if (col.id === "discipline") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <select
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                      background: "var(--color-surface)",
+                                    }}
+                                    value={String(newDocValues.discipline_id ?? "")}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => {
+                                        const nextDiscipline = e.target.value;
+                                        const nextTypes = docTypes.filter(
+                                          (item) =>
+                                            String(item.ref_discipline_id ?? "") === nextDiscipline,
+                                        );
+                                        const currentTypeMatches = docTypes.find(
+                                          (item) =>
+                                            String(item.type_id) === String(prev.type_id) &&
+                                            String(item.ref_discipline_id ?? "") === nextDiscipline,
+                                        );
+                                        return {
+                                          ...prev,
+                                          discipline_id: nextDiscipline,
+                                          type_id: currentTypeMatches
+                                            ? prev.type_id
+                                            : String(nextTypes[0]?.type_id ?? ""),
+                                        };
+                                      })
+                                    }
+                                    disabled={createStatus === "saving"}
+                                  >
+                                    <option value="">Select discipline...</option>
+                                    {disciplines.map((item) => (
+                                      <option
+                                        key={item.discipline_id}
+                                        value={String(item.discipline_id)}
+                                      >
+                                        {item.discipline_name}
+                                        {item.discipline_acronym
+                                          ? ` (${item.discipline_acronym})`
+                                          : ""}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+
+                            if (col.id === "doc_type") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <select
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                      background: "var(--color-surface)",
+                                    }}
+                                    value={String(newDocValues.type_id ?? "")}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => {
+                                        const nextType = e.target.value;
+                                        const selectedType = docTypes.find(
+                                          (item) => String(item.type_id) === nextType,
+                                        );
+                                        return {
+                                          ...prev,
+                                          type_id: nextType,
+                                          discipline_id:
+                                            selectedType?.ref_discipline_id ?? prev.discipline_id,
+                                        };
+                                      })
+                                    }
+                                    disabled={createStatus === "saving"}
+                                  >
+                                    <option value="">Select type...</option>
+                                    {newDocTypeOptions.map((item) => (
+                                      <option key={item.type_id} value={String(item.type_id)}>
+                                        {item.doc_type_name}
+                                        {item.discipline_acronym
+                                          ? ` (${item.discipline_acronym})`
+                                          : ""}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+
+                            if (col.id === "jobpack") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <select
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                      background: "var(--color-surface)",
+                                    }}
+                                    value={String(newDocValues.jobpack_id ?? "")}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => ({
+                                        ...prev,
+                                        jobpack_id: e.target.value,
+                                      }))
+                                    }
+                                    disabled={createStatus === "saving"}
+                                  >
+                                    <option value="">Select jobpack...</option>
+                                    {jobpacks.map((item) => (
+                                      <option key={item.jobpack_id} value={String(item.jobpack_id)}>
+                                        {item.jobpack_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+
+                            if (col.id === "area") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <select
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                      background: "var(--color-surface)",
+                                    }}
+                                    value={String(newDocValues.area_id ?? "")}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => ({
+                                        ...prev,
+                                        area_id: e.target.value,
+                                      }))
+                                    }
+                                    disabled={createStatus === "saving"}
+                                  >
+                                    <option value="">Select area...</option>
+                                    {areas.map((item) => (
+                                      <option key={item.area_id} value={String(item.area_id)}>
+                                        {item.area_name}
+                                        {item.area_acronym ? ` (${item.area_acronym})` : ""}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+
+                            if (col.id === "unit") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <select
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                      background: "var(--color-surface)",
+                                    }}
+                                    value={String(newDocValues.unit_id ?? "")}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => ({
+                                        ...prev,
+                                        unit_id: e.target.value,
+                                      }))
+                                    }
+                                    disabled={createStatus === "saving"}
+                                  >
+                                    <option value="">Select unit...</option>
+                                    {units.map((item) => (
+                                      <option key={item.unit_id} value={String(item.unit_id)}>
+                                        {item.unit_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+
+                            if (col.id === "rev_code") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <select
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                      background: "var(--color-surface)",
+                                    }}
+                                    value={String(newDocValues.rev_code_id ?? "")}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => ({
+                                        ...prev,
+                                        rev_code_id: e.target.value,
+                                      }))
+                                    }
+                                    disabled={createStatus === "saving"}
+                                  >
+                                    <option value="">Select rev code...</option>
+                                    {revCodeOptions.map((item) => (
+                                      <option
+                                        key={item.rev_code_id}
+                                        value={String(item.rev_code_id)}
+                                      >
+                                        {item.rev_code_acronym
+                                          ? `${item.rev_code_acronym} (${item.rev_code_name})`
+                                          : item.rev_code_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+
                             return (
                               <td key={col.key} style={cellStyle}>
-                                <select
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                    background: "var(--color-surface)",
-                                  }}
-                                  value={String(newDocValues.jobpack_id ?? "")}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => ({
-                                      ...prev,
-                                      jobpack_id: e.target.value,
-                                    }))
-                                  }
-                                  disabled={createStatus === "saving"}
-                                >
-                                  <option value="">Select jobpack...</option>
-                                  {jobpacks.map((item) => (
-                                    <option key={item.jobpack_id} value={String(item.jobpack_id)}>
-                                      {item.jobpack_name}
-                                    </option>
-                                  ))}
-                                </select>
+                                —
                               </td>
                             );
-                          }
-
-                          if (col.id === "area") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                    background: "var(--color-surface)",
-                                  }}
-                                  value={String(newDocValues.area_id ?? "")}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => ({
-                                      ...prev,
-                                      area_id: e.target.value,
-                                    }))
-                                  }
-                                  disabled={createStatus === "saving"}
-                                >
-                                  <option value="">Select area...</option>
-                                  {areas.map((item) => (
-                                    <option key={item.area_id} value={String(item.area_id)}>
-                                      {item.area_name}
-                                      {item.area_acronym ? ` (${item.area_acronym})` : ""}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
-
-                          if (col.id === "unit") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                    background: "var(--color-surface)",
-                                  }}
-                                  value={String(newDocValues.unit_id ?? "")}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => ({
-                                      ...prev,
-                                      unit_id: e.target.value,
-                                    }))
-                                  }
-                                  disabled={createStatus === "saving"}
-                                >
-                                  <option value="">Select unit...</option>
-                                  {units.map((item) => (
-                                    <option key={item.unit_id} value={String(item.unit_id)}>
-                                      {item.unit_name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
-
-                          if (col.id === "rev_code") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                    background: "var(--color-surface)",
-                                  }}
-                                  value={String(newDocValues.rev_code_id ?? "")}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => ({
-                                      ...prev,
-                                      rev_code_id: e.target.value,
-                                    }))
-                                  }
-                                  disabled={createStatus === "saving"}
-                                >
-                                  <option value="">Select rev code...</option>
-                                  {revCodeOptions.map((item) => (
-                                    <option key={item.rev_code_id} value={String(item.rev_code_id)}>
-                                      {item.rev_code_acronym
-                                        ? `${item.rev_code_acronym} (${item.rev_code_name})`
-                                        : item.rev_code_name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
-
-                          return (
-                            <td key={col.key} style={cellStyle}>
-                              —
-                            </td>
-                          );
-                        })}
-                      </tr>
-                      {createError && (
-                        <tr>
-                          <td
-                            colSpan={visibleColumns.length}
-                            style={{ color: "var(--color-danger)", padding: "6px 10px" }}
-                          >
-                            {createError}
-                          </td>
+                          })}
                         </tr>
-                      )}
-                    </>
-                  )}
+                        {createError && (
+                          <tr>
+                            <td
+                              colSpan={visibleColumns.length}
+                              style={{ color: "var(--color-danger)", padding: "6px 10px" }}
+                            >
+                              {createError}
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    )}
                   {documentsLoading ? (
                     <tr>
                       <td className="status-row" colSpan={visibleColumns.length}>
@@ -4054,65 +3976,169 @@ function App() {
                   ) : (
                     <>
                       {sortedDocuments.map((doc, idx) => {
-                      const rowId = doc.doc_id || doc.doc_name || doc.id;
-                      const isEditing = editRowId === rowId;
-                      const isSelected = selectedDocIds.has(rowId);
-                      const isCopied = copiedDocIds.has(rowId);
-                      const isCreated = lastCreatedDocIds.has(rowId);
+                        const rowId = doc.doc_id || doc.doc_name || doc.id;
+                        const isEditing = editRowId === rowId;
+                        const isSelected = selectedDocIds.has(rowId);
+                        const isCopied = copiedDocIds.has(rowId);
+                        const isCreated = lastCreatedDocIds.has(rowId);
 
-                      return (
-                        <tr
-                          key={rowId}
-                          data-row-id={rowId}
-                          className={`${isSelected ? "selected" : ""} ${isCopied ? "copied" : ""} ${isEditing ? "editing" : ""} ${isCreated ? "created" : ""}`.trim() || undefined}
-                          onClick={(event) => {
-                            const isMultiToggle = event.ctrlKey || event.metaKey;
-                            const isRange = event.shiftKey;
-                            if (isRange && lastSelectedRowIndex !== null) {
-                              const start = Math.min(lastSelectedRowIndex, idx);
-                              const end = Math.max(lastSelectedRowIndex, idx);
-                              const rangeIds = sortedDocuments
-                                .slice(start, end + 1)
-                                .map((item) => item.doc_id || item.doc_name || item.id);
-                              setSelectedDocIds((prev) => {
-                                const next = new Set(prev);
-                                rangeIds.forEach((id) => next.add(id));
-                                return next;
-                              });
-                            } else if (isMultiToggle) {
-                              setSelectedDocIds((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(rowId)) {
-                                  next.delete(rowId);
-                                } else {
-                                  next.add(rowId);
-                                }
-                                return next;
-                              });
-                            } else {
-                              setSelectedDocIds(new Set([rowId]));
+                        return (
+                          <tr
+                            key={rowId}
+                            data-row-id={rowId}
+                            className={
+                              `${isSelected ? "selected" : ""} ${isCopied ? "copied" : ""} ${isEditing ? "editing" : ""} ${isCreated ? "created" : ""}`.trim() ||
+                              undefined
                             }
-                            setSelectedDocId(rowId);
-                            setLastSelectedRowIndex(idx);
-                            setActiveDetailTab("Revisions");
-                            const inDesignStatus = orderedStatuses.find(
-                              (s) => s.rev_status_name?.toLowerCase() === "indesign",
-                            );
-                            if (inDesignStatus) {
-                              setInfoActiveStep(String(inDesignStatus.rev_status_id));
-                            }
-                          }}
-                          onDoubleClick={(event) => event.preventDefault()}
-                          style={{
-                            cursor: "pointer",
-                          }}
-                        >
-                          {visibleColumns.map((col) => {
-                            const isEditable = col.id === "doc_name" || col.id === "title";
-                            const selectConfig = lookupOptionsByColumn[col.id];
-                            const value = renderCell(doc, col);
+                            onClick={(event) => {
+                              const isMultiToggle = event.ctrlKey || event.metaKey;
+                              const isRange = event.shiftKey;
+                              if (isRange && lastSelectedRowIndex !== null) {
+                                const start = Math.min(lastSelectedRowIndex, idx);
+                                const end = Math.max(lastSelectedRowIndex, idx);
+                                const rangeIds = sortedDocuments
+                                  .slice(start, end + 1)
+                                  .map((item) => item.doc_id || item.doc_name || item.id);
+                                setSelectedDocIds((prev) => {
+                                  const next = new Set(prev);
+                                  rangeIds.forEach((id) => next.add(id));
+                                  return next;
+                                });
+                              } else if (isMultiToggle) {
+                                setSelectedDocIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(rowId)) {
+                                    next.delete(rowId);
+                                  } else {
+                                    next.add(rowId);
+                                  }
+                                  return next;
+                                });
+                              } else {
+                                setSelectedDocIds(new Set([rowId]));
+                              }
+                              setSelectedDocId(rowId);
+                              setLastSelectedRowIndex(idx);
+                              setActiveDetailTab("Revisions");
+                              const inDesignStatus = orderedStatuses.find(
+                                (s) => s.rev_status_name?.toLowerCase() === "indesign",
+                              );
+                              if (inDesignStatus) {
+                                setInfoActiveStep(String(inDesignStatus.rev_status_id));
+                              }
+                            }}
+                            onDoubleClick={(event) => event.preventDefault()}
+                            style={{
+                              cursor: "pointer",
+                            }}
+                          >
+                            {visibleColumns.map((col) => {
+                              const isEditable = col.id === "doc_name" || col.id === "title";
+                              const selectConfig = lookupOptionsByColumn[col.id];
+                              const value = renderCell(doc, col);
 
-                            if (isEditing && (isEditable || selectConfig)) {
+                              if (isEditing && (isEditable || selectConfig)) {
+                                return (
+                                  <td
+                                    key={col.key}
+                                    style={{
+                                      width: columnWidths[col.key]
+                                        ? `${columnWidths[col.key]}px`
+                                        : undefined,
+                                      minWidth: columnWidths[col.key]
+                                        ? `${columnWidths[col.key]}px`
+                                        : undefined,
+                                    }}
+                                  >
+                                    {selectConfig ? (
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(editValues[selectConfig.field] ?? "")}
+                                        onChange={(e) =>
+                                          setEditValues((prev) => {
+                                            const nextValue = e.target.value;
+                                            if (selectConfig.field === "type_id") {
+                                              const selectedType = selectConfig.options.find(
+                                                (item) =>
+                                                  String(item[selectConfig.valueKey]) === nextValue,
+                                              );
+                                              return {
+                                                ...prev,
+                                                type_id: nextValue,
+                                                discipline_id:
+                                                  selectedType?.ref_discipline_id ??
+                                                  prev.discipline_id,
+                                              };
+                                            }
+                                            if (selectConfig.field === "discipline_id") {
+                                              const nextTypes = docTypes.filter(
+                                                (item) =>
+                                                  String(item.ref_discipline_id ?? "") ===
+                                                  nextValue,
+                                              );
+                                              const currentTypeMatches = docTypes.find(
+                                                (item) =>
+                                                  String(item.type_id) === String(prev.type_id) &&
+                                                  String(item.ref_discipline_id ?? "") ===
+                                                    nextValue,
+                                              );
+                                              return {
+                                                ...prev,
+                                                discipline_id: nextValue,
+                                                type_id: currentTypeMatches
+                                                  ? prev.type_id
+                                                  : String(nextTypes[0]?.type_id ?? ""),
+                                              };
+                                            }
+                                            return {
+                                              ...prev,
+                                              [selectConfig.field]: nextValue,
+                                            };
+                                          })
+                                        }
+                                      >
+                                        <option value="">{selectConfig.placeholder}</option>
+                                        {selectConfig.options.map((item) => {
+                                          const optionValue = item[selectConfig.valueKey];
+                                          return (
+                                            <option key={optionValue} value={String(optionValue)}>
+                                              {selectConfig.getLabel(item)}
+                                            </option>
+                                          );
+                                        })}
+                                      </select>
+                                    ) : (
+                                      <input
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                        }}
+                                        value={
+                                          col.id === "doc_name"
+                                            ? editValues.doc_name_unique
+                                            : editValues.title
+                                        }
+                                        onChange={(e) =>
+                                          setEditValues((prev) => ({
+                                            ...prev,
+                                            [col.id === "doc_name" ? "doc_name_unique" : "title"]:
+                                              e.target.value,
+                                          }))
+                                        }
+                                      />
+                                    )}
+                                  </td>
+                                );
+                              }
+
                               return (
                                 <td
                                   key={col.key}
@@ -4125,417 +4151,324 @@ function App() {
                                       : undefined,
                                   }}
                                 >
-                                  {selectConfig ? (
-                                    <select
-                                      style={{
-                                        width: "100%",
-                                        padding: "6px 8px",
-                                        borderRadius: "8px",
-                                        border: "1px solid var(--color-border-strong)",
-                                        background: "var(--color-surface)",
-                                      }}
-                                      value={String(editValues[selectConfig.field] ?? "")}
-                                      onChange={(e) =>
-                                        setEditValues((prev) => {
-                                          const nextValue = e.target.value;
-                                          if (selectConfig.field === "type_id") {
-                                            const selectedType = selectConfig.options.find(
-                                              (item) =>
-                                                String(item[selectConfig.valueKey]) === nextValue,
-                                            );
-                                            return {
-                                              ...prev,
-                                              type_id: nextValue,
-                                              discipline_id:
-                                                selectedType?.ref_discipline_id ??
-                                                prev.discipline_id,
-                                            };
-                                          }
-                                          if (selectConfig.field === "discipline_id") {
-                                            const nextTypes = docTypes.filter(
-                                              (item) =>
-                                                String(item.ref_discipline_id ?? "") === nextValue,
-                                            );
-                                            const currentTypeMatches = docTypes.find(
-                                              (item) =>
-                                                String(item.type_id) === String(prev.type_id) &&
-                                                String(item.ref_discipline_id ?? "") === nextValue,
-                                            );
-                                            return {
-                                              ...prev,
-                                              discipline_id: nextValue,
-                                              type_id: currentTypeMatches
-                                                ? prev.type_id
-                                                : String(nextTypes[0]?.type_id ?? ""),
-                                            };
-                                          }
-                                          return {
-                                            ...prev,
-                                            [selectConfig.field]: nextValue,
-                                          };
-                                        })
-                                      }
-                                    >
-                                      <option value="">{selectConfig.placeholder}</option>
-                                      {selectConfig.options.map((item) => {
-                                        const optionValue = item[selectConfig.valueKey];
-                                        return (
-                                          <option key={optionValue} value={String(optionValue)}>
-                                            {selectConfig.getLabel(item)}
-                                          </option>
-                                        );
-                                      })}
-                                    </select>
-                                  ) : (
-                                    <input
-                                      style={{
-                                        width: "100%",
-                                        padding: "6px 8px",
-                                        borderRadius: "8px",
-                                        border: "1px solid var(--color-border-strong)",
-                                      }}
-                                      value={
-                                        col.id === "doc_name"
-                                          ? editValues.doc_name_unique
-                                          : editValues.title
-                                      }
-                                      onChange={(e) =>
-                                        setEditValues((prev) => ({
-                                          ...prev,
-                                          [col.id === "doc_name" ? "doc_name_unique" : "title"]:
-                                            e.target.value,
-                                        }))
-                                      }
-                                    />
-                                  )}
+                                  {value}
                                 </td>
                               );
-                            }
-
-                            return (
-                              <td
-                                key={col.key}
-                                style={{
+                            })}
+                          </tr>
+                        );
+                      })}
+                      {Boolean(window.__FLOW_ENABLE_INLINE_ADD__) &&
+                        isAdding &&
+                        project &&
+                        !documentsLoading && (
+                          <>
+                            <tr className="editing">
+                              {visibleColumns.map((col) => {
+                                const cellStyle = {
                                   width: columnWidths[col.key]
                                     ? `${columnWidths[col.key]}px`
                                     : undefined,
                                   minWidth: columnWidths[col.key]
                                     ? `${columnWidths[col.key]}px`
                                     : undefined,
-                                }}
-                              >
-                                {value}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                      })}
-                      {false && isAdding && project && !documentsLoading && (
-                        <>
-                          <tr className="editing">
-                            {visibleColumns.map((col) => {
-                              const cellStyle = {
-                                width: columnWidths[col.key]
-                                  ? `${columnWidths[col.key]}px`
-                                  : undefined,
-                                minWidth: columnWidths[col.key]
-                                  ? `${columnWidths[col.key]}px`
-                                  : undefined,
-                              };
+                                };
 
-                              if (col.id === "doc_name") {
-                                return (
-                                  <td key={col.key} style={cellStyle}>
-                                    <input
-                                      style={{
-                                        width: "100%",
-                                        padding: "6px 8px",
-                                        borderRadius: "8px",
-                                        border: "1px solid var(--color-border-strong)",
-                                      }}
-                                      value={newDocValues.doc_name_unique}
-                                      onChange={(e) =>
-                                        setNewDocValues((prev) => ({
-                                          ...prev,
-                                          doc_name_unique: e.target.value,
-                                        }))
-                                      }
-                                      disabled={createStatus === "saving"}
-                                      placeholder="Document name"
-                                    />
-                                  </td>
-                                );
-                              }
-
-                              if (col.id === "title") {
-                                return (
-                                  <td key={col.key} style={cellStyle}>
-                                    <input
-                                      style={{
-                                        width: "100%",
-                                        padding: "6px 8px",
-                                        borderRadius: "8px",
-                                        border: "1px solid var(--color-border-strong)",
-                                      }}
-                                      value={newDocValues.title}
-                                      onChange={(e) =>
-                                        setNewDocValues((prev) => ({
-                                          ...prev,
-                                          title: e.target.value,
-                                        }))
-                                      }
-                                      disabled={createStatus === "saving"}
-                                      placeholder="Title"
-                                    />
-                                  </td>
-                                );
-                              }
-
-                              if (col.id === "discipline") {
-                                return (
-                                  <td key={col.key} style={cellStyle}>
-                                    <select
-                                      style={{
-                                        width: "100%",
-                                        padding: "6px 8px",
-                                        borderRadius: "8px",
-                                        border: "1px solid var(--color-border-strong)",
-                                        background: "var(--color-surface)",
-                                      }}
-                                      value={String(newDocValues.discipline_id ?? "")}
-                                      onChange={(e) =>
-                                        setNewDocValues((prev) => {
-                                          const nextDiscipline = e.target.value;
-                                          const nextTypes = docTypes.filter(
-                                            (item) =>
-                                              String(item.ref_discipline_id ?? "") ===
-                                              nextDiscipline,
-                                          );
-                                          const currentTypeMatches = docTypes.find(
-                                            (item) =>
-                                              String(item.type_id) === String(prev.type_id) &&
-                                              String(item.ref_discipline_id ?? "") ===
-                                                nextDiscipline,
-                                          );
-                                          return {
+                                if (col.id === "doc_name") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <input
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                        }}
+                                        value={newDocValues.doc_name_unique}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
                                             ...prev,
-                                            discipline_id: nextDiscipline,
-                                            type_id: currentTypeMatches
-                                              ? prev.type_id
-                                              : String(nextTypes[0]?.type_id ?? ""),
-                                          };
-                                        })
-                                      }
-                                      disabled={createStatus === "saving"}
-                                    >
-                                      <option value="">Select discipline...</option>
-                                      {disciplines.map((item) => (
-                                        <option
-                                          key={item.discipline_id}
-                                          value={String(item.discipline_id)}
-                                        >
-                                          {item.discipline_name}
-                                          {item.discipline_acronym
-                                            ? ` (${item.discipline_acronym})`
-                                            : ""}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </td>
-                                );
-                              }
+                                            doc_name_unique: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                        placeholder="Document name"
+                                      />
+                                    </td>
+                                  );
+                                }
 
-                              if (col.id === "doc_type") {
+                                if (col.id === "title") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <input
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                        }}
+                                        value={newDocValues.title}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            title: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                        placeholder="Title"
+                                      />
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "discipline") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(newDocValues.discipline_id ?? "")}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => {
+                                            const nextDiscipline = e.target.value;
+                                            const nextTypes = docTypes.filter(
+                                              (item) =>
+                                                String(item.ref_discipline_id ?? "") ===
+                                                nextDiscipline,
+                                            );
+                                            const currentTypeMatches = docTypes.find(
+                                              (item) =>
+                                                String(item.type_id) === String(prev.type_id) &&
+                                                String(item.ref_discipline_id ?? "") ===
+                                                  nextDiscipline,
+                                            );
+                                            return {
+                                              ...prev,
+                                              discipline_id: nextDiscipline,
+                                              type_id: currentTypeMatches
+                                                ? prev.type_id
+                                                : String(nextTypes[0]?.type_id ?? ""),
+                                            };
+                                          })
+                                        }
+                                        disabled={createStatus === "saving"}
+                                      >
+                                        <option value="">Select discipline...</option>
+                                        {disciplines.map((item) => (
+                                          <option
+                                            key={item.discipline_id}
+                                            value={String(item.discipline_id)}
+                                          >
+                                            {item.discipline_name}
+                                            {item.discipline_acronym
+                                              ? ` (${item.discipline_acronym})`
+                                              : ""}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "doc_type") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(newDocValues.type_id ?? "")}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            type_id: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                      >
+                                        <option value="">Select type...</option>
+                                        {docTypes
+                                          .filter(
+                                            (item) =>
+                                              !newDocValues.discipline_id ||
+                                              String(item.ref_discipline_id ?? "") ===
+                                                String(newDocValues.discipline_id),
+                                          )
+                                          .map((item) => (
+                                            <option key={item.type_id} value={String(item.type_id)}>
+                                              {item.doc_type_name}
+                                              {item.discipline_acronym
+                                                ? ` (${item.discipline_acronym})`
+                                                : ""}
+                                            </option>
+                                          ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "jobpack") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(newDocValues.jobpack_id ?? "")}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            jobpack_id: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                      >
+                                        <option value="">Select jobpack...</option>
+                                        {jobpacks.map((item) => (
+                                          <option
+                                            key={item.jobpack_id}
+                                            value={String(item.jobpack_id)}
+                                          >
+                                            {item.jobpack_name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "area") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(newDocValues.area_id ?? "")}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            area_id: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                      >
+                                        <option value="">Select area...</option>
+                                        {areas.map((item) => (
+                                          <option key={item.area_id} value={String(item.area_id)}>
+                                            {item.area_name}
+                                            {item.area_acronym ? ` (${item.area_acronym})` : ""}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "unit") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(newDocValues.unit_id ?? "")}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            unit_id: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                      >
+                                        <option value="">Select unit...</option>
+                                        {units.map((item) => (
+                                          <option key={item.unit_id} value={String(item.unit_id)}>
+                                            {item.unit_name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "rev_code") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(newDocValues.rev_code_id ?? "")}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            rev_code_id: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                      >
+                                        <option value="">Select rev code...</option>
+                                        {revCodeOptions.map((item) => (
+                                          <option
+                                            key={item.rev_code_id}
+                                            value={String(item.rev_code_id)}
+                                          >
+                                            {item.rev_code_acronym
+                                              ? `${item.rev_code_acronym} (${item.rev_code_name})`
+                                              : item.rev_code_name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
                                 return (
                                   <td key={col.key} style={cellStyle}>
-                                    <select
-                                      style={{
-                                        width: "100%",
-                                        padding: "6px 8px",
-                                        borderRadius: "8px",
-                                        border: "1px solid var(--color-border-strong)",
-                                        background: "var(--color-surface)",
-                                      }}
-                                      value={String(newDocValues.type_id ?? "")}
-                                      onChange={(e) =>
-                                        setNewDocValues((prev) => ({
-                                          ...prev,
-                                          type_id: e.target.value,
-                                        }))
-                                      }
-                                      disabled={createStatus === "saving"}
-                                    >
-                                      <option value="">Select type...</option>
-                                      {docTypes
-                                        .filter(
-                                          (item) =>
-                                            !newDocValues.discipline_id ||
-                                            String(item.ref_discipline_id ?? "") ===
-                                              String(newDocValues.discipline_id),
-                                        )
-                                        .map((item) => (
-                                        <option key={item.type_id} value={String(item.type_id)}>
-                                          {item.doc_type_name}
-                                          {item.discipline_acronym
-                                            ? ` (${item.discipline_acronym})`
-                                            : ""}
-                                        </option>
-                                      ))}
-                                    </select>
+                                    —
                                   </td>
                                 );
-                              }
-
-                              if (col.id === "jobpack") {
-                                return (
-                                  <td key={col.key} style={cellStyle}>
-                                    <select
-                                      style={{
-                                        width: "100%",
-                                        padding: "6px 8px",
-                                        borderRadius: "8px",
-                                        border: "1px solid var(--color-border-strong)",
-                                        background: "var(--color-surface)",
-                                      }}
-                                      value={String(newDocValues.jobpack_id ?? "")}
-                                      onChange={(e) =>
-                                        setNewDocValues((prev) => ({
-                                          ...prev,
-                                          jobpack_id: e.target.value,
-                                        }))
-                                      }
-                                      disabled={createStatus === "saving"}
-                                    >
-                                      <option value="">Select jobpack...</option>
-                                      {jobpacks.map((item) => (
-                                        <option key={item.jobpack_id} value={String(item.jobpack_id)}>
-                                          {item.jobpack_name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </td>
-                                );
-                              }
-
-                              if (col.id === "area") {
-                                return (
-                                  <td key={col.key} style={cellStyle}>
-                                    <select
-                                      style={{
-                                        width: "100%",
-                                        padding: "6px 8px",
-                                        borderRadius: "8px",
-                                        border: "1px solid var(--color-border-strong)",
-                                        background: "var(--color-surface)",
-                                      }}
-                                      value={String(newDocValues.area_id ?? "")}
-                                      onChange={(e) =>
-                                        setNewDocValues((prev) => ({
-                                          ...prev,
-                                          area_id: e.target.value,
-                                        }))
-                                      }
-                                      disabled={createStatus === "saving"}
-                                    >
-                                      <option value="">Select area...</option>
-                                      {areas.map((item) => (
-                                        <option key={item.area_id} value={String(item.area_id)}>
-                                          {item.area_name}
-                                          {item.area_acronym ? ` (${item.area_acronym})` : ""}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </td>
-                                );
-                              }
-
-                              if (col.id === "unit") {
-                                return (
-                                  <td key={col.key} style={cellStyle}>
-                                    <select
-                                      style={{
-                                        width: "100%",
-                                        padding: "6px 8px",
-                                        borderRadius: "8px",
-                                        border: "1px solid var(--color-border-strong)",
-                                        background: "var(--color-surface)",
-                                      }}
-                                      value={String(newDocValues.unit_id ?? "")}
-                                      onChange={(e) =>
-                                        setNewDocValues((prev) => ({
-                                          ...prev,
-                                          unit_id: e.target.value,
-                                        }))
-                                      }
-                                      disabled={createStatus === "saving"}
-                                    >
-                                      <option value="">Select unit...</option>
-                                      {units.map((item) => (
-                                        <option key={item.unit_id} value={String(item.unit_id)}>
-                                          {item.unit_name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </td>
-                                );
-                              }
-
-                              if (col.id === "rev_code") {
-                                return (
-                                  <td key={col.key} style={cellStyle}>
-                                    <select
-                                      style={{
-                                        width: "100%",
-                                        padding: "6px 8px",
-                                        borderRadius: "8px",
-                                        border: "1px solid var(--color-border-strong)",
-                                        background: "var(--color-surface)",
-                                      }}
-                                      value={String(newDocValues.rev_code_id ?? "")}
-                                      onChange={(e) =>
-                                        setNewDocValues((prev) => ({
-                                          ...prev,
-                                          rev_code_id: e.target.value,
-                                        }))
-                                      }
-                                      disabled={createStatus === "saving"}
-                                    >
-                                      <option value="">Select rev code...</option>
-                                      {revCodeOptions.map((item) => (
-                                        <option
-                                          key={item.rev_code_id}
-                                          value={String(item.rev_code_id)}
-                                        >
-                                          {item.rev_code_acronym
-                                            ? `${item.rev_code_acronym} (${item.rev_code_name})`
-                                            : item.rev_code_name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </td>
-                                );
-                              }
-
-                              return (
-                                <td key={col.key} style={cellStyle}>
-                                  —
-                                </td>
-                              );
-                            })}
-                          </tr>
-                          {createError && (
-                            <tr>
-                              <td
-                                colSpan={visibleColumns.length}
-                                style={{ color: "var(--color-danger)", padding: "6px 10px" }}
-                              >
-                                {createError}
-                              </td>
+                              })}
                             </tr>
-                          )}
-                        </>
-                      )}
+                            {createError && (
+                              <tr>
+                                <td
+                                  colSpan={visibleColumns.length}
+                                  style={{ color: "var(--color-danger)", padding: "6px 10px" }}
+                                >
+                                  {createError}
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        )}
                       {pastedRows.length > 0 && (
                         <>
                           {pastedRows.map((row, rowIdx) => (
@@ -4656,9 +4589,7 @@ function App() {
                                           background: "var(--color-surface)",
                                         }}
                                         value={String(row.type_id ?? "")}
-                                        onChange={(e) =>
-                                          updateRow({ type_id: e.target.value })
-                                        }
+                                        onChange={(e) => updateRow({ type_id: e.target.value })}
                                       >
                                         <option value="">Select type...</option>
                                         {docTypes
@@ -4669,10 +4600,7 @@ function App() {
                                                 String(row.discipline_id),
                                           )
                                           .map((item) => (
-                                            <option
-                                              key={item.type_id}
-                                              value={String(item.type_id)}
-                                            >
+                                            <option key={item.type_id} value={String(item.type_id)}>
                                               {item.doc_type_name}
                                               {item.discipline_acronym
                                                 ? ` (${item.discipline_acronym})`
@@ -4696,9 +4624,7 @@ function App() {
                                           background: "var(--color-surface)",
                                         }}
                                         value={String(row.jobpack_id ?? "")}
-                                        onChange={(e) =>
-                                          updateRow({ jobpack_id: e.target.value })
-                                        }
+                                        onChange={(e) => updateRow({ jobpack_id: e.target.value })}
                                       >
                                         <option value="">Select jobpack...</option>
                                         {jobpacks.map((item) => (
@@ -4730,10 +4656,7 @@ function App() {
                                       >
                                         <option value="">Select area...</option>
                                         {areas.map((item) => (
-                                          <option
-                                            key={item.area_id}
-                                            value={String(item.area_id)}
-                                          >
+                                          <option key={item.area_id} value={String(item.area_id)}>
                                             {item.area_name}
                                             {item.area_acronym ? ` (${item.area_acronym})` : ""}
                                           </option>
@@ -4759,10 +4682,7 @@ function App() {
                                       >
                                         <option value="">Select unit...</option>
                                         {units.map((item) => (
-                                          <option
-                                            key={item.unit_id}
-                                            value={String(item.unit_id)}
-                                          >
+                                          <option key={item.unit_id} value={String(item.unit_id)}>
                                             {item.unit_name}
                                           </option>
                                         ))}
@@ -4783,9 +4703,7 @@ function App() {
                                           background: "var(--color-surface)",
                                         }}
                                         value={String(row.rev_code_id ?? "")}
-                                        onChange={(e) =>
-                                          updateRow({ rev_code_id: e.target.value })
-                                        }
+                                        onChange={(e) => updateRow({ rev_code_id: e.target.value })}
                                       >
                                         <option value="">Select rev code...</option>
                                         {revCodeOptions.map((item) => (
@@ -4957,10 +4875,7 @@ function App() {
                                               String(newDocValues.discipline_id),
                                         )
                                         .map((item) => (
-                                          <option
-                                            key={item.type_id}
-                                            value={String(item.type_id)}
-                                          >
+                                          <option key={item.type_id} value={String(item.type_id)}>
                                             {item.doc_type_name}
                                             {item.discipline_acronym
                                               ? ` (${item.discipline_acronym})`
@@ -5028,10 +4943,7 @@ function App() {
                                     >
                                       <option value="">Select area...</option>
                                       {areas.map((item) => (
-                                        <option
-                                          key={item.area_id}
-                                          value={String(item.area_id)}
-                                        >
+                                        <option key={item.area_id} value={String(item.area_id)}>
                                           {item.area_name}
                                           {item.area_acronym ? ` (${item.area_acronym})` : ""}
                                         </option>
@@ -5063,10 +4975,7 @@ function App() {
                                     >
                                       <option value="">Select unit...</option>
                                       {units.map((item) => (
-                                        <option
-                                          key={item.unit_id}
-                                          value={String(item.unit_id)}
-                                        >
+                                        <option key={item.unit_id} value={String(item.unit_id)}>
                                           {item.unit_name}
                                         </option>
                                       ))}
@@ -5270,8 +5179,20 @@ function App() {
             <div className="detail-tab-panel" style={{ flex: 1 }}>
               {activeDetailTab === "Revisions" ? (
                 selectedDoc ? (
-                  <div style={{ width: "100%", height: "100%", overflow: "auto", margin: 0, padding: 0, boxSizing: 'border-box' }}>
-                    <div className="table-wrapper" style={{ margin: 0, padding: 0, boxSizing: 'border-box' }}>
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      overflow: "auto",
+                      margin: 0,
+                      padding: 0,
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <div
+                      className="table-wrapper"
+                      style={{ margin: 0, padding: 0, boxSizing: "border-box" }}
+                    >
                       <table className="table">
                         <thead>
                           <tr>
@@ -5290,41 +5211,63 @@ function App() {
                         </thead>
                         <tbody>
                           {revisionOverviews.length === 0 ? (
-                            <tr><td colSpan={10} style={{textAlign:'center',color:'var(--color-text-muted)'}}>No revisions found</td></tr>
+                            <tr>
+                              <td
+                                colSpan={10}
+                                style={{ textAlign: "center", color: "var(--color-text-muted)" }}
+                              >
+                                No revisions found
+                              </td>
+                            </tr>
                           ) : (
                             (() => {
                               // Remove duplicates by rev_id or rev_code_id
                               const seen = new Set();
-                              const uniqueRows = revisionOverviews.filter(row => {
-                                const key = row.rev_id || row.rev_code_id || row.id || JSON.stringify(row);
+                              const uniqueRows = revisionOverviews.filter((row) => {
+                                const key =
+                                  row.rev_id || row.rev_code_id || row.id || JSON.stringify(row);
                                 if (seen.has(key)) return false;
                                 seen.add(key);
                                 return true;
                               });
                               return uniqueRows.map((row, idx) => (
                                 <tr
-                                  key={row.rev_id || row.rev_code_id || row.revision_id || row.revision || idx}
+                                  key={
+                                    row.rev_id ||
+                                    row.rev_code_id ||
+                                    row.revision_id ||
+                                    row.revision ||
+                                    idx
+                                  }
                                   className={selectedRevisionIdx === idx ? "selected" : undefined}
                                   style={{
                                     cursor: "pointer",
                                   }}
                                   onClick={() => setSelectedRevisionIdx(idx)}
                                 >
-                                  <td>{row.rev_code_acronym || row.revision || row.rev_code || row.rev_code_id || ''}</td>
-                                  <td>{row.rev_code_name || row.name || row.rev_name || ''}</td>
-                                  <td>{row.rev_description || ''}</td>
-                                  <td>{row.progress || row.rev_percent || ''}</td>
-                                  <td>{row.author || row.rev_author || row.rev_author_name || ''}</td>
+                                  <td>
+                                    {row.rev_code_acronym ||
+                                      row.revision ||
+                                      row.rev_code ||
+                                      row.rev_code_id ||
+                                      ""}
+                                  </td>
+                                  <td>{row.rev_code_name || row.name || row.rev_name || ""}</td>
+                                  <td>{row.rev_description || ""}</td>
+                                  <td>{row.progress || row.rev_percent || ""}</td>
+                                  <td>
+                                    {row.author || row.rev_author || row.rev_author_name || ""}
+                                  </td>
                                   <td>
                                     {formatDateTime(
                                       row.date || row.rev_date || row.created_at || "",
                                     )}
                                   </td>
-                                  <td>{row.plan || row.plan_date || ''}</td>
-                                  <td>{row.actualStart || row.actual_start || ''}</td>
-                                  <td>{row.actualFinish || row.actual_finish || ''}</td>
-                                  <td>{row.forecast || row.forecast_deadline || ''}</td>
-                                  <td>{row.canceled || row.is_canceled ? 'Yes' : ''}</td>
+                                  <td>{row.plan || row.plan_date || ""}</td>
+                                  <td>{row.actualStart || row.actual_start || ""}</td>
+                                  <td>{row.actualFinish || row.actual_finish || ""}</td>
+                                  <td>{row.forecast || row.forecast_deadline || ""}</td>
+                                  <td>{row.canceled || row.is_canceled ? "Yes" : ""}</td>
                                 </tr>
                               ));
                             })()
@@ -5334,7 +5277,9 @@ function App() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}>
+                  <div
+                    style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}
+                  >
                     Select a document to view revisions.
                   </div>
                 )
@@ -5495,12 +5440,12 @@ function App() {
                       ? "HistoryBehavior.jsx"
                       : null;
                   const Behavior =
-                    activeIsHistory || activeStatus ? resolveBehaviorByFile(behaviorFile) : null;
-                  const isMenuOpen = statusKey ? statusMenuOpen[statusKey] || false : false;
-
+                    activeIsHistory || activeStatus
+                      ? resolveBehaviorByFile(behaviorFile, behaviorName)
+                      : null;
                   return (
                     <>
-                              <div className="flow-steps-column" ref={flowStepsRef}>
+                      <div className="flow-steps-column" ref={flowStepsRef}>
                         {orderedStatuses.map((status) => {
                           const key = String(status.rev_status_id);
                           const isActive = key === String(infoActiveStep);
@@ -5551,13 +5496,7 @@ function App() {
                               title={status.rev_status_name}
                             >
                               <span className="dot" style={{ display: "none" }} />
-                              <span className="flow-step__label">
-                                {((status.rev_status_name || "")
-                                  .replace(/^\s*\d+\s*[-–—]\s*/i, "")
-                                  .replace(/0/g, "")
-                                  .replace(/\s+/g, " ")
-                                  .trim()) || status.rev_status_name}
-                              </span>
+                              <span className="flow-step__label">{status.rev_status_name}</span>
                               {showArrow && (
                                 <span
                                   className="flow-step__arrow"
@@ -5629,7 +5568,10 @@ function App() {
                         style={{ display: isFlowPanelHidden ? "none" : "flex" }}
                       >
                         {activeIsHistory && isFlowEnabled && Behavior ? (
-                          <div className="flow-inline-content" data-ui-behavior="HistoryBehavior.jsx">
+                          <div
+                            className="flow-inline-content"
+                            data-ui-behavior="HistoryBehavior.jsx"
+                          >
                             <React.Suspense
                               fallback={<div className="flow-empty">Loading behavior…</div>}
                             >
@@ -5637,7 +5579,10 @@ function App() {
                             </React.Suspense>
                           </div>
                         ) : activeStatus && isFlowEnabled && Behavior ? (
-                          <div className="flow-inline-content" data-ui-behavior={behaviorFile || ""}>
+                          <div
+                            className="flow-inline-content"
+                            data-ui-behavior={behaviorFile || ""}
+                          >
                             <React.Suspense
                               fallback={<div className="flow-empty">Loading behavior…</div>}
                             >
