@@ -36,6 +36,24 @@ const normalizeApiBase = (raw) => {
   }
 };
 
+const resolveCurrentStatusKey = (doc, orderedStatuses = []) => {
+  const rawStatusId =
+    doc?.rev_status_id ??
+    doc?.rev_current_status_id ??
+    doc?.current_rev_status_id ??
+    doc?.rev_current_status ??
+    null;
+  if (rawStatusId !== null && rawStatusId !== undefined && String(rawStatusId).trim() !== "") {
+    return String(rawStatusId);
+  }
+  const statusName = String(doc?.rev_status_name || "").trim().toLowerCase();
+  if (!statusName) return null;
+  const matched = (orderedStatuses || []).find(
+    (status) => String(status?.rev_status_name || "").trim().toLowerCase() === statusName,
+  );
+  return matched?.rev_status_id != null ? String(matched.rev_status_id) : null;
+};
+
 function App() {
   const apiBase = normalizeApiBase(import.meta.env.VITE_API_BASE_URL);
   const [hiddenColumnIds, setHiddenColumnIds] = React.useState(() => new Set(["doc_id"]));
@@ -385,8 +403,7 @@ function App() {
             !Array.isArray(uploadedFiles[selectedDocId])
               ? uploadedFiles[selectedDocId]
               : {};
-          const currentRevStatusKey =
-            selectedDoc?.rev_status_id != null ? String(selectedDoc.rev_status_id) : null;
+      const currentRevStatusKey = resolveCurrentStatusKey(selectedDoc, revStatuses);
           const sourceLocal = Array.isArray(docEntry[sourceKey]) ? docEntry[sourceKey] : [];
           const targetLocal = Array.isArray(docEntry[targetKey]) ? docEntry[targetKey] : [];
           const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
@@ -1950,48 +1967,57 @@ function App() {
           throw new Error(`Failed to load files (${response.status})`);
         }
 
-        const files = await response.json();
+        const filesPayload = await response.json();
+        const files = Array.isArray(filesPayload)
+          ? filesPayload
+          : Array.isArray(filesPayload?.items)
+            ? filesPayload.items
+            : Array.isArray(filesPayload?.results)
+              ? filesPayload.results
+              : Array.isArray(filesPayload?.data)
+                ? filesPayload.data
+                : Array.isArray(filesPayload?.files)
+                  ? filesPayload.files
+                  : [];
 
         // Convert API files to our file object format
         // Store all API files in a special "$api" key to keep them persistent across all statuses
         const apiFiles = [];
-        if (Array.isArray(files) && files.length > 0) {
-          files.forEach((apiFile) => {
-            apiFiles.push(
-              normalizeFile(apiFile, {
-                documentNumber: selectedDoc.doc_name_unique || selectedDoc.title,
-                uploadedAt: new Date().toISOString(),
-                isFromApi: true,
-              }),
-            );
-          });
+        files.forEach((apiFile) => {
+          apiFiles.push(
+            normalizeFile(apiFile, {
+              documentNumber: selectedDoc.doc_name_unique || selectedDoc.title,
+              uploadedAt: new Date().toISOString(),
+              isFromApi: true,
+            }),
+          );
+        });
 
-          // Update uploadedFiles with fetched files in a persistent location
-          setUploadedFiles((prev) => {
-            const existingFiles =
-              prev[selectedDocId] &&
-              typeof prev[selectedDocId] === "object" &&
-              !Array.isArray(prev[selectedDocId])
-                ? prev[selectedDocId]
-                : {};
-            // Ensure all statusKey values are arrays (except $api)
-            const safeFiles = {};
-            Object.entries(existingFiles).forEach(([key, value]) => {
-              if (key === "$api") {
-                safeFiles[key] = value;
-              } else {
-                safeFiles[key] = Array.isArray(value) ? value : [];
-              }
-            });
-            return {
-              ...prev,
-              [selectedDocId]: {
-                ...safeFiles,
-                $api: apiFiles, // Store API files in special $api key
-              },
-            };
+        // Update uploadedFiles with fetched files in a persistent location (including empty result).
+        setUploadedFiles((prev) => {
+          const existingFiles =
+            prev[selectedDocId] &&
+            typeof prev[selectedDocId] === "object" &&
+            !Array.isArray(prev[selectedDocId])
+              ? prev[selectedDocId]
+              : {};
+          // Ensure all statusKey values are arrays (except $api)
+          const safeFiles = {};
+          Object.entries(existingFiles).forEach(([key, value]) => {
+            if (key === "$api") {
+              safeFiles[key] = value;
+            } else {
+              safeFiles[key] = Array.isArray(value) ? value : [];
+            }
           });
-        }
+          return {
+            ...prev,
+            [selectedDocId]: {
+              ...safeFiles,
+              $api: apiFiles,
+            },
+          };
+        });
       } catch (err) {
         console.error("Failed to fetch files for revision:", err);
       }
@@ -2150,29 +2176,51 @@ function App() {
   React.useEffect(() => {
     if (orderedStatuses.length === 0) return;
 
-    // Auto-open selected document's current status from grid data.
-    if (
-      selectedDoc &&
-      selectedDoc.rev_current_id &&
-      infoActiveStep === null &&
-      !hasInitializedFlowRef.current
-    ) {
-      const currentStatusKey =
-        selectedDoc.rev_status_id != null ? String(selectedDoc.rev_status_id) : null;
-      const hasCurrentStatus =
-        currentStatusKey !== null &&
-        orderedStatuses.some((status) => String(status.rev_status_id) === currentStatusKey);
-      if (hasCurrentStatus) {
-        setInfoActiveStep(currentStatusKey);
-        hasInitializedFlowRef.current = true;
+    // Default active tab: first status that already has files.
+    if (selectedDoc && infoActiveStep === null && !hasInitializedFlowRef.current) {
+      const docEntry =
+        selectedDocId &&
+        uploadedFiles[selectedDocId] &&
+        typeof uploadedFiles[selectedDocId] === "object" &&
+        !Array.isArray(uploadedFiles[selectedDocId])
+          ? uploadedFiles[selectedDocId]
+          : {};
+      const hasApiLoaded = Object.prototype.hasOwnProperty.call(docEntry, "$api");
+      const hasLocalFiles = Object.entries(docEntry).some(
+        ([key, value]) => key !== "$api" && Array.isArray(value) && value.length > 0,
+      );
+      const canFetchApiFiles = Boolean(selectedDoc?.rev_current_id);
+
+      // Wait for API file preload if revision exists and we have no local files yet.
+      if (canFetchApiFiles && !hasApiLoaded && !hasLocalFiles) {
         return;
       }
-      const firstStatus = orderedStatuses[0];
-      if (firstStatus) {
-        setInfoActiveStep(String(firstStatus.rev_status_id));
-        hasInitializedFlowRef.current = true;
-        return;
+
+      const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
+      const currentStatusKey = resolveCurrentStatusKey(selectedDoc, orderedStatuses);
+      const statusWithFiles = orderedStatuses.find((status) => {
+        const key = String(status.rev_status_id);
+        const localFiles = Array.isArray(docEntry[key]) ? docEntry[key] : [];
+        const apiFilesForStatus = apiFiles.filter((file) => {
+          const issued = file?.issuedStatus ?? file?.issued_status ?? null;
+          if (issued !== null && issued !== undefined && String(issued).trim() !== "") {
+            return String(issued) === key;
+          }
+          return currentStatusKey === key;
+        });
+        return localFiles.length > 0 || apiFilesForStatus.length > 0;
+      });
+
+      const fallbackStatus =
+        statusWithFiles ||
+        orderedStatuses.find((status) => String(status.rev_status_id) === String(currentStatusKey)) ||
+        orderedStatuses[0] ||
+        null;
+      if (fallbackStatus) {
+        setInfoActiveStep(String(fallbackStatus.rev_status_id));
       }
+      hasInitializedFlowRef.current = true;
+      return;
     }
 
     if (infoActiveStep === null) {
@@ -2185,7 +2233,7 @@ function App() {
     if (exists) return;
     setInfoActiveStep(null);
     hasInitializedFlowRef.current = true;
-  }, [orderedStatuses, infoActiveStep, selectedDoc, selectedDocId]);
+  }, [orderedStatuses, infoActiveStep, selectedDoc, selectedDocId, uploadedFiles]);
 
   return (
     <main
@@ -4020,12 +4068,7 @@ function App() {
                               setSelectedDocId(rowId);
                               setLastSelectedRowIndex(idx);
                               setActiveDetailTab("Revisions");
-                              const inDesignStatus = orderedStatuses.find(
-                                (s) => s.rev_status_name?.toLowerCase() === "indesign",
-                              );
-                              if (inDesignStatus) {
-                                setInfoActiveStep(String(inDesignStatus.rev_status_id));
-                              }
+                              setInfoActiveStep(null);
                             }}
                             onDoubleClick={(event) => event.preventDefault()}
                             style={{
@@ -5454,10 +5497,10 @@ function App() {
                           // Файлы для этого статуса: из БД (docEntry[key]) или API (issued_status === key или без issued = текущий статус ревизии)
                           const filesForStatus = Array.isArray(docEntry[key]) ? docEntry[key] : [];
                           const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
-                          const currentRevStatusKey =
-                            selectedDoc?.rev_status_id != null
-                              ? String(selectedDoc.rev_status_id)
-                              : null;
+                          const currentRevStatusKey = resolveCurrentStatusKey(
+                            selectedDoc,
+                            orderedStatuses,
+                          );
                           const apiFilesForThisStatus = apiFiles.filter((file) => {
                             const issued = file?.issuedStatus ?? file?.issued_status ?? null;
                             if (issued !== null && issued !== undefined) {
