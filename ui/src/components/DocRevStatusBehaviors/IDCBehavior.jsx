@@ -140,7 +140,7 @@ const IDCBehavior = ({
             <div
               className="flow-box"
               style={{
-                flex: "0 0 25%",
+                flex: "0 0 40%",
                 borderRadius: "0px",
                 marginTop: "0",
                 marginRight: "0",
@@ -363,7 +363,7 @@ const IDCBehavior = ({
               style={{
                 flex: "1 1 auto",
                 minHeight: 0,
-                maxHeight: "75%",
+                maxHeight: "60%",
                 display: "flex",
                 flexDirection: "column",
                 borderRadius: "0px",
