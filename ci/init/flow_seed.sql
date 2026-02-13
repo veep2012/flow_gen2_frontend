@@ -152,7 +152,6 @@ DECLARE
     v_doc_name TEXT;
     v_author INT;
     v_rev_code_id INT;
-    v_final_status_id INT;
     v_user_id INT;
 BEGIN
     SELECT rev_code_id INTO v_rev_code_id
@@ -163,12 +162,6 @@ BEGIN
     IF v_rev_code_id IS NULL THEN
         v_rev_code_id := 6;
     END IF;
-
-    SELECT rev_status_id INTO v_final_status_id
-    FROM doc_rev_statuses
-    WHERE final = TRUE
-    ORDER BY rev_status_id
-    LIMIT 1;
 
     FOR i IN 1..50 LOOP
         -- 1. Randomly select FKs
@@ -209,17 +202,6 @@ BEGIN
             NULL::TIMESTAMPTZ,
             FALSE
         );
-
-        IF v_final_status_id IS NOT NULL THEN
-            UPDATE core.doc_revision
-            SET rev_status_id = v_final_status_id
-            WHERE rev_id = v_rev_id;
-
-            UPDATE core.doc
-            SET rev_current_id = v_rev_id,
-                rev_actual_id = v_rev_id
-            WHERE doc_id = v_doc_id;
-        END IF;
 
     END LOOP;
 END $$;

@@ -353,47 +353,122 @@ function App() {
       if (!targetKey || !isFlowEnabled) {
         return;
       }
-      const confirmed = window.confirm(
-        "Move file(s) to the selected status? They will appear in that tab (e.g. Original Files for IDC).",
-      );
-      if (!confirmed) {
-        return;
-      }
-      if (targetKey === "history") {
-        setInfoActiveStep("history");
-        return;
-      }
-      // Migrate files from source step to target step (state only; API has no issued_status)
-      if (selectedDocId && sourceKey && sourceKey !== targetKey) {
-        const docEntry = uploadedFiles[selectedDocId] && typeof uploadedFiles[selectedDocId] === "object" && !Array.isArray(uploadedFiles[selectedDocId])
-          ? uploadedFiles[selectedDocId]
-          : {};
-        const currentRevStatusKey =
-          selectedDoc?.rev_status_id != null ? String(selectedDoc.rev_status_id) : null;
-        const sourceLocal = Array.isArray(docEntry[sourceKey]) ? docEntry[sourceKey] : [];
-        const targetLocal = Array.isArray(docEntry[targetKey]) ? docEntry[targetKey] : [];
-        const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
-        const updatedApiFiles = apiFiles.map((file) => {
-          const issued = file?.issuedStatus ?? file?.issued_status ?? null;
-          const belongsToSource =
-            (issued !== null && issued !== undefined && String(issued) === sourceKey) ||
-            ((issued === null || issued === undefined) && currentRevStatusKey === sourceKey);
-          if (belongsToSource) {
-            return { ...file, issuedStatus: targetKey, issued_status: targetKey };
+      const finishDrop = async () => {
+        const confirmed = window.confirm(
+          "Move file(s) to the selected status? They will appear in that tab (e.g. Original Files for IDC).",
+        );
+        if (!confirmed) {
+          return;
+        }
+        if (targetKey === "history") {
+          setInfoActiveStep("history");
+          return;
+        }
+
+        if (selectedDoc?.rev_current_id && sourceKey && sourceKey !== targetKey) {
+          const byId = new Map();
+          const referenced = new Set();
+          (Array.isArray(revStatuses) ? revStatuses : []).forEach((status) => {
+            byId.set(String(status.rev_status_id), status);
+            if (status.next_rev_status_id != null) {
+              referenced.add(String(status.next_rev_status_id));
+            }
+          });
+
+          let startStatus = (Array.isArray(revStatuses) ? revStatuses : []).find(
+            (status) => Boolean(status.start),
+          );
+          if (!startStatus) {
+            startStatus = (Array.isArray(revStatuses) ? revStatuses : []).find(
+              (status) => !referenced.has(String(status.rev_status_id)),
+            );
           }
-          return file;
-        });
-        const nextEntry = { ...docEntry };
-        nextEntry[sourceKey] = [];
-        nextEntry[targetKey] = [...targetLocal, ...sourceLocal];
-        nextEntry["$api"] = updatedApiFiles;
-        setUploadedFiles((prev) => ({
-          ...prev,
-          [selectedDocId]: nextEntry,
-        }));
-      }
-      setInfoActiveStep(targetKey);
-      setInfoActiveSubTab("Files with Comments");
+
+          const orderedKeys = [];
+          const visited = new Set();
+          let current = startStatus || null;
+          while (current && !visited.has(String(current.rev_status_id))) {
+            const key = String(current.rev_status_id);
+            orderedKeys.push(key);
+            visited.add(key);
+            current =
+              current.next_rev_status_id != null
+                ? byId.get(String(current.next_rev_status_id))
+                : null;
+          }
+          (Array.isArray(revStatuses) ? revStatuses : []).forEach((status) => {
+            const key = String(status.rev_status_id);
+            if (!visited.has(key)) {
+              orderedKeys.push(key);
+            }
+          });
+
+          const sourceIndex = orderedKeys.indexOf(String(sourceKey));
+          const targetIndex = orderedKeys.indexOf(String(targetKey));
+          if (sourceIndex !== -1 && targetIndex !== -1 && sourceIndex !== targetIndex) {
+            const direction = targetIndex > sourceIndex ? "forward" : "back";
+            const steps = Math.abs(targetIndex - sourceIndex);
+            for (let i = 0; i < steps; i += 1) {
+              const response = await fetch(
+                `${apiBase}/documents/revisions/${selectedDoc.rev_current_id}/status-transitions`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ direction }),
+                },
+              );
+              if (!response.ok) {
+                const errorText = await response.text().catch(() => "");
+                throw new Error(
+                  errorText || `Failed to move status (${response.status})`,
+                );
+              }
+            }
+            reloadDocuments();
+          }
+        }
+
+        // Migrate files between UI tabs to match selected status.
+        if (selectedDocId && sourceKey && sourceKey !== targetKey) {
+          const docEntry =
+            uploadedFiles[selectedDocId] &&
+            typeof uploadedFiles[selectedDocId] === "object" &&
+            !Array.isArray(uploadedFiles[selectedDocId])
+              ? uploadedFiles[selectedDocId]
+              : {};
+          const currentRevStatusKey =
+            selectedDoc?.rev_status_id != null ? String(selectedDoc.rev_status_id) : null;
+          const sourceLocal = Array.isArray(docEntry[sourceKey]) ? docEntry[sourceKey] : [];
+          const targetLocal = Array.isArray(docEntry[targetKey]) ? docEntry[targetKey] : [];
+          const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
+          const updatedApiFiles = apiFiles.map((file) => {
+            const issued = file?.issuedStatus ?? file?.issued_status ?? null;
+            const belongsToSource =
+              (issued !== null && issued !== undefined && String(issued) === sourceKey) ||
+              ((issued === null || issued === undefined) && currentRevStatusKey === sourceKey);
+            if (belongsToSource) {
+              return { ...file, issuedStatus: targetKey, issued_status: targetKey };
+            }
+            return file;
+          });
+          const nextEntry = { ...docEntry };
+          nextEntry[sourceKey] = [];
+          nextEntry[targetKey] = [...targetLocal, ...sourceLocal];
+          nextEntry["$api"] = updatedApiFiles;
+          setUploadedFiles((prev) => ({
+            ...prev,
+            [selectedDocId]: nextEntry,
+          }));
+        }
+        setInfoActiveStep(targetKey);
+        setInfoActiveSubTab("Files with Comments");
+      };
+
+      finishDrop().catch((err) => {
+        const message =
+          err instanceof Error ? err.message : "Failed to move document status";
+        alert(message);
+      });
     };
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
@@ -409,6 +484,9 @@ function App() {
     selectedDocId,
     selectedDoc,
     uploadedFiles,
+    revStatuses,
+    apiBase,
+    reloadDocuments,
   ]);
 
   React.useEffect(() => {
