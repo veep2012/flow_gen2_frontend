@@ -168,6 +168,7 @@ function App() {
   const flowStepsRef = React.useRef(null);
   const leftPanelRef = React.useRef(null);
   const hasInitializedFlowRef = React.useRef(false);
+  const pendingActiveStepRef = React.useRef(null);
   const uploadInputRef = React.useRef(null);
   const tableWrapperRef = React.useRef(null);
   const [selectedDocId, setSelectedDocId] = React.useState(null);
@@ -293,10 +294,23 @@ function App() {
 
   React.useEffect(() => {
     if (!isFlowEnabled) {
+      if (pendingActiveStepRef.current) {
+        return;
+      }
       setInfoActiveStep(null);
       setStatusMenuOpen({});
     }
   }, [isFlowEnabled]);
+
+  React.useEffect(() => {
+    if (!isFlowEnabled) {
+      return;
+    }
+    if (pendingActiveStepRef.current) {
+      setInfoActiveStep(String(pendingActiveStepRef.current));
+      pendingActiveStepRef.current = null;
+    }
+  }, [isFlowEnabled, selectedDoc]);
 
   React.useEffect(() => {
     if (!isFlowArrowDragging) {
@@ -375,6 +389,7 @@ function App() {
           const sourceIndex = orderedKeys.indexOf(String(sourceKey));
           const targetIndex = orderedKeys.indexOf(String(targetKey));
           if (sourceIndex !== -1 && targetIndex !== -1 && sourceIndex !== targetIndex) {
+            pendingActiveStepRef.current = String(targetKey);
             const direction = targetIndex > sourceIndex ? "forward" : "back";
             const steps = Math.abs(targetIndex - sourceIndex);
             for (let i = 0; i < steps; i += 1) {
@@ -1056,8 +1071,8 @@ function App() {
                   top: "100%",
                   left: "0",
                   background: "var(--color-surface)",
-                  border: "1px solid var(--color-success-border-strong)",
-                  borderRadius: "8px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "4px",
                   boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
                   minWidth: "200px",
                   zIndex: 1000,
@@ -1145,7 +1160,7 @@ function App() {
 
             <label
               htmlFor="project-select"
-              style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-success-text)" }}
+              style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted)" }}
             >
               Project:
             </label>
@@ -1156,9 +1171,9 @@ function App() {
             onChange={(e) => setProject(e.target.value)}
             aria-label="Select project"
             style={{
-              border: "1px solid var(--color-success-border-strong)",
-              borderRadius: "8px",
-              padding: "7px 10px",
+              border: "1px solid var(--color-border-soft)",
+              borderRadius: "4px",
+              padding: "6px 8px",
               fontSize: "13px",
               color: "var(--color-text)",
               background: "var(--color-surface)",
@@ -1180,7 +1195,7 @@ function App() {
             <div className="task-cabinet__label">Task cabinet:</div>
             {cabinetTabs.map((tab) => (
               <div key={tab.label} className="task-tab">
-                <span style={{ color: "var(--color-success-text)", fontWeight: 600 }}>
+                <span style={{ color: "var(--color-text)", fontWeight: 600 }}>
                   {tab.label}
                 </span>
                 <span className="task-tab__badge" style={{ background: tab.tone }}>
@@ -2579,15 +2594,15 @@ function App() {
         .task-cabinet__label {
           font-size: 14px;
           font-weight: 600;
-          color: var(--color-success-text);
+          color: var(--color-text-muted);
           min-width: 92px;
         }
         .task-tab {
           display: inline-flex;
           align-items: center;
           gap: 4px;
-          background: var(--color-surface);
-          border: 1px solid var(--color-success-border-strong);
+          background: var(--color-surface-muted);
+          border: 1px solid var(--color-border);
           border-radius: 0;
           padding: 4px 8px;
           font-size: 12px;
