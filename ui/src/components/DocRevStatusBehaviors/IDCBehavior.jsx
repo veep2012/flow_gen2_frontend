@@ -20,6 +20,13 @@ const IDCBehavior = ({
   const [commentText, setCommentText] = React.useState("");
   const [comments, setComments] = React.useState([]);
   const [fileContextMenu, setFileContextMenu] = React.useState(null);
+  const [commentedFiles, setCommentedFiles] = React.useState([]);
+  const [commentedFilesLoading, setCommentedFilesLoading] = React.useState(false);
+  const [commentedFilesError, setCommentedFilesError] = React.useState("");
+  const [commentedSourceName, setCommentedSourceName] = React.useState("");
+  const [commentedSourceFile, setCommentedSourceFile] = React.useState(null);
+  const [userNameById, setUserNameById] = React.useState({});
+  const [currentUserId, setCurrentUserId] = React.useState(1);
 
   const docId = selectedDoc?.doc_id;
   const docInfo = selectedDoc
@@ -70,6 +77,126 @@ const IDCBehavior = ({
     return [...issuedApiFiles, ...localOnly];
   }, [issuedApiFiles, idcLocalFiles]);
 
+  const getSourceFileId = React.useCallback(
+    (file) => (file && typeof file === "object" ? (file.fileId ?? file.id ?? null) : null),
+    [],
+  );
+
+  const loadCommentedFiles = React.useCallback(
+    async (file) => {
+      const sourceFileId = getSourceFileId(file);
+      const sourceName =
+        file && typeof file === "object"
+          ? String(file.name ?? file.filename ?? "Selected file")
+          : String(file || "Selected file");
+
+      if (!sourceFileId) {
+        setCommentedFiles([]);
+        setCommentedSourceFile(file);
+        setCommentedSourceName(sourceName);
+        setCommentedFilesError("Selected file must be uploaded before loading commented copies.");
+        onSubTabChange("Files with Comments");
+        return;
+      }
+
+      setCommentedFilesLoading(true);
+      setCommentedFilesError("");
+      setCommentedSourceFile(file);
+      setCommentedSourceName(sourceName);
+      onSubTabChange("Files with Comments");
+      try {
+        const response = await fetch(
+          `${apiBase}/files/commented/list?file_id=${encodeURIComponent(String(sourceFileId))}`,
+          {
+            headers: { Accept: "application/json" },
+          },
+        );
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => "");
+          throw new Error(errorText || `Failed to load commented files (${response.status})`);
+        }
+        const payload = await response.json();
+        const list = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : Array.isArray(payload?.results)
+              ? payload.results
+              : [];
+        setCommentedFiles(list);
+      } catch (err) {
+        setCommentedFiles([]);
+        setCommentedFilesError(
+          err instanceof Error ? err.message : "Failed to load commented files",
+        );
+      } finally {
+        setCommentedFilesLoading(false);
+      }
+    },
+    [apiBase, getSourceFileId, onSubTabChange],
+  );
+
+  const copyFileForComments = React.useCallback(
+    async (file) => {
+      const sourceFileId = getSourceFileId(file);
+      const sourceName =
+        file && typeof file === "object"
+          ? String(file.name ?? file.filename ?? "selected-file.pdf")
+          : String(file || "selected-file.pdf");
+
+      if (!sourceFileId) {
+        setCommentedFilesError("Selected file must be uploaded before creating commented copy.");
+        onSubTabChange("Files with Comments");
+        return;
+      }
+
+      setCommentedFilesLoading(true);
+      setCommentedFilesError("");
+      setCommentedSourceFile(file);
+      setCommentedSourceName(sourceName);
+      onSubTabChange("Files with Comments");
+
+      try {
+        const downloadResponse = await fetch(
+          `${apiBase}/files/${encodeURIComponent(String(sourceFileId))}/download`,
+          {
+            headers: { Accept: "application/octet-stream" },
+          },
+        );
+        if (!downloadResponse.ok) {
+          const errorText = await downloadResponse.text().catch(() => "");
+          throw new Error(errorText || `Failed to download source file (${downloadResponse.status})`);
+        }
+        const blob = await downloadResponse.blob();
+        const uploadFile = new File([blob], sourceName, {
+          type: blob.type || "application/pdf",
+        });
+        const formData = new FormData();
+        formData.append("file_id", String(sourceFileId));
+        formData.append("user_id", String(currentUserId));
+        formData.append("file", uploadFile);
+
+        const createResponse = await fetch(`${apiBase}/files/commented`, {
+          method: "POST",
+          headers: { Accept: "application/json" },
+          body: formData,
+        });
+        if (!createResponse.ok) {
+          const errorText = await createResponse.text().catch(() => "");
+          throw new Error(errorText || `Failed to create commented copy (${createResponse.status})`);
+        }
+        await createResponse.json().catch(() => ({}));
+        await loadCommentedFiles(file);
+      } catch (err) {
+        setCommentedFilesError(
+          err instanceof Error ? err.message : "Failed to create commented copy",
+        );
+        setCommentedFilesLoading(false);
+      }
+    },
+    [apiBase, currentUserId, getSourceFileId, loadCommentedFiles, onSubTabChange],
+  );
+
   React.useEffect(() => {
     if (!fileContextMenu) return undefined;
     const closeMenu = () => setFileContextMenu(null);
@@ -87,6 +214,54 @@ const IDCBehavior = ({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [fileContextMenu]);
+
+  React.useEffect(() => {
+    let isActive = true;
+    const loadUsers = async () => {
+      try {
+        const usersRes = await fetch(`${apiBase}/people/users`, {
+          headers: { Accept: "application/json" },
+        });
+        if (usersRes.ok) {
+          const users = await usersRes.json();
+          if (isActive && Array.isArray(users)) {
+            const byId = Object.fromEntries(
+              users.map((u) => [
+                String(u.user_id),
+                String(u.person_name || u.user_acronym || `User ${u.user_id}`),
+              ]),
+            );
+            setUserNameById(byId);
+          }
+        }
+      } catch {
+        // Optional lookup data; use fallback labels.
+      }
+
+      try {
+        const currentRes = await fetch(`${apiBase}/people/users/current_user`, {
+          headers: { Accept: "application/json" },
+        });
+        if (currentRes.ok) {
+          const current = await currentRes.json();
+          const resolved = Number(current?.user_id);
+          if (isActive && Number.isFinite(resolved) && resolved > 0) {
+            setCurrentUserId(resolved);
+          }
+        }
+      } catch {
+        const envUserId = Number(import.meta.env.VITE_APP_USER_ID || 1);
+        if (isActive && Number.isFinite(envUserId) && envUserId > 0) {
+          setCurrentUserId(envUserId);
+        }
+      }
+    };
+
+    loadUsers();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
 
   // Organize files by revision letter (RevA, RevB, RevC) - case insensitive
   const filesByRevision = {
@@ -663,7 +838,91 @@ const IDCBehavior = ({
                     </div>
                   </>
                 ) : (
-                  <div style={{ overflow: "auto" }}>No files with comments yet</div>
+                  <div style={{ overflow: "auto" }}>
+                    {commentedFilesLoading ? (
+                      <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                        Loading commented files...
+                      </div>
+                    ) : commentedFilesError ? (
+                      <div style={{ fontSize: "12px", color: "var(--color-danger)" }}>
+                        {commentedFilesError}
+                      </div>
+                    ) : commentedSourceFile ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                          Source: {commentedSourceName || "Selected file"}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onDownloadFile(commentedSourceFile)}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "8px 10px",
+                            border: "1px solid var(--color-border)",
+                            background: "var(--color-surface-muted)",
+                            color: "var(--color-text)",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                          }}
+                          title="Open source file"
+                        >
+                          Original: {commentedSourceName || "Selected file"}
+                        </button>
+                        {commentedFiles.length === 0 && (
+                          <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                            No commented copies in database yet for this file.
+                          </div>
+                        )}
+                        {commentedFiles.map((item) => {
+                          const displayName = item?.filename || `Commented file #${item?.id ?? "-"}`;
+                          const createdAt = item?.created_at ? new Date(item.created_at) : null;
+                          const createdText =
+                            createdAt && !Number.isNaN(createdAt.getTime())
+                              ? createdAt.toLocaleString()
+                              : "Unknown date";
+                          const userText =
+                            userNameById[String(item?.user_id)] ||
+                            (item?.user_id ? `User ${item.user_id}` : "Unknown user");
+                          return (
+                            <button
+                              type="button"
+                              key={String(item?.id ?? displayName)}
+                              onClick={() =>
+                                window.open(
+                                  `${apiBase}/files/commented/download?file_id=${encodeURIComponent(
+                                    String(item?.id ?? ""),
+                                  )}`,
+                                  "_blank",
+                                )
+                              }
+                              style={{
+                                width: "100%",
+                                textAlign: "left",
+                                padding: "8px 10px",
+                                border: "1px solid var(--color-border)",
+                                background: "var(--color-surface)",
+                                color: "var(--color-text)",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                              }}
+                              title="Download commented file"
+                            >
+                              <div style={{ fontWeight: 600 }}>{displayName}</div>
+                              <div style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
+                                {createdText} • {userText}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                        No files with comments yet
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -716,7 +975,7 @@ const IDCBehavior = ({
                   }}
                   onClick={() => {
                     onSelectFile(fileContextMenu.file);
-                    onSubTabChange("Files with Comments");
+                    copyFileForComments(fileContextMenu.file);
                     setFileContextMenu(null);
                   }}
                 >
