@@ -35,17 +35,39 @@ const IDCBehavior = ({
 
   // API files without explicit issued status belong to the current revision status only.
   const apiFiles = (docId && uploadedFiles[docId]?.["$api"]) || [];
-  const issuedApiFiles = Array.isArray(apiFiles)
-    ? apiFiles.filter((f) => {
-        const issued = f?.issuedStatus ?? f?.issued_status ?? null;
-        if (issued !== null && issued !== undefined && String(issued) !== "") {
-          return String(issued) === String(statusKey);
-        }
-        return currentRevStatusKey === String(statusKey);
-      })
-    : [];
+  const issuedApiFiles = React.useMemo(
+    () =>
+      Array.isArray(apiFiles)
+        ? apiFiles.filter((f) => {
+            const issued = f?.issuedStatus ?? f?.issued_status ?? null;
+            if (issued !== null && issued !== undefined && String(issued) !== "") {
+              return String(issued) === String(statusKey);
+            }
+            return currentRevStatusKey === String(statusKey);
+          })
+        : [],
+    [apiFiles, statusKey, currentRevStatusKey],
+  );
 
-  const idcFiles = [...issuedApiFiles, ...(Array.isArray(idcLocalFiles) ? idcLocalFiles : [])];
+  const idcFiles = React.useMemo(() => {
+    const localFiles = Array.isArray(idcLocalFiles) ? idcLocalFiles : [];
+    const apiIds = new Set(issuedApiFiles.map((f) => f?.fileId ?? f?.id).filter(Boolean));
+    const apiNames = new Set(
+      issuedApiFiles.map((f) => String(f?.name ?? f?.filename ?? "").trim()).filter(Boolean),
+    );
+
+    const localOnly = localFiles.filter((f) => {
+      const fileId = f && typeof f === "object" ? (f.fileId ?? f.id ?? null) : null;
+      const fileName =
+        f && typeof f === "object" ? String(f.name ?? f.filename ?? "").trim() : String(f || "");
+      if (fileId) {
+        return !apiIds.has(fileId);
+      }
+      return fileName ? !apiNames.has(fileName) : true;
+    });
+
+    return [...issuedApiFiles, ...localOnly];
+  }, [issuedApiFiles, idcLocalFiles]);
 
   // Organize files by revision letter (RevA, RevB, RevC) - case insensitive
   const filesByRevision = {
