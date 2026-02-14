@@ -2718,6 +2718,18 @@ function App() {
           background: #e0f0e3;
           border-color: var(--color-success-border-strong);
         }
+        .flow-steps-column.locked .flow-step {
+          opacity: 0.45;
+          cursor: default;
+          background: var(--color-surface);
+          border-color: var(--color-border);
+        }
+        .flow-steps-column.locked .flow-step.active,
+        .flow-steps-column.locked .flow-step.active:disabled {
+          opacity: 1;
+          background: #e0f0e3;
+          border-color: var(--color-success-border-strong);
+        }
         .flow-steps-column .flow-step:not(.has-arrow) .flow-step__arrow {
           display: none !important;
           visibility: hidden !important;
@@ -5469,9 +5481,12 @@ function App() {
                 <div className="flow-empty">No statuses configured.</div>
               ) : (
                 (() => {
-                  const activeIsHistory = infoActiveStep === "history";
+                  const flowTabsLocked = isFlowPanelHidden;
+                  const currentDocStatusKey = resolveCurrentStatusKey(selectedDoc, orderedStatuses);
+                  const effectiveActiveStep = flowTabsLocked ? currentDocStatusKey : infoActiveStep;
+                  const activeIsHistory = !flowTabsLocked && infoActiveStep === "history";
                   const activeStatus = orderedStatuses.find(
-                    (status) => String(status.rev_status_id) === String(infoActiveStep),
+                    (status) => String(status.rev_status_id) === String(effectiveActiveStep),
                   );
                   const statusKey = activeStatus ? String(activeStatus.rev_status_id) : null;
                   const behaviorName = activeStatus
@@ -5488,10 +5503,13 @@ function App() {
                       : null;
                   return (
                     <>
-                      <div className="flow-steps-column" ref={flowStepsRef}>
+                      <div
+                        className={`flow-steps-column ${flowTabsLocked ? "locked" : ""}`}
+                        ref={flowStepsRef}
+                      >
                         {orderedStatuses.map((status) => {
                           const key = String(status.rev_status_id);
-                          const isActive = key === String(infoActiveStep);
+                          const isActive = key === String(effectiveActiveStep);
                           const behaviorFileItem = behaviorFileById[status.ui_behavior_id];
                           const docEntry = selectedDocId ? uploadedFiles[selectedDocId] || {} : {};
                           // Файлы для этого статуса: из БД (docEntry[key]) или API (issued_status === key или без issued = текущий статус ревизии)
@@ -5512,7 +5530,9 @@ function App() {
                           const hasFilesForStatus =
                             filesForStatus.length > 0 || apiFilesForThisStatus.length > 0;
                           // Стрелка только там, где есть файлы; без файлов — не показывать и не реагировать на клики
-                          const showArrow = Boolean(isFlowEnabled && hasFilesForStatus);
+                          const showArrow = Boolean(
+                            isFlowEnabled && !flowTabsLocked && hasFilesForStatus,
+                          );
                           return (
                             <button
                               key={status.rev_status_id}
@@ -5524,18 +5544,18 @@ function App() {
                               data-ui-behavior={behaviorFileItem || "default"}
                               data-final={status.final ? "true" : "false"}
                               onMouseEnter={() => {
-                                if (isFlowArrowDragging) {
+                                if (isFlowArrowDragging && !flowTabsLocked) {
                                   setFlowArrowTarget(key);
                                 }
                               }}
                               onClick={() => {
-                                if (!isFlowEnabled) {
+                                if (!isFlowEnabled || flowTabsLocked) {
                                   return;
                                 }
                                 setInfoActiveStep(key);
                                 setInfoActiveSubTab("Files with Comments");
                               }}
-                              disabled={!isFlowEnabled}
+                              disabled={!isFlowEnabled || flowTabsLocked}
                               title={status.rev_status_name}
                             >
                               <span className="dot" style={{ display: "none" }} />
@@ -5545,6 +5565,9 @@ function App() {
                                   className="flow-step__arrow"
                                   aria-hidden="true"
                                   onMouseDown={(event) => {
+                                    if (flowTabsLocked) {
+                                      return;
+                                    }
                                     event.preventDefault();
                                     event.stopPropagation();
                                     setFlowArrowSourceKey(key);
@@ -5582,23 +5605,23 @@ function App() {
                           data-ui-behavior="HistoryBehavior.jsx"
                           data-final="false"
                           onMouseEnter={() => {
-                            if (isFlowArrowDragging) {
+                            if (isFlowArrowDragging && !flowTabsLocked) {
                               setFlowArrowTarget("history");
                             }
                           }}
                           onClick={() => {
-                            if (!isFlowEnabled) {
+                            if (!isFlowEnabled || flowTabsLocked) {
                               return;
                             }
                             setInfoActiveStep("history");
                           }}
-                          disabled={!isFlowEnabled}
+                          disabled={!isFlowEnabled || flowTabsLocked}
                           title="History"
                         >
                           <span className="dot" style={{ display: "none" }} />
                           <span className="flow-step__label">History</span>
                         </button>
-                        {isFlowArrowDragging && (
+                        {isFlowArrowDragging && !flowTabsLocked && (
                           <div
                             className="flow-arrow-drag"
                             style={{ left: flowArrowPos.x, top: flowArrowPos.y }}
