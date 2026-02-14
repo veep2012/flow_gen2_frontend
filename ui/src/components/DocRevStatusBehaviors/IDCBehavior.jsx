@@ -19,6 +19,7 @@ const IDCBehavior = ({
 }) => {
   const [commentText, setCommentText] = React.useState("");
   const [comments, setComments] = React.useState([]);
+  const [fileContextMenu, setFileContextMenu] = React.useState(null);
 
   const docId = selectedDoc?.doc_id;
   const docInfo = selectedDoc
@@ -68,6 +69,24 @@ const IDCBehavior = ({
 
     return [...issuedApiFiles, ...localOnly];
   }, [issuedApiFiles, idcLocalFiles]);
+
+  React.useEffect(() => {
+    if (!fileContextMenu) return undefined;
+    const closeMenu = () => setFileContextMenu(null);
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        closeMenu();
+      }
+    };
+    window.addEventListener("click", closeMenu);
+    window.addEventListener("contextmenu", closeMenu);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("click", closeMenu);
+      window.removeEventListener("contextmenu", closeMenu);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [fileContextMenu]);
 
   // Organize files by revision letter (RevA, RevB, RevC) - case insensitive
   const filesByRevision = {
@@ -305,6 +324,15 @@ const IDCBehavior = ({
                                       type="button"
                                       onClick={() => onSelectFile(file)}
                                       onDoubleClick={() => onDownloadFile(file)}
+                                      onContextMenu={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        setFileContextMenu({
+                                          x: event.clientX,
+                                          y: event.clientY,
+                                          file,
+                                        });
+                                      }}
                                       style={{
                                         display: "flex",
                                         alignItems: "center",
@@ -639,6 +667,82 @@ const IDCBehavior = ({
                 )}
               </div>
             </div>
+            {fileContextMenu && (
+              <div
+                style={{
+                  position: "fixed",
+                  left: `${fileContextMenu.x}px`,
+                  top: `${fileContextMenu.y}px`,
+                  minWidth: "170px",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  boxShadow: "0 6px 18px rgba(0,0,0,0.2)",
+                  zIndex: 7000,
+                  padding: "4px",
+                }}
+                onClick={(event) => event.stopPropagation()}
+                onContextMenu={(event) => event.preventDefault()}
+              >
+                <button
+                  type="button"
+                  style={{
+                    width: "100%",
+                    background: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    padding: "8px 10px",
+                    fontSize: "12px",
+                    color: "var(--color-text)",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => {
+                    onSelectFile(fileContextMenu.file);
+                    setFileContextMenu(null);
+                  }}
+                >
+                  Select file
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    width: "100%",
+                    background: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    padding: "8px 10px",
+                    fontSize: "12px",
+                    color: "var(--color-text)",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => {
+                    onSelectFile(fileContextMenu.file);
+                    onSubTabChange("Files with Comments");
+                    setFileContextMenu(null);
+                  }}
+                >
+                  Copy for comments
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    width: "100%",
+                    background: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    padding: "8px 10px",
+                    fontSize: "12px",
+                    color: "var(--color-text)",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => {
+                    onDownloadFile(fileContextMenu.file);
+                    setFileContextMenu(null);
+                  }}
+                >
+                  Download file
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <DistributionList docId={docId} apiBase={apiBase} />
