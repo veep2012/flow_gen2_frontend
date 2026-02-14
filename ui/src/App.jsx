@@ -119,9 +119,9 @@ function App() {
   };
 
   const buttonStyle = {
-    background: "var(--color-info-dark)",
-    color: "var(--color-primary-contrast)",
-    border: "1px solid var(--color-info-strong)",
+    background: "var(--color-surface-muted)",
+    color: "var(--color-text)",
+    border: "1px solid var(--color-border)",
     borderRadius: "4px",
     padding: "3px 6px",
     marginRight: "2px",
@@ -132,7 +132,7 @@ function App() {
     alignItems: "center",
     height: "26px",
     boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-    transition: "background 0.2s",
+    transition: "background 0.2s, border-color 0.2s",
   };
   const disabledButtonStyle = {
     opacity: 0.5,
@@ -1033,12 +1033,12 @@ function App() {
     return (
       <div
         style={{
-          background: "var(--color-success-soft)",
-          border: "1px solid var(--color-success-border)",
-          borderRadius: "8px",
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "0",
           padding: "6px 10px",
           marginBottom: "2px",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+          boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px", position: "relative" }}>
@@ -1050,7 +1050,7 @@ function App() {
                 fontSize: "18px",
                 fontWeight: 700,
                 lineHeight: "1",
-                color: "var(--color-success-text)",
+                color: "var(--color-text-muted)",
                 background: "transparent",
                 border: "none",
                 cursor: "pointer",
