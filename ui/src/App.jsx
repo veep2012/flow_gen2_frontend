@@ -2686,13 +2686,13 @@ function App() {
         }
         .flow-body {
           display: flex;
-          flex-direction: row;
+          flex-direction: row-reverse;
           flex: 1;
           min-height: 0;
         }
         .flow-steps-column {
           width: 40px;
-          border-right: 1px solid var(--color-border);
+          border-left: 1px solid var(--color-border);
           display: flex;
           flex-direction: column;
           padding: 4px;
