@@ -956,25 +956,6 @@ const IDCBehavior = ({
                   }}
                   onClick={() => {
                     onSelectFile(fileContextMenu.file);
-                    setFileContextMenu(null);
-                  }}
-                >
-                  Select file
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    width: "100%",
-                    background: "transparent",
-                    border: "none",
-                    textAlign: "left",
-                    padding: "8px 10px",
-                    fontSize: "12px",
-                    color: "var(--color-text)",
-                    cursor: "pointer",
-                  }}
-                  onClick={() => {
-                    onSelectFile(fileContextMenu.file);
                     copyFileForComments(fileContextMenu.file);
                     setFileContextMenu(null);
                   }}
