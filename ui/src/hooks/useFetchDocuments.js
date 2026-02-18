@@ -89,15 +89,78 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
     return () => controller.abort();
   }, [project, normalizedBase]);
 
+  const normalizeFilterConfig = useCallback((raw) => {
+    if (!raw) return null;
+    if (typeof raw === "string") {
+      const value = raw.trim();
+      if (!value) return null;
+      return { logic: "and", filters: [{ op: "contains", value }] };
+    }
+    if (typeof raw === "object") {
+      const logic = raw.logic === "or" ? "or" : "and";
+      const filters = Array.isArray(raw.filters) ? raw.filters : [];
+      const normalized = filters
+        .map((item) => ({
+          op: String(item?.op || "contains").toLowerCase(),
+          // Null-check operators do not require user input; undefined/null normalizes to "".
+          value: String(item?.value ?? "").trim(),
+        }))
+        .filter((item) => {
+          if (item.op === "isnull" || item.op === "isnotnull") return true;
+          return Boolean(item.value);
+        });
+      if (normalized.length === 0) return null;
+      return { logic, filters: normalized };
+    }
+    return null;
+  }, []);
+
+  useEffect(() => {
+    setFilters((prev) => {
+      const next = { ...prev };
+      visibleColumns.forEach((col) => {
+        if (!(col.key in next)) {
+          next[col.key] = "";
+        }
+      });
+      return next;
+    });
+  }, [visibleColumns]);
+
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) =>
       visibleColumns.every((col) => {
         const value = String(doc[col.key] ?? "").toLowerCase();
-        const filterValue = filters[col.key].trim().toLowerCase();
-        return value.includes(filterValue);
+        const config = normalizeFilterConfig(filters[col.key]);
+        if (!config) return true;
+        const matchesRule = (rule) => {
+          const ruleValue = String(rule.value ?? "").toLowerCase();
+          // "isnull"/"isnotnull" intentionally ignore ruleValue.
+          if (rule.op === "isnull") return value === "";
+          if (rule.op === "isnotnull") return value !== "";
+          if (!ruleValue) return true;
+          switch (rule.op) {
+            case "equals":
+              return value === ruleValue;
+            case "notequals":
+              return value !== ruleValue;
+            case "startswith":
+              return value.startsWith(ruleValue);
+            case "endswith":
+              return value.endsWith(ruleValue);
+            case "doesnotcontain":
+              return !value.includes(ruleValue);
+            case "contains":
+            default:
+              return value.includes(ruleValue);
+          }
+        };
+        return config.logic === "or"
+          ? config.filters.some(matchesRule)
+          : config.filters.every(matchesRule);
       }),
     );
-  }, [filters, documents, visibleColumns]);
+  }, [filters, documents, visibleColumns, normalizeFilterConfig]);
 
   useEffect(() => {
     const extractProjects = (data) => {

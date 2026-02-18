@@ -13,7 +13,13 @@ ModelT = TypeVar("ModelT", bound=BaseModel)
 DbErrorMapping = tuple[str, int, str]
 
 logger = logging.getLogger(__name__)
-DEBUG_MODE = os.getenv("DEBUG", "").lower() in {"1", "true", "yes", "on", "debug"}
+_DEBUG_FLAG = os.getenv("DEBUG", "").lower() in {"1", "true", "yes", "on", "debug"}
+_APP_ENV = os.getenv("APP_ENV", os.getenv("ENV", "")).strip().lower()
+_IS_PRODUCTION_ENV = _APP_ENV in {"prod", "production"}
+DEBUG_MODE = _DEBUG_FLAG and not _IS_PRODUCTION_ENV
+
+if _DEBUG_FLAG and _IS_PRODUCTION_ENV:
+    logger.warning("DEBUG is enabled but ignored in production environment")
 
 
 def _normalize_dt(value: datetime | str | None) -> datetime | None:
@@ -74,6 +80,7 @@ def _model_list(model_cls: type[ModelT], items: Iterable[object]) -> list[ModelT
 def _handle_integrity_error(detail: str, err: IntegrityError, context: str | None = None) -> None:
     ctx = f" during {context}" if context else ""
     logger.exception("IntegrityError%s: %s", ctx, err)
+    # Include database error details in debug mode for easier debugging
     message = detail if not DEBUG_MODE else f"{detail} ({err})"
     raise HTTPException(status_code=400, detail=message)
 

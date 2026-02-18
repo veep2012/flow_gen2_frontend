@@ -67,10 +67,10 @@ INSERT INTO revision_overview (rev_code_id, rev_code_name, rev_code_acronym, rev
 
 -- Rev Status UI Behaviors
 INSERT INTO doc_rev_status_ui_behaviors (ui_behavior_id, ui_behavior_name, ui_behavior_file) VALUES
-(1,'InDesign','InDesignBehavior.jsx'),
+(1,'INDESIGN','InDesignBehavior.jsx'),
 (2,'IDC','IDCBehavior.jsx'),
-(3,'Ready for Issue','ReadyForIssueBehavior.jsx'),
-(4,'Official','OfficialBehavior.jsx');
+(3,'READY FOR ISSUE','ReadyForIssueBehavior.jsx'),
+(4,'OFFICIAL','OfficialBehavior.jsx');
 
 -- Rev Statuses
 INSERT INTO doc_rev_statuses (
@@ -83,10 +83,10 @@ INSERT INTO doc_rev_statuses (
     final,
     start
 ) VALUES 
-(1,'InDesign',1,2,FALSE,TRUE,FALSE,TRUE),
+(1,'INDESIGN',1,2,FALSE,TRUE,FALSE,TRUE),
 (2,'IDC',2,3,TRUE,TRUE,FALSE,FALSE),
-(3,'Ready for Issue',3,4,TRUE,FALSE,FALSE,FALSE),
-(4,'Official',4,NULL,FALSE,FALSE,TRUE,FALSE);
+(3,'READY FOR ISSUE',3,4,TRUE,FALSE,FALSE,FALSE),
+(4,'OFFICIAL',4,NULL,FALSE,FALSE,TRUE,FALSE);
 
 -- Roles
 INSERT INTO roles (role_id, role_name) VALUES 
@@ -152,7 +152,6 @@ DECLARE
     v_doc_name TEXT;
     v_author INT;
     v_rev_code_id INT;
-    v_final_status_id INT;
     v_user_id INT;
 BEGIN
     SELECT rev_code_id INTO v_rev_code_id
@@ -163,12 +162,6 @@ BEGIN
     IF v_rev_code_id IS NULL THEN
         v_rev_code_id := 6;
     END IF;
-
-    SELECT rev_status_id INTO v_final_status_id
-    FROM doc_rev_statuses
-    WHERE final = TRUE
-    ORDER BY rev_status_id
-    LIMIT 1;
 
     FOR i IN 1..50 LOOP
         -- 1. Randomly select FKs
@@ -209,17 +202,6 @@ BEGIN
             NULL::TIMESTAMPTZ,
             FALSE
         );
-
-        IF v_final_status_id IS NOT NULL THEN
-            UPDATE core.doc_revision
-            SET rev_status_id = v_final_status_id
-            WHERE rev_id = v_rev_id;
-
-            UPDATE core.doc
-            SET rev_current_id = v_rev_id,
-                rev_actual_id = v_rev_id
-            WHERE doc_id = v_doc_id;
-        END IF;
 
     END LOOP;
 END $$;

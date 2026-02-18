@@ -35,6 +35,7 @@
 - `_documentation_template.md` - Base template for new documents.
 - `_naming_convention.md` - Filename rules.
 - `_documentation-index.md` - This index file.
+- `_documentation_actualization_state.md` - State file for monthly documentation actualization cadence.
 
 ## Maintenance Rules
 - Add every new `documentation/*.md` file to this index in the same change.

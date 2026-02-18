@@ -38,3 +38,5 @@ export const useUI = () => {
   }
   return context;
 };
+
+export default UIContext;

@@ -28,7 +28,18 @@ const DetailPanel = ({ activeDetailTab, onTabChange }) => {
           </button>
         ))}
       </div>
-      <div className="detail-tab-panel" style={{ flex: 1 }}>
+      <div
+        className="detail-tab-panel"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          maxHeight: "300px",
+          overflowY: "auto",
+          overflowX: "hidden",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
         {activeDetailTab === "Revisions" ? (
           <div style={{ color: "var(--color-text-muted)", fontSize: "13px" }}>
             No revisions yet. A revision will be created automatically when you save a new document.

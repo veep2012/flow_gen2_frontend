@@ -5,8 +5,8 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-06
-- Version: v1.2
+- Last Updated: 2026-02-11
+- Version: v1.3
 
 ## Purpose
 Document the single Notifications + Distribution Lists module:
@@ -46,8 +46,8 @@ Router: `api/routers/notifications.py` (`/api/v1/notifications`)
 
 ## Distribution List Integration
 - DL source tables:
-  - `ref.distribution_list`
-  - `ref.distribution_list_content`
+  - `core.distribution_list` (exposed as `workflow.distribution_list`)
+  - `core.distribution_list_content` (exposed as `workflow.distribution_list_content`)
 - Notification target and recipient tables:
   - `core.notification_targets`
   - `core.notification_recipients`

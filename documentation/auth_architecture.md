@@ -5,8 +5,8 @@
 - Owner: Platform and Backend Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-06
-- Version: v1.1
+- Last Updated: 2026-02-11
+- Version: v1.4
 
 ## Purpose
 Define the target authentication and authorization architecture for Flow Gen2, including staged rollout guidance.
@@ -67,8 +67,8 @@ flowchart TB
     user -->|HTTPS| nginx
     nginx -.->|auth_request| oauth2
     oauth2 -->|OIDC Auth Code + PKCE| keycloak
-    nginx -->|X-User, X-Email headers| ui
-    nginx -->|X-User, X-Email headers| api
+    nginx -->|X-User-Id, X-Email headers| ui
+    nginx -->|X-User-Id, X-Email headers| api
     api --> postgres
     api --> minio
     
@@ -110,8 +110,8 @@ sequenceDiagram
     end
     
     NGINX->>OAuth2Proxy: 13. auth_request /oauth2/auth
-    OAuth2Proxy-->>NGINX: 14. 200 OK + headers (X-User, X-Email)
-    NGINX->>API: 15. Forward request with user headers
+    OAuth2Proxy-->>NGINX: 14. 200 OK + identity headers
+    NGINX->>API: 15. Map/forward as X-User-Id (+ optional X-Email)
     API->>DB: 16. Check user permissions
     DB-->>API: 17. Permission result
     API-->>NGINX: 18. Response (200/403)
@@ -258,7 +258,7 @@ The phases below are planning guidance. They are not claims of implemented behav
 
 ### Phase 1: Baseline Authentication
 - Configure OIDC login flow through `oauth2-proxy` and Keycloak.
-- Validate trusted-header propagation (`X-User`, `X-Email`) to API/UI.
+- Validate trusted-header propagation and mapping to API contract (`X-User-Id`; optional `X-Email`).
 - Define user provisioning process (manual or scripted) and operational owner.
 
 ### Phase 2: Security Hardening
@@ -297,16 +297,16 @@ flowchart TD
 Flow Gen2 already has a robust authorization schema:
 
 **Tables:**
-- `flow.roles` - User roles (Admin, Engineer, Viewer, etc.)
-- `flow.person` - Person entities with profile information
-- `flow.users` - User accounts linked to persons and roles
-- `flow.permissions` - Scoped access grants (project + discipline combinations)
+- `workflow.roles` - User roles (Admin, Engineer, Viewer, etc.), backed by `ref.roles`
+- `workflow.person` - Person entities with profile information, backed by `ref.person`
+- `workflow.users` - User accounts linked to persons and roles, backed by `ref.users`
+- `workflow.permissions` - Scoped access grants (project + discipline combinations), backed by `ref.permissions`
 
 **Permission Enforcement:**
 ```python
 # API validates permissions before data access
 # Example: GET /api/v1/documents?project_id=3
-# 1. Extract user from X-User header
+# 1. Extract user from X-User-Id header
 # 2. Query: SELECT * FROM permissions WHERE user_id=? AND project_id=3
 # 3. If no matching permission → 403 Forbidden
 # 4. If permission exists → filter results to allowed disciplines

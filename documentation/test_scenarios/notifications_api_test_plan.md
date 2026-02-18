@@ -1,12 +1,12 @@
-# Notifications + DL API Test Plan (Curl, Port 5556)
+# Notifications + DL API Test Plan (Curl, Port 4175)
 
 ## Document Control
 - Status: Review
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-07
-- Version: v1.4
+- Last Updated: 2026-02-11
+- Version: v1.5
 
 ## Purpose
 Provide a repeatable manual curl-based validation flow for:
@@ -14,7 +14,7 @@ Provide a repeatable manual curl-based validation flow for:
 - Notification lifecycle APIs
 - Notification delivery through Distribution Lists
 
-Assumption: DB is already up and API is reachable on port `5556`.
+Assumption: DB is already up and API is reachable on port `4175`.
 
 ## Scenario Catalog (Automated Coverage Contract)
 
@@ -36,7 +36,7 @@ Any change to these acceptance criteria must be reflected in:
 ## 1. Set Env Vars
 
 ```bash
-export API_BASE=http://localhost:5556
+export API_BASE=http://localhost:4175
 export API_PREFIX=/api/v1
 ```
 

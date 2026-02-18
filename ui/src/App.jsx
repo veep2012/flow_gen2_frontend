@@ -1,18 +1,23 @@
 import React from "react";
+import ReactDOM from "react-dom";
 import { documentGridColumns } from "./grids/documents";
 import { getFileKey } from "./utils/fileKey";
 import { normalizeFile } from "./utils/normalizeFile";
 import { useFetchDocuments } from "./hooks/useFetchDocuments";
 import { resolveBehaviorByFile } from "./components/DocRevStatusBehaviors";
 
-const columns = documentGridColumns.map(({ id, label, field, hidden }) => ({
+const allColumns = documentGridColumns.map(({ id, label, field, hidden }) => ({
   key: field,
   id,
   label,
   hidden: Boolean(hidden),
 }));
 
-const visibleColumns = columns.filter((col) => !col.hidden);
+const appMeta = {
+  name: "Flow Gen2",
+  version: "v1.0.0",
+  revision: "rev 1",
+};
 
 const normalizeApiBase = (raw) => {
   const fallback = "/api/v1";
@@ -31,8 +36,58 @@ const normalizeApiBase = (raw) => {
   }
 };
 
+const resolveCurrentStatusKey = (doc, orderedStatuses = []) => {
+  const rawStatusId =
+    doc?.rev_status_id ??
+    doc?.rev_current_status_id ??
+    doc?.current_rev_status_id ??
+    doc?.rev_current_status ??
+    null;
+  if (rawStatusId !== null && rawStatusId !== undefined && String(rawStatusId).trim() !== "") {
+    return String(rawStatusId);
+  }
+  const statusName = String(doc?.rev_status_name || "")
+    .trim()
+    .toLowerCase();
+  if (!statusName) return null;
+  const matched = (orderedStatuses || []).find(
+    (status) =>
+      String(status?.rev_status_name || "")
+        .trim()
+        .toLowerCase() === statusName,
+  );
+  return matched?.rev_status_id != null ? String(matched.rev_status_id) : null;
+};
+
 function App() {
   const apiBase = normalizeApiBase(import.meta.env.VITE_API_BASE_URL);
+  const [hiddenColumnIds, setHiddenColumnIds] = React.useState(() => new Set(["doc_id"]));
+  const [columnOrder, setColumnOrder] = React.useState(() => allColumns.map((col) => col.id));
+  const [dragColumnId, setDragColumnId] = React.useState(null);
+  const visibleColumns = React.useMemo(
+    () =>
+      columnOrder
+        .map((id) => allColumns.find((col) => col.id === id))
+        .filter(Boolean)
+        .filter((col) => !hiddenColumnIds.has(col.id)),
+    [hiddenColumnIds, columnOrder],
+  );
+  React.useEffect(() => {
+    if (visibleColumns.length === 0) {
+      setHiddenColumnIds(new Set(["doc_id"]));
+    }
+  }, [visibleColumns.length]);
+  const formatDateTime = React.useCallback((value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    const hour = String(date.getHours()).padStart(2, "0");
+    const minute = String(date.getMinutes()).padStart(2, "0");
+    return `${day}/${month}/${year}, ${hour}:${minute}`;
+  }, []);
   const [revStatuses, setRevStatuses] = React.useState([]);
   const [revStatusBehaviors, setRevStatusBehaviors] = React.useState([]);
   const [revStatusError, setRevStatusError] = React.useState(null);
@@ -69,9 +124,9 @@ function App() {
   };
 
   const buttonStyle = {
-    background: "var(--color-accent)",
-    color: "var(--color-accent-contrast)",
-    border: "none",
+    background: "var(--color-surface-muted)",
+    color: "var(--color-text)",
+    border: "1px solid var(--color-border)",
     borderRadius: "4px",
     padding: "3px 6px",
     marginRight: "2px",
@@ -82,7 +137,7 @@ function App() {
     alignItems: "center",
     height: "26px",
     boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-    transition: "background 0.2s",
+    transition: "background 0.2s, border-color 0.2s",
   };
   const disabledButtonStyle = {
     opacity: 0.5,
@@ -92,7 +147,7 @@ function App() {
 
   const iconStyle = {
     marginRight: "3px",
-    fontSize: "12px",
+    fontSize: "20px",
   };
 
   const [infoRatio, setInfoRatio] = React.useState(0.35);
@@ -107,13 +162,27 @@ function App() {
   const [hideWindowsOnDrag, setHideWindowsOnDrag] = React.useState(false);
   const [uploadedFiles, setUploadedFiles] = React.useState({});
   const [expandedRevisions, setExpandedRevisions] = React.useState({});
-  const [statusMenuOpen, setStatusMenuOpen] = React.useState({});
+  const [, setStatusMenuOpen] = React.useState({});
   const [isDetailPanelHidden, setIsDetailPanelHidden] = React.useState(false);
+  const [isFlowPanelHidden, setIsFlowPanelHidden] = React.useState(false);
+  const [isFlowArrowDragging, setIsFlowArrowDragging] = React.useState(false);
+  const [flowArrowTarget, setFlowArrowTarget] = React.useState(null);
+  const [flowArrowSourceKey, setFlowArrowSourceKey] = React.useState(null);
+  const [flowArrowPos, setFlowArrowPos] = React.useState({ x: 0, y: 0 });
   const containerRef = React.useRef(null);
+  const flowStepsRef = React.useRef(null);
   const leftPanelRef = React.useRef(null);
   const hasInitializedFlowRef = React.useRef(false);
+  const pendingActiveStepRef = React.useRef(null);
   const uploadInputRef = React.useRef(null);
+  const tableWrapperRef = React.useRef(null);
   const [selectedDocId, setSelectedDocId] = React.useState(null);
+  const [selectedDocIds, setSelectedDocIds] = React.useState(new Set());
+  const [lastSelectedRowIndex, setLastSelectedRowIndex] = React.useState(null);
+  const [copiedDocIds, setCopiedDocIds] = React.useState(new Set());
+  const [copyMode, setCopyMode] = React.useState(false);
+  const [copiedRows, setCopiedRows] = React.useState([]);
+  const [lastCreatedDocIds, setLastCreatedDocIds] = React.useState(new Set());
   const [editRowId, setEditRowId] = React.useState(null);
   const [editValues, setEditValues] = React.useState({
     doc_name_unique: "",
@@ -134,6 +203,49 @@ function App() {
     area_id: "",
     unit_id: "",
   });
+
+  React.useEffect(() => {
+    if (!lastCreatedDocIds.size) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setLastCreatedDocIds(new Set());
+    }, 10000);
+    return () => window.clearTimeout(timeoutId);
+  }, [lastCreatedDocIds]);
+
+  React.useEffect(() => {
+    hasInitializedFlowRef.current = false;
+    setInfoActiveStep(null);
+    setInfoActiveSubTab("Files with Comments");
+  }, [selectedDocId]);
+
+  React.useEffect(() => {
+    if (!lastCreatedDocIds.size) return undefined;
+    const ids = Array.from(lastCreatedDocIds);
+    let attempts = 0;
+    let rafId = 0;
+
+    const tryScroll = () => {
+      if (!tableWrapperRef.current) return;
+      const targetId = ids.find((id) =>
+        tableWrapperRef.current.querySelector(`[data-row-id="${id}"]`),
+      );
+      if (targetId) {
+        const row = tableWrapperRef.current.querySelector(`[data-row-id="${targetId}"]`);
+        if (row) {
+          row.scrollIntoView({ block: "nearest" });
+          return;
+        }
+      }
+      attempts += 1;
+      if (attempts < 10) {
+        rafId = window.requestAnimationFrame(tryScroll);
+      }
+    };
+
+    rafId = window.requestAnimationFrame(tryScroll);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [lastCreatedDocIds]);
+  const [pastedRows, setPastedRows] = React.useState([]);
   const [createStatus, setCreateStatus] = React.useState("idle");
   const [createError, setCreateError] = React.useState(null);
   const [saveError, setSaveError] = React.useState(null);
@@ -148,7 +260,32 @@ function App() {
   const [areas, setAreas] = React.useState([]);
   const [units, setUnits] = React.useState([]);
   const [revisionOverviews, setRevisionOverviews] = React.useState([]);
+  const [revCodeOptions, setRevCodeOptions] = React.useState([]);
+  // Fetch revisions for selected document
+  React.useEffect(() => {
+    const fetchRevisions = async () => {
+      if (!selectedDocId) {
+        setRevisionOverviews([]);
+        return;
+      }
+      try {
+        const res = await fetch(`${apiBase}/documents/${selectedDocId}/revisions`);
+        if (!res.ok) throw new Error("Failed to fetch revisions");
+        const data = await res.json();
+        setRevisionOverviews(Array.isArray(data) ? data : []);
+      } catch {
+        setRevisionOverviews([]);
+      }
+    };
+    fetchRevisions();
+  }, [apiBase, selectedDocId]);
   const [people, setPeople] = React.useState([]);
+  // Selected revision row in Revisions tab
+  const [selectedRevisionIdx, setSelectedRevisionIdx] = React.useState(null);
+  const [sortConfig, setSortConfig] = React.useState({ key: null, direction: null });
+  const [columnMenuOpen, setColumnMenuOpen] = React.useState(null);
+  const [columnMenuPosition, setColumnMenuPosition] = React.useState({ top: 0, left: 0 });
+  const [columnSubmenuOpen, setColumnSubmenuOpen] = React.useState(false);
 
   const editingDoc = React.useMemo(
     () => filteredDocuments.find((doc) => (doc.doc_id || doc.doc_name || doc.id) === editRowId),
@@ -162,10 +299,234 @@ function App() {
 
   React.useEffect(() => {
     if (!isFlowEnabled) {
+      if (pendingActiveStepRef.current) {
+        return;
+      }
       setInfoActiveStep(null);
       setStatusMenuOpen({});
     }
   }, [isFlowEnabled]);
+
+  React.useEffect(() => {
+    if (!isFlowEnabled) {
+      return;
+    }
+    if (pendingActiveStepRef.current) {
+      setInfoActiveStep(String(pendingActiveStepRef.current));
+      pendingActiveStepRef.current = null;
+    }
+  }, [isFlowEnabled, selectedDoc]);
+
+  React.useEffect(() => {
+    if (!isFlowArrowDragging) {
+      return undefined;
+    }
+    const handleMouseMove = (event) => {
+      if (!flowStepsRef.current) {
+        setFlowArrowPos({ x: event.clientX, y: event.clientY });
+        return;
+      }
+      const rect = flowStepsRef.current.getBoundingClientRect();
+      const halfSize = 9;
+      const x = rect.left + rect.width / 2;
+      const y = Math.min(rect.bottom - halfSize, Math.max(rect.top + halfSize, event.clientY));
+      setFlowArrowPos({ x, y });
+    };
+    const handleMouseUp = () => {
+      const sourceKey = flowArrowSourceKey;
+      const targetKey = flowArrowTarget;
+      setIsFlowArrowDragging(false);
+      setFlowArrowSourceKey(null);
+      setFlowArrowTarget(null);
+      if (!targetKey || !isFlowEnabled) {
+        return;
+      }
+      const finishDrop = async () => {
+        const confirmed = window.confirm(
+          "Move file(s) to the selected status? They will appear in that tab (e.g. Original Files for IDC).",
+        );
+        if (!confirmed) {
+          return;
+        }
+        if (targetKey === "history") {
+          setInfoActiveStep("history");
+          return;
+        }
+
+        if (selectedDoc?.rev_current_id && sourceKey && sourceKey !== targetKey) {
+          const byId = new Map();
+          const referenced = new Set();
+          (Array.isArray(revStatuses) ? revStatuses : []).forEach((status) => {
+            byId.set(String(status.rev_status_id), status);
+            if (status.next_rev_status_id != null) {
+              referenced.add(String(status.next_rev_status_id));
+            }
+          });
+
+          let startStatus = (Array.isArray(revStatuses) ? revStatuses : []).find((status) =>
+            Boolean(status.start),
+          );
+          if (!startStatus) {
+            startStatus = (Array.isArray(revStatuses) ? revStatuses : []).find(
+              (status) => !referenced.has(String(status.rev_status_id)),
+            );
+          }
+
+          const orderedKeys = [];
+          const visited = new Set();
+          let current = startStatus || null;
+          while (current && !visited.has(String(current.rev_status_id))) {
+            const key = String(current.rev_status_id);
+            orderedKeys.push(key);
+            visited.add(key);
+            current =
+              current.next_rev_status_id != null
+                ? byId.get(String(current.next_rev_status_id))
+                : null;
+          }
+          (Array.isArray(revStatuses) ? revStatuses : []).forEach((status) => {
+            const key = String(status.rev_status_id);
+            if (!visited.has(key)) {
+              orderedKeys.push(key);
+            }
+          });
+
+          const sourceIndex = orderedKeys.indexOf(String(sourceKey));
+          const targetIndex = orderedKeys.indexOf(String(targetKey));
+          if (sourceIndex !== -1 && targetIndex !== -1 && sourceIndex !== targetIndex) {
+            pendingActiveStepRef.current = String(targetKey);
+            const direction = targetIndex > sourceIndex ? "forward" : "back";
+            const steps = Math.abs(targetIndex - sourceIndex);
+            for (let i = 0; i < steps; i += 1) {
+              const response = await fetch(
+                `${apiBase}/documents/revisions/${selectedDoc.rev_current_id}/status-transitions`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ direction }),
+                },
+              );
+              if (!response.ok) {
+                const errorText = await response.text().catch(() => "");
+                throw new Error(errorText || `Failed to move status (${response.status})`);
+              }
+            }
+            reloadDocuments();
+          }
+        }
+
+        // Migrate files between UI tabs to match selected status.
+        if (selectedDocId && sourceKey && sourceKey !== targetKey) {
+          const docEntry =
+            uploadedFiles[selectedDocId] &&
+            typeof uploadedFiles[selectedDocId] === "object" &&
+            !Array.isArray(uploadedFiles[selectedDocId])
+              ? uploadedFiles[selectedDocId]
+              : {};
+          const sourceLocal = Array.isArray(docEntry[sourceKey]) ? docEntry[sourceKey] : [];
+          const targetLocal = Array.isArray(docEntry[targetKey]) ? docEntry[targetKey] : [];
+          const nextEntry = { ...docEntry };
+          nextEntry[sourceKey] = [];
+          nextEntry[targetKey] = [...targetLocal, ...sourceLocal];
+          setUploadedFiles((prev) => ({
+            ...prev,
+            [selectedDocId]: nextEntry,
+          }));
+        }
+        setInfoActiveStep(targetKey);
+        setInfoActiveSubTab("Files with Comments");
+      };
+
+      finishDrop().catch((err) => {
+        const message = err instanceof Error ? err.message : "Failed to move document status";
+        alert(message);
+      });
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [
+    isFlowArrowDragging,
+    flowArrowTarget,
+    flowArrowSourceKey,
+    isFlowEnabled,
+    selectedDocId,
+    selectedDoc,
+    uploadedFiles,
+    revStatuses,
+    apiBase,
+    reloadDocuments,
+  ]);
+
+  React.useEffect(() => {
+    const handleClickAway = (event) => {
+      if (!event.target.closest("[data-column-menu]")) {
+        setColumnMenuOpen(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickAway);
+    return () => document.removeEventListener("mousedown", handleClickAway);
+  }, []);
+
+  const toggleColumnVisibility = React.useCallback((columnId) => {
+    setHiddenColumnIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(columnId)) {
+        next.delete(columnId);
+      } else {
+        const nonIdColumns = allColumns.filter((col) => col.id !== "doc_id");
+        const visibleCount = nonIdColumns.filter((col) => !next.has(col.id)).length;
+        if (visibleCount > 1) {
+          next.add(columnId);
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  const handleColumnDragStart = React.useCallback((event, columnId) => {
+    setDragColumnId(columnId);
+    event.dataTransfer.effectAllowed = "move";
+  }, []);
+
+  const handleColumnDragOver = React.useCallback((event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const handleColumnDrop = React.useCallback(
+    (event, targetId) => {
+      event.preventDefault();
+      if (!dragColumnId || dragColumnId === targetId) return;
+      setColumnOrder((prev) => {
+        const next = [...prev];
+        const fromIndex = next.indexOf(dragColumnId);
+        const toIndex = next.indexOf(targetId);
+        if (fromIndex === -1 || toIndex === -1) return prev;
+        next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, dragColumnId);
+        return next;
+      });
+      setDragColumnId(null);
+    },
+    [dragColumnId],
+  );
+
+  const toggleColumnMenu = React.useCallback((event, key) => {
+    event?.stopPropagation();
+    if (event?.currentTarget) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setColumnMenuPosition({
+        top: rect.top + window.scrollY - 2,
+        left: rect.right + window.scrollX + 6,
+      });
+    }
+    setColumnSubmenuOpen(false);
+    setColumnMenuOpen((prev) => (prev === key ? null : key));
+  }, []);
 
   const lookupOptionsByColumn = React.useMemo(
     () => ({
@@ -220,6 +581,36 @@ function App() {
     [areas, disciplines, docTypes, editValues.discipline_id, jobpacks, units],
   );
 
+  const sortedDocuments = React.useMemo(() => {
+    if (!sortConfig.key || !sortConfig.direction) return filteredDocuments;
+    const sortColumn = visibleColumns.find((col) => col.key === sortConfig.key);
+    const getSortValue = (doc) => {
+      if (!sortColumn) return doc[sortConfig.key];
+      if (sortColumn.id === "rev_percent") {
+        const raw =
+          Number.isFinite(doc.percentage) && doc.percentage >= 0
+            ? doc.percentage
+            : Number.parseFloat(doc.rev_percent_display);
+        return Number.isFinite(raw) ? raw : null;
+      }
+      return doc[sortConfig.key];
+    };
+    const sorted = [...filteredDocuments].sort((a, b) => {
+      const aValue = getSortValue(a);
+      const bValue = getSortValue(b);
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return 1;
+      if (bValue == null) return -1;
+      const aNumber = typeof aValue === "number" ? aValue : Number(aValue);
+      const bNumber = typeof bValue === "number" ? bValue : Number(bValue);
+      if (Number.isFinite(aNumber) && Number.isFinite(bNumber)) {
+        return aNumber - bNumber;
+      }
+      return String(aValue).localeCompare(String(bValue), undefined, { numeric: true });
+    });
+    return sortConfig.direction === "asc" ? sorted : sorted.reverse();
+  }, [filteredDocuments, sortConfig, visibleColumns]);
+
   const newDocTypeOptions = React.useMemo(() => {
     if (!newDocValues.discipline_id) return docTypes;
     return docTypes.filter(
@@ -228,43 +619,52 @@ function App() {
   }, [docTypes, newDocValues.discipline_id]);
 
   const handleDeleteDocument = React.useCallback(async () => {
-    if (!selectedDoc) {
+    const idsToDelete =
+      selectedDocIds.size > 0
+        ? Array.from(selectedDocIds)
+        : selectedDoc
+          ? [selectedDoc.doc_id ?? selectedDoc.id]
+          : [];
+    const cleanedIds = idsToDelete.filter(Boolean);
+    if (cleanedIds.length === 0) {
       setSaveStatus("error");
       setSaveError("Select a row to delete");
       return;
     }
 
-    const docId = selectedDoc.doc_id ?? selectedDoc.id;
-    if (!docId) {
-      setSaveStatus("error");
-      setSaveError("Unable to delete: missing document ID");
-      return;
-    }
-
-    const docLabel =
-      selectedDoc.doc_name_unique || selectedDoc.doc_name || selectedDoc.title || `#${docId}`;
-    if (!window.confirm(`Delete document "${docLabel}"?`)) {
+    if (
+      !window.confirm(
+        cleanedIds.length === 1
+          ? "Delete selected document?"
+          : `Delete ${cleanedIds.length} selected documents?`,
+      )
+    ) {
       return;
     }
 
     setSaveStatus("saving");
     setSaveError(null);
     try {
-      const res = await fetch(`${apiBase}/documents/${docId}`, { method: "DELETE" });
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || `Delete failed (${res.status})`);
-      }
-      await res.json();
+      await Promise.all(
+        cleanedIds.map(async (docId) => {
+          const res = await fetch(`${apiBase}/documents/${docId}`, { method: "DELETE" });
+          if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || `Delete failed (${res.status})`);
+          }
+          await res.json().catch(() => null);
+        }),
+      );
       setSaveStatus("idle");
       setSelectedDocId(null);
+      setSelectedDocIds(new Set());
       setEditRowId(null);
       reloadDocuments();
     } catch (err) {
       setSaveStatus("error");
       setSaveError(err.message || "Unknown error while deleting");
     }
-  }, [apiBase, reloadDocuments, selectedDoc]);
+  }, [apiBase, reloadDocuments, selectedDoc, selectedDocIds]);
 
   const ToolbarMenu = () => {
     const handleAddNew = () => {
@@ -301,10 +701,172 @@ function App() {
       startEdit(selectedDoc);
     };
     const handleDelete = () => handleDeleteDocument();
-    const handleExport = () => {};
-    const handleUndo = () => {};
-    const handleRedo = () => {};
-    const hasSelection = Boolean(selectedDoc);
+    const handleCopy = async () => {
+      const selectedRows = sortedDocuments.filter((doc) =>
+        selectedDocIds.has(doc.doc_id || doc.doc_name || doc.id),
+      );
+      if (!selectedRows.length) return;
+      setCopiedDocIds(new Set(selectedRows.map((doc) => doc.doc_id || doc.doc_name || doc.id)));
+      setCopiedRows(selectedRows);
+      setCopyMode(true);
+      const headers = visibleColumns.map((col) => col.label);
+      const rows = selectedRows.map((doc) =>
+        visibleColumns.map((col) => {
+          if (col.id === "rev_percent") {
+            return doc.rev_percent_display ?? doc.percentage ?? "";
+          }
+          return doc[col.key] ?? "";
+        }),
+      );
+      const tsv = [headers.join("\t"), ...rows.map((row) => row.join("\t"))].join("\n");
+      await navigator.clipboard.writeText(tsv);
+    };
+    const handleCancelCopy = () => {
+      setCopiedDocIds(new Set());
+      setCopiedRows([]);
+      setCopyMode(false);
+    };
+    const handlePaste = () => {
+      if (!copiedRows.length) return;
+      const nextRows = copiedRows.map((doc, index) => {
+        const baseName = doc.doc_name_unique || doc.doc_name || "";
+        const baseTitle = doc.title || "";
+        return {
+          doc_name_unique: baseName ? `${baseName}-copy-${index + 1}` : "",
+          title: baseTitle,
+          discipline_id: String(doc.discipline_id ?? ""),
+          type_id: String(doc.type_id ?? ""),
+          jobpack_id: String(doc.jobpack_id ?? ""),
+          area_id: String(doc.area_id ?? ""),
+          unit_id: String(doc.unit_id ?? ""),
+          rev_code_id: String(doc.rev_code_id ?? revCodeOptions[0]?.rev_code_id ?? ""),
+        };
+      });
+      setPastedRows(nextRows);
+      setCopyMode(false);
+      setCopiedDocIds(new Set());
+      setIsAdding(false);
+      setEditRowId(null);
+    };
+    const handleCancelPaste = () => {
+      setPastedRows([]);
+      setCreateError(null);
+      setCreateStatus("idle");
+    };
+    const handleSavePastedRows = async () => {
+      if (!project) return;
+      if (!pastedRows.length) return;
+      const toLookupId = (value) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      };
+      const toDateTime = (dateValue) => `${dateValue}T00:00:00Z`;
+      const today = new Date();
+      const startDate = today.toISOString().slice(0, 10);
+      const finishDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+      const revCodeIdFallback = toLookupId(revCodeOptions[0]?.rev_code_id);
+      const personId = toLookupId(people[0]?.person_id);
+
+      const invalid = pastedRows.find(
+        (row) =>
+          !String(row.doc_name_unique || "").trim() ||
+          !String(row.title || "").trim() ||
+          !row.type_id ||
+          !row.area_id ||
+          !row.unit_id,
+      );
+      if (invalid) {
+        setCreateStatus("error");
+        setCreateError("Please заполните обязательные поля для всех строк.");
+        return;
+      }
+
+      setCreateStatus("saving");
+      setCreateError(null);
+      try {
+        const createdDocs = await Promise.all(
+          pastedRows.map(async (row) => {
+            const payload = {
+              doc_name_unique: String(row.doc_name_unique || "").trim(),
+              title: String(row.title || "").trim(),
+              project_id: Number(project),
+              type_id: toLookupId(row.type_id),
+              area_id: toLookupId(row.area_id),
+              unit_id: toLookupId(row.unit_id),
+              rev_code_id: toLookupId(row.rev_code_id) || revCodeIdFallback,
+              rev_author_id: personId,
+              rev_originator_id: personId,
+              rev_modifier_id: personId,
+              transmital_current_revision: "TR-001",
+              planned_start_date: toDateTime(startDate),
+              planned_finish_date: toDateTime(finishDate),
+            };
+            const jobpackId = toLookupId(row.jobpack_id);
+            if (jobpackId) payload.jobpack_id = jobpackId;
+            const res = await fetch(`${apiBase}/documents`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+              const errorText = await res.text();
+              throw new Error(errorText || `Create failed (${res.status})`);
+            }
+            return await res.json().catch(() => null);
+          }),
+        );
+        setCreateStatus("saved");
+        setPastedRows([]);
+        const createdIds = createdDocs
+          .map((doc) => doc?.doc_id || doc?.id || doc?.doc_name || null)
+          .filter(Boolean);
+        setLastCreatedDocIds(new Set(createdIds));
+        reloadDocuments();
+      } catch (err) {
+        setCreateStatus("error");
+        setCreateError(err.message || "Paste failed");
+      }
+    };
+    const handleExport = () => {
+      if (!project) {
+        alert("Select a project to export documents.");
+        return;
+      }
+      if (!sortedDocuments.length) {
+        alert("No documents to export.");
+        return;
+      }
+      const escapeCsv = (value) => {
+        const stringValue = String(value ?? "");
+        if (/[",\n]/.test(stringValue)) {
+          return `"${stringValue.replace(/"/g, '""')}"`;
+        }
+        return stringValue;
+      };
+      const headers = visibleColumns.map((col) => escapeCsv(col.label));
+      const rows = sortedDocuments.map((doc) =>
+        visibleColumns.map((col) => {
+          if (col.id === "rev_percent") {
+            return escapeCsv(doc.rev_percent_display ?? doc.percentage ?? "");
+          }
+          return escapeCsv(doc[col.key] ?? "");
+        }),
+      );
+      const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+      const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const safeProject = String(project || "documents").replace(/[^\w.-]+/g, "_");
+      link.download = `documents_${safeProject}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+    const hasSelection = selectedDocIds.size > 0;
     const hasProject = Boolean(project);
 
     if (editRowId || isAdding) {
@@ -322,9 +884,10 @@ function App() {
               }
             }}
             disabled={isSaving}
+            aria-label={editRowId ? "Save changes" : "Create document"}
           >
             <span style={iconStyle}>💾</span>
-            {editRowId ? "Save" : "Create"}
+            <span style={{ marginLeft: "6px" }}>{editRowId ? "Save" : "Create"}</span>
           </button>
           <button
             style={{
@@ -344,14 +907,64 @@ function App() {
               }
             }}
             disabled={isSaving}
+            aria-label="Cancel"
           >
             <span style={iconStyle}>✕</span>
-            Cancel
+            <span style={{ marginLeft: "6px" }}>Cancel</span>
           </button>
         </div>
       );
     }
 
+    if (copyMode) {
+      return (
+        <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
+          <button
+            style={!hasProject ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
+            title="Paste rows"
+            onClick={handlePaste}
+            disabled={!hasProject}
+            aria-label="Paste rows"
+          >
+            <span style={iconStyle}>📋</span>
+            <span style={{ marginLeft: "6px" }}>Paste</span>
+          </button>
+          <button
+            style={buttonStyle}
+            title="Cancel copy"
+            onClick={handleCancelCopy}
+            aria-label="Cancel copy"
+          >
+            <span style={iconStyle}>✕</span>
+            <span style={{ marginLeft: "6px" }}>Cancel</span>
+          </button>
+        </div>
+      );
+    }
+    if (pastedRows.length > 0) {
+      return (
+        <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
+          <button
+            style={buttonStyle}
+            title="Save pasted rows"
+            onClick={handleSavePastedRows}
+            aria-label="Save pasted rows"
+          >
+            <span style={iconStyle}>💾</span>
+            <span style={{ marginLeft: "6px" }}>Save</span>
+          </button>
+          <button
+            style={buttonStyle}
+            title="Cancel paste"
+            onClick={handleCancelPaste}
+            aria-label="Cancel paste"
+          >
+            <span style={iconStyle}>✕</span>
+            <span style={{ marginLeft: "6px" }}>Cancel</span>
+          </button>
+        </div>
+      );
+    }
     return (
       <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "0 6px" }}>
         <button
@@ -359,42 +972,50 @@ function App() {
           title="Add new document"
           onClick={handleAddNew}
           disabled={!hasProject}
+          aria-label="Add new document"
         >
           <span style={iconStyle}>+</span>
-          Add new
+          <span style={{ marginLeft: "6px" }}>Add</span>
         </button>
         <button
           style={!hasSelection ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
           title="Edit selected document"
           onClick={handleEdit}
           disabled={!hasSelection}
+          aria-label="Edit selected document"
         >
           <span style={iconStyle}>✎</span>
-          Edit
+          <span style={{ marginLeft: "6px" }}>Edit</span>
         </button>
         <button
           style={!hasSelection ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
           title="Delete selected document"
           onClick={handleDelete}
           disabled={!hasSelection}
+          aria-label="Delete selected document"
         >
           <span style={iconStyle}>🗑</span>
-          Delete
+          <span style={{ marginLeft: "6px" }}>Delete</span>
         </button>
         <button
           style={!hasSelection ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
+          title="Copy selected rows"
+          onClick={handleCopy}
+          disabled={!hasSelection}
+          aria-label="Copy selected rows"
+        >
+          <span style={iconStyle}>⧉</span>
+          <span style={{ marginLeft: "6px" }}>Copy</span>
+        </button>
+        <button
+          style={!hasProject ? { ...buttonStyle, ...disabledButtonStyle } : buttonStyle}
           title="Export documents"
           onClick={handleExport}
-          disabled={!hasSelection}
+          disabled={!hasProject}
+          aria-label="Export documents"
         >
           <span style={iconStyle}>⬇</span>
-          Export to...
-        </button>
-        <button style={buttonStyle} title="Undo" onClick={handleUndo}>
-          <span style={iconStyle}>↶</span>
-        </button>
-        <button style={buttonStyle} title="Redo" onClick={handleRedo}>
-          <span style={iconStyle}>↷</span>
+          <span style={{ marginLeft: "6px" }}>Export</span>
         </button>
       </div>
     );
@@ -404,12 +1025,12 @@ function App() {
     return (
       <div
         style={{
-          background: "var(--color-success-soft)",
-          border: "1px solid var(--color-success-border)",
-          borderRadius: "8px",
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "0",
           padding: "6px 10px",
           marginBottom: "2px",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+          boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px", position: "relative" }}>
@@ -421,7 +1042,7 @@ function App() {
                 fontSize: "18px",
                 fontWeight: 700,
                 lineHeight: "1",
-                color: "var(--color-success-text)",
+                color: "var(--color-text-muted)",
                 background: "transparent",
                 border: "none",
                 cursor: "pointer",
@@ -442,8 +1063,8 @@ function App() {
                   top: "100%",
                   left: "0",
                   background: "var(--color-surface)",
-                  border: "1px solid var(--color-success-border-strong)",
-                  borderRadius: "8px",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "4px",
                   boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
                   minWidth: "200px",
                   zIndex: 1000,
@@ -531,7 +1152,7 @@ function App() {
 
             <label
               htmlFor="project-select"
-              style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-success-text)" }}
+              style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted)" }}
             >
               Project:
             </label>
@@ -542,9 +1163,9 @@ function App() {
             onChange={(e) => setProject(e.target.value)}
             aria-label="Select project"
             style={{
-              border: "1px solid var(--color-success-border-strong)",
-              borderRadius: "8px",
-              padding: "7px 10px",
+              border: "1px solid var(--color-border-soft)",
+              borderRadius: "4px",
+              padding: "6px 8px",
               fontSize: "13px",
               color: "var(--color-text)",
               background: "var(--color-surface)",
@@ -566,9 +1187,7 @@ function App() {
             <div className="task-cabinet__label">Task cabinet:</div>
             {cabinetTabs.map((tab) => (
               <div key={tab.label} className="task-tab">
-                <span style={{ color: "var(--color-success-text)", fontWeight: 600 }}>
-                  {tab.label}
-                </span>
+                <span style={{ color: "var(--color-text)", fontWeight: 600 }}>{tab.label}</span>
                 <span className="task-tab__badge" style={{ background: tab.tone }}>
                   {tab.count}
                 </span>
@@ -1026,7 +1645,7 @@ function App() {
     if (!newDocValues.type_id) missing.push("Type");
     if (!newDocValues.area_id) missing.push("Area");
     if (!newDocValues.unit_id) missing.push("Unit");
-    if (!revisionOverviews.length) missing.push("Revision code");
+    if (!revCodeOptions.length) missing.push("Revision code");
     if (!people.length) {
       missing.push("Revision author");
       missing.push("Revision originator");
@@ -1048,7 +1667,7 @@ function App() {
     const finishDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
       .toISOString()
       .slice(0, 10);
-    const revCodeId = toLookupId(revisionOverviews[0]?.rev_code_id);
+    const revCodeId = toLookupId(revCodeOptions[0]?.rev_code_id);
     const personId = toLookupId(people[0]?.person_id);
 
     const payload = {
@@ -1084,14 +1703,20 @@ function App() {
       }
       const created = await res.json();
       setCreateStatus("saved");
-      setIsAdding(false);
-      setSelectedDocId(created?.doc_id ?? null);
+      setLastCreatedDocIds(
+        new Set([created?.doc_id ?? created?.id ?? created?.doc_name].filter(Boolean)),
+      );
       reloadDocuments();
+      setNewDocValues((prev) => ({
+        ...prev,
+        doc_name_unique: "",
+        title: "",
+      }));
     } catch (err) {
       setCreateStatus("error");
       setCreateError(err.message || "Unknown error while creating document");
     }
-  }, [apiBase, newDocValues, people, project, reloadDocuments, revisionOverviews]);
+  }, [apiBase, newDocValues, people, project, reloadDocuments, revCodeOptions]);
 
   const handleUploadFiles = React.useCallback(
     async (files, statusKey) => {
@@ -1338,7 +1963,7 @@ function App() {
       if (!revisionId) return;
 
       try {
-        const response = await fetch(`${apiBase}/files/list?rev_id=${revisionId}`);
+        const response = await fetch(`${apiBase}/files?rev_id=${revisionId}`);
         if (!response.ok) {
           if (response.status === 404) {
             // No files for this revision yet - keep existing local files
@@ -1347,34 +1972,57 @@ function App() {
           throw new Error(`Failed to load files (${response.status})`);
         }
 
-        const files = await response.json();
+        const filesPayload = await response.json();
+        const files = Array.isArray(filesPayload)
+          ? filesPayload
+          : Array.isArray(filesPayload?.items)
+            ? filesPayload.items
+            : Array.isArray(filesPayload?.results)
+              ? filesPayload.results
+              : Array.isArray(filesPayload?.data)
+                ? filesPayload.data
+                : Array.isArray(filesPayload?.files)
+                  ? filesPayload.files
+                  : [];
 
         // Convert API files to our file object format
         // Store all API files in a special "$api" key to keep them persistent across all statuses
         const apiFiles = [];
-        if (Array.isArray(files) && files.length > 0) {
-          files.forEach((apiFile) => {
-            apiFiles.push(
-              normalizeFile(apiFile, {
-                documentNumber: selectedDoc.doc_name_unique || selectedDoc.title,
-                uploadedAt: new Date().toISOString(),
-                isFromApi: true,
-              }),
-            );
-          });
+        files.forEach((apiFile) => {
+          apiFiles.push(
+            normalizeFile(apiFile, {
+              documentNumber: selectedDoc.doc_name_unique || selectedDoc.title,
+              uploadedAt: new Date().toISOString(),
+              isFromApi: true,
+            }),
+          );
+        });
 
-          // Update uploadedFiles with fetched files in a persistent location
-          setUploadedFiles((prev) => {
-            const existingFiles = prev[selectedDocId] || {};
-            return {
-              ...prev,
-              [selectedDocId]: {
-                ...existingFiles,
-                $api: apiFiles, // Store API files in special $api key
-              },
-            };
+        // Update uploadedFiles with fetched files in a persistent location (including empty result).
+        setUploadedFiles((prev) => {
+          const existingFiles =
+            prev[selectedDocId] &&
+            typeof prev[selectedDocId] === "object" &&
+            !Array.isArray(prev[selectedDocId])
+              ? prev[selectedDocId]
+              : {};
+          // Ensure all statusKey values are arrays (except $api)
+          const safeFiles = {};
+          Object.entries(existingFiles).forEach(([key, value]) => {
+            if (key === "$api") {
+              safeFiles[key] = value;
+            } else {
+              safeFiles[key] = Array.isArray(value) ? value : [];
+            }
           });
-        }
+          return {
+            ...prev,
+            [selectedDocId]: {
+              ...safeFiles,
+              $api: apiFiles,
+            },
+          };
+        });
       } catch (err) {
         console.error("Failed to fetch files for revision:", err);
       }
@@ -1444,7 +2092,6 @@ function App() {
           fetch(`${apiBase}/documents/revision_overview`),
           fetch(`${apiBase}/people/persons`),
         ]);
-
         const readJson = async (res) => (res.status === 404 ? [] : await res.json());
         if (!isActive) return;
         setDocTypes((await readJson(docTypesRes)) || []);
@@ -1452,7 +2099,7 @@ function App() {
         setJobpacks((await readJson(jobpacksRes)) || []);
         setAreas((await readJson(areasRes)) || []);
         setUnits((await readJson(unitsRes)) || []);
-        setRevisionOverviews((await readJson(revisionOverviewsRes)) || []);
+        setRevCodeOptions((await readJson(revisionOverviewsRes)) || []);
         setPeople((await readJson(peopleRes)) || []);
       } catch (err) {
         if (!isActive) return;
@@ -1462,7 +2109,7 @@ function App() {
         setJobpacks([]);
         setAreas([]);
         setUnits([]);
-        setRevisionOverviews([]);
+        setRevCodeOptions([]);
         setPeople([]);
       }
     };
@@ -1534,19 +2181,47 @@ function App() {
   React.useEffect(() => {
     if (orderedStatuses.length === 0) return;
 
-    // Auto-select first status when document is selected and no step is active
-    if (
-      selectedDoc &&
-      selectedDoc.rev_current_id &&
-      infoActiveStep === null &&
-      !hasInitializedFlowRef.current
-    ) {
-      const firstStatus = orderedStatuses[0];
-      if (firstStatus) {
-        setInfoActiveStep(String(firstStatus.rev_status_id));
-        hasInitializedFlowRef.current = true;
+    // Default active tab: first status that already has files.
+    if (selectedDoc && infoActiveStep === null && !hasInitializedFlowRef.current) {
+      const docEntry =
+        selectedDocId &&
+        uploadedFiles[selectedDocId] &&
+        typeof uploadedFiles[selectedDocId] === "object" &&
+        !Array.isArray(uploadedFiles[selectedDocId])
+          ? uploadedFiles[selectedDocId]
+          : {};
+      const hasApiLoaded = Object.prototype.hasOwnProperty.call(docEntry, "$api");
+      const hasLocalFiles = Object.entries(docEntry).some(
+        ([key, value]) => key !== "$api" && Array.isArray(value) && value.length > 0,
+      );
+      const canFetchApiFiles = Boolean(selectedDoc?.rev_current_id);
+
+      // Wait for API file preload if revision exists and we have no local files yet.
+      if (canFetchApiFiles && !hasApiLoaded && !hasLocalFiles) {
         return;
       }
+
+      const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
+      const currentStatusKey = resolveCurrentStatusKey(selectedDoc, orderedStatuses);
+      const statusWithFiles = orderedStatuses.find((status) => {
+        const key = String(status.rev_status_id);
+        const localFiles = Array.isArray(docEntry[key]) ? docEntry[key] : [];
+        const apiFilesForStatus = currentStatusKey === key ? apiFiles : [];
+        return localFiles.length > 0 || apiFilesForStatus.length > 0;
+      });
+
+      const fallbackStatus =
+        statusWithFiles ||
+        orderedStatuses.find(
+          (status) => String(status.rev_status_id) === String(currentStatusKey),
+        ) ||
+        orderedStatuses[0] ||
+        null;
+      if (fallbackStatus) {
+        setInfoActiveStep(String(fallbackStatus.rev_status_id));
+      }
+      hasInitializedFlowRef.current = true;
+      return;
     }
 
     if (infoActiveStep === null) {
@@ -1559,7 +2234,7 @@ function App() {
     if (exists) return;
     setInfoActiveStep(null);
     hasInitializedFlowRef.current = true;
-  }, [orderedStatuses, infoActiveStep, selectedDoc]);
+  }, [orderedStatuses, infoActiveStep, selectedDoc, selectedDocId, uploadedFiles]);
 
   return (
     <main
@@ -1569,45 +2244,45 @@ function App() {
       <style>
         {`
         :root {
-          --color-bg: #f0f2f5;
+          --color-bg: #f5f6f8;
           --color-surface: #ffffff;
-          --color-surface-alt: #fafbfc;
-          --color-surface-muted: #f5f6f8;
-          --color-surface-muted-strong: #e8eaed;
-          --color-surface-subtle: #f9fafb;
+          --color-surface-alt: #f7f8fa;
+          --color-surface-muted: #f2f4f7;
+          --color-surface-muted-strong: #e4e7eb;
+          --color-surface-subtle: #fafbfc;
           --color-border: #d5d9de;
-          --color-border-soft: #dadde0;
-          --color-border-strong: #cdd0d5;
-          --color-text: #0a0e27;
-          --color-text-muted: #65676b;
-          --color-text-subtle: #8a8d91;
-          --color-text-strong: #1d1f26;
-          --color-text-secondary: #484a4f;
-          --color-primary: #1a5f7a;
+          --color-border-soft: #c9ccd1;
+          --color-border-strong: #bfc4ca;
+          --color-text: #2f3033;
+          --color-text-muted: #6b6f76;
+          --color-text-subtle: #8b9096;
+          --color-text-strong: #1f2428;
+          --color-text-secondary: #4a4f55;
+          --color-primary: #2f5fa6;
           --color-primary-contrast: #ffffff;
-          --color-primary-soft: #e7f3f7;
-          --color-primary-outline: rgba(26, 95, 122, 0.15);
-          --color-accent: #3d5a80;
+          --color-primary-soft: #e6eef9;
+          --color-primary-outline: rgba(47, 95, 166, 0.18);
+          --color-accent: #2f5fa6;
           --color-accent-contrast: #ffffff;
-          --color-info: #2563eb;
-          --color-info-dark: #1d4ed8;
-          --color-info-strong: #1e40af;
-          --color-info-soft: #eff6ff;
-          --color-warning: #d97706;
-          --color-danger: #dc2626;
-          --color-danger-soft: #fef2f2;
-          --color-success: #059669;
-          --color-success-dark: #047857;
-          --color-success-soft: #ecfdf5;
-          --color-success-border: #a7f3d0;
-          --color-success-border-strong: #6ee7b7;
-          --color-success-text: #065f46;
-          --color-row-selected: #f0f4ff;
-          --color-focus: #1d4ed8;
-          --color-error: #dc2626;
-          --color-error-dark: #b91c1c;
-          --color-spinner-start: #2563eb;
-          --color-spinner-end: #3b82f6;
+          --color-info: #2f5fa6;
+          --color-info-dark: #244c86;
+          --color-info-strong: #1f4173;
+          --color-info-soft: #e6eef9;
+          --color-warning: #b76a00;
+          --color-danger: #c62828;
+          --color-danger-soft: #fdeeee;
+          --color-success: #2e7d32;
+          --color-success-dark: #276a2b;
+          --color-success-soft: #e9f5ec;
+          --color-success-border: #bcdcc3;
+          --color-success-border-strong: #9ccaa7;
+          --color-success-text: #2e5b34;
+          --color-row-selected: #e8f0fe;
+          --color-focus: #2f5fa6;
+          --color-error: #c62828;
+          --color-error-dark: #a31f1f;
+          --color-spinner-start: #2f5fa6;
+          --color-spinner-end: #3b6fb8;
           color: var(--color-text);
           background: var(--color-bg);
           font-family: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
@@ -1616,6 +2291,56 @@ function App() {
         body {
           margin: 0;
           background: var(--color-bg);
+        }
+        button,
+        input,
+        select,
+        textarea {
+          font-family: inherit;
+        }
+        input,
+        select,
+        textarea {
+          border: 1px solid var(--color-border-soft);
+          border-radius: 0;
+          padding: 6px 8px;
+          font-size: 13px;
+          color: var(--color-text);
+          background: var(--color-surface);
+        }
+        input,
+        select,
+        textarea,
+        button {
+          border-radius: 0 !important;
+        }
+        input:focus,
+        select:focus,
+        textarea:focus {
+          outline: none;
+          border-color: var(--color-focus);
+          box-shadow: 0 0 0 2px var(--color-primary-outline);
+        }
+        button {
+          border: 1px solid var(--color-border-soft);
+          border-radius: 0;
+          padding: 6px 10px;
+          font-size: 13px;
+          color: var(--color-text);
+          background: var(--color-surface-alt);
+          cursor: pointer;
+          transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        button:hover {
+          background: var(--color-surface-muted);
+          border-color: var(--color-border);
+        }
+        button:active {
+          background: var(--color-surface-muted-strong);
+        }
+        button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
         .page {
           padding: 8px;
@@ -1628,12 +2353,30 @@ function App() {
           color: var(--color-text-muted);
           font-size: 14px;
         }
+        .app-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 6px 10px;
+          margin: 8px 0 0;
+          border-top: 1px solid var(--color-border);
+          background: var(--color-surface);
+          color: var(--color-text);
+          font-size: 13px;
+          flex-shrink: 0;
+        }
+        .app-header__name {
+          font-weight: 600;
+        }
+        .app-header__meta {
+          color: var(--color-text-muted);
+        }
         .toolbar select {
           border: 1px solid var(--color-border-soft);
-          border-radius: 8px;
+          border-radius: 4px;
           padding: 6px 8px;
           font-size: 13px;
-          color: var(--color-text-muted);
+          color: var(--color-text);
           background: var(--color-surface);
         }
         .toolbar button {
@@ -1651,6 +2394,7 @@ function App() {
           color: var(--color-text-muted);
           font-size: 14px;
           background: var(--color-surface-alt);
+          border-bottom: 1px solid var(--color-border);
         }
         .status-row.error {
           color: var(--color-danger);
@@ -1720,59 +2464,88 @@ function App() {
         .card {
           background: var(--color-surface);
           border: 1px solid var(--color-border);
-          border-radius: 12px;
-          box-shadow:
-            0 10px 30px rgba(15, 23, 42, 0.05),
-            0 1px 3px rgba(15, 23, 42, 0.08);
+          border-radius: 0;
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
           overflow: hidden;
         }
         .table {
           width: 100%;
-          border-collapse: collapse;
+          border-collapse: separate;
+          border-spacing: 0;
           white-space: nowrap;
+          margin: 0 !important;
+          padding: 0 !important;
+          color: var(--color-text);
+          font-size: 13px;
+          table-layout: auto;
         }
         .table thead th {
-          background: var(--color-surface-alt);
-          font-weight: 700;
+          background: #f5f6f8;
+          font-weight: 600;
           text-align: left;
-          font-size: 14px;
-          color: var(--color-text);
-          padding: 6px 8px 2px;
-          border-bottom: 1px solid var(--color-border);
-          white-space: nowrap;
-          border-right: 1px solid var(--color-border);
-        }
-        .table thead th:not(:first-child) {
-          border-left: 1px solid var(--color-border);
-        }
-        .table thead input {
-          width: 100%;
-          margin-top: 2px;
-          padding: 4px 8px;
-          border: 1px solid var(--color-border-soft);
-          border-radius: 8px;
           font-size: 13px;
-          color: var(--color-text-muted);
-          background: var(--color-surface);
-          caret-color: transparent; /* Hide blinking text cursor in header filters */
+          color: #2f3033;
+          padding: 6px 10px;
+          border-bottom: 1px solid #d5d9de;
+          border-right: 1px solid #d5d9de;
+          white-space: nowrap;
+          vertical-align: middle;
+          position: sticky;
+          top: 0;
+          z-index: 2;
+        }
+        .table thead th:first-child {
+          border-left: 1px solid #d5d9de;
+        }
+        .table thead th input {
+          width: 100%;
+          margin-top: 6px;
+          padding: 6px 8px;
+          border: 1px solid #c9ccd1;
+          border-radius: 4px;
+          font-size: 12px;
+          color: #3a3b3f;
+          background: #ffffff;
           line-height: 1.4;
         }
         .table td {
-          padding: 4px 8px;
-          border-bottom: 1px solid var(--color-border);
+          padding: 6px 10px;
+          border-bottom: 1px solid #e1e4e8;
+          border-right: 1px solid #e1e4e8;
           position: relative;
           font-size: 13px;
-          color: var(--color-text);
+          color: #1f2428;
           line-height: 1.4;
+          background: #ffffff;
         }
-        .table td:not(:first-child) {
-          border-left: 1px solid var(--color-border);
+        .table td:first-child {
+          border-left: 1px solid #e1e4e8;
         }
-        .table tbody tr {
-          border-bottom: 1px solid var(--color-border);
+        .table tbody tr:nth-child(even) td {
+          background: #fafbfc;
         }
         .table tbody tr:hover td {
-          background: var(--color-surface-subtle);
+          background: #eef2f6;
+        }
+        .table tbody tr.selected td {
+          background: #f4f7fd;
+        }
+        .table tbody tr.selected td:first-child {
+          box-shadow: inset 2px 0 0 var(--color-accent);
+        }
+        .table tbody tr.copied td {
+          box-shadow: inset 0 0 0 2px var(--color-accent);
+        }
+        .table tbody tr.created td {
+          background: #e7f4ff;
+          box-shadow: inset 0 0 0 1px var(--color-accent);
+        }
+        .table tbody tr.editing td {
+          background: #fff7d6;
+          box-shadow: inset 0 0 0 1px var(--color-accent);
+        }
+        .table tbody tr.editing td:first-child {
+          box-shadow: inset 2px 0 0 var(--color-accent), inset 0 0 0 1px var(--color-accent);
         }
         .meta {
           display: flex;
@@ -1795,6 +2568,8 @@ function App() {
           width: 100%;
           height: 100%;
           overflow: auto;
+          margin: 0 !important;
+          padding: 0 !important;
         }
         .task-cabinet {
           display: flex;
@@ -1805,16 +2580,16 @@ function App() {
         .task-cabinet__label {
           font-size: 14px;
           font-weight: 600;
-          color: var(--color-success-text);
+          color: var(--color-text-muted);
           min-width: 92px;
         }
         .task-tab {
           display: inline-flex;
           align-items: center;
           gap: 4px;
-          background: var(--color-surface);
-          border: 1px solid var(--color-success-border-strong);
-          border-radius: 6px;
+          background: var(--color-surface-muted);
+          border: 1px solid var(--color-border);
+          border-radius: 0;
           padding: 4px 8px;
           font-size: 12px;
           font-weight: 600;
@@ -1838,15 +2613,15 @@ function App() {
           display: flex;
           gap: 2px;
           border-bottom: 1px solid var(--color-border);
-          background: transparent;
+          background: #f5f6f8;
           padding: 0;
         }
         .detail-tab {
           padding: 6px 12px;
           border: 1px solid var(--color-border);
           border-bottom: none;
-          border-radius: 6px 6px 0 0;
-          background: var(--color-border);
+          border-radius: 0;
+          background: #f5f6f8;
           font-size: 12px;
           font-weight: 500;
           cursor: pointer;
@@ -1858,19 +2633,37 @@ function App() {
           align-items: center;
         }
         .detail-tab:hover {
-          background: var(--color-border-strong);
+          background: #e9ecef;
         }
         .detail-tab.active {
-          background: var(--color-accent);
-          color: var(--color-accent-contrast);
-          border-color: var(--color-accent);
+          background: #e0e3e7;
+          color: var(--color-text);
+          border-color: #d5d9de;
+          box-shadow: none;
         }
         .detail-tab-panel {
           border: 1px solid var(--color-border);
           border-top: none;
           border-radius: 0;
-          padding: 16px;
+          padding: 0 !important;
+          margin: 0 !important;
           background: var(--color-surface);
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+        }
+        .idc-subtabs {
+          display: flex;
+          gap: 2px;
+          border-bottom: 1px solid var(--color-border);
+          background: #f5f6f8;
+          padding: 0;
+        }
+        .idc-tab-panel {
+          border: none;
+          padding: 0 !important;
+          margin: 0 !important;
+          background: transparent;
           display: flex;
           flex-direction: column;
           flex: 1;
@@ -1878,7 +2671,7 @@ function App() {
         .flow-card {
           background: var(--color-surface-alt);
           border: 1px solid var(--color-border);
-          border-radius: 12px;
+          border-radius: 0;
           box-shadow: 0 1px 2px rgba(0,0,0,0.04);
           display: flex;
           flex-direction: column;
@@ -1894,9 +2687,189 @@ function App() {
         }
         .flow-body {
           display: flex;
-          flex-direction: column;
+          flex-direction: row-reverse;
           flex: 1;
           min-height: 0;
+        }
+        .flow-steps-column {
+          width: 40px;
+          border-left: 1px solid var(--color-border);
+          display: flex;
+          flex-direction: column;
+          padding: 4px;
+          background: var(--color-surface);
+          height: 100%;
+        }
+        .flow-steps-column .flow-step {
+          padding: 4px 2px;
+          height: auto;
+          justify-content: center;
+          border-radius: 0;
+          flex: 1 1 0;
+          display: flex;
+          align-items: center;
+        }
+        .flow-steps-column .flow-step.active {
+          flex: 1 1 0;
+          align-items: center;
+          justify-content: center;
+          padding-top: 0;
+          flex-direction: column;
+          height: auto;
+          background: #e0f0e3;
+          border-color: var(--color-success-border-strong);
+        }
+        .flow-steps-column.locked .flow-step {
+          opacity: 0.45;
+          cursor: default;
+          background: var(--color-surface);
+          border-color: var(--color-border);
+        }
+        .flow-steps-column.locked .flow-step.active,
+        .flow-steps-column.locked .flow-step.active:disabled {
+          opacity: 1;
+          background: #e0f0e3;
+          border-color: var(--color-success-border-strong);
+        }
+        .flow-steps-column .flow-step:not(.has-arrow) .flow-step__arrow {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+        .flow-steps-column .flow-step__arrow {
+          position: absolute;
+          bottom: 4px;
+          left: 50%;
+          width: 18px;
+          height: 18px;
+          transform: translateX(-50%);
+          border: 1px solid var(--color-text);
+          background: var(--color-surface);
+          border-radius: 2px;
+          opacity: 0;
+          pointer-events: none;
+          cursor: pointer;
+        }
+        .flow-steps-column .flow-step__arrow::before {
+          content: "";
+          position: absolute;
+          top: 3px;
+          left: 50%;
+          width: 2px;
+          height: 7px;
+          transform: translateX(-50%);
+          background: var(--color-text);
+          border-radius: 1px;
+        }
+        .flow-steps-column .flow-step__arrow::after {
+          content: "";
+          position: absolute;
+          bottom: 3px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 0;
+          height: 0;
+          border-left: 4px solid transparent;
+          border-right: 4px solid transparent;
+          border-top: 5px solid var(--color-text);
+        }
+        .flow-steps-column .flow-step.active:hover .flow-step__arrow {
+          opacity: 0.95;
+          pointer-events: auto;
+          filter: drop-shadow(0 0 2px rgba(15, 118, 110, 0.35));
+          animation: flow-arrow-bounce 1.8s ease-in-out infinite;
+        }
+        .flow-arrow-drag {
+          position: fixed;
+          width: 18px;
+          height: 18px;
+          border: 1px solid var(--color-text);
+          background: var(--color-surface);
+          border-radius: 2px;
+          pointer-events: none;
+          opacity: 0.95;
+          filter: drop-shadow(0 0 2px rgba(15, 118, 110, 0.35));
+          transform: translate(-50%, -50%);
+          transition: transform 0.18s ease-out;
+          z-index: 5000;
+        }
+        .flow-arrow-drag::before {
+          content: "";
+          position: absolute;
+          top: 3px;
+          left: 50%;
+          width: 2px;
+          height: 7px;
+          transform: translateX(-50%);
+          background: var(--color-text);
+          border-radius: 1px;
+        }
+        .flow-arrow-drag::after {
+          content: "";
+          position: absolute;
+          bottom: 3px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 0;
+          height: 0;
+          border-left: 4px solid transparent;
+          border-right: 4px solid transparent;
+          border-top: 5px solid var(--color-text);
+        }
+        @keyframes flow-arrow-bounce {
+          0% {
+            transform: translate(-50%, -1px) scale(0.98);
+            opacity: 0.75;
+          }
+          50% {
+            transform: translate(-50%, 3px) scale(1.02);
+            opacity: 0.95;
+          }
+          100% {
+            transform: translate(-50%, -1px) scale(0.98);
+            opacity: 0.75;
+          }
+        }
+        .flow-steps-column .flow-step__label {
+          display: block;
+          writing-mode: vertical-rl;
+          transform: rotate(180deg);
+          font-size: 11px;
+          letter-spacing: 0.5px;
+          text-align: center;
+          color: var(--color-text);
+        }
+        .flow-steps-column .flow-step__behavior {
+          display: none;
+        }
+        .flow-content-column {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+          position: relative;
+        }
+        .flow-content-header {
+          display: none;
+        }
+        .flow-header-menu {
+          position: absolute;
+          right: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          padding: 4px 0;
+          font-size: 20px;
+          color: var(--color-text-muted);
+          transition: color 0.2s;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         .flow-empty {
           padding: 12px 14px;
@@ -1913,11 +2886,14 @@ function App() {
           font-size: 13px;
           position: relative;
           background: var(--color-surface);
-          border: none;
+          border: 1px solid var(--color-border);
           border-bottom: 1px solid var(--color-border);
           width: 100%;
           text-align: left;
           font: inherit;
+        }
+        .flow-steps-column .flow-step {
+          border: 1px solid var(--color-border);
         }
         .flow-step:disabled {
           opacity: 0.5;
@@ -1925,7 +2901,6 @@ function App() {
         }
         .flow-step__label {
           font-weight: 600;
-          text-transform: uppercase;
           font-size: 13px;
         }
         .flow-step__behavior {
@@ -1936,17 +2911,6 @@ function App() {
           border: 1px solid var(--color-border);
           border-radius: 999px;
           padding: 2px 8px;
-        }
-        .flow-step[data-final="true"] {
-          background: #ecfdf3;
-        }
-        .flow-step[data-final="true"] .dot {
-          border-color: #16a34a;
-          color: #16a34a;
-        }
-        .flow-step[data-final="true"].active .dot {
-          background: #16a34a;
-          box-shadow: 0 0 0 3px rgba(22,163,74,0.2);
         }
         .flow-step[data-ui-behavior="HistoryBehavior.jsx"] {
           background: #fef9c3;
@@ -1970,13 +2934,13 @@ function App() {
           width: 16px;
           height: 16px;
           border-radius: 50%;
-          border: 2px solid var(--color-primary);
+          border: 2px solid var(--color-text-muted);
           background: var(--color-surface);
           display: inline-flex;
           align-items: center;
           justify-content: center;
           font-size: 10px;
-          color: var(--color-primary);
+          color: var(--color-text-muted);
           z-index: 1;
           position: relative;
         }
@@ -2000,18 +2964,17 @@ function App() {
           background: var(--color-primary);
           color: var(--color-surface);
           box-shadow: 0 0 0 3px rgba(15,118,110,0.15);
+          border-color: var(--color-primary);
         }
-        .flow-step[data-final="true"] .dot {
-          width: 22px;
-          height: 22px;
-          border-width: 3px;
+        .flow-steps-column .flow-step.active .dot {
+          border-color: #ffffff;
         }
         .flow-inline-content {
-          border-left: 4px solid var(--color-primary);
+          border-left: none;
           background: var(--color-surface-alt);
-          border: 1px solid var(--color-border);
-          border-radius: 10px;
-          margin: 4px 8px 10px 8px;
+          border: none;
+          border-radius: 4px;
+          margin: 0;
           padding: 0;
           display: flex;
           flex-direction: column;
@@ -2019,6 +2982,9 @@ function App() {
           min-height: 0;
           max-height: 100%;
           overflow: hidden;
+        }
+        .flow-inline-content * {
+          border-radius: 0 !important;
         }
         .flow-subtabs {
           display: flex;
@@ -2358,10 +3324,11 @@ function App() {
         style={{
           background: "var(--color-surface)",
           border: "1px solid var(--color-border)",
-          borderRadius: "8px",
+          borderRadius: "6px",
           padding: "8px 4px",
           marginBottom: "4px",
           minHeight: "40px",
+          boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}>
@@ -2385,7 +3352,7 @@ function App() {
       >
         <div
           style={{
-            flex: `${1 - infoRatio} 1 0`,
+            flex: isFlowPanelHidden ? "1 1 0" : `${1 - infoRatio} 1 0`,
             display: "flex",
             flexDirection: "column",
             gap: "4px",
@@ -2401,350 +3368,648 @@ function App() {
               minHeight: 0,
               display: "flex",
               flexDirection: "column",
+              overflow: "visible",
             }}
           >
             <div className="meta" style={{ display: "none" }}>
               {/* Document register header hidden */}
             </div>
-            <div className="table-wrapper">
+            <div
+              className="table-wrapper"
+              ref={tableWrapperRef}
+              style={{ flex: 1, minHeight: 0, overflow: "auto" }}
+            >
               <table className="table">
                 <thead>
                   <tr>
-                    {visibleColumns.map((col) => (
-                      <th
-                        key={col.key}
-                        style={{
-                          position: "relative",
-                          width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
-                          minWidth: columnWidths[col.key]
-                            ? `${columnWidths[col.key]}px`
-                            : undefined,
-                        }}
-                      >
-                        <div>{col.label}</div>
-                        <input
-                          value={filters[col.key]}
-                          placeholder="Search..."
-                          onChange={(e) => handleFilterChange(col.key, e.target.value)}
-                        />
-                        <button
-                          type="button"
-                          onMouseDown={(e) => startColResize(e, col.key)}
+                    {visibleColumns.map((col) => {
+                      return (
+                        <th
+                          key={col.key}
+                          draggable
+                          onDragStart={(event) => handleColumnDragStart(event, col.id)}
+                          onDragOver={handleColumnDragOver}
+                          onDrop={(event) => handleColumnDrop(event, col.id)}
                           style={{
-                            position: "absolute",
+                            position: "sticky",
                             top: 0,
-                            right: 0,
-                            width: "6px",
-                            height: "100%",
-                            cursor: "col-resize",
-                            background: "transparent",
-                            border: "none",
-                            padding: 0,
-                          }}
-                          title="Drag to resize column"
-                          aria-label={`Resize column ${col.label}`}
-                        />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {isAdding && project && !documentsLoading && (
-                    <>
-                      <tr>
-                        {visibleColumns.map((col) => {
-                          const cellStyle = {
+                            zIndex: 3,
                             width: columnWidths[col.key] ? `${columnWidths[col.key]}px` : undefined,
                             minWidth: columnWidths[col.key]
                               ? `${columnWidths[col.key]}px`
                               : undefined,
-                          };
-
-                          if (col.id === "doc_name") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                  }}
-                                  value={newDocValues.doc_name_unique}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => ({
-                                      ...prev,
-                                      doc_name_unique: e.target.value,
-                                    }))
-                                  }
-                                  disabled={createStatus === "saving"}
-                                  placeholder="Document name"
-                                />
-                              </td>
-                            );
-                          }
-
-                          if (col.id === "title") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                  }}
-                                  value={newDocValues.title}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => ({ ...prev, title: e.target.value }))
-                                  }
-                                  disabled={createStatus === "saving"}
-                                  placeholder="Title"
-                                />
-                              </td>
-                            );
-                          }
-
-                          if (col.id === "discipline") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                    background: "var(--color-surface)",
-                                  }}
-                                  value={String(newDocValues.discipline_id ?? "")}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => {
-                                      const nextDiscipline = e.target.value;
-                                      const nextTypes = docTypes.filter(
-                                        (item) =>
-                                          String(item.ref_discipline_id ?? "") === nextDiscipline,
-                                      );
-                                      const currentTypeMatches = docTypes.find(
-                                        (item) =>
-                                          String(item.type_id) === String(prev.type_id) &&
-                                          String(item.ref_discipline_id ?? "") === nextDiscipline,
-                                      );
-                                      return {
-                                        ...prev,
-                                        discipline_id: nextDiscipline,
-                                        type_id: currentTypeMatches
-                                          ? prev.type_id
-                                          : String(nextTypes[0]?.type_id ?? ""),
-                                      };
-                                    })
-                                  }
-                                  disabled={createStatus === "saving"}
-                                >
-                                  <option value="">Select discipline...</option>
-                                  {disciplines.map((item) => (
-                                    <option
-                                      key={item.discipline_id}
-                                      value={String(item.discipline_id)}
-                                    >
-                                      {item.discipline_name}
-                                      {item.discipline_acronym
-                                        ? ` (${item.discipline_acronym})`
-                                        : ""}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
-
-                          if (col.id === "doc_type") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                    background: "var(--color-surface)",
-                                  }}
-                                  value={String(newDocValues.type_id ?? "")}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => {
-                                      const nextType = e.target.value;
-                                      const selectedType = docTypes.find(
-                                        (item) => String(item.type_id) === nextType,
-                                      );
-                                      return {
-                                        ...prev,
-                                        type_id: nextType,
-                                        discipline_id:
-                                          selectedType?.ref_discipline_id ?? prev.discipline_id,
-                                      };
-                                    })
-                                  }
-                                  disabled={createStatus === "saving"}
-                                >
-                                  <option value="">Select type...</option>
-                                  {newDocTypeOptions.map((item) => (
-                                    <option key={item.type_id} value={String(item.type_id)}>
-                                      {item.doc_type_name}
-                                      {item.discipline_acronym
-                                        ? ` (${item.discipline_acronym})`
-                                        : ""}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
-
-                          if (col.id === "jobpack") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                    background: "var(--color-surface)",
-                                  }}
-                                  value={String(newDocValues.jobpack_id ?? "")}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => ({
-                                      ...prev,
-                                      jobpack_id: e.target.value,
-                                    }))
-                                  }
-                                  disabled={createStatus === "saving"}
-                                >
-                                  <option value="">Select jobpack...</option>
-                                  {jobpacks.map((item) => (
-                                    <option key={item.jobpack_id} value={String(item.jobpack_id)}>
-                                      {item.jobpack_name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
-
-                          if (col.id === "area") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                    background: "var(--color-surface)",
-                                  }}
-                                  value={String(newDocValues.area_id ?? "")}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => ({
-                                      ...prev,
-                                      area_id: e.target.value,
-                                    }))
-                                  }
-                                  disabled={createStatus === "saving"}
-                                >
-                                  <option value="">Select area...</option>
-                                  {areas.map((item) => (
-                                    <option key={item.area_id} value={String(item.area_id)}>
-                                      {item.area_name}
-                                      {item.area_acronym ? ` (${item.area_acronym})` : ""}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
-
-                          if (col.id === "unit") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                    background: "var(--color-surface)",
-                                  }}
-                                  value={String(newDocValues.unit_id ?? "")}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => ({
-                                      ...prev,
-                                      unit_id: e.target.value,
-                                    }))
-                                  }
-                                  disabled={createStatus === "saving"}
-                                >
-                                  <option value="">Select unit...</option>
-                                  {units.map((item) => (
-                                    <option key={item.unit_id} value={String(item.unit_id)}>
-                                      {item.unit_name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
-
-                          if (col.id === "rev_code") {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 8px",
-                                    borderRadius: "8px",
-                                    border: "1px solid var(--color-border-strong)",
-                                    background: "var(--color-surface)",
-                                  }}
-                                  value={String(newDocValues.rev_code_id ?? "")}
-                                  onChange={(e) =>
-                                    setNewDocValues((prev) => ({
-                                      ...prev,
-                                      rev_code_id: e.target.value,
-                                    }))
-                                  }
-                                  disabled={createStatus === "saving"}
-                                >
-                                  <option value="">Select rev code...</option>
-                                  {revisionOverviews.map((item) => (
-                                    <option key={item.rev_code_id} value={String(item.rev_code_id)}>
-                                      {item.rev_code_acronym
-                                        ? `${item.rev_code_acronym} (${item.rev_code_name})`
-                                        : item.rev_code_name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
-
-                          return (
-                            <td key={col.key} style={cellStyle}>
-                              —
-                            </td>
-                          );
-                        })}
-                      </tr>
-                      {createError && (
-                        <tr>
-                          <td
-                            colSpan={visibleColumns.length}
-                            style={{ color: "var(--color-danger)", padding: "6px 10px" }}
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: "6px",
+                            }}
                           >
-                            {createError}
-                          </td>
+                            <span>{col.label}</span>
+                            <div
+                              data-column-menu
+                              style={{ position: "relative", display: "inline-flex" }}
+                            >
+                              <button
+                                type="button"
+                                title={`${col.label} column menu`}
+                                aria-label={`${col.label} column menu`}
+                                onClick={(event) => toggleColumnMenu(event, col.key)}
+                                style={{
+                                  border: "none",
+                                  background: "transparent",
+                                  padding: "0 2px",
+                                  lineHeight: 1,
+                                  cursor: "pointer",
+                                  color: "var(--color-text-muted)",
+                                  fontSize: "14px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                ⋮
+                              </button>
+                              {columnMenuOpen === col.key
+                                ? ReactDOM.createPortal(
+                                    <div
+                                      data-column-menu
+                                      style={{
+                                        position: "fixed",
+                                        top: columnMenuPosition.top,
+                                        left: columnMenuPosition.left,
+                                        background: "var(--color-surface)",
+                                        border: "1px solid var(--color-border)",
+                                        borderRadius: "0",
+                                        boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
+                                        zIndex: 5000,
+                                        minWidth: "220px",
+                                        overflow: "visible",
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSortConfig({ key: col.key, direction: "asc" });
+                                          setColumnMenuOpen(null);
+                                        }}
+                                        onMouseEnter={(event) => {
+                                          event.currentTarget.style.background =
+                                            "var(--color-surface-muted)";
+                                        }}
+                                        onMouseLeave={(event) => {
+                                          event.currentTarget.style.background = "transparent";
+                                        }}
+                                        style={{
+                                          width: "100%",
+                                          padding: "8px 12px",
+                                          textAlign: "left",
+                                          background: "transparent",
+                                          border: "none",
+                                          cursor: "pointer",
+                                          fontSize: "12px",
+                                          color: "var(--color-text)",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "8px",
+                                        }}
+                                      >
+                                        <span style={{ fontSize: "12px" }}>↑</span>
+                                        Sort Ascending
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSortConfig({ key: col.key, direction: "desc" });
+                                          setColumnMenuOpen(null);
+                                        }}
+                                        onMouseEnter={(event) => {
+                                          event.currentTarget.style.background =
+                                            "var(--color-surface-muted)";
+                                        }}
+                                        onMouseLeave={(event) => {
+                                          event.currentTarget.style.background = "transparent";
+                                        }}
+                                        style={{
+                                          width: "100%",
+                                          padding: "8px 12px",
+                                          textAlign: "left",
+                                          background: "transparent",
+                                          border: "none",
+                                          cursor: "pointer",
+                                          fontSize: "12px",
+                                          color: "var(--color-text)",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "8px",
+                                        }}
+                                      >
+                                        <span style={{ fontSize: "12px" }}>↓</span>
+                                        Sort Descending
+                                      </button>
+                                      <div
+                                        style={{
+                                          borderTop: "1px solid var(--color-border-soft)",
+                                          margin: "2px 0",
+                                        }}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => setColumnSubmenuOpen((prev) => !prev)}
+                                        onMouseEnter={(event) => {
+                                          event.currentTarget.style.background =
+                                            "var(--color-surface-muted)";
+                                        }}
+                                        onMouseLeave={(event) => {
+                                          event.currentTarget.style.background = "transparent";
+                                        }}
+                                        style={{
+                                          position: "relative",
+                                          padding: "6px 12px",
+                                          fontSize: "12px",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "space-between",
+                                          cursor: "pointer",
+                                          color: "var(--color-text)",
+                                        }}
+                                      >
+                                        <span
+                                          style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "8px",
+                                          }}
+                                        >
+                                          <span style={{ fontSize: "12px" }}>▥</span>
+                                          Columns
+                                        </span>
+                                        <span
+                                          style={{
+                                            fontSize: "12px",
+                                            color: "var(--color-text-muted)",
+                                          }}
+                                        >
+                                          ▶
+                                        </span>
+                                        {columnSubmenuOpen ? (
+                                          <div
+                                            data-column-menu
+                                            style={{
+                                              position: "absolute",
+                                              top: 0,
+                                              left: "100%",
+                                              marginLeft: "6px",
+                                              background: "var(--color-surface)",
+                                              border: "1px solid var(--color-border)",
+                                              borderRadius: "0",
+                                              boxShadow: "0 6px 14px rgba(0,0,0,0.12)",
+                                              zIndex: 5001,
+                                              minWidth: "220px",
+                                              maxHeight: "260px",
+                                              overflowY: "auto",
+                                              padding: "8px 12px",
+                                            }}
+                                          >
+                                            <label
+                                              style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "16px 1fr",
+                                                alignItems: "center",
+                                                columnGap: "8px",
+                                                fontSize: "12px",
+                                                padding: "4px 0",
+                                                cursor: "pointer",
+                                                textAlign: "left",
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              <input
+                                                type="checkbox"
+                                                checked={allColumns
+                                                  .filter((colItem) => colItem.id !== "doc_id")
+                                                  .every(
+                                                    (colItem) => !hiddenColumnIds.has(colItem.id),
+                                                  )}
+                                                onClick={(event) => event.stopPropagation()}
+                                                onChange={(event) => {
+                                                  const checked = event.target.checked;
+                                                  setHiddenColumnIds((prev) => {
+                                                    const next = new Set(prev);
+                                                    const nonIdColumns = allColumns.filter(
+                                                      (colItem) => colItem.id !== "doc_id",
+                                                    );
+                                                    if (checked) {
+                                                      nonIdColumns.forEach((colItem) =>
+                                                        next.delete(colItem.id),
+                                                      );
+                                                    } else {
+                                                      nonIdColumns.forEach((colItem) =>
+                                                        next.add(colItem.id),
+                                                      );
+                                                      if (nonIdColumns.length) {
+                                                        next.delete(nonIdColumns[0].id);
+                                                      }
+                                                    }
+                                                    return next;
+                                                  });
+                                                }}
+                                                style={{ margin: 0 }}
+                                              />
+                                              <span style={{ textAlign: "left" }}>Show All</span>
+                                            </label>
+                                            <div
+                                              style={{
+                                                borderTop: "1px solid var(--color-border-soft)",
+                                                margin: "4px 0",
+                                              }}
+                                            />
+                                            {columnOrder
+                                              .map((id) =>
+                                                allColumns.find((colItem) => colItem.id === id),
+                                              )
+                                              .filter(Boolean)
+                                              .filter((colItem) => colItem.id !== "doc_id")
+                                              .map((colItem) => {
+                                                const isVisible = !hiddenColumnIds.has(colItem.id);
+                                                return (
+                                                  <label
+                                                    key={colItem.id}
+                                                    style={{
+                                                      display: "grid",
+                                                      gridTemplateColumns: "16px 1fr",
+                                                      alignItems: "center",
+                                                      columnGap: "8px",
+                                                      fontSize: "12px",
+                                                      padding: "4px 0",
+                                                      cursor: "pointer",
+                                                      textAlign: "left",
+                                                    }}
+                                                  >
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={isVisible}
+                                                      onClick={(event) => event.stopPropagation()}
+                                                      onChange={() =>
+                                                        toggleColumnVisibility(colItem.id)
+                                                      }
+                                                      style={{ margin: 0 }}
+                                                    />
+                                                    <span style={{ textAlign: "left" }}>
+                                                      {colItem.label}
+                                                    </span>
+                                                  </label>
+                                                );
+                                              })}
+                                          </div>
+                                        ) : null}
+                                      </button>
+                                    </div>,
+                                    document.body,
+                                  )
+                                : null}
+                            </div>
+                          </div>
+                          <input
+                            value={filters[col.key] || ""}
+                            placeholder="Search..."
+                            onChange={(e) => handleFilterChange(col.key, e.target.value)}
+                            style={{ width: "100%", marginTop: "6px" }}
+                          />
+                          <button
+                            type="button"
+                            onMouseDown={(e) => startColResize(e, col.key)}
+                            draggable={false}
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              right: 0,
+                              width: "6px",
+                              height: "100%",
+                              cursor: "col-resize",
+                              background: "transparent",
+                              border: "none",
+                              padding: 0,
+                            }}
+                            title="Drag to resize column"
+                            aria-label={`Resize column ${col.label}`}
+                          />
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Boolean(window.__FLOW_ENABLE_INLINE_ADD__) &&
+                    isAdding &&
+                    project &&
+                    !documentsLoading && (
+                      <>
+                        <tr className="editing">
+                          {visibleColumns.map((col) => {
+                            const cellStyle = {
+                              width: columnWidths[col.key]
+                                ? `${columnWidths[col.key]}px`
+                                : undefined,
+                              minWidth: columnWidths[col.key]
+                                ? `${columnWidths[col.key]}px`
+                                : undefined,
+                            };
+
+                            if (col.id === "doc_name") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <input
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                    }}
+                                    value={newDocValues.doc_name_unique}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => ({
+                                        ...prev,
+                                        doc_name_unique: e.target.value,
+                                      }))
+                                    }
+                                    disabled={createStatus === "saving"}
+                                    placeholder="Document name"
+                                  />
+                                </td>
+                              );
+                            }
+
+                            if (col.id === "title") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <input
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                    }}
+                                    value={newDocValues.title}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => ({
+                                        ...prev,
+                                        title: e.target.value,
+                                      }))
+                                    }
+                                    disabled={createStatus === "saving"}
+                                    placeholder="Title"
+                                  />
+                                </td>
+                              );
+                            }
+
+                            if (col.id === "discipline") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <select
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                      background: "var(--color-surface)",
+                                    }}
+                                    value={String(newDocValues.discipline_id ?? "")}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => {
+                                        const nextDiscipline = e.target.value;
+                                        const nextTypes = docTypes.filter(
+                                          (item) =>
+                                            String(item.ref_discipline_id ?? "") === nextDiscipline,
+                                        );
+                                        const currentTypeMatches = docTypes.find(
+                                          (item) =>
+                                            String(item.type_id) === String(prev.type_id) &&
+                                            String(item.ref_discipline_id ?? "") === nextDiscipline,
+                                        );
+                                        return {
+                                          ...prev,
+                                          discipline_id: nextDiscipline,
+                                          type_id: currentTypeMatches
+                                            ? prev.type_id
+                                            : String(nextTypes[0]?.type_id ?? ""),
+                                        };
+                                      })
+                                    }
+                                    disabled={createStatus === "saving"}
+                                  >
+                                    <option value="">Select discipline...</option>
+                                    {disciplines.map((item) => (
+                                      <option
+                                        key={item.discipline_id}
+                                        value={String(item.discipline_id)}
+                                      >
+                                        {item.discipline_name}
+                                        {item.discipline_acronym
+                                          ? ` (${item.discipline_acronym})`
+                                          : ""}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+
+                            if (col.id === "doc_type") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <select
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                      background: "var(--color-surface)",
+                                    }}
+                                    value={String(newDocValues.type_id ?? "")}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => {
+                                        const nextType = e.target.value;
+                                        const selectedType = docTypes.find(
+                                          (item) => String(item.type_id) === nextType,
+                                        );
+                                        return {
+                                          ...prev,
+                                          type_id: nextType,
+                                          discipline_id:
+                                            selectedType?.ref_discipline_id ?? prev.discipline_id,
+                                        };
+                                      })
+                                    }
+                                    disabled={createStatus === "saving"}
+                                  >
+                                    <option value="">Select type...</option>
+                                    {newDocTypeOptions.map((item) => (
+                                      <option key={item.type_id} value={String(item.type_id)}>
+                                        {item.doc_type_name}
+                                        {item.discipline_acronym
+                                          ? ` (${item.discipline_acronym})`
+                                          : ""}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+
+                            if (col.id === "jobpack") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <select
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                      background: "var(--color-surface)",
+                                    }}
+                                    value={String(newDocValues.jobpack_id ?? "")}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => ({
+                                        ...prev,
+                                        jobpack_id: e.target.value,
+                                      }))
+                                    }
+                                    disabled={createStatus === "saving"}
+                                  >
+                                    <option value="">Select jobpack...</option>
+                                    {jobpacks.map((item) => (
+                                      <option key={item.jobpack_id} value={String(item.jobpack_id)}>
+                                        {item.jobpack_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+
+                            if (col.id === "area") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <select
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                      background: "var(--color-surface)",
+                                    }}
+                                    value={String(newDocValues.area_id ?? "")}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => ({
+                                        ...prev,
+                                        area_id: e.target.value,
+                                      }))
+                                    }
+                                    disabled={createStatus === "saving"}
+                                  >
+                                    <option value="">Select area...</option>
+                                    {areas.map((item) => (
+                                      <option key={item.area_id} value={String(item.area_id)}>
+                                        {item.area_name}
+                                        {item.area_acronym ? ` (${item.area_acronym})` : ""}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+
+                            if (col.id === "unit") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <select
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                      background: "var(--color-surface)",
+                                    }}
+                                    value={String(newDocValues.unit_id ?? "")}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => ({
+                                        ...prev,
+                                        unit_id: e.target.value,
+                                      }))
+                                    }
+                                    disabled={createStatus === "saving"}
+                                  >
+                                    <option value="">Select unit...</option>
+                                    {units.map((item) => (
+                                      <option key={item.unit_id} value={String(item.unit_id)}>
+                                        {item.unit_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+
+                            if (col.id === "rev_code") {
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  <select
+                                    style={{
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      borderRadius: "8px",
+                                      border: "1px solid var(--color-border-strong)",
+                                      background: "var(--color-surface)",
+                                    }}
+                                    value={String(newDocValues.rev_code_id ?? "")}
+                                    onChange={(e) =>
+                                      setNewDocValues((prev) => ({
+                                        ...prev,
+                                        rev_code_id: e.target.value,
+                                      }))
+                                    }
+                                    disabled={createStatus === "saving"}
+                                  >
+                                    <option value="">Select rev code...</option>
+                                    {revCodeOptions.map((item) => (
+                                      <option
+                                        key={item.rev_code_id}
+                                        value={String(item.rev_code_id)}
+                                      >
+                                        {item.rev_code_acronym
+                                          ? `${item.rev_code_acronym} (${item.rev_code_name})`
+                                          : item.rev_code_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                              );
+                            }
+
+                            return (
+                              <td key={col.key} style={cellStyle}>
+                                —
+                              </td>
+                            );
+                          })}
                         </tr>
-                      )}
-                    </>
-                  )}
+                        {createError && (
+                          <tr>
+                            <td
+                              colSpan={visibleColumns.length}
+                              style={{ color: "var(--color-danger)", padding: "6px 10px" }}
+                            >
+                              {createError}
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    )}
                   {documentsLoading ? (
                     <tr>
                       <td className="status-row" colSpan={visibleColumns.length}>
@@ -2763,42 +4028,173 @@ function App() {
                         Select a project to load documents.
                       </td>
                     </tr>
-                  ) : filteredDocuments.length === 0 ? (
+                  ) : filteredDocuments.length === 0 && pastedRows.length === 0 ? (
                     <tr>
                       <td className="status-row" colSpan={visibleColumns.length}>
                         No documents match your filters.
                       </td>
                     </tr>
                   ) : (
-                    filteredDocuments.map((doc) => {
-                      const rowId = doc.doc_id || doc.doc_name || doc.id;
-                      const isEditing = editRowId === rowId;
+                    <>
+                      {sortedDocuments.map((doc, idx) => {
+                        const rowId = doc.doc_id || doc.doc_name || doc.id;
+                        const isEditing = editRowId === rowId;
+                        const isSelected = selectedDocIds.has(rowId);
+                        const isCopied = copiedDocIds.has(rowId);
+                        const isCreated = lastCreatedDocIds.has(rowId);
 
-                      return (
-                        <tr
-                          key={rowId}
-                          onClick={() => {
-                            setSelectedDocId(rowId);
-                            // Find and expand InDesign tab
-                            const inDesignStatus = orderedStatuses.find(
-                              (s) => s.rev_status_name?.toLowerCase() === "indesign",
-                            );
-                            if (inDesignStatus) {
-                              setInfoActiveStep(String(inDesignStatus.rev_status_id));
+                        return (
+                          <tr
+                            key={rowId}
+                            data-row-id={rowId}
+                            className={
+                              `${isSelected ? "selected" : ""} ${isCopied ? "copied" : ""} ${isEditing ? "editing" : ""} ${isCreated ? "created" : ""}`.trim() ||
+                              undefined
                             }
-                          }}
-                          onDoubleClick={() => startEdit(doc)}
-                          style={{
-                            background:
-                              selectedDocId === rowId ? "var(--color-row-selected)" : undefined,
-                          }}
-                        >
-                          {visibleColumns.map((col) => {
-                            const isEditable = col.id === "doc_name" || col.id === "title";
-                            const selectConfig = lookupOptionsByColumn[col.id];
-                            const value = renderCell(doc, col);
+                            onClick={(event) => {
+                              const isMultiToggle = event.ctrlKey || event.metaKey;
+                              const isRange = event.shiftKey;
+                              if (isRange && lastSelectedRowIndex !== null) {
+                                const start = Math.min(lastSelectedRowIndex, idx);
+                                const end = Math.max(lastSelectedRowIndex, idx);
+                                const rangeIds = sortedDocuments
+                                  .slice(start, end + 1)
+                                  .map((item) => item.doc_id || item.doc_name || item.id);
+                                setSelectedDocIds((prev) => {
+                                  const next = new Set(prev);
+                                  rangeIds.forEach((id) => next.add(id));
+                                  return next;
+                                });
+                              } else if (isMultiToggle) {
+                                setSelectedDocIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(rowId)) {
+                                    next.delete(rowId);
+                                  } else {
+                                    next.add(rowId);
+                                  }
+                                  return next;
+                                });
+                              } else {
+                                setSelectedDocIds(new Set([rowId]));
+                              }
+                              setSelectedDocId(rowId);
+                              setLastSelectedRowIndex(idx);
+                              setActiveDetailTab("Revisions");
+                              setInfoActiveStep(null);
+                            }}
+                            onDoubleClick={(event) => event.preventDefault()}
+                            style={{
+                              cursor: "pointer",
+                            }}
+                          >
+                            {visibleColumns.map((col) => {
+                              const isEditable = col.id === "doc_name" || col.id === "title";
+                              const selectConfig = lookupOptionsByColumn[col.id];
+                              const value = renderCell(doc, col);
 
-                            if (isEditing && (isEditable || selectConfig)) {
+                              if (isEditing && (isEditable || selectConfig)) {
+                                return (
+                                  <td
+                                    key={col.key}
+                                    style={{
+                                      width: columnWidths[col.key]
+                                        ? `${columnWidths[col.key]}px`
+                                        : undefined,
+                                      minWidth: columnWidths[col.key]
+                                        ? `${columnWidths[col.key]}px`
+                                        : undefined,
+                                    }}
+                                  >
+                                    {selectConfig ? (
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(editValues[selectConfig.field] ?? "")}
+                                        onChange={(e) =>
+                                          setEditValues((prev) => {
+                                            const nextValue = e.target.value;
+                                            if (selectConfig.field === "type_id") {
+                                              const selectedType = selectConfig.options.find(
+                                                (item) =>
+                                                  String(item[selectConfig.valueKey]) === nextValue,
+                                              );
+                                              return {
+                                                ...prev,
+                                                type_id: nextValue,
+                                                discipline_id:
+                                                  selectedType?.ref_discipline_id ??
+                                                  prev.discipline_id,
+                                              };
+                                            }
+                                            if (selectConfig.field === "discipline_id") {
+                                              const nextTypes = docTypes.filter(
+                                                (item) =>
+                                                  String(item.ref_discipline_id ?? "") ===
+                                                  nextValue,
+                                              );
+                                              const currentTypeMatches = docTypes.find(
+                                                (item) =>
+                                                  String(item.type_id) === String(prev.type_id) &&
+                                                  String(item.ref_discipline_id ?? "") ===
+                                                    nextValue,
+                                              );
+                                              return {
+                                                ...prev,
+                                                discipline_id: nextValue,
+                                                type_id: currentTypeMatches
+                                                  ? prev.type_id
+                                                  : String(nextTypes[0]?.type_id ?? ""),
+                                              };
+                                            }
+                                            return {
+                                              ...prev,
+                                              [selectConfig.field]: nextValue,
+                                            };
+                                          })
+                                        }
+                                      >
+                                        <option value="">{selectConfig.placeholder}</option>
+                                        {selectConfig.options.map((item) => {
+                                          const optionValue = item[selectConfig.valueKey];
+                                          return (
+                                            <option key={optionValue} value={String(optionValue)}>
+                                              {selectConfig.getLabel(item)}
+                                            </option>
+                                          );
+                                        })}
+                                      </select>
+                                    ) : (
+                                      <input
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                        }}
+                                        value={
+                                          col.id === "doc_name"
+                                            ? editValues.doc_name_unique
+                                            : editValues.title
+                                        }
+                                        onChange={(e) =>
+                                          setEditValues((prev) => ({
+                                            ...prev,
+                                            [col.id === "doc_name" ? "doc_name_unique" : "title"]:
+                                              e.target.value,
+                                          }))
+                                        }
+                                      />
+                                    )}
+                                  </td>
+                                );
+                              }
+
                               return (
                                 <td
                                   key={col.key}
@@ -2811,7 +4207,650 @@ function App() {
                                       : undefined,
                                   }}
                                 >
-                                  {selectConfig ? (
+                                  {value}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                      {Boolean(window.__FLOW_ENABLE_INLINE_ADD__) &&
+                        isAdding &&
+                        project &&
+                        !documentsLoading && (
+                          <>
+                            <tr className="editing">
+                              {visibleColumns.map((col) => {
+                                const cellStyle = {
+                                  width: columnWidths[col.key]
+                                    ? `${columnWidths[col.key]}px`
+                                    : undefined,
+                                  minWidth: columnWidths[col.key]
+                                    ? `${columnWidths[col.key]}px`
+                                    : undefined,
+                                };
+
+                                if (col.id === "doc_name") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <input
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                        }}
+                                        value={newDocValues.doc_name_unique}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            doc_name_unique: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                        placeholder="Document name"
+                                      />
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "title") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <input
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                        }}
+                                        value={newDocValues.title}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            title: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                        placeholder="Title"
+                                      />
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "discipline") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(newDocValues.discipline_id ?? "")}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => {
+                                            const nextDiscipline = e.target.value;
+                                            const nextTypes = docTypes.filter(
+                                              (item) =>
+                                                String(item.ref_discipline_id ?? "") ===
+                                                nextDiscipline,
+                                            );
+                                            const currentTypeMatches = docTypes.find(
+                                              (item) =>
+                                                String(item.type_id) === String(prev.type_id) &&
+                                                String(item.ref_discipline_id ?? "") ===
+                                                  nextDiscipline,
+                                            );
+                                            return {
+                                              ...prev,
+                                              discipline_id: nextDiscipline,
+                                              type_id: currentTypeMatches
+                                                ? prev.type_id
+                                                : String(nextTypes[0]?.type_id ?? ""),
+                                            };
+                                          })
+                                        }
+                                        disabled={createStatus === "saving"}
+                                      >
+                                        <option value="">Select discipline...</option>
+                                        {disciplines.map((item) => (
+                                          <option
+                                            key={item.discipline_id}
+                                            value={String(item.discipline_id)}
+                                          >
+                                            {item.discipline_name}
+                                            {item.discipline_acronym
+                                              ? ` (${item.discipline_acronym})`
+                                              : ""}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "doc_type") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(newDocValues.type_id ?? "")}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            type_id: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                      >
+                                        <option value="">Select type...</option>
+                                        {docTypes
+                                          .filter(
+                                            (item) =>
+                                              !newDocValues.discipline_id ||
+                                              String(item.ref_discipline_id ?? "") ===
+                                                String(newDocValues.discipline_id),
+                                          )
+                                          .map((item) => (
+                                            <option key={item.type_id} value={String(item.type_id)}>
+                                              {item.doc_type_name}
+                                              {item.discipline_acronym
+                                                ? ` (${item.discipline_acronym})`
+                                                : ""}
+                                            </option>
+                                          ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "jobpack") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(newDocValues.jobpack_id ?? "")}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            jobpack_id: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                      >
+                                        <option value="">Select jobpack...</option>
+                                        {jobpacks.map((item) => (
+                                          <option
+                                            key={item.jobpack_id}
+                                            value={String(item.jobpack_id)}
+                                          >
+                                            {item.jobpack_name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "area") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(newDocValues.area_id ?? "")}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            area_id: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                      >
+                                        <option value="">Select area...</option>
+                                        {areas.map((item) => (
+                                          <option key={item.area_id} value={String(item.area_id)}>
+                                            {item.area_name}
+                                            {item.area_acronym ? ` (${item.area_acronym})` : ""}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "unit") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(newDocValues.unit_id ?? "")}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            unit_id: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                      >
+                                        <option value="">Select unit...</option>
+                                        {units.map((item) => (
+                                          <option key={item.unit_id} value={String(item.unit_id)}>
+                                            {item.unit_name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "rev_code") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(newDocValues.rev_code_id ?? "")}
+                                        onChange={(e) =>
+                                          setNewDocValues((prev) => ({
+                                            ...prev,
+                                            rev_code_id: e.target.value,
+                                          }))
+                                        }
+                                        disabled={createStatus === "saving"}
+                                      >
+                                        <option value="">Select rev code...</option>
+                                        {revCodeOptions.map((item) => (
+                                          <option
+                                            key={item.rev_code_id}
+                                            value={String(item.rev_code_id)}
+                                          >
+                                            {item.rev_code_acronym
+                                              ? `${item.rev_code_acronym} (${item.rev_code_name})`
+                                              : item.rev_code_name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    —
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                            {createError && (
+                              <tr>
+                                <td
+                                  colSpan={visibleColumns.length}
+                                  style={{ color: "var(--color-danger)", padding: "6px 10px" }}
+                                >
+                                  {createError}
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        )}
+                      {pastedRows.length > 0 && (
+                        <>
+                          {pastedRows.map((row, rowIdx) => (
+                            <tr key={`paste-${rowIdx}`} className="editing">
+                              {visibleColumns.map((col) => {
+                                const cellStyle = {
+                                  width: columnWidths[col.key]
+                                    ? `${columnWidths[col.key]}px`
+                                    : undefined,
+                                  minWidth: columnWidths[col.key]
+                                    ? `${columnWidths[col.key]}px`
+                                    : undefined,
+                                };
+                                const updateRow = (updates) =>
+                                  setPastedRows((prev) => {
+                                    const next = [...prev];
+                                    next[rowIdx] = { ...next[rowIdx], ...updates };
+                                    return next;
+                                  });
+
+                                if (col.id === "doc_name") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <input
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                        }}
+                                        value={row.doc_name_unique}
+                                        onChange={(e) =>
+                                          updateRow({ doc_name_unique: e.target.value })
+                                        }
+                                        placeholder="Document name"
+                                      />
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "title") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <input
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                        }}
+                                        value={row.title}
+                                        onChange={(e) => updateRow({ title: e.target.value })}
+                                        placeholder="Title"
+                                      />
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "discipline") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(row.discipline_id ?? "")}
+                                        onChange={(e) => {
+                                          const nextDiscipline = e.target.value;
+                                          const nextTypes = docTypes.filter(
+                                            (item) =>
+                                              String(item.ref_discipline_id ?? "") ===
+                                              nextDiscipline,
+                                          );
+                                          const currentTypeMatches = docTypes.find(
+                                            (item) =>
+                                              String(item.type_id) === String(row.type_id) &&
+                                              String(item.ref_discipline_id ?? "") ===
+                                                nextDiscipline,
+                                          );
+                                          updateRow({
+                                            discipline_id: nextDiscipline,
+                                            type_id: currentTypeMatches
+                                              ? row.type_id
+                                              : String(nextTypes[0]?.type_id ?? ""),
+                                          });
+                                        }}
+                                      >
+                                        <option value="">Select discipline...</option>
+                                        {disciplines.map((item) => (
+                                          <option
+                                            key={item.discipline_id}
+                                            value={String(item.discipline_id)}
+                                          >
+                                            {item.discipline_name}
+                                            {item.discipline_acronym
+                                              ? ` (${item.discipline_acronym})`
+                                              : ""}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "doc_type") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(row.type_id ?? "")}
+                                        onChange={(e) => updateRow({ type_id: e.target.value })}
+                                      >
+                                        <option value="">Select type...</option>
+                                        {docTypes
+                                          .filter(
+                                            (item) =>
+                                              !row.discipline_id ||
+                                              String(item.ref_discipline_id ?? "") ===
+                                                String(row.discipline_id),
+                                          )
+                                          .map((item) => (
+                                            <option key={item.type_id} value={String(item.type_id)}>
+                                              {item.doc_type_name}
+                                              {item.discipline_acronym
+                                                ? ` (${item.discipline_acronym})`
+                                                : ""}
+                                            </option>
+                                          ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "jobpack") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(row.jobpack_id ?? "")}
+                                        onChange={(e) => updateRow({ jobpack_id: e.target.value })}
+                                      >
+                                        <option value="">Select jobpack...</option>
+                                        {jobpacks.map((item) => (
+                                          <option
+                                            key={item.jobpack_id}
+                                            value={String(item.jobpack_id)}
+                                          >
+                                            {item.jobpack_name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "area") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(row.area_id ?? "")}
+                                        onChange={(e) => updateRow({ area_id: e.target.value })}
+                                      >
+                                        <option value="">Select area...</option>
+                                        {areas.map((item) => (
+                                          <option key={item.area_id} value={String(item.area_id)}>
+                                            {item.area_name}
+                                            {item.area_acronym ? ` (${item.area_acronym})` : ""}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "unit") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(row.unit_id ?? "")}
+                                        onChange={(e) => updateRow({ unit_id: e.target.value })}
+                                      >
+                                        <option value="">Select unit...</option>
+                                        {units.map((item) => (
+                                          <option key={item.unit_id} value={String(item.unit_id)}>
+                                            {item.unit_name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                if (col.id === "rev_code") {
+                                  return (
+                                    <td key={col.key} style={cellStyle}>
+                                      <select
+                                        style={{
+                                          width: "100%",
+                                          padding: "6px 8px",
+                                          borderRadius: "8px",
+                                          border: "1px solid var(--color-border-strong)",
+                                          background: "var(--color-surface)",
+                                        }}
+                                        value={String(row.rev_code_id ?? "")}
+                                        onChange={(e) => updateRow({ rev_code_id: e.target.value })}
+                                      >
+                                        <option value="">Select rev code...</option>
+                                        {revCodeOptions.map((item) => (
+                                          <option
+                                            key={item.rev_code_id}
+                                            value={String(item.rev_code_id)}
+                                          >
+                                            {item.rev_code_acronym
+                                              ? `${item.rev_code_acronym} (${item.rev_code_name})`
+                                              : item.rev_code_name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    —
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </>
+                      )}
+                      {isAdding && project && !documentsLoading && (
+                        <>
+                          <tr className="editing">
+                            {visibleColumns.map((col) => {
+                              const cellStyle = {
+                                width: columnWidths[col.key]
+                                  ? `${columnWidths[col.key]}px`
+                                  : undefined,
+                                minWidth: columnWidths[col.key]
+                                  ? `${columnWidths[col.key]}px`
+                                  : undefined,
+                              };
+
+                              if (col.id === "doc_name") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <input
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                      }}
+                                      value={newDocValues.doc_name_unique}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          doc_name_unique: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                      placeholder="Document name"
+                                    />
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "title") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <input
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                      }}
+                                      value={newDocValues.title}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          title: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                      placeholder="Title"
+                                    />
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "discipline") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
                                     <select
                                       style={{
                                         width: "100%",
@@ -2820,103 +4859,243 @@ function App() {
                                         border: "1px solid var(--color-border-strong)",
                                         background: "var(--color-surface)",
                                       }}
-                                      value={String(editValues[selectConfig.field] ?? "")}
+                                      value={String(newDocValues.discipline_id ?? "")}
                                       onChange={(e) =>
-                                        setEditValues((prev) => {
-                                          const nextValue = e.target.value;
-                                          if (selectConfig.field === "type_id") {
-                                            const selectedType = selectConfig.options.find(
-                                              (item) =>
-                                                String(item[selectConfig.valueKey]) === nextValue,
-                                            );
-                                            return {
-                                              ...prev,
-                                              type_id: nextValue,
-                                              discipline_id:
-                                                selectedType?.ref_discipline_id ??
-                                                prev.discipline_id,
-                                            };
-                                          }
-                                          if (selectConfig.field === "discipline_id") {
-                                            const nextTypes = docTypes.filter(
-                                              (item) =>
-                                                String(item.ref_discipline_id ?? "") === nextValue,
-                                            );
-                                            const currentTypeMatches = docTypes.find(
-                                              (item) =>
-                                                String(item.type_id) === String(prev.type_id) &&
-                                                String(item.ref_discipline_id ?? "") === nextValue,
-                                            );
-                                            return {
-                                              ...prev,
-                                              discipline_id: nextValue,
-                                              type_id: currentTypeMatches
-                                                ? prev.type_id
-                                                : String(nextTypes[0]?.type_id ?? ""),
-                                            };
-                                          }
+                                        setNewDocValues((prev) => {
+                                          const nextDiscipline = e.target.value;
+                                          const nextTypes = docTypes.filter(
+                                            (item) =>
+                                              String(item.ref_discipline_id ?? "") ===
+                                              nextDiscipline,
+                                          );
+                                          const currentTypeMatches = docTypes.find(
+                                            (item) =>
+                                              String(item.type_id) === String(prev.type_id) &&
+                                              String(item.ref_discipline_id ?? "") ===
+                                                nextDiscipline,
+                                          );
                                           return {
                                             ...prev,
-                                            [selectConfig.field]: nextValue,
+                                            discipline_id: nextDiscipline,
+                                            type_id: currentTypeMatches
+                                              ? prev.type_id
+                                              : String(nextTypes[0]?.type_id ?? ""),
                                           };
                                         })
                                       }
+                                      disabled={createStatus === "saving"}
                                     >
-                                      <option value="">{selectConfig.placeholder}</option>
-                                      {selectConfig.options.map((item) => {
-                                        const optionValue = item[selectConfig.valueKey];
-                                        return (
-                                          <option key={optionValue} value={String(optionValue)}>
-                                            {selectConfig.getLabel(item)}
-                                          </option>
-                                        );
-                                      })}
+                                      <option value="">Select discipline...</option>
+                                      {disciplines.map((item) => (
+                                        <option
+                                          key={item.discipline_id}
+                                          value={String(item.discipline_id)}
+                                        >
+                                          {item.discipline_name}
+                                          {item.discipline_acronym
+                                            ? ` (${item.discipline_acronym})`
+                                            : ""}
+                                        </option>
+                                      ))}
                                     </select>
-                                  ) : (
-                                    <input
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "doc_type") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <select
                                       style={{
                                         width: "100%",
                                         padding: "6px 8px",
                                         borderRadius: "8px",
                                         border: "1px solid var(--color-border-strong)",
+                                        background: "var(--color-surface)",
                                       }}
-                                      value={
-                                        col.id === "doc_name"
-                                          ? editValues.doc_name_unique
-                                          : editValues.title
-                                      }
+                                      value={String(newDocValues.type_id ?? "")}
                                       onChange={(e) =>
-                                        setEditValues((prev) => ({
+                                        setNewDocValues((prev) => ({
                                           ...prev,
-                                          [col.id === "doc_name" ? "doc_name_unique" : "title"]:
-                                            e.target.value,
+                                          type_id: e.target.value,
                                         }))
                                       }
-                                    />
-                                  )}
+                                      disabled={createStatus === "saving"}
+                                    >
+                                      <option value="">Select type...</option>
+                                      {docTypes
+                                        .filter(
+                                          (item) =>
+                                            !newDocValues.discipline_id ||
+                                            String(item.ref_discipline_id ?? "") ===
+                                              String(newDocValues.discipline_id),
+                                        )
+                                        .map((item) => (
+                                          <option key={item.type_id} value={String(item.type_id)}>
+                                            {item.doc_type_name}
+                                            {item.discipline_acronym
+                                              ? ` (${item.discipline_acronym})`
+                                              : ""}
+                                          </option>
+                                        ))}
+                                    </select>
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "jobpack") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <select
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                        background: "var(--color-surface)",
+                                      }}
+                                      value={String(newDocValues.jobpack_id ?? "")}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          jobpack_id: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                    >
+                                      <option value="">Select jobpack...</option>
+                                      {jobpacks.map((item) => (
+                                        <option
+                                          key={item.jobpack_id}
+                                          value={String(item.jobpack_id)}
+                                        >
+                                          {item.jobpack_name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "area") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <select
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                        background: "var(--color-surface)",
+                                      }}
+                                      value={String(newDocValues.area_id ?? "")}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          area_id: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                    >
+                                      <option value="">Select area...</option>
+                                      {areas.map((item) => (
+                                        <option key={item.area_id} value={String(item.area_id)}>
+                                          {item.area_name}
+                                          {item.area_acronym ? ` (${item.area_acronym})` : ""}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "unit") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <select
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                        background: "var(--color-surface)",
+                                      }}
+                                      value={String(newDocValues.unit_id ?? "")}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          unit_id: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                    >
+                                      <option value="">Select unit...</option>
+                                      {units.map((item) => (
+                                        <option key={item.unit_id} value={String(item.unit_id)}>
+                                          {item.unit_name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                );
+                              }
+
+                              if (col.id === "rev_code") {
+                                return (
+                                  <td key={col.key} style={cellStyle}>
+                                    <select
+                                      style={{
+                                        width: "100%",
+                                        padding: "6px 8px",
+                                        borderRadius: "8px",
+                                        border: "1px solid var(--color-border-strong)",
+                                        background: "var(--color-surface)",
+                                      }}
+                                      value={String(newDocValues.rev_code_id ?? "")}
+                                      onChange={(e) =>
+                                        setNewDocValues((prev) => ({
+                                          ...prev,
+                                          rev_code_id: e.target.value,
+                                        }))
+                                      }
+                                      disabled={createStatus === "saving"}
+                                    >
+                                      <option value="">Select rev code...</option>
+                                      {revCodeOptions.map((item) => (
+                                        <option
+                                          key={item.rev_code_id}
+                                          value={String(item.rev_code_id)}
+                                        >
+                                          {item.rev_code_acronym
+                                            ? `${item.rev_code_acronym} (${item.rev_code_name})`
+                                            : item.rev_code_name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                );
+                              }
+
+                              return (
+                                <td key={col.key} style={cellStyle}>
+                                  —
                                 </td>
                               );
-                            }
-
-                            return (
+                            })}
+                          </tr>
+                          {createError && (
+                            <tr>
                               <td
-                                key={col.key}
-                                style={{
-                                  width: columnWidths[col.key]
-                                    ? `${columnWidths[col.key]}px`
-                                    : undefined,
-                                  minWidth: columnWidths[col.key]
-                                    ? `${columnWidths[col.key]}px`
-                                    : undefined,
-                                }}
+                                colSpan={visibleColumns.length}
+                                style={{ color: "var(--color-danger)", padding: "6px 10px" }}
                               >
-                                {value}
+                                {createError}
                               </td>
-                            );
-                          })}
-                        </tr>
-                      );
-                    })
+                            </tr>
+                          )}
+                        </>
+                      )}
+                    </>
                   )}
                 </tbody>
               </table>
@@ -3032,9 +5211,9 @@ function App() {
               flex: isDetailPanelHidden ? "0 0 0" : `${detailRatio} 1 0`,
               background: "var(--color-surface)",
               border: "1px solid var(--color-border)",
-              borderRadius: "12px",
+              borderRadius: "6px",
               padding: 0,
-              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
               minHeight: 0,
               display: hideWindowsOnDrag || isDetailPanelHidden ? "none" : "flex",
               flexDirection: "column",
@@ -3043,7 +5222,7 @@ function App() {
             }}
           >
             <div className="detail-tabs">
-              {["Details", "TAGs", "References", "Plan", "Information"].map((tab) => (
+              {["Revisions", "TAGs", "References", "Plan", "Information"].map((tab) => (
                 <button
                   key={tab}
                   className={`detail-tab ${activeDetailTab === tab ? "active" : ""}`}
@@ -3054,68 +5233,112 @@ function App() {
               ))}
             </div>
             <div className="detail-tab-panel" style={{ flex: 1 }}>
-              {activeDetailTab === "Details" ? (
-                <div
-                  style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}
-                >
-                  {selectedDoc ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                      <div>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            color: "var(--color-text)",
-                            marginBottom: "4px",
-                          }}
-                        >
-                          Current Revision ID
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "16px",
-                            fontWeight: 700,
-                            color: "var(--color-accent)",
-                            padding: "8px 12px",
-                            background: "var(--color-accent-soft)",
-                            borderRadius: "6px",
-                          }}
-                        >
-                          {selectedDoc.rev_current_id || "N/A"}
-                        </div>
-                      </div>
-                      {selectedDoc.rev_seq_num && (
-                        <div>
-                          <div
-                            style={{
-                              fontWeight: 600,
-                              color: "var(--color-text)",
-                              marginBottom: "4px",
-                            }}
-                          >
-                            Sequence Number
-                          </div>
-                          <div style={{ fontSize: "14px" }}>{selectedDoc.rev_seq_num}</div>
-                        </div>
-                      )}
-                      {selectedDoc.rev_code_name && (
-                        <div>
-                          <div
-                            style={{
-                              fontWeight: 600,
-                              color: "var(--color-text)",
-                              marginBottom: "4px",
-                            }}
-                          >
-                            Revision Code
-                          </div>
-                          <div style={{ fontSize: "14px" }}>{selectedDoc.rev_code_name}</div>
-                        </div>
-                      )}
+              {activeDetailTab === "Revisions" ? (
+                selectedDoc ? (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      overflow: "auto",
+                      margin: 0,
+                      padding: 0,
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <div
+                      className="table-wrapper"
+                      style={{ margin: 0, padding: 0, boxSizing: "border-box" }}
+                    >
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Revision</th>
+                            <th>Name of revision</th>
+                            <th>Revision description</th>
+                            <th>Progress %</th>
+                            <th>Author</th>
+                            <th>Date of revision</th>
+                            <th>Plan</th>
+                            <th>Actual start</th>
+                            <th>Actual finish</th>
+                            <th>Forecast deadline</th>
+                            <th>Canceled</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {revisionOverviews.length === 0 ? (
+                            <tr>
+                              <td
+                                colSpan={10}
+                                style={{ textAlign: "center", color: "var(--color-text-muted)" }}
+                              >
+                                No revisions found
+                              </td>
+                            </tr>
+                          ) : (
+                            (() => {
+                              // Remove duplicates by rev_id or rev_code_id
+                              const seen = new Set();
+                              const uniqueRows = revisionOverviews.filter((row) => {
+                                const key =
+                                  row.rev_id || row.rev_code_id || row.id || JSON.stringify(row);
+                                if (seen.has(key)) return false;
+                                seen.add(key);
+                                return true;
+                              });
+                              return uniqueRows.map((row, idx) => (
+                                <tr
+                                  key={
+                                    row.rev_id ||
+                                    row.rev_code_id ||
+                                    row.revision_id ||
+                                    row.revision ||
+                                    idx
+                                  }
+                                  className={selectedRevisionIdx === idx ? "selected" : undefined}
+                                  style={{
+                                    cursor: "pointer",
+                                  }}
+                                  onClick={() => setSelectedRevisionIdx(idx)}
+                                >
+                                  <td>
+                                    {row.rev_code_acronym ||
+                                      row.revision ||
+                                      row.rev_code ||
+                                      row.rev_code_id ||
+                                      ""}
+                                  </td>
+                                  <td>{row.rev_code_name || row.name || row.rev_name || ""}</td>
+                                  <td>{row.rev_description || ""}</td>
+                                  <td>{row.progress || row.rev_percent || ""}</td>
+                                  <td>
+                                    {row.author || row.rev_author || row.rev_author_name || ""}
+                                  </td>
+                                  <td>
+                                    {formatDateTime(
+                                      row.date || row.rev_date || row.created_at || "",
+                                    )}
+                                  </td>
+                                  <td>{row.plan || row.plan_date || ""}</td>
+                                  <td>{row.actualStart || row.actual_start || ""}</td>
+                                  <td>{row.actualFinish || row.actual_finish || ""}</td>
+                                  <td>{row.forecast || row.forecast_deadline || ""}</td>
+                                  <td>{row.canceled || row.is_canceled ? "Yes" : ""}</td>
+                                </tr>
+                              ));
+                            })()
+                          )}
+                        </tbody>
+                      </table>
                     </div>
-                  ) : (
-                    <div>Select a document to view revisions.</div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div
+                    style={{ padding: "12px", color: "var(--color-text-muted)", fontSize: "13px" }}
+                  >
+                    Select a document to view revisions.
+                  </div>
+                )
               ) : (
                 <div style={{ color: "var(--color-text-muted)", fontSize: "13px" }}>
                   {activeDetailTab} content will appear here.
@@ -3160,18 +5383,96 @@ function App() {
             title="Drag to resize panels"
             aria-label="Resize panels"
           />
+          {!isFlowPanelHidden && (
+            <button
+              type="button"
+              onClick={() => setIsFlowPanelHidden(true)}
+              style={{
+                position: "relative",
+                zIndex: 101,
+                width: "8px",
+                height: "80px",
+                padding: "0",
+                background: "var(--color-info)",
+                border: "1px solid var(--color-info)",
+                borderRadius: "0",
+                cursor: "pointer",
+                fontSize: "12px",
+                color: "white",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--color-info-dark)";
+                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--color-info)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+              title="Hide document flow"
+              aria-label="Hide document flow"
+            ></button>
+          )}
+          {isFlowPanelHidden && (
+            <button
+              type="button"
+              onClick={() => setIsFlowPanelHidden(false)}
+              style={{
+                position: "relative",
+                zIndex: 101,
+                width: "8px",
+                height: "80px",
+                padding: "0",
+                background: "var(--color-success)",
+                border: "1px solid var(--color-success)",
+                borderRadius: "0",
+                cursor: "pointer",
+                fontSize: "12px",
+                color: "white",
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--color-success-dark)";
+                e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--color-success)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+              title="Show document flow"
+              aria-label="Show document flow"
+            ></button>
+          )}
         </div>
         <div
           style={{
-            flex: `${infoRatio} 1 0`,
-            display: "flex",
+            flex: isFlowPanelHidden ? "0 0 40px" : `${infoRatio} 1 0`,
+            display: hideWindowsOnDrag ? "none" : "flex",
             flexDirection: "column",
             minWidth: 0,
             overflow: "visible",
           }}
         >
-          <div className="flow-card" style={{ flex: 1 }}>
-            <div className="flow-header">DOCUMENT FLOW</div>
+          <div
+            className="flow-card"
+            style={{
+              flex: 1,
+              border: isFlowPanelHidden ? "none" : undefined,
+              boxShadow: isFlowPanelHidden ? "none" : undefined,
+              background: isFlowPanelHidden ? "transparent" : undefined,
+            }}
+          >
+            <div className="flow-header" style={{ display: "none" }}>
+              DOCUMENT FLOW
+            </div>
             <div className="flow-body">
               {revStatusLoading ? (
                 <div className="flow-empty">Loading statuses…</div>
@@ -3180,246 +5481,219 @@ function App() {
               ) : orderedStatuses.length === 0 ? (
                 <div className="flow-empty">No statuses configured.</div>
               ) : (
-                orderedStatuses.map((status) => {
-                  const behaviorName = behaviorNameById[status.ui_behavior_id];
-                  const behaviorFile = behaviorFileById[status.ui_behavior_id];
-                  const behaviorFileLabel =
-                    typeof behaviorFile === "string"
-                      ? behaviorFile.replace(/\.jsx$/i, "")
-                      : behaviorFile;
-                  const Behavior = resolveBehaviorByFile(behaviorFile);
-                  const statusKey = String(status.rev_status_id);
-                  const isActive = infoActiveStep === statusKey;
-                  const panelId = `flow-panel-${statusKey}`;
-                  const isMenuOpen = statusMenuOpen[statusKey] || false;
-
+                (() => {
+                  const flowTabsLocked = isFlowPanelHidden;
+                  const currentDocStatusKey = resolveCurrentStatusKey(selectedDoc, orderedStatuses);
+                  const effectiveActiveStep = flowTabsLocked ? currentDocStatusKey : infoActiveStep;
+                  const activeIsHistory = !flowTabsLocked && infoActiveStep === "history";
+                  const activeStatus = orderedStatuses.find(
+                    (status) => String(status.rev_status_id) === String(effectiveActiveStep),
+                  );
+                  const statusKey = activeStatus ? String(activeStatus.rev_status_id) : null;
+                  const behaviorName = activeStatus
+                    ? behaviorNameById[activeStatus.ui_behavior_id]
+                    : null;
+                  const behaviorFile = activeStatus
+                    ? behaviorFileById[activeStatus.ui_behavior_id]
+                    : activeIsHistory
+                      ? "HistoryBehavior.jsx"
+                      : null;
+                  const Behavior =
+                    activeIsHistory || activeStatus
+                      ? resolveBehaviorByFile(behaviorFile, behaviorName)
+                      : null;
                   return (
-                    <React.Fragment key={status.rev_status_id}>
+                    <>
                       <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: "4px",
-                          position: "relative",
-                        }}
+                        className={`flow-steps-column ${flowTabsLocked ? "locked" : ""}`}
+                        ref={flowStepsRef}
                       >
+                        {orderedStatuses.map((status) => {
+                          const key = String(status.rev_status_id);
+                          const isActive = key === String(effectiveActiveStep);
+                          const behaviorFileItem = behaviorFileById[status.ui_behavior_id];
+                          const docEntry = selectedDocId ? uploadedFiles[selectedDocId] || {} : {};
+                          // Files for this status: local tab files and API files for current revision status.
+                          const filesForStatus = Array.isArray(docEntry[key]) ? docEntry[key] : [];
+                          const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
+                          const currentRevStatusKey = resolveCurrentStatusKey(
+                            selectedDoc,
+                            orderedStatuses,
+                          );
+                          const apiFilesForThisStatus = currentRevStatusKey === key ? apiFiles : [];
+                          const hasFilesForStatus =
+                            filesForStatus.length > 0 || apiFilesForThisStatus.length > 0;
+                          // Стрелка только там, где есть файлы; без файлов — не показывать и не реагировать на клики
+                          const showArrow = Boolean(
+                            isFlowEnabled && !flowTabsLocked && hasFilesForStatus,
+                          );
+                          return (
+                            <button
+                              key={status.rev_status_id}
+                              type="button"
+                              className={`flow-step ${isActive ? "active" : ""} ${
+                                isFlowArrowDragging && flowArrowTarget === key ? "drag-target" : ""
+                              } ${showArrow ? "has-arrow" : ""}`}
+                              aria-expanded={isActive}
+                              data-ui-behavior={behaviorFileItem || "default"}
+                              data-final={status.final ? "true" : "false"}
+                              onMouseEnter={() => {
+                                if (isFlowArrowDragging && !flowTabsLocked) {
+                                  setFlowArrowTarget(key);
+                                }
+                              }}
+                              onClick={() => {
+                                if (!isFlowEnabled || flowTabsLocked) {
+                                  return;
+                                }
+                                setInfoActiveStep(key);
+                                setInfoActiveSubTab("Files with Comments");
+                              }}
+                              disabled={!isFlowEnabled || flowTabsLocked}
+                              title={status.rev_status_name}
+                            >
+                              <span className="dot" style={{ display: "none" }} />
+                              <span className="flow-step__label">{status.rev_status_name}</span>
+                              {showArrow && (
+                                <span
+                                  className="flow-step__arrow"
+                                  aria-hidden="true"
+                                  onMouseDown={(event) => {
+                                    if (flowTabsLocked) {
+                                      return;
+                                    }
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    setFlowArrowSourceKey(key);
+                                    setFlowArrowTarget(null);
+                                    setIsFlowArrowDragging(true);
+                                    if (flowStepsRef.current) {
+                                      const rect = flowStepsRef.current.getBoundingClientRect();
+                                      const halfSize = 9;
+                                      const x = rect.left + rect.width / 2;
+                                      const y = Math.min(
+                                        rect.bottom - halfSize,
+                                        Math.max(rect.top + halfSize, event.clientY),
+                                      );
+                                      setFlowArrowPos({ x, y });
+                                    } else {
+                                      setFlowArrowPos({ x: event.clientX, y: event.clientY });
+                                    }
+                                  }}
+                                />
+                              )}
+                              <span className="flow-step__behavior" style={{ display: "none" }}>
+                                {behaviorFileItem || "Default"}
+                              </span>
+                            </button>
+                          );
+                        })}
                         <button
                           type="button"
-                          className={`flow-step ${isActive ? "active" : ""}`}
-                          aria-expanded={isActive}
-                          aria-controls={panelId}
-                          data-ui-behavior={behaviorFile || "default"}
-                          data-final={status.final ? "true" : "false"}
-                          onClick={() => {
-                            if (!isFlowEnabled) {
-                              return;
+                          className={`flow-step ${activeIsHistory ? "active" : ""} ${
+                            isFlowArrowDragging && flowArrowTarget === "history"
+                              ? "drag-target"
+                              : ""
+                          }`}
+                          aria-expanded={activeIsHistory}
+                          data-ui-behavior="HistoryBehavior.jsx"
+                          data-final="false"
+                          onMouseEnter={() => {
+                            if (isFlowArrowDragging && !flowTabsLocked) {
+                              setFlowArrowTarget("history");
                             }
-                            if (isActive) {
-                              setInfoActiveStep(null);
-                              return;
-                            }
-                            setInfoActiveStep(statusKey);
-                            setInfoActiveSubTab("Files with Comments");
                           }}
-                          style={{ flex: 1 }}
-                          disabled={!isFlowEnabled}
+                          onClick={() => {
+                            if (!isFlowEnabled || flowTabsLocked) {
+                              return;
+                            }
+                            setInfoActiveStep("history");
+                          }}
+                          disabled={!isFlowEnabled || flowTabsLocked}
+                          title="History"
                         >
-                          <span className="dot">
-                            {status.final ? (
-                              <span className="dot__inner" aria-hidden="true" />
-                            ) : (
-                              <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-                                <path d="M6 7.5 L9 10.5 L12 7.5" />
-                              </svg>
-                            )}
-                          </span>
-                          <span className="flow-step__label">{status.rev_status_name}</span>
-                          <span className="flow-step__behavior" style={{ display: "none" }}>
-                            {behaviorFileLabel || "Default"}
-                          </span>
+                          <span className="dot" style={{ display: "none" }} />
+                          <span className="flow-step__label">History</span>
                         </button>
-                        {isActive && isFlowEnabled && (
+                        {isFlowArrowDragging && !flowTabsLocked && (
                           <div
-                            style={{
-                              position: "relative",
-                            }}
-                          >
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setStatusMenuOpen((prev) => ({
-                                  ...prev,
-                                  [statusKey]: !isMenuOpen,
-                                }));
-                              }}
-                              style={{
-                                background: "transparent",
-                                border: "none",
-                                cursor: "pointer",
-                                padding: "6px 12px",
-                                fontSize: "20px",
-                                color: "var(--color-text-muted)",
-                                transition: "color 0.2s",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.color = "white";
-                                e.currentTarget.style.background = "var(--color-info)";
-                                e.currentTarget.style.borderRadius = "4px";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.color = "var(--color-text-muted)";
-                                e.currentTarget.style.background = "transparent";
-                              }}
-                              title="Status menu"
-                              aria-label="Status menu"
-                              disabled={!isFlowEnabled}
-                            >
-                              ⋮
-                            </button>
-                            {isMenuOpen && (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  top: "100%",
-                                  right: 0,
-                                  background: "var(--color-surface)",
-                                  border: "1px solid var(--color-border)",
-                                  borderRadius: "6px",
-                                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                                  minWidth: "180px",
-                                  zIndex: 1000,
-                                  marginTop: "4px",
-                                }}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (
-                                      window.confirm(`Issue "${status.rev_status_name}" to IDC?`)
-                                    ) {
-                                      alert(`Status "${status.rev_status_name}" issued to IDC`);
-                                    }
-                                    setStatusMenuOpen((prev) => ({ ...prev, [statusKey]: false }));
-                                  }}
-                                  style={{
-                                    display: "block",
-                                    width: "100%",
-                                    padding: "10px 16px",
-                                    background: "transparent",
-                                    border: "none",
-                                    textAlign: "left",
-                                    cursor: "pointer",
-                                    fontSize: "13px",
-                                    color: "var(--color-text)",
-                                    transition: "background 0.2s",
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = "var(--color-background)";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = "transparent";
-                                  }}
-                                >
-                                  Issue to IDC
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                            className="flow-arrow-drag"
+                            style={{ left: flowArrowPos.x, top: flowArrowPos.y }}
+                            aria-hidden="true"
+                          />
                         )}
                       </div>
-                      {isActive && isFlowEnabled && (
-                        <div
-                          id={panelId}
-                          className="flow-inline-content"
-                          data-ui-behavior={behaviorFile || ""}
-                        >
-                          <React.Suspense
-                            fallback={<div className="flow-empty">Loading behavior…</div>}
-                          >
-                            <Behavior
-                              selectedDoc={selectedDoc}
-                              behaviorName={behaviorName}
-                              behaviorFile={behaviorFile}
-                              statusKey={statusKey}
-                              infoActiveSubTab={infoActiveSubTab}
-                              onSubTabChange={setInfoActiveSubTab}
-                              uploadedFiles={uploadedFiles}
-                              expandedRevisions={expandedRevisions}
-                              onRevisionToggle={handleRevisionToggle}
-                              isDraggingUpload={isDraggingUpload}
-                              uploadDragProps={buildUploadDragProps}
-                              onUploadClick={() => uploadInputRef.current?.click()}
-                              uploadInputRef={uploadInputRef}
-                              onFileSelect={handleUploadSelect}
-                              onSelectFile={handleSelectFile}
-                              onDownloadFile={handleDownloadFile}
-                              onDeleteFile={handleDeleteFile}
-                              selectedFileId={selectedFileId}
-                              apiBase={apiBase}
-                            />
-                          </React.Suspense>
-                        </div>
-                      )}
-                    </React.Fragment>
-                  );
-                })
-              )}
-              {!revStatusLoading && !revStatusError && (
-                <>
-                  <button
-                    type="button"
-                    className={`flow-step ${infoActiveStep === "history" ? "active" : ""}`}
-                    aria-expanded={infoActiveStep === "history"}
-                    aria-controls="flow-panel-history"
-                    data-ui-behavior="HistoryBehavior.jsx"
-                    data-final="false"
-                    onClick={() => {
-                      if (!isFlowEnabled) {
-                        return;
-                      }
-                      if (infoActiveStep === "history") {
-                        setInfoActiveStep(null);
-                        return;
-                      }
-                      setInfoActiveStep("history");
-                    }}
-                    disabled={!isFlowEnabled}
-                  >
-                    <span className="dot">
-                      <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
-                        <path d="M5 4 H13 V14 H5 Z" />
-                        <path d="M7 7 H11" />
-                        <path d="M7 10 H11" />
-                      </svg>
-                    </span>
-                    <span className="flow-step__label">History</span>
-                    <span className="flow-step__behavior">History</span>
-                  </button>
-                  {infoActiveStep === "history" && isFlowEnabled && (
-                    <div
-                      id="flow-panel-history"
-                      className="flow-inline-content"
-                      data-ui-behavior="HistoryBehavior.jsx"
-                    >
-                      <React.Suspense
-                        fallback={<div className="flow-empty">Loading behavior…</div>}
+                      <div
+                        className="flow-content-column"
+                        style={{ display: isFlowPanelHidden ? "none" : "flex" }}
                       >
-                        {(() => {
-                          const Behavior = resolveBehaviorByFile("HistoryBehavior.jsx");
-                          return (
-                            <Behavior behaviorName="History" behaviorFile="HistoryBehavior.jsx" />
-                          );
-                        })()}
-                      </React.Suspense>
-                    </div>
-                  )}
-                </>
+                        {activeIsHistory && isFlowEnabled && Behavior ? (
+                          <div
+                            className="flow-inline-content"
+                            data-ui-behavior="HistoryBehavior.jsx"
+                          >
+                            <React.Suspense
+                              fallback={<div className="flow-empty">Loading behavior…</div>}
+                            >
+                              <Behavior behaviorName="History" behaviorFile="HistoryBehavior.jsx" />
+                            </React.Suspense>
+                          </div>
+                        ) : activeStatus && isFlowEnabled && Behavior ? (
+                          <div
+                            className="flow-inline-content"
+                            data-ui-behavior={behaviorFile || ""}
+                          >
+                            <React.Suspense
+                              fallback={<div className="flow-empty">Loading behavior…</div>}
+                            >
+                              <Behavior
+                                selectedDoc={selectedDoc}
+                                behaviorName={behaviorName}
+                                behaviorFile={behaviorFile}
+                                statusKey={statusKey}
+                                infoActiveSubTab={infoActiveSubTab}
+                                onSubTabChange={setInfoActiveSubTab}
+                                uploadedFiles={Object.fromEntries(
+                                  Object.entries(uploadedFiles).map(([docId, value]) => [
+                                    docId,
+                                    Array.isArray(value)
+                                      ? value
+                                      : value && typeof value === "object" && !Array.isArray(value)
+                                        ? value
+                                        : [],
+                                  ]),
+                                )}
+                                expandedRevisions={expandedRevisions}
+                                onRevisionToggle={handleRevisionToggle}
+                                isDraggingUpload={isDraggingUpload}
+                                uploadDragProps={buildUploadDragProps}
+                                onUploadClick={() => uploadInputRef.current?.click()}
+                                uploadInputRef={uploadInputRef}
+                                onFileSelect={handleUploadSelect}
+                                onSelectFile={handleSelectFile}
+                                onDownloadFile={handleDownloadFile}
+                                onDeleteFile={handleDeleteFile}
+                                selectedFileId={selectedFileId}
+                                apiBase={apiBase}
+                              />
+                            </React.Suspense>
+                          </div>
+                        ) : (
+                          <div className="flow-empty">Select a status to view details.</div>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()
               )}
             </div>
           </div>
         </div>
+      </div>
+      <div className="app-header">
+        <span className="app-header__name">{appMeta.name}</span>
+        <span className="app-header__meta">Version: {appMeta.version}</span>
+        <span className="app-header__meta">Revision: {appMeta.revision}</span>
       </div>
     </main>
   );

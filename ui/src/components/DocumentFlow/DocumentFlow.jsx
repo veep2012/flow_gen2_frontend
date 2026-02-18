@@ -219,7 +219,11 @@ const DocumentFlow = ({
               aria-expanded={infoActiveStep === step}
               onClick={() => onStepClick(infoActiveStep === step ? null : step)}
             >
-              <span className="dot">⦿</span>
+              <span className="dot">
+                <svg className="dot__icon" viewBox="0 0 18 18" aria-hidden="true">
+                  <path d="M6 7.5 L9 10.5 L12 7.5" />
+                </svg>
+              </span>
               <span>{step}</span>
               {infoActiveStep === step && (
                 <span
