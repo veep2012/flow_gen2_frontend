@@ -12,7 +12,6 @@ export const normalizeFile = (input = {}, overrides = {}) => {
     s3_uid: raw.s3_uid ?? raw.s3Uid ?? null,
     mimetype: raw.mimetype ?? raw.mimeType ?? null,
     revId: raw.revId ?? raw.rev_id ?? null,
-    issuedStatus: raw.issuedStatus ?? raw.issued_status ?? null,
     isFromApi: raw.isFromApi ?? overrides.isFromApi ?? false,
   };
 };

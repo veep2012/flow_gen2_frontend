@@ -42,15 +42,10 @@ const IDCBehavior = ({
 
   const issuedApiFiles = React.useMemo(
     () =>
-      // API files without explicit issued status belong to the current revision status only.
       Array.isArray(uploadedFiles?.[docId]?.["$api"])
-        ? uploadedFiles[docId]["$api"].filter((f) => {
-            const issued = f?.issuedStatus ?? f?.issued_status ?? null;
-            if (issued !== null && issued !== undefined && String(issued) !== "") {
-              return String(issued) === String(statusKey);
-            }
-            return currentRevStatusKey === String(statusKey);
-          })
+        ? currentRevStatusKey === String(statusKey)
+          ? uploadedFiles[docId]["$api"]
+          : []
         : [],
     [docId, uploadedFiles, statusKey, currentRevStatusKey],
   );

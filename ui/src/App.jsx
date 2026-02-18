@@ -423,24 +423,11 @@ function App() {
             !Array.isArray(uploadedFiles[selectedDocId])
               ? uploadedFiles[selectedDocId]
               : {};
-          const currentRevStatusKey = resolveCurrentStatusKey(selectedDoc, revStatuses);
           const sourceLocal = Array.isArray(docEntry[sourceKey]) ? docEntry[sourceKey] : [];
           const targetLocal = Array.isArray(docEntry[targetKey]) ? docEntry[targetKey] : [];
-          const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
-          const updatedApiFiles = apiFiles.map((file) => {
-            const issued = file?.issuedStatus ?? file?.issued_status ?? null;
-            const belongsToSource =
-              (issued !== null && issued !== undefined && String(issued) === sourceKey) ||
-              ((issued === null || issued === undefined) && currentRevStatusKey === sourceKey);
-            if (belongsToSource) {
-              return { ...file, issuedStatus: targetKey, issued_status: targetKey };
-            }
-            return file;
-          });
           const nextEntry = { ...docEntry };
           nextEntry[sourceKey] = [];
           nextEntry[targetKey] = [...targetLocal, ...sourceLocal];
-          nextEntry["$api"] = updatedApiFiles;
           setUploadedFiles((prev) => ({
             ...prev,
             [selectedDocId]: nextEntry,
@@ -2219,13 +2206,7 @@ function App() {
       const statusWithFiles = orderedStatuses.find((status) => {
         const key = String(status.rev_status_id);
         const localFiles = Array.isArray(docEntry[key]) ? docEntry[key] : [];
-        const apiFilesForStatus = apiFiles.filter((file) => {
-          const issued = file?.issuedStatus ?? file?.issued_status ?? null;
-          if (issued !== null && issued !== undefined && String(issued).trim() !== "") {
-            return String(issued) === key;
-          }
-          return currentStatusKey === key;
-        });
+        const apiFilesForStatus = currentStatusKey === key ? apiFiles : [];
         return localFiles.length > 0 || apiFilesForStatus.length > 0;
       });
 
@@ -5532,21 +5513,14 @@ function App() {
                           const isActive = key === String(effectiveActiveStep);
                           const behaviorFileItem = behaviorFileById[status.ui_behavior_id];
                           const docEntry = selectedDocId ? uploadedFiles[selectedDocId] || {} : {};
-                          // Файлы для этого статуса: из БД (docEntry[key]) или API (issued_status === key или без issued = текущий статус ревизии)
+                          // Files for this status: local tab files and API files for current revision status.
                           const filesForStatus = Array.isArray(docEntry[key]) ? docEntry[key] : [];
                           const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
                           const currentRevStatusKey = resolveCurrentStatusKey(
                             selectedDoc,
                             orderedStatuses,
                           );
-                          const apiFilesForThisStatus = apiFiles.filter((file) => {
-                            const issued = file?.issuedStatus ?? file?.issued_status ?? null;
-                            if (issued !== null && issued !== undefined) {
-                              return String(issued) === key;
-                            }
-                            // API не возвращает issued_status: файлы ревизии считаем привязанными к текущему статусу ревизии
-                            return currentRevStatusKey === key;
-                          });
+                          const apiFilesForThisStatus = currentRevStatusKey === key ? apiFiles : [];
                           const hasFilesForStatus =
                             filesForStatus.length > 0 || apiFilesForThisStatus.length > 0;
                           // Стрелка только там, где есть файлы; без файлов — не показывать и не реагировать на клики

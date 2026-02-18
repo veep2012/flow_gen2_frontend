@@ -34,16 +34,9 @@ const InDesignBehavior = ({
   const currentRevStatusKey =
     selectedDoc?.rev_status_id != null ? String(selectedDoc.rev_status_id) : null;
 
-  // API files without explicit issued status belong to the current revision status only.
+  // API files belong to the current revision status.
   const availableApiFiles = React.useMemo(
-    () =>
-      apiFiles.filter((f) => {
-        const issued = f?.issuedStatus ?? f?.issued_status ?? null;
-        if (issued !== null && issued !== undefined && String(issued) !== "") {
-          return String(issued) === String(statusKey);
-        }
-        return currentRevStatusKey === String(statusKey);
-      }),
+    () => (currentRevStatusKey === String(statusKey) ? apiFiles : []),
     [apiFiles, statusKey, currentRevStatusKey],
   );
 

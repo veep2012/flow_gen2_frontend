@@ -15,6 +15,4 @@ BEGIN;
 \ir 07_workflow.sql
 \ir 08_views.sql
 \ir 09_security.sql
-\ir 10_file_issued_status.sql
-\ir 11_transition_issue_files.sql
 COMMIT;

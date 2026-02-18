@@ -102,6 +102,7 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
       const normalized = filters
         .map((item) => ({
           op: String(item?.op || "contains").toLowerCase(),
+          // Null-check operators do not require user input; undefined/null normalizes to "".
           value: String(item?.value ?? "").trim(),
         }))
         .filter((item) => {
@@ -134,6 +135,9 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
         if (!config) return true;
         const matchesRule = (rule) => {
           const ruleValue = String(rule.value ?? "").toLowerCase();
+          // "isnull"/"isnotnull" intentionally ignore ruleValue.
+          if (rule.op === "isnull") return value === "";
+          if (rule.op === "isnotnull") return value !== "";
           if (!ruleValue) return true;
           switch (rule.op) {
             case "equals":
@@ -146,10 +150,6 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
               return value.endsWith(ruleValue);
             case "doesnotcontain":
               return !value.includes(ruleValue);
-            case "isnull":
-              return value === "";
-            case "isnotnull":
-              return value !== "";
             case "contains":
             default:
               return value.includes(ruleValue);
