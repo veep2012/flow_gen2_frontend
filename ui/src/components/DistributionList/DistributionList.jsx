@@ -2,10 +2,14 @@ import React from "react";
 import PropTypes from "prop-types";
 import "./DistributionList.css";
 
+const PURPOSE_OPTIONS = ["For Information", "For Review", "For Approval", "For Action"];
+
 const DistributionList = ({ docId, apiBase }) => {
   const [persons, setPersons] = React.useState([]);
   const [roles, setRoles] = React.useState([]);
   const [loadingPersons, setLoadingPersons] = React.useState(false);
+  const [savingEntry, setSavingEntry] = React.useState(false);
+  const [saveError, setSaveError] = React.useState("");
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   const [modalPersonId, setModalPersonId] = React.useState("");
   const [modalPurpose, setModalPurpose] = React.useState("");
@@ -53,19 +57,67 @@ const DistributionList = ({ docId, apiBase }) => {
     loadPersons();
   }, [loadPersons]);
 
+  const closeAddModal = React.useCallback(() => {
+    setIsAddModalOpen(false);
+    setModalPersonId("");
+    setModalPurpose("");
+    setSaveError("");
+  }, []);
+
+  const handleSaveDistributionEntry = React.useCallback(async () => {
+    if (!docId) {
+      setSaveError("Document ID is required to add a distribution entry.");
+      return;
+    }
+
+    if (!modalPersonId || !modalPurpose) {
+      setSaveError("Please fill in all required fields.");
+      return;
+    }
+
+    try {
+      setSavingEntry(true);
+      setSaveError("");
+
+      const response = await fetch(`${apiBase}/documents/${docId}/distribution-lists`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          person_id: parseInt(modalPersonId, 10),
+          purpose: modalPurpose,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to save distribution entry (${response.status})`);
+      }
+
+      closeAddModal();
+    } catch (err) {
+      console.error("Error saving distribution entry:", err);
+      setSaveError(err.message || "Failed to save distribution entry");
+    } finally {
+      setSavingEntry(false);
+    }
+  }, [apiBase, closeAddModal, docId, modalPersonId, modalPurpose]);
+
   return (
     <div className="distribution-list-container" data-doc-id={docId ?? ""}>
       <div className="distribution-list-header">
         <h3>Distribution List</h3>
         <div className="button-group">
-          <button type="button" className="btn-add" onClick={() => setIsAddModalOpen(true)}>
+          <button
+            type="button"
+            className="btn-add"
+            onClick={() => {
+              setSaveError("");
+              setIsAddModalOpen(true);
+            }}
+          >
             + Add
-          </button>
-          <button type="button" className="btn-remove">
-            Remove
-          </button>
-          <button type="button" className="btn-send">
-            Send
           </button>
         </div>
       </div>
@@ -89,7 +141,7 @@ const DistributionList = ({ docId, apiBase }) => {
               <button
                 type="button"
                 className="distribution-modal__close"
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={closeAddModal}
                 aria-label="Close"
               >
                 ×
@@ -138,26 +190,30 @@ const DistributionList = ({ docId, apiBase }) => {
                 <option value="" disabled>
                   Select purpose...
                 </option>
+                {PURPOSE_OPTIONS.map((purpose) => (
+                  <option key={purpose} value={purpose}>
+                    {purpose}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="distribution-modal__footer">
               <span className="distribution-modal__required">* Required fields</span>
               <div className="distribution-modal__actions">
-                <button
-                  type="button"
-                  className="distribution-modal__btn"
-                  onClick={() => setIsAddModalOpen(false)}
-                >
+                <button type="button" className="distribution-modal__btn" onClick={closeAddModal}>
                   Cancel
                 </button>
                 <button
                   type="button"
                   className="distribution-modal__btn distribution-modal__btn--primary"
+                  onClick={handleSaveDistributionEntry}
+                  disabled={savingEntry}
                 >
-                  Save
+                  {savingEntry ? "Saving..." : "Save"}
                 </button>
               </div>
             </div>
+            {saveError ? <div className="alert alert-error">{saveError}</div> : null}
           </div>
         </div>
       ) : null}
