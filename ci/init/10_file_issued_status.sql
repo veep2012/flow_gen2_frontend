@@ -6,6 +6,9 @@ ALTER TABLE core.files
     ADD COLUMN IF NOT EXISTS issued_status_id SMALLINT NULL
     REFERENCES ref.doc_rev_statuses(rev_status_id);
 
+-- Replace legacy 2-arg signature to avoid ambiguity with default arguments.
+DROP FUNCTION IF EXISTS workflow.update_file(INTEGER, VARCHAR);
+
 -- Update workflow function to allow setting issued_status_id (and optionally filename)
 CREATE OR REPLACE FUNCTION workflow.update_file(
     p_file_id INTEGER,
@@ -33,3 +36,6 @@ BEGIN
     RETURN v_file;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION workflow.update_file(INTEGER, VARCHAR, SMALLINT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION workflow.update_file(INTEGER, VARCHAR, SMALLINT) TO app_user;

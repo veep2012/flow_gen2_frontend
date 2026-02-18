@@ -5,7 +5,7 @@ COMPOSE_ENV_FILE ?= .env.compose
 NO_CACHE ?=
 DB_CONTAINER_NAME ?= flow_gen2_postgres_local
 DB_IMAGE ?= postgres:18.1
-INIT_SQL ?= ci/init/00_flow_init.sql
+INIT_SQL ?= ci/init/flow_init.psql
 DB_VOLUME ?= flow_gen2_local_pg_data
 DB_PORT ?= 5432
 DB_PORT_FLAG := $(if $(DB_PORT),-p $(DB_PORT):5432,)
@@ -242,8 +242,7 @@ db-up: ## Start standalone Postgres with podman (no port exposed unless DB_PORT 
 		--env POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
 		--env POSTGRES_DB=$(POSTGRES_DB) \
 		$(DB_PORT_FLAG) \
-		-v $(CURDIR)/$(INIT_SQL):/docker-entrypoint-initdb.d/00_flow_init.sql:ro \
-		-v $(CURDIR)/ci/init/flow_seed.sql:/docker-entrypoint-initdb.d/01_flow_seed.sql:ro \
+		-v $(CURDIR)/ci/init:/docker-entrypoint-initdb.d:ro \
 		-v $(DB_VOLUME):/var/lib/postgresql \
 		$(DB_IMAGE)
 
