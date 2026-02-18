@@ -27,6 +27,7 @@ const IDCBehavior = ({
   const [commentedSourceFile, setCommentedSourceFile] = React.useState(null);
   const [userNameById, setUserNameById] = React.useState({});
   const [currentUserId, setCurrentUserId] = React.useState(1);
+  const fileContextMenuRef = React.useRef(null);
 
   const docId = selectedDoc?.doc_id;
   const docInfo = selectedDoc
@@ -39,14 +40,11 @@ const IDCBehavior = ({
   const currentRevStatusKey =
     selectedDoc?.rev_status_id != null ? String(selectedDoc.rev_status_id) : null;
 
-  const idcLocalFiles = (docId && uploadedFiles[docId]?.[statusKey]) || [];
-
-  // API files without explicit issued status belong to the current revision status only.
-  const apiFiles = (docId && uploadedFiles[docId]?.["$api"]) || [];
   const issuedApiFiles = React.useMemo(
     () =>
-      Array.isArray(apiFiles)
-        ? apiFiles.filter((f) => {
+      // API files without explicit issued status belong to the current revision status only.
+      Array.isArray(uploadedFiles?.[docId]?.["$api"])
+        ? uploadedFiles[docId]["$api"].filter((f) => {
             const issued = f?.issuedStatus ?? f?.issued_status ?? null;
             if (issued !== null && issued !== undefined && String(issued) !== "") {
               return String(issued) === String(statusKey);
@@ -54,11 +52,13 @@ const IDCBehavior = ({
             return currentRevStatusKey === String(statusKey);
           })
         : [],
-    [apiFiles, statusKey, currentRevStatusKey],
+    [docId, uploadedFiles, statusKey, currentRevStatusKey],
   );
 
   const idcFiles = React.useMemo(() => {
-    const localFiles = Array.isArray(idcLocalFiles) ? idcLocalFiles : [];
+    const localFiles = Array.isArray(uploadedFiles?.[docId]?.[statusKey])
+      ? uploadedFiles[docId][statusKey]
+      : [];
     const apiIds = new Set(issuedApiFiles.map((f) => f?.fileId ?? f?.id).filter(Boolean));
     const apiNames = new Set(
       issuedApiFiles.map((f) => String(f?.name ?? f?.filename ?? "").trim()).filter(Boolean),
@@ -75,7 +75,7 @@ const IDCBehavior = ({
     });
 
     return [...issuedApiFiles, ...localOnly];
-  }, [issuedApiFiles, idcLocalFiles]);
+  }, [docId, uploadedFiles, statusKey, issuedApiFiles]);
 
   const getSourceFileId = React.useCallback(
     (file) => (file && typeof file === "object" ? (file.fileId ?? file.id ?? null) : null),
@@ -165,7 +165,9 @@ const IDCBehavior = ({
         );
         if (!downloadResponse.ok) {
           const errorText = await downloadResponse.text().catch(() => "");
-          throw new Error(errorText || `Failed to download source file (${downloadResponse.status})`);
+          throw new Error(
+            errorText || `Failed to download source file (${downloadResponse.status})`,
+          );
         }
         const blob = await downloadResponse.blob();
         const uploadFile = new File([blob], sourceName, {
@@ -183,7 +185,9 @@ const IDCBehavior = ({
         });
         if (!createResponse.ok) {
           const errorText = await createResponse.text().catch(() => "");
-          throw new Error(errorText || `Failed to create commented copy (${createResponse.status})`);
+          throw new Error(
+            errorText || `Failed to create commented copy (${createResponse.status})`,
+          );
         }
         await createResponse.json().catch(() => ({}));
         await loadCommentedFiles(file);
@@ -199,10 +203,15 @@ const IDCBehavior = ({
 
   React.useEffect(() => {
     if (!fileContextMenu) return undefined;
-    const closeMenu = () => setFileContextMenu(null);
+    const closeMenu = (event) => {
+      if (fileContextMenuRef.current?.contains(event.target)) {
+        return;
+      }
+      setFileContextMenu(null);
+    };
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
-        closeMenu();
+        setFileContextMenu(null);
       }
     };
     window.addEventListener("click", closeMenu);
@@ -876,7 +885,8 @@ const IDCBehavior = ({
                           </div>
                         )}
                         {commentedFiles.map((item) => {
-                          const displayName = item?.filename || `Commented file #${item?.id ?? "-"}`;
+                          const displayName =
+                            item?.filename || `Commented file #${item?.id ?? "-"}`;
                           const createdAt = item?.created_at ? new Date(item.created_at) : null;
                           const createdText =
                             createdAt && !Number.isNaN(createdAt.getTime())
@@ -928,6 +938,7 @@ const IDCBehavior = ({
             </div>
             {fileContextMenu && (
               <div
+                ref={fileContextMenuRef}
                 style={{
                   position: "fixed",
                   left: `${fileContextMenu.x}px`,
@@ -939,7 +950,6 @@ const IDCBehavior = ({
                   zIndex: 7000,
                   padding: "4px",
                 }}
-                onClick={(event) => event.stopPropagation()}
                 onContextMenu={(event) => event.preventDefault()}
               >
                 <button

@@ -46,10 +46,15 @@ const resolveCurrentStatusKey = (doc, orderedStatuses = []) => {
   if (rawStatusId !== null && rawStatusId !== undefined && String(rawStatusId).trim() !== "") {
     return String(rawStatusId);
   }
-  const statusName = String(doc?.rev_status_name || "").trim().toLowerCase();
+  const statusName = String(doc?.rev_status_name || "")
+    .trim()
+    .toLowerCase();
   if (!statusName) return null;
   const matched = (orderedStatuses || []).find(
-    (status) => String(status?.rev_status_name || "").trim().toLowerCase() === statusName,
+    (status) =>
+      String(status?.rev_status_name || "")
+        .trim()
+        .toLowerCase() === statusName,
   );
   return matched?.rev_status_id != null ? String(matched.rev_status_id) : null;
 };
@@ -418,7 +423,7 @@ function App() {
             !Array.isArray(uploadedFiles[selectedDocId])
               ? uploadedFiles[selectedDocId]
               : {};
-      const currentRevStatusKey = resolveCurrentStatusKey(selectedDoc, revStatuses);
+          const currentRevStatusKey = resolveCurrentStatusKey(selectedDoc, revStatuses);
           const sourceLocal = Array.isArray(docEntry[sourceKey]) ? docEntry[sourceKey] : [];
           const targetLocal = Array.isArray(docEntry[targetKey]) ? docEntry[targetKey] : [];
           const apiFiles = Array.isArray(docEntry["$api"]) ? docEntry["$api"] : [];
@@ -1195,9 +1200,7 @@ function App() {
             <div className="task-cabinet__label">Task cabinet:</div>
             {cabinetTabs.map((tab) => (
               <div key={tab.label} className="task-tab">
-                <span style={{ color: "var(--color-text)", fontWeight: 600 }}>
-                  {tab.label}
-                </span>
+                <span style={{ color: "var(--color-text)", fontWeight: 600 }}>{tab.label}</span>
                 <span className="task-tab__badge" style={{ background: tab.tone }}>
                   {tab.count}
                 </span>
@@ -2228,7 +2231,9 @@ function App() {
 
       const fallbackStatus =
         statusWithFiles ||
-        orderedStatuses.find((status) => String(status.rev_status_id) === String(currentStatusKey)) ||
+        orderedStatuses.find(
+          (status) => String(status.rev_status_id) === String(currentStatusKey),
+        ) ||
         orderedStatuses[0] ||
         null;
       if (fallbackStatus) {
