@@ -13,7 +13,13 @@ ModelT = TypeVar("ModelT", bound=BaseModel)
 DbErrorMapping = tuple[str, int, str]
 
 logger = logging.getLogger(__name__)
-DEBUG_MODE = os.getenv("DEBUG", "").lower() in {"1", "true", "yes", "on", "debug"}
+_DEBUG_FLAG = os.getenv("DEBUG", "").lower() in {"1", "true", "yes", "on", "debug"}
+_APP_ENV = os.getenv("APP_ENV", os.getenv("ENV", "")).strip().lower()
+_IS_PRODUCTION_ENV = _APP_ENV in {"prod", "production"}
+DEBUG_MODE = _DEBUG_FLAG and not _IS_PRODUCTION_ENV
+
+if _DEBUG_FLAG and _IS_PRODUCTION_ENV:
+    logger.warning("DEBUG is enabled but ignored in production environment")
 
 
 def _normalize_dt(value: datetime | str | None) -> datetime | None:
