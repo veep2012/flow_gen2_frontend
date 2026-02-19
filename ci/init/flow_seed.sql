@@ -102,6 +102,19 @@ INSERT INTO files_accepted (file_type, mimetype) VALUES
 ('dwg', 'application/acad'),
 ('dxf', 'application/dxf');
 
+-- Instance Parameters
+INSERT INTO instance_parameters (parameter, value, description) VALUES
+(
+    'file_name_conv',
+    '<BODY>_<UACR>_<TIMEST>.<EXT>',
+    'Default naming template for uploaded base files: <BODY>, <UACR>, <TIMEST>, and <EXT>.'
+),
+(
+    'file_name_com_conv',
+    '<BODY>_<UACR>_<TIMEST>_commented.<EXT>',
+    'Default naming template for commented files: <BODY>, <UACR>, <TIMEST>, literal suffix "_commented", and <EXT>.'
+);
+
 -- Users
 INSERT INTO users (user_id, person_id, user_acronym, role_id) VALUES 
 (1,1,'ZAML',3),(2,2,'FDQC',1),(3,3,'ASBB',2),(4,4,'KONI',1);
