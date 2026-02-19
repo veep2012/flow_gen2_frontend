@@ -6,7 +6,7 @@
 - Reviewers: API maintainers
 - Created: 2026-02-07
 - Last Updated: 2026-02-19
-- Version: v1.3
+- Version: v1.4
 
 ## Purpose
 Provide repeatable curl-based validation for commented-file endpoints.
@@ -21,6 +21,7 @@ Provide repeatable curl-based validation for commented-file endpoints.
 
 ## Design / Behavior
 Commented files are user-specific derivatives and must enforce uniqueness for `(file_id, user_id)`.
+Returned/downloaded commented `filename` is the commented object name derived from `s3_uid` (not the original source filename).
 
 ## 1. Set Env Vars
 

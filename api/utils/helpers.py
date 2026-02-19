@@ -2,12 +2,15 @@
 
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any, Iterable, TypeVar
 
 from fastapi import HTTPException
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
+from sqlalchemy.orm import Session
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 DbErrorMapping = tuple[str, int, str]
@@ -113,3 +116,77 @@ def _raise_for_dbapi_error(
             raise HTTPException(status_code=status_code, detail=final_detail) from err
     final_default = default_detail if not DEBUG_MODE else f"{default_detail} ({message})"
     raise HTTPException(status_code=default_status, detail=final_default) from err
+
+
+def _sanitize_filename_part(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", value.strip())
+    return cleaned.strip("_")
+
+
+def _build_default_filename_from_instance_parameter(
+    db: Session,
+    *,
+    parameter_name: str,
+    fallback_filename: str,
+    document_name: str | None = None,
+    max_length: int | None = None,
+) -> str:
+    fallback = os.path.basename(fallback_filename).strip()
+    if not fallback:
+        return fallback_filename
+    if "." not in fallback:
+        return fallback_filename
+
+    try:
+        template = db.execute(
+            text(
+                """
+                SELECT value
+                FROM workflow.instance_parameters
+                WHERE parameter = :parameter_name
+                """
+            ),
+            {"parameter_name": parameter_name},
+        ).scalar_one_or_none()
+        user_acronym = db.execute(
+            text(
+                """
+                SELECT u.user_acronym
+                FROM workflow.users AS u
+                WHERE u.user_id = NULLIF(current_setting('app.user', true), '')::SMALLINT
+                """
+            )
+        ).scalar_one_or_none()
+    except Exception:
+        logger.exception("Failed to read filename convention parameter '%s'", parameter_name)
+        return fallback_filename
+
+    if not template or not isinstance(template, str):
+        return fallback_filename
+    if not user_acronym or not isinstance(user_acronym, str):
+        return fallback_filename
+
+    body_raw, ext_raw = fallback.rsplit(".", 1)
+    body = _sanitize_filename_part(body_raw)
+    ext = _sanitize_filename_part(ext_raw.lower())
+    acronym = _sanitize_filename_part(user_acronym.upper())
+    docno = _sanitize_filename_part(document_name or "")
+    if not body or not ext or not acronym:
+        return fallback_filename
+    if "<DOCNO>" in template and not docno:
+        return fallback_filename
+
+    timestamp_utc = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    rendered = (
+        template.replace("<BODY>", body)
+        .replace("<DOCNO>", docno)
+        .replace("<UACR>", acronym)
+        .replace("<TIMEST>", timestamp_utc)
+        .replace("<EXT>", ext)
+    )
+    candidate = os.path.basename(rendered).strip()
+    if not candidate or "." not in candidate:
+        return fallback_filename
+    if max_length is not None and len(candidate) > max_length:
+        return fallback_filename
+    return candidate

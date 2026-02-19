@@ -135,6 +135,7 @@ def test_files_update_rejects_id_in_body():
         )
         assert upload["status"] == 201
         file_id = upload["payload"]["id"]
+        initial_filename = upload["payload"]["filename"]
 
         updated = _request(
             client,
@@ -149,7 +150,7 @@ def test_files_update_rejects_id_in_body():
             (item for item in listed_after["payload"] if item.get("id") == file_id), None
         )
         assert matched is not None
-        assert matched.get("filename") == f"file-{suffix}.pdf"
+        assert matched.get("filename") == initial_filename
 
 
 @pytest.mark.api_smoke

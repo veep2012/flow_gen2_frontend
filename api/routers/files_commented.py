@@ -20,6 +20,7 @@ from starlette.background import BackgroundTask
 from api.schemas.files import FileCommentedOut
 from api.utils.database import get_db
 from api.utils.helpers import (
+    _build_default_filename_from_instance_parameter,
     _handle_integrity_error,
     _model_list,
     _model_out,
@@ -125,6 +126,15 @@ def _validate_mimetype(file_extension: str, content_type: str, expected_mimetype
         )
 
 
+def _commented_filename_from_s3_uid(s3_uid: str) -> str:
+    key_name = s3_uid.rsplit("/", 1)[-1]
+    if "_" not in key_name:
+        return key_name
+    prefix, rest = key_name.split("_", 1)
+    is_hex_prefix = len(prefix) == 32 and all(ch in "0123456789abcdefABCDEF" for ch in prefix)
+    return rest if is_hex_prefix and rest else key_name
+
+
 def _handle_commented_file_integrity_error(err: IntegrityError) -> None:
     constraint = None
     orig = getattr(err, "orig", None)
@@ -218,8 +228,7 @@ def list_commented_files_for_file(
             fc.file_id,
             fc.user_id,
             fc.s3_uid,
-            f.filename,
-            f.mimetype,
+            fc.mimetype,
             f.rev_id,
             fc.created_at,
             fc.updated_at,
@@ -235,7 +244,10 @@ def list_commented_files_for_file(
         params["user_id"] = user_id
     sql += " ORDER BY fc.id"
     rows = db.execute(text(sql), params).mappings().all()
-    return _model_list(FileCommentedOut, rows)
+    normalized_rows = [
+        {**row, "filename": _commented_filename_from_s3_uid(row["s3_uid"])} for row in rows
+    ]
+    return _model_list(FileCommentedOut, normalized_rows)
 
 
 def insert_commented_file(
@@ -370,12 +382,18 @@ def insert_commented_file(
     project_name = file_row["project_name"]
     doc_name = file_row["doc_name_unique"]
     transmital_current_revision = file_row["transmital_current_revision"]
+    filename_for_object_key = _build_default_filename_from_instance_parameter(
+        db,
+        parameter_name="file_name_com_conv",
+        fallback_filename=file_row["filename"],
+        document_name=file_row["doc_name_unique"],
+    )
     object_key = _build_file_object_key(
         project_name=project_name,
         doc_name_unique=doc_name or "doc_unknown",
         transmital_current_revision=transmital_current_revision,
         unique_id=uuid.uuid4().hex,
-        filename=filename,
+        filename=filename_for_object_key,
     )
 
     client, bucket = _build_minio_client()
@@ -491,8 +509,8 @@ def insert_commented_file(
         "file_id": file_id,
         "user_id": user_id,
         "s3_uid": new_file["s3_uid"],
-        "filename": file_row["filename"],
-        "mimetype": file_row["mimetype"],
+        "filename": filename_for_object_key,
+        "mimetype": new_file["mimetype"],
         "rev_id": file_row["rev_id"],
         "created_at": new_file["created_at"],
         "updated_at": new_file["updated_at"],
@@ -745,12 +763,8 @@ def download_commented_file(
                 SELECT
                     fc.id,
                     fc.s3_uid,
-                    fc.mimetype,
-                    f.filename AS source_filename,
-                    u.user_acronym
+                    fc.mimetype
                 FROM workflow.files_commented AS fc
-                LEFT JOIN workflow.files AS f ON f.id = fc.file_id
-                LEFT JOIN workflow.users AS u ON u.user_id = fc.user_id
                 WHERE fc.id = :file_id
                 """
             ),
@@ -782,16 +796,7 @@ def download_commented_file(
         lambda: client.stat_object(bucket, file_row["s3_uid"]),
     )
 
-    source_filename = file_row["source_filename"]
-    user_acronym = file_row["user_acronym"]
-
-    # Extract filename from s3_uid path as fallback
-    filename = source_filename or (
-        file_row["s3_uid"].split("/")[-1] if "/" in file_row["s3_uid"] else file_row["s3_uid"]
-    )
-    if user_acronym:
-        base, ext = os.path.splitext(filename)
-        filename = f"{base}_commented_by_{user_acronym}{ext}"
+    filename = _commented_filename_from_s3_uid(file_row["s3_uid"])
     safe_name = (
         filename.replace('"', "'")
         .replace("\r", "")

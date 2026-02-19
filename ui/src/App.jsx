@@ -1849,8 +1849,7 @@ function App() {
       // Handle both string and object file formats
       const fileName = typeof file === "string" ? file : file.name;
       const fileId = getFileId(file);
-      const documentNumber = typeof file === "object" ? file.documentNumber : null;
-      const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
+      const displayName = fileName;
 
       if (!fileId) {
         alert(`File not uploaded yet: ${displayName}\n\nPlease wait for the upload to complete.`);
@@ -1889,8 +1888,7 @@ function App() {
       // Handle both string and object file formats
       const fileName = typeof file === "string" ? file : file.name;
       const fileId = getFileId(file);
-      const documentNumber = typeof file === "object" ? file.documentNumber : null;
-      const displayName = documentNumber ? `${documentNumber} - ${fileName}` : fileName;
+      const displayName = fileName;
 
       if (!fileId) {
         alert(`File not uploaded yet: ${displayName}\n\nCannot delete local files.`);

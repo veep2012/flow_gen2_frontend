@@ -20,6 +20,7 @@ from starlette.background import BackgroundTask
 from api.schemas.files import FileOut, FileUpdate
 from api.utils.database import get_db
 from api.utils.helpers import (
+    _build_default_filename_from_instance_parameter,
     _example_for,
     _handle_integrity_error,
     _model_list,
@@ -290,6 +291,13 @@ def insert_file(
             ),
         )
     _validate_mimetype(file_extension, content_type, accepted_mimetype)
+    filename = _build_default_filename_from_instance_parameter(
+        db,
+        parameter_name="file_name_conv",
+        fallback_filename=filename,
+        document_name=rev_row["doc_name_unique"],
+        max_length=90,
+    )
     stream: BinaryIO = cast(BinaryIO, file.file)
     size = None
     if hasattr(stream, "seekable") and stream.seekable():

@@ -6,7 +6,7 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-02-19
-- Version: v1.4
+- Version: v1.7
 
 ## Purpose
 Provide the current backend API surface and behavior contract for clients and maintainers.
@@ -102,7 +102,7 @@ OpenAPI/Swagger:
 
 Audit fields (created_by / updated_by):
 - `created_by` and `updated_by` are set by the application or by DB triggers when NULL.
-- DB triggers read the session setting `app.user` (a SMALLINT user id). The API sets it per request (via `set_config('app.user', ...)`) from the `X-User-Id` header when provided; otherwise it uses `DEFAULT_APP_USER` when configured (or leaves it empty).
+- DB triggers read the session setting `app.user` (a SMALLINT user id). The API sets it per request (via `set_config('app.user', ...)`) from the `X-User-Id` header when provided; otherwise it uses `DEFAULT_APP_USER` (default fallback is `1`).
 
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
@@ -381,6 +381,13 @@ curl -sS -H "Accept: application/json" \
   $API_BASE/api/v1/files/
 ```
 - Form fields: `rev_id` (int), `file` (binary).
+- Default stored filename is generated from `workflow.instance_parameters.parameter='file_name_conv'` template (`<DOCNO>-<BODY>_<UACR>_<TIMEST>.<EXT>`), where:
+  - `<DOCNO>` = document name (`doc_name_unique`)
+  - `<BODY>` = uploaded filename body
+  - `<UACR>` = uploader acronym from current `app.user` (from `X-User-Id` or `DEFAULT_APP_USER`)
+  - `<TIMEST>` = current UTC timestamp
+  - `<EXT>` = uploaded extension
+- Fallback behavior: if the parameter/user context/template rendering is unavailable or invalid, API keeps the uploaded filename unchanged.
 - Response: file shape.
 - Example response:
 ```json
@@ -517,6 +524,8 @@ curl -sS -H "Accept: application/json" \
 - Form fields: `file_id` (int), `user_id` (int), `file` (binary, optional).
 - If `file` is omitted, API copies source file bytes from `file_id` into a new commented file object.
 - If `file` is provided, API validates mimetype against the original file.
+- Commented-file object naming uses `workflow.instance_parameters.parameter='file_name_com_conv'` (`<BODY>_commented_<UACR>_<TIMEST>.<EXT>`), where `<BODY>` is taken from the source file linked by `file_id` (applies both when uploading manually and when copying without `file`), with the same fallback behavior (original name unchanged when template resolution fails).
+- Response `filename` for commented files reflects the commented object name (derived from commented `s3_uid`), not the original source file name.
 - Rejects duplicates per `(file_id, user_id)`.
 - Example response:
 ```json
@@ -558,7 +567,7 @@ curl -sS -H "Accept: application/octet-stream" \
 ```
 <binary>
 ```
-- `Content-Disposition` filename is `<original>_commented_by_<user_acronym>`.
+- `Content-Disposition` filename is the commented object filename.
 
 ## Persons/users/permissions
 

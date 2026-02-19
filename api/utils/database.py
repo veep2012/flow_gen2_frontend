@@ -35,7 +35,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 def _set_app_user(db: Session, request: Request) -> None:
     header_value = request.headers.get("X-User-Id")
     if header_value is None:
-        user_value = os.getenv("DEFAULT_APP_USER", "")
+        user_value = os.getenv("DEFAULT_APP_USER", "1").strip()
     else:
         user_value = header_value.strip()
         if user_value:

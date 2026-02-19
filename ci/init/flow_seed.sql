@@ -106,13 +106,13 @@ INSERT INTO files_accepted (file_type, mimetype) VALUES
 INSERT INTO instance_parameters (parameter, value, description) VALUES
 (
     'file_name_conv',
-    '<BODY>_<UACR>_<TIMEST>.<EXT>',
-    'Default naming template for uploaded base files: <BODY>, <UACR>, <TIMEST>, and <EXT>.'
+    '<DOCNO>-<BODY>_<UACR>_<TIMEST>.<EXT>',
+    'Default naming template for uploaded base files: <DOCNO>, <BODY>, <UACR>, <TIMEST>, and <EXT>.'
 ),
 (
     'file_name_com_conv',
-    '<BODY>_<UACR>_<TIMEST>_commented.<EXT>',
-    'Default naming template for commented files: <BODY>, <UACR>, <TIMEST>, literal suffix "_commented", and <EXT>.'
+    '<BODY>_commented_<UACR>_<TIMEST>.<EXT>',
+    'Default naming template for commented files: <BODY>, literal suffix "_commented", <UACR>, <TIMEST>, and <EXT>.'
 );
 
 -- Users

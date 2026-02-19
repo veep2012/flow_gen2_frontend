@@ -442,11 +442,7 @@ const IDCBehavior = ({
                             {isExpanded &&
                               revFiles.map((file, idx) => {
                                 const fileName = typeof file === "string" ? file : file.name;
-                                const documentNumber =
-                                  typeof file === "object" ? file.documentNumber : null;
-                                const displayName = documentNumber
-                                  ? `${documentNumber} - ${fileName}`
-                                  : fileName;
+                                const displayName = fileName;
                                 const fileIcon = getFileIcon(fileName);
                                 const fileTypeLabel = getFileTypeLabel(fileName);
                                 const isLastFile = idx === revFiles.length - 1;
