@@ -289,6 +289,7 @@ minio-down: ## Stop and remove standalone MinIO container started by minio-up
 
 .PHONY: test-db-up
 test-db-up: ## Start temporary Postgres for tests (no volume)
+	-$(CONTAINER_ENGINE) rm -f $(TEST_DB_CONTAINER_NAME) >/dev/null 2>&1
 	$(CONTAINER_ENGINE) run -d --name $(TEST_DB_CONTAINER_NAME) \
 		--env POSTGRES_USER=$(TEST_DB_USER) \
 		--env POSTGRES_PASSWORD=$(TEST_DB_PASSWORD) \
@@ -307,7 +308,7 @@ test-db-up: ## Start temporary Postgres for tests (no volume)
 	$(CONTAINER_ENGINE) exec -e PGPASSWORD=$(TEST_DB_PASSWORD) $(TEST_DB_CONTAINER_NAME) \
 		psql -U $(TEST_DB_USER) -d $(TEST_DB_NAME) -v ON_ERROR_STOP=1 -f /tmp/init/$(notdir $(INIT_SQL))
 	$(CONTAINER_ENGINE) exec -e PGPASSWORD=$(TEST_DB_PASSWORD) $(TEST_DB_CONTAINER_NAME) \
-		psql -U $(TEST_DB_USER) -d $(TEST_DB_NAME) -v ON_ERROR_STOP=1 -f /tmp/init/flow_seed.psql
+		psql -U $(TEST_DB_USER) -d $(TEST_DB_NAME) -v ON_ERROR_STOP=1 -f /tmp/init/flow_seed.sql
 
 .PHONY: test-db-down
 test-db-down: ## Stop and remove temporary test Postgres container

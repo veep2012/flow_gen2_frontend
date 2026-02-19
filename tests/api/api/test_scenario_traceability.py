@@ -154,6 +154,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/files_commented_api_test_scenarios.md",
         ["TS-FC-010"],
     ),
+    "test_files_commented_insert_without_file_copies_source": (
+        "documentation/test_scenarios/files_commented_api_test_scenarios.md",
+        ["TS-FC-011"],
+    ),
     "test_files_crud_and_download": (
         "documentation/test_scenarios/files_api_test_scenarios.md",
         ["TS-F-001"],

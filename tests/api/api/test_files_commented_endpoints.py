@@ -194,6 +194,40 @@ def test_files_commented_insert_and_download():
 
 
 @pytest.mark.api_smoke
+def test_files_commented_insert_without_file_copies_source():
+    suffix = uuid.uuid4().hex[:6]
+    with httpx.Client(timeout=10) as client:
+        rev_id = _get_test_revision_id(client)
+        user_id, user_acronym = _get_test_user(client)
+        base_file = _upload_base_file(client, rev_id, suffix, "pdf", "application/pdf")
+
+        insert = _request(
+            client,
+            "POST",
+            "/files/commented/",
+            data={"file_id": str(base_file["id"]), "user_id": str(user_id)},
+        )
+        assert insert["status"] == 201
+        commented_id = insert["payload"]["id"]
+        assert insert["payload"]["file_id"] == base_file["id"]
+        assert insert["payload"]["user_id"] == user_id
+        assert insert["payload"]["filename"] == base_file["filename"]
+        assert insert["payload"]["mimetype"] == base_file["mimetype"]
+        assert insert["payload"]["rev_id"] == base_file["rev_id"]
+
+        downloaded = _request(
+            client, "GET", "/files/commented/download", params={"file_id": commented_id}
+        )
+        assert 200 <= downloaded["status"] < 300
+        assert downloaded["content"] == base_file["content"]
+        content_disposition = downloaded["headers"].get("content-disposition", "")
+        assert f"_commented_by_{user_acronym}" in content_disposition
+
+        _request(client, "DELETE", f"/files/commented/{commented_id}")
+        _request(client, "DELETE", f"/files/{base_file['id']}")
+
+
+@pytest.mark.api_smoke
 def test_files_commented_insert_duplicate():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:

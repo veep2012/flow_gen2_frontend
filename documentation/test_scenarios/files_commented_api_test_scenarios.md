@@ -5,8 +5,8 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-02-11
-- Version: v1.2
+- Last Updated: 2026-02-19
+- Version: v1.3
 
 ## Purpose
 Provide repeatable curl-based validation for commented-file endpoints.
@@ -102,6 +102,19 @@ curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" \
   -F "file=@/etc/hosts;type=application/vnd.openxmlformats-officedocument.wordprocessingml.document;filename=commented-$TS.docx"
 ```
 
+## 6. TS-FC-011 Insert Without `file` Copies Source
+
+```bash
+COPIED=$(curl -s -X POST "$API_BASE$API_PREFIX/files/commented/" \
+  -F "file_id=$FILE_ID" \
+  -F "user_id=$USER_ID")
+echo "$COPIED" | jq
+COPIED_ID=$(echo "$COPIED" | jq -r '.id')
+
+curl -i "$API_BASE$API_PREFIX/files/commented/download?file_id=$COPIED_ID"
+curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COPIED_ID"
+```
+
 ## Edge Cases
 - Some environments may return `400` or `415` for mimetype mismatch.
 - If base file creation fails, remaining commented-file checks are blocked.
@@ -117,6 +130,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" \
 - `TS-FC-008` missing insert fields are rejected (`422`).
 - `TS-FC-009` missing file/user references return `404`.
 - `TS-FC-010` mimetype mismatch rejected (`400`/`415`).
+- `TS-FC-011` insert without multipart `file` copies source file bytes from `file_id`.
 
 ## Automated Test Mapping
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_list` -> `TS-FC-001`
@@ -129,6 +143,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" \
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_missing_fields` -> `TS-FC-008`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_nonexistent_file_or_user` -> `TS-FC-009`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_mimetype_mismatch` -> `TS-FC-010`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_without_file_copies_source` -> `TS-FC-011`
 
 ## References
 - `tests/api/api/test_files_commented_endpoints.py`

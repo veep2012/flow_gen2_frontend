@@ -9,6 +9,10 @@
 - Version: v0.1
 - Related Tickets: <links or IDs>
 
+## Change Log
+- YYYY-MM-DD | v0.1 | Initial draft
+- YYYY-MM-DD | v0.2 | <what changed>
+
 ## Purpose
 One short paragraph: what this document explains and why it exists.
 
@@ -102,6 +106,3 @@ flowchart TD
 ## References
 - <file path or URL>
 - <file path or URL>
-
-## Change Log
-- YYYY-MM-DD | v0.1 | Initial draft

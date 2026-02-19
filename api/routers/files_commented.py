@@ -242,7 +242,13 @@ def insert_commented_file(
     request: Request,
     file_id: int = Form(..., description="File ID to attach the commented file to", examples=[1]),
     user_id: int = Form(..., description="User ID uploading the commented file", examples=[1]),
-    file: UploadFile = UploadFileField(...),
+    file: UploadFile | None = UploadFileField(
+        None,
+        description=(
+            "Optional commented file payload. When omitted, the source file identified by "
+            "file_id is copied as the commented file."
+        ),
+    ),
     db: Session = Depends(get_db),
 ) -> FileCommentedOut:
     """
@@ -252,7 +258,7 @@ def insert_commented_file(
         request: Incoming request used for logging the client host.
         file_id: The file ID to attach the commented file to.
         user_id: The user ID uploading the commented file.
-        file: The uploaded file (multipart form data).
+        file: Optional uploaded file (multipart form data).
 
     Returns:
         Newly created commented file record with metadata.
@@ -270,6 +276,7 @@ def insert_commented_file(
                     SELECT
                         f.id,
                         f.filename,
+                        f.s3_uid,
                         f.mimetype,
                         f.rev_id,
                         r.transmital_current_revision,
@@ -301,58 +308,64 @@ def insert_commented_file(
     if not user_exists:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Filename is required")
-
-    filename = os.path.basename(file.filename)
-    if len(filename) > 90:
-        raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
-
-    file_extension = _extract_file_extension(filename)
-    if not file_extension:
-        raise HTTPException(
-            status_code=400,
-            detail="File must have an extension. Allowed types: Word, Excel, PDF, AutoCAD.",
-        )
-
-    content_type = file.content_type or "application/octet-stream"
-    accepted_types = _get_cached_accepted_types(db)
-    accepted_mimetype = accepted_types.get(file_extension)
-    if not accepted_mimetype:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, "
-                "PDF, AutoCAD."
-            ),
-        )
-    _validate_mimetype(file_extension, content_type, accepted_mimetype)
-    if content_type.lower() != file_row["mimetype"].lower():
-        raise HTTPException(
-            status_code=415,
-            detail=(
-                "Commented file content type does not match original file. "
-                f"Expected '{file_row['mimetype']}'."
-            ),
-        )
-
-    stream: BinaryIO = cast(BinaryIO, file.file)
+    content_type = file_row["mimetype"]
+    filename = file_row["filename"]
+    stream: BinaryIO | None = None
     size = None
-    if hasattr(stream, "seekable") and stream.seekable():
-        stream.seek(0, os.SEEK_END)
-        size = stream.tell()
-        stream.seek(0)
-        if size <= 0:
-            raise HTTPException(status_code=400, detail="File is empty")
-        max_size_mb = int(os.getenv("MAX_UPLOAD_SIZE_MB", "128"))
-        max_size_bytes = max_size_mb * 1024 * 1024
-        if max_size_mb > 0 and size > max_size_bytes:
-            raise HTTPException(status_code=413, detail="File exceeds upload size limit")
-    else:
-        peek = stream.read(1)
-        if not peek:
-            raise HTTPException(status_code=400, detail="File is empty")
-        stream = cast(BinaryIO, _PrefixedStream(peek, stream))
+    copy_from_source = file is None
+
+    if file is not None:
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="Filename is required")
+
+        filename = os.path.basename(file.filename)
+        if len(filename) > 90:
+            raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
+
+        file_extension = _extract_file_extension(filename)
+        if not file_extension:
+            raise HTTPException(
+                status_code=400,
+                detail="File must have an extension. Allowed types: Word, Excel, PDF, AutoCAD.",
+            )
+
+        content_type = file.content_type or "application/octet-stream"
+        accepted_types = _get_cached_accepted_types(db)
+        accepted_mimetype = accepted_types.get(file_extension)
+        if not accepted_mimetype:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, "
+                    "PDF, AutoCAD."
+                ),
+            )
+        _validate_mimetype(file_extension, content_type, accepted_mimetype)
+        if content_type.lower() != file_row["mimetype"].lower():
+            raise HTTPException(
+                status_code=415,
+                detail=(
+                    "Commented file content type does not match original file. "
+                    f"Expected '{file_row['mimetype']}'."
+                ),
+            )
+
+        stream = cast(BinaryIO, file.file)
+        if hasattr(stream, "seekable") and stream.seekable():
+            stream.seek(0, os.SEEK_END)
+            size = stream.tell()
+            stream.seek(0)
+            if size <= 0:
+                raise HTTPException(status_code=400, detail="File is empty")
+            max_size_mb = int(os.getenv("MAX_UPLOAD_SIZE_MB", "128"))
+            max_size_bytes = max_size_mb * 1024 * 1024
+            if max_size_mb > 0 and size > max_size_bytes:
+                raise HTTPException(status_code=413, detail="File exceeds upload size limit")
+        else:
+            peek = stream.read(1)
+            if not peek:
+                raise HTTPException(status_code=400, detail="File is empty")
+            stream = cast(BinaryIO, _PrefixedStream(peek, stream))
 
     project_name = file_row["project_name"]
     doc_name = file_row["doc_name_unique"]
@@ -370,29 +383,50 @@ def insert_commented_file(
     if not _minio_with_retry("bucket_exists", endpoint, lambda: client.bucket_exists(bucket)):
         _minio_with_retry("make_bucket", endpoint, lambda: client.make_bucket(bucket))
     try:
-        if size is None:
+        if copy_from_source:
+            try:
+                from minio.commonconfig import CopySource
+            except ImportError as exc:
+                raise HTTPException(
+                    status_code=500,
+                    detail="MinIO client library not installed; install dependencies.",
+                ) from exc
+
             _minio_with_retry(
-                "put_object",
+                "copy_object",
                 endpoint,
-                lambda: client.put_object(
+                lambda: client.copy_object(
                     bucket,
                     object_key,
-                    stream,
-                    length=-1,
-                    part_size=10 * 1024 * 1024,
-                    content_type=content_type,
+                    CopySource(bucket, file_row["s3_uid"]),
                 ),
             )
         else:
-            _minio_with_retry(
-                "put_object",
-                endpoint,
-                lambda: client.put_object(
-                    bucket, object_key, stream, length=size, content_type=content_type
-                ),
-            )
+            if stream is None:
+                raise HTTPException(status_code=500, detail="Internal Server Error")
+            if size is None:
+                _minio_with_retry(
+                    "put_object",
+                    endpoint,
+                    lambda: client.put_object(
+                        bucket,
+                        object_key,
+                        stream,
+                        length=-1,
+                        part_size=10 * 1024 * 1024,
+                        content_type=content_type,
+                    ),
+                )
+            else:
+                _minio_with_retry(
+                    "put_object",
+                    endpoint,
+                    lambda: client.put_object(
+                        bucket, object_key, stream, length=size, content_type=content_type
+                    ),
+                )
     except HTTPException:
-        logger.exception("MinIO upload failed for commented file key %s", object_key)
+        logger.exception("MinIO create/copy failed for commented file key %s", object_key)
         raise
 
     try:
@@ -574,8 +608,11 @@ _REST_RESPONSES: dict[int | str, dict[str, Any]] = {
 
 @router.post(
     "/",
-    summary="Upload a commented file.",
-    description="Uploads a commented file and creates a record linked to the file and user.",
+    summary="Create a commented file.",
+    description=(
+        "Creates a commented file record linked to the file and user. "
+        "If file is provided, uploads the payload; otherwise copies the source file by file_id."
+    ),
     operation_id="insert_commented_file_rest",
     tags=["files-commented"],
     response_model=FileCommentedOut,
@@ -586,7 +623,7 @@ def insert_commented_file_rest(
     request: Request,
     file_id: int = Form(..., description="File ID to attach the commented file to", examples=[1]),
     user_id: int = Form(..., description="User ID uploading the commented file", examples=[1]),
-    file: UploadFile = UploadFileField(...),
+    file: UploadFile | None = UploadFileField(None),
     db: Session = Depends(get_db),
 ) -> FileCommentedOut:
     return insert_commented_file(request, file_id, user_id, file, db)

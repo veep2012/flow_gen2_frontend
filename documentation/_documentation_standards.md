@@ -19,13 +19,15 @@ Navigation starts from `documentation/_documentation-index.md`.
 Every new document should include at minimum:
 1. `# Title`
 2. `## Document Control`
-3. `## Purpose`
-4. `## Scope`
-5. `## Design / Behavior`
-6. `## Edge Cases`
-7. `## References`
+3. `## Change Log`
+4. `## Purpose`
+5. `## Scope`
+6. `## Design / Behavior`
+7. `## Edge Cases`
+8. `## References`
 
 Use `documentation/_documentation_template.md` as the starting point.
+`## Change Log` must be placed immediately after `## Document Control`.
 
 ## 3. Header and Style Rules
 - Use one H1 (`#`) per file.
@@ -50,8 +52,11 @@ Use `documentation/_documentation_template.md` as the starting point.
 - If a diagram conflicts with text, text is source of truth until updated.
 
 ## 7. Change Management
-- Add a `Change Log` section for substantial documents.
-- Record version/date for notable updates.
+- Add a `Change Log` section to every document.
+- Keep `Change Log` near the top: immediately after `Document Control`.
+- Add a new entry for each new document version.
+- Record version/date and concise summary of what changed.
+- Keep the newest entry first.
 - Keep historical decisions in document history or linked ADRs.
 
 ## 8. Migration of Existing Docs
@@ -66,7 +71,8 @@ Use `documentation/_documentation_template.md` as the starting point.
 2. Fill mandatory sections first.
 3. Remove non-applicable optional sections.
 4. Add links to related docs and implementation files.
-5. Add the new file to `documentation/_documentation-index.md`.
+5. Add or update `Change Log` as the first content section after `Document Control`.
+6. Add the new file to `documentation/_documentation-index.md`.
 
 ## 10. Naming Verification
 - Before finalizing documentation changes, run:

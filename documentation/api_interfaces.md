@@ -5,8 +5,8 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-11
-- Version: v1.3
+- Last Updated: 2026-02-19
+- Version: v1.4
 
 ## Purpose
 Provide the current backend API surface and behavior contract for clients and maintainers.
@@ -514,8 +514,10 @@ curl -sS -H "Accept: application/json" \
   -F "file=@commented.pdf;type=application/pdf" \
   $API_BASE/api/v1/files/commented/
 ```
-- Form fields: `file_id` (int), `user_id` (int), `file` (binary).
-- Validates mimetype against the original file; rejects duplicates per `(file_id, user_id)`.
+- Form fields: `file_id` (int), `user_id` (int), `file` (binary, optional).
+- If `file` is omitted, API copies source file bytes from `file_id` into a new commented file object.
+- If `file` is provided, API validates mimetype against the original file.
+- Rejects duplicates per `(file_id, user_id)`.
 - Example response:
 ```json
 {
