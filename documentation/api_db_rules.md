@@ -6,8 +6,12 @@
 - Owner: Backend and Database Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-06
-- Version: v1.1
+- Last Updated: 2026-02-20
+- Version: v1.2
+
+## Change Log
+- 2026-02-20 | v1.2 | Added mandatory core-table audit metadata requirement and synchronized skill fallback reference
+- 2026-02-06 | v1.1 | Established initial approved backend-database contract baseline
 
 ## Purpose
 Define the enforced backend-database contract for document and revision lifecycle behavior.
@@ -126,6 +130,12 @@ Authoritative business data:
 - `notification_recipients`
 
 Direct mutation by the application is forbidden.
+
+Mandatory audit metadata on every `core` table:
+- `created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL`
+- `updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL`
+- `created_by SMALLINT REFERENCES ref.users(user_id)`
+- `updated_by SMALLINT REFERENCES ref.users(user_id)`
 
 ---
 

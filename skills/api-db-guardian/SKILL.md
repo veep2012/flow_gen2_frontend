@@ -28,6 +28,11 @@ Check for violations:
 - Audit trails removed or made non-transactional.
 - `app_user` granted DML on `core`, `ref`, or `audit`.
 - Workflow status logic hardcoded instead of data-driven.
+- Any `core` table missing required audit columns:
+  - `created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL`
+  - `updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL`
+  - `created_by SMALLINT REFERENCES ref.users(user_id)`
+  - `updated_by SMALLINT REFERENCES ref.users(user_id)`
 
 ### Step 4: Decide
 Pick one and state it explicitly:

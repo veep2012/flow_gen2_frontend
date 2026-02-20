@@ -104,6 +104,12 @@ Authoritative business data:
 
 Direct mutation by the application is forbidden.
 
+Mandatory audit metadata on every `core` table:
+- `created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL`
+- `updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL`
+- `created_by SMALLINT REFERENCES ref.users(user_id)`
+- `updated_by SMALLINT REFERENCES ref.users(user_id)`
+
 ---
 
 ### `ref`

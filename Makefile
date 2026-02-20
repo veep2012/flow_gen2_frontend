@@ -105,7 +105,7 @@ test: | ensure-pid-dir ## Run unit tests
 	@ready=; \
 	for i in 1 2 3; do \
 		API_BASE=http://localhost:$(TEST_API_PORT) API_PREFIX= API_WAIT_TIMEOUT=$(API_WAIT_TIMEOUT) $(PYTHON_BIN) scripts/wait-for-api.py && ready=1 && break; \
-		PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
+		API_PORT=$(TEST_API_PORT) PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
 		APP_DATABASE_URL=postgresql+psycopg://$(APP_DB_USER):$(APP_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
 			MINIO_ENDPOINT=$(TEST_MINIO_ENDPOINT) \
 			MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
@@ -160,7 +160,7 @@ test-up: | ensure-pid-dir ## Start test DB, MinIO, and API
 
 .PHONY: test-down
 test-down: ## Stop test API, MinIO, and DB
-	PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true
+	API_PORT=$(TEST_API_PORT) PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true
 	$(MAKE) test-db-down
 	$(MAKE) test-minio-down
 
