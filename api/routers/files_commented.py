@@ -33,7 +33,7 @@ from api.utils.minio import (
     _minio_with_retry,
 )
 
-router = APIRouter(prefix="/api/v1/files/commented", tags=["files-commented"])
+router = APIRouter(prefix="/api/v1/files/commented", tags=["comments"])
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +156,7 @@ def _handle_commented_file_integrity_error(err: IntegrityError) -> None:
         "Optionally filter by user ID."
     ),
     operation_id="list_commented_files_for_file",
-    tags=["files-commented"],
+    tags=["comments"],
     response_model=list[FileCommentedOut],
     responses={
         400: {
@@ -632,7 +632,7 @@ _REST_RESPONSES: dict[int | str, dict[str, Any]] = {
         "If file is provided, uploads the payload; otherwise copies the source file by file_id."
     ),
     operation_id="insert_commented_file_rest",
-    tags=["files-commented"],
+    tags=["comments"],
     response_model=FileCommentedOut,
     status_code=201,
     responses=_REST_RESPONSES,
@@ -652,7 +652,7 @@ def insert_commented_file_rest(
     summary="Delete a commented file.",
     description="Removes a commented file from storage and deletes its database record.",
     operation_id="delete_commented_file_rest",
-    tags=["files-commented"],
+    tags=["comments"],
     status_code=204,
     responses=_REST_RESPONSES,
 )
@@ -672,7 +672,7 @@ def delete_commented_file_rest(
         "for download (Content-Disposition, ETag, Last-Modified)."
     ),
     operation_id="download_commented_file",
-    tags=["files-commented"],
+    tags=["comments"],
     responses={
         200: {
             "description": "File content.",

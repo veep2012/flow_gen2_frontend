@@ -3,6 +3,7 @@
 ## Default Skill
 
 For any API or database change or review, always apply the **api-db-guardian** skill to enforce compliance with `documentation/api_db_rules.md`.
+For any API change or API-related database change/review, always apply the **api-auto-tester** skill to run `make test` and iterate until green.
 For any API endpoint design change or review, always apply the **api-rmm-guard** skill to prevent regressions below Richardson Maturity Model Level 2.
 For any backend Python (`*.py`) change or review, always apply the **backend-doc-sync** skill to keep backend implementation and repository documentation synchronized.
 For any API test creation/update/review, always apply the **test-scenario-guardian** skill to enforce scenario-first workflow and bidirectional sync between `documentation/test_scenarios/` and `tests/api/`.

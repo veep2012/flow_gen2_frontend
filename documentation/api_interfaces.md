@@ -5,10 +5,13 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-20
-- Version: v1.8
+- Last Updated: 2026-02-21
+- Version: v1.11
 
 ## Change Log
+- 2026-02-21 | v1.11 | Split written comments into dedicated router/schema modules and synchronized test/doc traceability.
+- 2026-02-21 | v1.10 | Added written comment update endpoint and authorization behavior.
+- 2026-02-21 | v1.9 | Added written comments API (`list/create/delete`) and grouped comments endpoints under `comments` tag.
 - 2026-02-20 | v1.8 | Renamed commented download query parameter from `file_id` to `id`.
 - 2026-02-19 | v1.7 | Updated API contracts and examples for latest backend behavior.
 
@@ -572,6 +575,65 @@ curl -sS -H "Accept: application/octet-stream" \
 <binary>
 ```
 - `Content-Disposition` filename is the commented object filename.
+
+### Written comments
+Shape (single item):
+```json
+{
+  "id": 11,
+  "rev_id": 45,
+  "user_id": 1,
+  "comment_text": "Please verify section B-B.",
+  "created_at": "2026-02-21T09:12:34.000000Z",
+  "updated_at": "2026-02-21T09:12:34.000000Z",
+  "created_by": 1,
+  "updated_by": 1
+}
+```
+Schema references:
+- Response: `api/schemas/written_comments.py` `WrittenCommentOut`
+- Create: `api/schemas/written_comments.py` `WrittenCommentCreate`
+
+#### List
+- `GET /api/v1/documents/revisions/45/comments` — 200; optional `user_id` filter.
+- Headers: `Accept: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" \
+  "$API_BASE/api/v1/documents/revisions/45/comments?user_id=1"
+```
+
+#### Create
+- `POST /api/v1/documents/revisions/45/comments` — 201; creates written comment for revision/user.
+- Headers: `Accept: application/json`, `Content-Type: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{"user_id":1,"comment_text":"Please verify section B-B."}' \
+  "$API_BASE/api/v1/documents/revisions/45/comments"
+```
+- Validation: blank text is rejected (`400`), missing fields rejected (`422`).
+
+#### Delete
+- `DELETE /api/v1/documents/revisions/comments/{id}` — 204.
+- Authorization actor is resolved from `X-User-Id` (or configured default app user). Only author or superuser can delete.
+- Headers: `Accept: application/json`, `X-User-Id: <user_id>`
+- Example request:
+```bash
+curl -i -H "Accept: application/json" -H "X-User-Id: 1" \
+  -X DELETE "$API_BASE/api/v1/documents/revisions/comments/11"
+```
+
+#### Update
+- `PUT /api/v1/documents/revisions/comments/{id}` — 200; updates `comment_text`.
+- Authorization actor is resolved from `X-User-Id` (or configured default app user). Only author or superuser can update.
+- Headers: `Accept: application/json`, `Content-Type: application/json`, `X-User-Id: <user_id>`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" -H "X-User-Id: 1" \
+  -d '{"comment_text":"Updated note for this revision."}' \
+  "$API_BASE/api/v1/documents/revisions/comments/11"
+```
 
 ## Persons/users/permissions
 

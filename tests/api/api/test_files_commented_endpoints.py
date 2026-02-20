@@ -1,117 +1,21 @@
-import os
-import time
 import uuid
 
 import httpx
 import pytest
 
-
-def _build_base_url() -> str:
-    base = os.getenv("API_BASE", "http://localhost:4175").rstrip("/")
-    prefix = os.getenv("API_PREFIX", "/api/v1").rstrip("/")
-    if prefix and not prefix.startswith("/"):
-        prefix = f"/{prefix}"
-    return f"{base}{prefix}"
-
-
-def _request(client: httpx.Client, method: str, path: str, **kwargs) -> dict:
-    url = f"{_build_base_url()}{path}"
-    start = time.perf_counter()
-    response = client.request(method, url, **kwargs)
-    duration_ms = (time.perf_counter() - start) * 1000
-    payload = None
-    if response.content and "application/json" in response.headers.get("content-type", ""):
-        payload = response.json()
-    return {
-        "status": response.status_code,
-        "payload": payload,
-        "duration_ms": duration_ms,
-        "headers": response.headers,
-        "content": response.content,
-    }
-
-
-def _extract_first_id(items: list, keys: list[str]) -> int | None:
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        for key in keys:
-            value = item.get(key)
-            if value is not None:
-                return value
-    return None
-
-
-def _get_test_revision_id(client: httpx.Client) -> int:
-    projects = _request(client, "GET", "/lookups/projects")
-    if projects["status"] == 404:
-        pytest.skip("No projects available for files commented test")
-    assert 200 <= projects["status"] < 300
-    project_id = _extract_first_id(projects["payload"], ["project_id"])
-    if project_id is None:
-        pytest.skip("No project_id available for files commented test")
-
-    docs = _request(client, "GET", "/documents", params={"project_id": project_id})
-    if docs["status"] == 404:
-        pytest.skip("No documents available for files commented test")
-    assert 200 <= docs["status"] < 300
-    rev_id = None
-    for doc in docs["payload"]:
-        if not isinstance(doc, dict):
-            continue
-        rev_id = doc.get("rev_current_id") or doc.get("rev_actual_id")
-        if rev_id is not None:
-            break
-    if rev_id is None:
-        pytest.skip("No revision id available for files commented test")
-
-    return rev_id
-
-
-def _get_test_user(client: httpx.Client) -> tuple[int, str]:
-    users = _request(client, "GET", "/people/users")
-    if users["status"] == 404:
-        pytest.skip("No users available for files commented test")
-    assert 200 <= users["status"] < 300
-    for item in users["payload"]:
-        if not isinstance(item, dict):
-            continue
-        user_id = item.get("user_id")
-        user_acronym = item.get("user_acronym")
-        if user_id is not None and user_acronym:
-            return user_id, user_acronym
-    pytest.skip("No user_id/user_acronym available for files commented test")
-
-
-def _upload_base_file(
-    client: httpx.Client, rev_id: int, suffix: str, ext: str, mimetype: str
-) -> dict:
-    content = f"base-{suffix}".encode()
-    filename = f"file-{suffix}.{ext}"
-    upload = _request(
-        client,
-        "POST",
-        "/files/",
-        files={"file": (filename, content, mimetype)},
-        data={"rev_id": str(rev_id)},
-    )
-    assert upload["status"] == 201
-    return {
-        "id": upload["payload"]["id"],
-        "filename": upload["payload"]["filename"],
-        "mimetype": upload["payload"]["mimetype"],
-        "rev_id": upload["payload"]["rev_id"],
-        "content": content,
-    }
+from tests.api.api.comments_test_helpers import (
+    _get_test_revision_id,
+    _get_test_user,
+    _request,
+    _upload_base_file,
+)
 
 
 @pytest.mark.api_smoke
 def test_files_commented_list():
     """Test listing commented files by file_id."""
     with httpx.Client(timeout=10) as client:
-        # List with a file_id (should return empty list or data)
         result = _request(client, "GET", "/files/commented/list", params={"file_id": 1})
-        # Should succeed even if no data exists
         assert 200 <= result["status"] < 300
         assert isinstance(result["payload"], list)
 
@@ -120,11 +24,9 @@ def test_files_commented_list():
 def test_files_commented_list_with_user_filter():
     """Test listing commented files by file_id and user_id."""
     with httpx.Client(timeout=10) as client:
-        # List with both file_id and user_id
         result = _request(
             client, "GET", "/files/commented/list", params={"file_id": 1, "user_id": 1}
         )
-        # Should succeed even if no data exists
         assert 200 <= result["status"] < 300
         assert isinstance(result["payload"], list)
 
@@ -133,9 +35,7 @@ def test_files_commented_list_with_user_filter():
 def test_files_commented_list_missing_file_id():
     """Test listing commented files without file_id should fail."""
     with httpx.Client(timeout=10) as client:
-        # List without file_id (mandatory parameter)
         result = _request(client, "GET", "/files/commented/list")
-        # Should fail validation
         assert result["status"] == 422
 
 

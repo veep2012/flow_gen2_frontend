@@ -82,6 +82,38 @@ CREATE TRIGGER tr_notifications_set_created_by
 BEFORE INSERT ON core.notifications
 FOR EACH ROW EXECUTE FUNCTION core.fn_set_created_by();
 
+CREATE TRIGGER tr_distribution_list_update_timestamp
+BEFORE UPDATE ON core.distribution_list
+FOR EACH ROW EXECUTE FUNCTION core.fn_update_timestamp();
+
+CREATE TRIGGER tr_distribution_list_set_created_by
+BEFORE INSERT ON core.distribution_list
+FOR EACH ROW EXECUTE FUNCTION core.fn_set_created_by();
+
+CREATE TRIGGER tr_distribution_list_content_update_timestamp
+BEFORE UPDATE ON core.distribution_list_content
+FOR EACH ROW EXECUTE FUNCTION core.fn_update_timestamp();
+
+CREATE TRIGGER tr_distribution_list_content_set_created_by
+BEFORE INSERT ON core.distribution_list_content
+FOR EACH ROW EXECUTE FUNCTION core.fn_set_created_by();
+
+CREATE TRIGGER tr_notification_targets_update_timestamp
+BEFORE UPDATE ON core.notification_targets
+FOR EACH ROW EXECUTE FUNCTION core.fn_update_timestamp();
+
+CREATE TRIGGER tr_notification_targets_set_created_by
+BEFORE INSERT ON core.notification_targets
+FOR EACH ROW EXECUTE FUNCTION core.fn_set_created_by();
+
+CREATE TRIGGER tr_notification_recipients_update_timestamp
+BEFORE UPDATE ON core.notification_recipients
+FOR EACH ROW EXECUTE FUNCTION core.fn_update_timestamp();
+
+CREATE TRIGGER tr_notification_recipients_set_created_by
+BEFORE INSERT ON core.notification_recipients
+FOR EACH ROW EXECUTE FUNCTION core.fn_set_created_by();
+
 CREATE OR REPLACE FUNCTION core.fn_files_commented_check_mimetype() RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER

@@ -27,6 +27,7 @@
 - `test_scenarios/documents_revisions_api_test_scenarios.md` - Scenario contract for revisions list/create/update/status transitions.
 - `test_scenarios/files_api_test_scenarios.md` - Scenario contract for file upload/update/download/validation tests.
 - `test_scenarios/files_commented_api_test_scenarios.md` - Scenario contract for commented-file endpoints.
+- `test_scenarios/written_comments_api_test_scenarios.md` - Scenario contract for written-comments endpoints.
 - `test_scenarios/get_endpoints_api_test_scenarios.md` - Scenario contract for global GET endpoint smoke validation.
 - `test_scenarios/notifications_api_test_plan.md` - End-to-end curl plan for notification lifecycle API validation.
 

@@ -158,6 +158,30 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/files_commented_api_test_scenarios.md",
         ["TS-FC-011"],
     ),
+    "test_written_comments_crud": (
+        "documentation/test_scenarios/written_comments_api_test_scenarios.md",
+        ["TS-WC-001"],
+    ),
+    "test_written_comments_validation": (
+        "documentation/test_scenarios/written_comments_api_test_scenarios.md",
+        ["TS-WC-002"],
+    ),
+    "test_written_comments_missing_references": (
+        "documentation/test_scenarios/written_comments_api_test_scenarios.md",
+        ["TS-WC-003"],
+    ),
+    "test_written_comments_delete_forbidden_non_author": (
+        "documentation/test_scenarios/written_comments_api_test_scenarios.md",
+        ["TS-WC-004"],
+    ),
+    "test_written_comments_update": (
+        "documentation/test_scenarios/written_comments_api_test_scenarios.md",
+        ["TS-WC-005"],
+    ),
+    "test_written_comments_update_forbidden_non_author": (
+        "documentation/test_scenarios/written_comments_api_test_scenarios.md",
+        ["TS-WC-006"],
+    ),
     "test_files_crud_and_download": (
         "documentation/test_scenarios/files_api_test_scenarios.md",
         ["TS-F-001"],
@@ -233,6 +257,7 @@ TEST_FILES = [
     "tests/api/api/test_files_endpoints.py",
     "tests/api/api/test_get_endpoints.py",
     "tests/api/api/test_notifications_endpoints.py",
+    "tests/api/api/test_written_comments_endpoints.py",
 ]
 
 

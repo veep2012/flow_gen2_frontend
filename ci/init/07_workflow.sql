@@ -774,6 +774,48 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION workflow.update_written_comment(
+    p_id INTEGER,
+    p_actor_user_id SMALLINT,
+    p_comment_text TEXT
+) RETURNS core.written_comments
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_row core.written_comments%ROWTYPE;
+    v_is_superuser BOOLEAN;
+BEGIN
+    SELECT * INTO v_row
+    FROM core.written_comments
+    WHERE id = p_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Written comment not found';
+    END IF;
+
+    SELECT workflow.is_superuser(p_actor_user_id) INTO v_is_superuser;
+    IF p_actor_user_id <> v_row.user_id AND NOT COALESCE(v_is_superuser, FALSE) THEN
+        RAISE EXCEPTION 'Only comment author or superuser can update written comment';
+    END IF;
+
+    IF p_comment_text IS NULL OR btrim(p_comment_text) = '' THEN
+        RAISE EXCEPTION 'Comment text must not be blank';
+    END IF;
+
+    UPDATE core.written_comments
+    SET comment_text = btrim(p_comment_text),
+        updated_at = NULL,
+        updated_by = NULL
+    WHERE id = p_id;
+
+    SELECT * INTO v_row FROM core.written_comments WHERE id = p_id;
+    RETURN v_row;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION workflow.create_notification(
     p_sender_user_id SMALLINT,
     p_title VARCHAR,
@@ -1068,7 +1110,9 @@ DECLARE
     v_row core.notification_recipients%ROWTYPE;
 BEGIN
     UPDATE core.notification_recipients
-    SET read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+    SET read_at = COALESCE(read_at, CURRENT_TIMESTAMP),
+        updated_at = NULL,
+        updated_by = NULL
     WHERE notification_id = p_notification_id
       AND recipient_user_id = p_recipient_user_id;
 
