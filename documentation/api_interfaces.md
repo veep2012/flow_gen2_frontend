@@ -6,12 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-02-21
-- Version: v1.11
+- Version: v1.9
 
 ## Change Log
-- 2026-02-21 | v1.11 | Split written comments into dedicated router/schema modules and synchronized test/doc traceability.
-- 2026-02-21 | v1.10 | Added written comment update endpoint and authorization behavior.
-- 2026-02-21 | v1.9 | Added written comments API (`list/create/delete`) and grouped comments endpoints under `comments` tag.
+- 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, and corrected file update-body `id` validation contract to `422` (extra field forbidden)
 - 2026-02-20 | v1.8 | Renamed commented download query parameter from `file_id` to `id`.
 - 2026-02-19 | v1.7 | Updated API contracts and examples for latest backend behavior.
 
@@ -42,14 +40,7 @@ export API_BASE=http://localhost:5556
 
 Update conventions (PUT/PATCH):
 - `PUT` is idempotent and used for updates; this API accepts partial updates via `PUT` (fields may be omitted unless noted).
-- If the request body includes an id field, it must match the path id; on mismatch return `400 Bad Request` with body:
-```json
-{ "detail": "<id_field> mismatch" }
-```
-- Example (id mismatch):
-```json
-{ "detail": "area_id mismatch" }
-```
+- Request bodies must not include undeclared id fields. For schemas configured with `extra="forbid"` (including file update payloads), an unexpected `id` field returns `422 Unprocessable Entity`.
 - `PATCH` is currently used only for revision cancel (`PATCH /api/v1/documents/revisions/{rev_id}/cancel`).
 
 Delete conventions:
@@ -88,7 +79,7 @@ Common status codes (by endpoint and context):
 - `200 OK` — Successful read/update responses.
 - `201 Created` — Successful create responses.
 - `204 No Content` — Successful delete responses.
-- `400 Bad Request` — Domain validation, id mismatch, or duplicate/uniqueness violations.
+- `400 Bad Request` — Domain validation or duplicate/uniqueness violations.
 - `401 Unauthorized` — Authentication required (not currently enforced in this API surface).
 - `403 Forbidden` — Authenticated but not authorized (enforced for notification replace/drop actions).
 - `404 Not Found` — Resource does not exist.

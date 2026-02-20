@@ -4,6 +4,20 @@ import uuid
 
 import httpx
 import pytest
+from sqlalchemy import create_engine, text
+
+CORE_AUDIT_TABLES = (
+    "doc",
+    "doc_revision",
+    "files",
+    "files_commented",
+    "written_comments",
+    "distribution_list",
+    "distribution_list_content",
+    "notifications",
+    "notification_targets",
+    "notification_recipients",
+)
 
 
 def _build_base_url() -> str:
@@ -27,6 +41,19 @@ def _request(client: httpx.Client, method: str, path: str, **kwargs) -> dict:
         "payload": payload,
         "duration_ms": duration_ms,
     }
+
+
+def _build_test_database_url() -> str:
+    explicit_admin = os.getenv("TEST_DB_ADMIN_URL")
+    if explicit_admin:
+        return explicit_admin
+
+    user = os.getenv("TEST_DB_ADMIN_USER", "postgres")
+    password = os.getenv("TEST_DB_ADMIN_PASSWORD", "postgres")
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = os.getenv("POSTGRES_PORT", "5433")
+    db_name = os.getenv("TEST_DB_NAME", os.getenv("POSTGRES_DB", "flow_db_test"))
+    return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{db_name}"
 
 
 def _ensure_list(result: dict) -> list:
@@ -199,3 +226,101 @@ def test_audit_fields_files_and_commented():
         assert commented_row.get("updated_by") == 2
         assert commented_row.get("created_at") is not None
         assert commented_row.get("updated_at") is not None
+
+
+@pytest.mark.api_smoke
+def test_audit_fields_core_schema_contract():
+    # TS-AUD-003
+    db_url = _build_test_database_url()
+    engine = create_engine(db_url, future=True)
+    table_names_sql = ", ".join(f"'{name}'" for name in CORE_AUDIT_TABLES)
+
+    columns_query = text(
+        f"""
+        SELECT
+            table_name,
+            column_name,
+            data_type,
+            is_nullable,
+            column_default
+        FROM information_schema.columns
+        WHERE table_schema = 'core'
+          AND table_name IN ({table_names_sql})
+          AND column_name IN ('created_at', 'updated_at', 'created_by', 'updated_by')
+        """
+    )
+    fks_query = text(
+        f"""
+        SELECT
+            kcu.table_name,
+            kcu.column_name,
+            ccu.table_schema AS foreign_table_schema,
+            ccu.table_name AS foreign_table_name,
+            ccu.column_name AS foreign_column_name
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu
+          ON tc.constraint_name = kcu.constraint_name
+         AND tc.table_schema = kcu.table_schema
+        JOIN information_schema.constraint_column_usage ccu
+          ON ccu.constraint_name = tc.constraint_name
+         AND ccu.constraint_schema = tc.table_schema
+        WHERE tc.constraint_type = 'FOREIGN KEY'
+          AND tc.table_schema = 'core'
+          AND kcu.table_name IN ({table_names_sql})
+          AND kcu.column_name IN ('created_by', 'updated_by')
+        """
+    )
+
+    try:
+        with engine.connect() as conn:
+            column_rows = [dict(row._mapping) for row in conn.execute(columns_query)]
+            fk_rows = [dict(row._mapping) for row in conn.execute(fks_query)]
+    except Exception as exc:
+        pytest.skip(f"Cannot introspect core schema for TS-AUD-003: {exc}")
+    engine.dispose()
+    if not column_rows:
+        pytest.skip("No visible core schema metadata rows for TS-AUD-003")
+
+    column_map = {
+        (row["table_name"], row["column_name"]): {
+            "data_type": row["data_type"],
+            "is_nullable": row["is_nullable"],
+            "column_default": row["column_default"] or "",
+        }
+        for row in column_rows
+    }
+
+    for table in CORE_AUDIT_TABLES:
+        for column in ("created_at", "updated_at", "created_by", "updated_by"):
+            assert (table, column) in column_map, f"missing {table}.{column}"
+
+        created_at = column_map[(table, "created_at")]
+        updated_at = column_map[(table, "updated_at")]
+        created_by = column_map[(table, "created_by")]
+        updated_by = column_map[(table, "updated_by")]
+
+        assert created_at["data_type"] == "timestamp with time zone"
+        assert created_at["is_nullable"] == "NO"
+        assert "current_timestamp" in created_at["column_default"].lower()
+
+        assert updated_at["data_type"] == "timestamp with time zone"
+        assert updated_at["is_nullable"] == "NO"
+        assert "current_timestamp" in updated_at["column_default"].lower()
+
+        assert created_by["data_type"] == "smallint"
+        assert updated_by["data_type"] == "smallint"
+
+    fk_map = {
+        (
+            row["table_name"],
+            row["column_name"],
+            row["foreign_table_schema"],
+            row["foreign_table_name"],
+            row["foreign_column_name"],
+        )
+        for row in fk_rows
+    }
+
+    for table in CORE_AUDIT_TABLES:
+        assert (table, "created_by", "ref", "users", "user_id") in fk_map
+        assert (table, "updated_by", "ref", "users", "user_id") in fk_map

@@ -8,6 +8,9 @@
 - Last Updated: 2026-02-11
 - Version: v1.2
 
+## Change Log
+- 2026-02-20 | v1.2 | Added Change Log section for standards compliance
+
 ## Purpose
 Describe the implemented document and revision lifecycle, including state transitions and related data model entities.
 

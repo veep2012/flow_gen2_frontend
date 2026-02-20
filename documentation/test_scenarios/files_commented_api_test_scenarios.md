@@ -6,13 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-07
 - Last Updated: 2026-02-21
-- Version: v1.9
+- Version: v1.6
 
 ## Change Log
-- 2026-02-21 | v1.9 | Split written-comments scenarios into dedicated `written_comments_api_test_scenarios.md`.
-- 2026-02-21 | v1.8 | Moved written comments automated mapping to dedicated test module and router references.
-- 2026-02-21 | v1.7 | Added written comment update scenarios and mappings.
-- 2026-02-21 | v1.6 | Added written comments scenarios and automated mapping.
+- 2026-02-21 | v1.6 | Added written comments scenarios and mappings, added update scenarios, moved automated mapping to dedicated test module/router references, and split written-comments scenarios into dedicated `written_comments_api_test_scenarios.md`
 - 2026-02-20 | v1.5 | Updated commented download examples to use query parameter `id`.
 - 2026-02-19 | v1.4 | Added scenario for insert without file and synchronized mapping.
 

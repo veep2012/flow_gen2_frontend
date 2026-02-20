@@ -10,6 +10,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/audit_fields_api_test_scenarios.md",
         ["TS-AUD-002"],
     ),
+    "test_audit_fields_core_schema_contract": (
+        "documentation/test_scenarios/audit_fields_api_test_scenarios.md",
+        ["TS-AUD-003"],
+    ),
     "test_cancel_revision": (
         "documentation/test_scenarios/cancel_delete_api_test_scenarios.md",
         ["TS-CD-001"],

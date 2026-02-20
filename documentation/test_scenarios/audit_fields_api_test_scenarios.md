@@ -5,16 +5,20 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-02-11
-- Version: v1.2
+- Last Updated: 2026-02-20
+- Version: v1.3
+
+## Change Log
+- 2026-02-20 | v1.3 | Added Change Log section for standards compliance and added full core-schema audit metadata contract scenario with automated mapping (`TS-AUD-003`)
 
 ## Purpose
-Provide repeatable curl-based validation for audit fields across documents, revisions, files, and commented files.
+Provide repeatable validation for audit fields across API-managed resources and the full `core` schema contract.
 
 ## Scope
 - In scope:
   - `created_by`, `updated_by`, `created_at`, `updated_at` checks
   - cross-user updates via `X-User-Id`
+  - schema-level verification for all `core` tables listed in `documentation/api_db_rules.md`
 - Out of scope:
   - non-audit validation semantics
 
@@ -110,6 +114,35 @@ curl -s -X POST "$API_BASE$API_PREFIX/files/commented/" \
   -F "file=@/etc/hosts;type=application/pdf;filename=commented-$TS.pdf" | jq '{id,file_id,user_id,created_by,updated_by,created_at,updated_at}'
 ```
 
+## 5. TS-AUD-003 Core Schema Audit Metadata Contract
+
+Validate that every authoritative `core` table carries mandatory audit metadata columns and `created_by` / `updated_by` foreign keys to `ref.users(user_id)`.
+
+```sql
+SELECT table_name, column_name, data_type, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema = 'core'
+  AND table_name IN (
+    'doc',
+    'doc_revision',
+    'files',
+    'files_commented',
+    'written_comments',
+    'distribution_list',
+    'distribution_list_content',
+    'notifications',
+    'notification_targets',
+    'notification_recipients'
+  )
+  AND column_name IN ('created_at', 'updated_at', 'created_by', 'updated_by')
+ORDER BY table_name, column_name;
+```
+
+Expected:
+- All listed tables include all 4 audit columns.
+- `created_at` / `updated_at` are `timestamp with time zone`, `NOT NULL`, with `CURRENT_TIMESTAMP` default.
+- `created_by` / `updated_by` are `smallint` and have foreign keys to `ref.users(user_id)`.
+
 ## Edge Cases
 - If any lookup endpoint returns empty arrays, seed data is missing and this plan is not applicable.
 - `id` and `file_id` may vary by response shape; both are accepted.
@@ -117,10 +150,12 @@ curl -s -X POST "$API_BASE$API_PREFIX/files/commented/" \
 ## Scenario Catalog
 - `TS-AUD-001`: document/revision audit fields are set and updated correctly.
 - `TS-AUD-002`: files/commented files audit fields are set with caller identity.
+- `TS-AUD-003`: every authoritative `core` table exposes mandatory audit metadata columns and FK constraints.
 
 ## Automated Test Mapping
 - `tests/api/api/test_audit_fields.py::test_audit_fields_document_and_revision` -> `TS-AUD-001`
 - `tests/api/api/test_audit_fields.py::test_audit_fields_files_and_commented` -> `TS-AUD-002`
+- `tests/api/api/test_audit_fields.py::test_audit_fields_core_schema_contract` -> `TS-AUD-003`
 
 ## References
 - `tests/api/api/test_audit_fields.py`

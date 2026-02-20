@@ -8,6 +8,9 @@
 - Last Updated: 2026-02-11
 - Version: v1.5
 
+## Change Log
+- 2026-02-20 | v1.5 | Added Change Log section for standards compliance
+
 ## Purpose
 Provide a repeatable manual curl-based validation flow for:
 - Distribution List APIs

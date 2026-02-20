@@ -44,6 +44,9 @@ For each target file in `documentation/`:
 - Use explicit requirement language (`must`, `should`, `may`) where applicable.
 - Remove sections that are not applicable; do not leave placeholder text in final docs.
 - Keep Mermaid diagrams only when they add clarity.
+- Change Log update policy:
+  - If the latest entry date matches today, update that latest entry description instead of adding a new entry.
+  - Add a new Change Log entry only when the calendar date changes.
 
 ### Step 5: Report result
 State one outcome:

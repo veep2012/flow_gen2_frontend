@@ -8,6 +8,9 @@
 - Last Updated: 2026-02-07
 - Version: v1.3
 
+## Change Log
+- 2026-02-20 | v1.3 | Added Change Log section for standards compliance
+
 ## Purpose
 This document is retained as a compatibility pointer.
 The active implementation details are consolidated in:

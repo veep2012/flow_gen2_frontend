@@ -8,6 +8,9 @@
 - Last Updated: 2026-02-11
 - Version: v1.3
 
+## Change Log
+- 2026-02-20 | v1.3 | Added Change Log section for standards compliance
+
 ## Purpose
 Clarify what user/person identity data exists in the database and how it is exposed through API responses.
 

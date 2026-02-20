@@ -8,6 +8,9 @@
 - Last Updated: 2026-02-06
 - Version: v1.1
 
+## Change Log
+- 2026-02-20 | v1.1 | Added Change Log section for standards compliance
+
 ## Purpose
 Define the team development workflow, branch policy, and local setup requirements for this repository.
 

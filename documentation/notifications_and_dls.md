@@ -8,6 +8,9 @@
 - Last Updated: 2026-02-11
 - Version: v1.3
 
+## Change Log
+- 2026-02-20 | v1.3 | Added Change Log section for standards compliance
+
 ## Purpose
 Document the single Notifications + Distribution Lists module:
 - notification lifecycle and inbox semantics

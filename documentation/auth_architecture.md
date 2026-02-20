@@ -8,6 +8,9 @@
 - Last Updated: 2026-02-11
 - Version: v1.4
 
+## Change Log
+- 2026-02-20 | v1.4 | Added Change Log section for standards compliance
+
 ## Purpose
 Define the target authentication and authorization architecture for Flow Gen2, including staged rollout guidance.
 
