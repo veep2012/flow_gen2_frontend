@@ -180,7 +180,7 @@ def test_files_commented_insert_and_download():
         assert any(item.get("id") == commented_id for item in listed["payload"])
 
         downloaded = _request(
-            client, "GET", "/files/commented/download", params={"file_id": commented_id}
+            client, "GET", "/files/commented/download", params={"id": commented_id}
         )
         assert 200 <= downloaded["status"] < 300
         assert downloaded["content"] == commented_content
@@ -216,7 +216,7 @@ def test_files_commented_insert_without_file_copies_source():
         assert insert["payload"]["rev_id"] == base_file["rev_id"]
 
         downloaded = _request(
-            client, "GET", "/files/commented/download", params={"file_id": commented_id}
+            client, "GET", "/files/commented/download", params={"id": commented_id}
         )
         assert 200 <= downloaded["status"] < 300
         assert downloaded["content"] == base_file["content"]
@@ -285,7 +285,7 @@ def test_files_commented_delete_nonexistent():
 def test_files_commented_download_nonexistent():
     """Test downloading a non-existent commented file."""
     with httpx.Client(timeout=10) as client:
-        result = _request(client, "GET", "/files/commented/download", params={"file_id": 999999})
+        result = _request(client, "GET", "/files/commented/download", params={"id": 999999})
         assert result["status"] == 404
 
 

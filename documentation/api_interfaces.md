@@ -5,8 +5,12 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-19
-- Version: v1.7
+- Last Updated: 2026-02-20
+- Version: v1.8
+
+## Change Log
+- 2026-02-20 | v1.8 | Renamed commented download query parameter from `file_id` to `id`.
+- 2026-02-19 | v1.7 | Updated API contracts and examples for latest backend behavior.
 
 ## Purpose
 Provide the current backend API surface and behavior contract for clients and maintainers.
@@ -554,14 +558,14 @@ curl -i -H "Accept: application/json" -X DELETE $API_BASE/api/v1/files/commented
 - Example response: (empty)
 
 ### Download
-- `GET /api/v1/files/commented/download?file_id=3` — streams the commented file.
+- `GET /api/v1/files/commented/download?id=3` — streams the commented file.
 - Returns `416` when a `Range` header is provided (range requests are not supported).
 - Headers: `Accept: application/octet-stream`
 - Example request:
 ```bash
 curl -sS -H "Accept: application/octet-stream" \
   -o commented.pdf \
-  $API_BASE/api/v1/files/commented/download?file_id=3
+  $API_BASE/api/v1/files/commented/download?id=3
 ```
 - Example response (binary):
 ```

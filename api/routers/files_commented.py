@@ -734,7 +734,7 @@ def delete_commented_file_rest(
 )
 def download_commented_file(
     request: Request,
-    file_id: int = Query(..., description="Commented file ID to download", examples=[1]),
+    id: int = Query(..., description="Commented file ID to download", examples=[1]),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     """
@@ -745,7 +745,7 @@ def download_commented_file(
 
     Args:
         request: Incoming request used for logging the client host.
-        file_id: The ID of the commented file to download.
+        id: The ID of the commented file to download.
 
     Returns:
         Streaming response with the file content.
@@ -765,10 +765,10 @@ def download_commented_file(
                     fc.s3_uid,
                     fc.mimetype
                 FROM workflow.files_commented AS fc
-                WHERE fc.id = :file_id
+                WHERE fc.id = :id
                 """
             ),
-            {"file_id": file_id},
+            {"id": id},
         )
         .mappings()
         .one_or_none()

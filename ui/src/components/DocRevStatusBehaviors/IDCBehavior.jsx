@@ -892,7 +892,7 @@ const IDCBehavior = ({
                               key={String(item?.id ?? displayName)}
                               onClick={() =>
                                 window.open(
-                                  `${apiBase}/files/commented/download?file_id=${encodeURIComponent(
+                                  `${apiBase}/files/commented/download?id=${encodeURIComponent(
                                     String(item?.id ?? ""),
                                   )}`,
                                   "_blank",

@@ -5,8 +5,12 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-02-19
-- Version: v1.4
+- Last Updated: 2026-02-20
+- Version: v1.5
+
+## Change Log
+- 2026-02-20 | v1.5 | Updated commented download examples to use query parameter `id`.
+- 2026-02-19 | v1.4 | Added scenario for insert without file and synchronized mapping.
 
 ## Purpose
 Provide repeatable curl-based validation for commented-file endpoints.
@@ -69,7 +73,7 @@ COMMENTED=$(curl -s -X POST "$API_BASE$API_PREFIX/files/commented/" \
 echo "$COMMENTED" | jq
 COMMENTED_ID=$(echo "$COMMENTED" | jq -r '.id')
 
-curl -i "$API_BASE$API_PREFIX/files/commented/download?file_id=$COMMENTED_ID"
+curl -i "$API_BASE$API_PREFIX/files/commented/download?id=$COMMENTED_ID"
 curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COMMENTED_ID"
 ```
 
@@ -86,7 +90,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" \
 curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/999999"
 
 # TS-FC-007 download missing
-curl -i "$API_BASE$API_PREFIX/files/commented/download?file_id=999999"
+curl -i "$API_BASE$API_PREFIX/files/commented/download?id=999999"
 
 # TS-FC-008 missing fields
 curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" -F "file=@/etc/hosts;type=application/pdf;filename=missing.pdf" -F "user_id=$USER_ID"
@@ -112,7 +116,7 @@ COPIED=$(curl -s -X POST "$API_BASE$API_PREFIX/files/commented/" \
 echo "$COPIED" | jq
 COPIED_ID=$(echo "$COPIED" | jq -r '.id')
 
-curl -i "$API_BASE$API_PREFIX/files/commented/download?file_id=$COPIED_ID"
+curl -i "$API_BASE$API_PREFIX/files/commented/download?id=$COPIED_ID"
 curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COPIED_ID"
 ```
 
