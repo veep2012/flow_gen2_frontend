@@ -692,6 +692,42 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION workflow.create_written_comment(
+    p_rev_id INTEGER,
+    p_user_id SMALLINT,
+    p_comment_text TEXT
+) RETURNS core.written_comments
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_row core.written_comments%ROWTYPE;
+BEGIN
+    PERFORM 1 FROM core.doc_revision WHERE rev_id = p_rev_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Revision not found';
+    END IF;
+
+    PERFORM 1 FROM ref.users WHERE user_id = p_user_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'User not found';
+    END IF;
+
+    IF p_comment_text IS NULL OR btrim(p_comment_text) = '' THEN
+        RAISE EXCEPTION 'Comment text must not be blank';
+    END IF;
+
+    INSERT INTO core.written_comments (
+        rev_id, user_id, comment_text
+    ) VALUES (
+        p_rev_id, p_user_id, btrim(p_comment_text)
+    ) RETURNING * INTO v_row;
+
+    RETURN v_row;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION workflow.is_superuser(
     p_user_id SMALLINT
 ) RETURNS BOOLEAN
@@ -706,6 +742,36 @@ AS $$
         WHERE u.user_id = p_user_id
           AND lower(r.role_name) IN ('superuser', 'admin')
     );
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.delete_written_comment(
+    p_id INTEGER,
+    p_actor_user_id SMALLINT
+) RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_row core.written_comments%ROWTYPE;
+    v_is_superuser BOOLEAN;
+BEGIN
+    SELECT * INTO v_row
+    FROM core.written_comments
+    WHERE id = p_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Written comment not found';
+    END IF;
+
+    SELECT workflow.is_superuser(p_actor_user_id) INTO v_is_superuser;
+    IF p_actor_user_id <> v_row.user_id AND NOT COALESCE(v_is_superuser, FALSE) THEN
+        RAISE EXCEPTION 'Only comment author or superuser can delete written comment';
+    END IF;
+
+    DELETE FROM core.written_comments WHERE id = p_id;
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION workflow.create_notification(

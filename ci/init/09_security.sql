@@ -31,6 +31,8 @@ GRANT EXECUTE ON FUNCTION workflow.update_file(INTEGER, VARCHAR) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.delete_file(INTEGER) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.create_file_commented(INTEGER, INTEGER, TEXT, VARCHAR) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.delete_file_commented(INTEGER) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.create_written_comment(INTEGER, SMALLINT, TEXT) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.delete_written_comment(INTEGER, SMALLINT) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.create_notification(
     SMALLINT, VARCHAR, TEXT, INTEGER, INTEGER, SMALLINT[], SMALLINT[], VARCHAR, TEXT
 ) TO app_user;

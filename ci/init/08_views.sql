@@ -26,6 +26,7 @@ CREATE OR REPLACE VIEW workflow.doc AS SELECT * FROM core.doc;
 CREATE OR REPLACE VIEW workflow.doc_revision AS SELECT * FROM core.doc_revision;
 CREATE OR REPLACE VIEW workflow.files AS SELECT * FROM core.files;
 CREATE OR REPLACE VIEW workflow.files_commented AS SELECT * FROM core.files_commented;
+CREATE OR REPLACE VIEW workflow.written_comments AS SELECT * FROM core.written_comments;
 CREATE OR REPLACE VIEW workflow.notifications AS SELECT * FROM core.notifications;
 CREATE OR REPLACE VIEW workflow.notification_targets AS SELECT * FROM core.notification_targets;
 CREATE OR REPLACE VIEW workflow.notification_recipients AS SELECT * FROM core.notification_recipients;
