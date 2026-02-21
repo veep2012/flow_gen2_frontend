@@ -15,6 +15,8 @@ class PersonOut(BaseModel):
         examples=["bucket/photos/person.jpg"],
         min_length=1,
     )
+    duty_id: int | None = Field(None, description="Person duty ID.", examples=[1], gt=0)
+    duty_name: str | None = Field(None, description="Person duty name.", examples=["Engineer"])
 
 
 class PersonUpdate(BaseModel):
@@ -28,6 +30,7 @@ class PersonUpdate(BaseModel):
         examples=["bucket/photos/person.jpg"],
         min_length=1,
     )
+    duty_id: int | None = Field(None, description="Person duty ID.", examples=[1], gt=0)
 
 
 class PersonCreate(BaseModel):
@@ -38,6 +41,7 @@ class PersonCreate(BaseModel):
         examples=["bucket/photos/person.jpg"],
         min_length=1,
     )
+    duty_id: int | None = Field(None, description="Person duty ID.", examples=[1], gt=0)
 
 
 class PersonDelete(BaseModel):
@@ -55,6 +59,8 @@ class UserOut(BaseModel):
         None, description="Person name.", examples=["Person A"], min_length=1
     )
     role_name: str | None = Field(None, description="Role name.", examples=["Role A"], min_length=1)
+    duty_id: int | None = Field(None, description="Person duty ID.", examples=[1], gt=0)
+    duty_name: str | None = Field(None, description="Person duty name.", examples=["Engineer"])
 
 
 class UserUpdate(BaseModel):

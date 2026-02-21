@@ -166,14 +166,25 @@ class SqlQuery(Base):
     discipline_filtered_field: Mapped[Optional[str]] = mapped_column(String(45))
 
 
+class PersonDuty(Base):
+    __tablename__ = "person_duty"
+
+    duty_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    duty_name: Mapped[str] = mapped_column(String(45), nullable=False, unique=True)
+
+    persons: Mapped[list["Person"]] = relationship(back_populates="duty")
+
+
 class Person(Base):
     __tablename__ = "person"
 
     person_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     person_name: Mapped[str] = mapped_column(String(45), nullable=False)
     photo_s3_uid: Mapped[Optional[str]] = mapped_column(Text)
+    duty_id: Mapped[Optional[int]] = mapped_column(SmallInteger, ForeignKey("person_duty.duty_id"))
 
     user: Mapped[Optional["User"]] = relationship(back_populates="person", uselist=False)
+    duty: Mapped[Optional[PersonDuty]] = relationship(back_populates="persons")
     authored_revisions: Mapped[list["DocRevision"]] = relationship(
         back_populates="author",
         foreign_keys="DocRevision.rev_author_id",

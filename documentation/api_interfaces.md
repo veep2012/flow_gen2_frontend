@@ -9,7 +9,7 @@
 - Version: v1.9
 
 ## Change Log
-- 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, corrected file update-body `id` validation contract to `422` (extra field forbidden), added nullable `doc_id` support for distribution lists (`create/list`), and documented `dl_for_each_doc=true` auto-DL creation on document create.
+- 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, corrected file update-body `id` validation contract to `422` (extra field forbidden), added nullable `doc_id` support for distribution lists (`create/list`), documented `dl_for_each_doc=true` auto-DL creation on document create, and extended people/persons and people/users payloads with duty fields (`duty_id`, `duty_name`).
 - 2026-02-20 | v1.8 | Renamed commented download query parameter from `file_id` to `id`.
 - 2026-02-19 | v1.7 | Updated API contracts and examples for latest backend behavior.
 
@@ -651,7 +651,13 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/roles
 ## People
 Shape (single item):
 ```json
-{ "person_id": 12, "person_name": "Ada Lovelace", "photo_s3_uid": "s3-key-123" }
+{
+  "person_id": 12,
+  "person_name": "Ada Lovelace",
+  "photo_s3_uid": "s3-key-123",
+  "duty_id": 1,
+  "duty_name": "Engineer"
+}
 ```
 Schema references:
 - Response: `api/schemas/people.py` `PersonOut`
@@ -664,7 +670,15 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/persons
 ```
 - Example response:
 ```json
-[ { "person_id": 12, "person_name": "Ada Lovelace", "photo_s3_uid": "s3-key-123" } ]
+[
+  {
+    "person_id": 12,
+    "person_name": "Ada Lovelace",
+    "photo_s3_uid": "s3-key-123",
+    "duty_id": 1,
+    "duty_name": "Engineer"
+  }
+]
 ```
 ## Users
 Shape (single item):
@@ -675,7 +689,9 @@ Shape (single item):
   "user_acronym": "ALV",
   "role_id": 3,
   "person_name": "Ada Lovelace",
-  "role_name": "Coordinator"
+  "role_name": "Coordinator",
+  "duty_id": 1,
+  "duty_name": "Engineer"
 }
 ```
 Schema references:
@@ -689,7 +705,18 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/users
 ```
 - Example response:
 ```json
-[ { "user_id": 7, "person_id": 12, "user_acronym": "ALV", "role_id": 3, "person_name": "Ada Lovelace", "role_name": "Coordinator" } ]
+[
+  {
+    "user_id": 7,
+    "person_id": 12,
+    "user_acronym": "ALV",
+    "role_id": 3,
+    "person_name": "Ada Lovelace",
+    "role_name": "Coordinator",
+    "duty_id": 1,
+    "duty_name": "Engineer"
+  }
+]
 ```
 ### Current user
 - `GET /api/v1/people/users/current_user` — 200; returns current user (currently hardcoded to `user_id=2`); 404 if user not found.
@@ -700,7 +727,16 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/users/current_use
 ```
 - Example response:
 ```json
-{ "user_id": 2, "person_id": 1, "user_acronym": "USR", "role_id": 1, "person_name": "User", "role_name": "Viewer" }
+{
+  "user_id": 2,
+  "person_id": 1,
+  "user_acronym": "USR",
+  "role_id": 1,
+  "person_name": "User",
+  "role_name": "Viewer",
+  "duty_id": 1,
+  "duty_name": "Engineer"
+}
 ```
 ## Permissions
 Shape (single item):

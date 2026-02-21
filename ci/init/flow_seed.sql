@@ -31,6 +31,13 @@ INSERT INTO projects (project_id, project_name) VALUES
 (7,'PR-2345-DSN-0003-007'),(8,'PR-2345-DSN-0003-008'),(9,'PR-2345-DSN-0003-009'),
 (10,'PR-2345-DSN-0003-010');
 
+-- Person Duties
+INSERT INTO person_duty (duty_id, duty_name) VALUES
+(1,'Engineer'),
+(2,'DCC specialist'),
+(3,'Project Manager'),
+(4,'Director');
+
 -- Person
 INSERT INTO person (person_id, person_name, photo_s3_uid, email) VALUES 
 (1,'ZHANDOS MYLTYKBAYEV',NULL,NULL),(2,'ALEKSEY KRUTSKIH',NULL,NULL),
@@ -124,6 +131,12 @@ INSERT INTO instance_parameters (parameter, value, description) VALUES
 INSERT INTO users (user_id, person_id, user_acronym, role_id) VALUES 
 (1,1,'ZAML',3),(2,2,'FDQC',1),(3,3,'ASBB',2),(4,4,'KONI',1);
 
+-- Randomly assign duties for current users (updates linked person rows only)
+UPDATE person AS p
+SET duty_id = ((random() * 3)::INT + 1)::SMALLINT
+FROM users AS u
+WHERE u.person_id = p.person_id;
+
 -- Permissions
 INSERT INTO permissions (permission_id, user_id, project_id, discipline_id) VALUES 
 (1,1,4,NULL),
@@ -147,6 +160,7 @@ SELECT setval(
     (SELECT COALESCE(MAX(milestone_id), 0) FROM ref.doc_rev_milestones),
     true
 );
+SELECT setval(pg_get_serial_sequence('ref.person_duty', 'duty_id'), max(duty_id)) FROM ref.person_duty;
 SELECT setval(pg_get_serial_sequence('ref.person', 'person_id'), max(person_id)) FROM ref.person;
 SELECT setval(pg_get_serial_sequence('ref.doc_types', 'type_id'), max(type_id)) FROM ref.doc_types;
 SELECT setval(pg_get_serial_sequence('ref.users', 'user_id'), max(user_id)) FROM ref.users;

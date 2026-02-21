@@ -14,6 +14,7 @@ CREATE OR REPLACE VIEW workflow.files_accepted AS SELECT * FROM ref.files_accept
 CREATE OR REPLACE VIEW workflow.leased_doc_nums AS SELECT * FROM ref.leased_doc_nums;
 CREATE OR REPLACE VIEW workflow.sql_queries AS SELECT * FROM ref.sql_queries;
 CREATE OR REPLACE VIEW workflow.instance_parameters AS SELECT * FROM ref.instance_parameters;
+CREATE OR REPLACE VIEW workflow.person_duty AS SELECT * FROM ref.person_duty;
 CREATE OR REPLACE VIEW workflow.person AS SELECT * FROM ref.person;
 CREATE OR REPLACE VIEW workflow.users AS SELECT * FROM ref.users;
 CREATE OR REPLACE VIEW workflow.doc_types AS SELECT * FROM ref.doc_types;

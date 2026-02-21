@@ -5,7 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Query, Session
 
-from api.db.models import Discipline, Permission, Person, Project, Role, User
+from api.db.models import Discipline, Permission, Person, PersonDuty, Project, Role, User
 from api.schemas.lookups import RoleCreate, RoleOut, RoleUpdate
 from api.schemas.people import (
     PermissionCreate,
@@ -31,6 +31,7 @@ router = APIRouter(prefix="/api/v1/people", tags=["people"])
 
 
 def _build_user_out(user: User) -> UserOut:
+    duty = user.person.duty if user.person else None
     return UserOut(
         user_id=user.user_id,
         person_id=user.person_id,
@@ -38,6 +39,8 @@ def _build_user_out(user: User) -> UserOut:
         role_id=user.role_id,
         person_name=user.person.person_name if user.person else None,
         role_name=user.role.role_name if user.role else None,
+        duty_id=user.person.duty_id if user.person else None,
+        duty_name=duty.duty_name if duty else None,
     )
 
 
@@ -296,8 +299,14 @@ def list_persons(db: Session = Depends(get_db)) -> list[PersonOut]:
         db.execute(
             text(
                 """
-                SELECT person_id, person_name, photo_s3_uid
-                FROM workflow.person
+                SELECT
+                    p.person_id,
+                    p.person_name,
+                    p.photo_s3_uid,
+                    p.duty_id,
+                    pd.duty_name
+                FROM workflow.person AS p
+                LEFT JOIN workflow.person_duty AS pd ON pd.duty_id = p.duty_id
                 ORDER BY person_name
                 """
             )
@@ -329,7 +338,7 @@ def update_person(
         HTTPException: 400 if no fields provided.
         HTTPException: 404 if person not found.
     """
-    if not {"person_name", "photo_s3_uid"}.intersection(payload.model_fields_set):
+    if not {"person_name", "photo_s3_uid", "duty_id"}.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
     _require_non_null_fields(payload, ("person_name",))
 
@@ -341,6 +350,10 @@ def update_person(
         person.person_name = payload.person_name
     if payload.photo_s3_uid is not None:
         person.photo_s3_uid = payload.photo_s3_uid
+    if "duty_id" in payload.model_fields_set:
+        if payload.duty_id is not None and not db.get(PersonDuty, payload.duty_id):
+            raise HTTPException(status_code=404, detail="Person duty not found")
+        person.duty_id = payload.duty_id
 
     try:
         db.commit()
@@ -370,7 +383,14 @@ def insert_person(
     Raises:
         HTTPException: 400 on creation failure.
     """
-    person = Person(person_name=payload.person_name, photo_s3_uid=payload.photo_s3_uid)
+    if payload.duty_id is not None and not db.get(PersonDuty, payload.duty_id):
+        raise HTTPException(status_code=404, detail="Person duty not found")
+
+    person = Person(
+        person_name=payload.person_name,
+        photo_s3_uid=payload.photo_s3_uid,
+        duty_id=payload.duty_id,
+    )
     db.add(person)
     try:
         db.commit()
@@ -470,10 +490,13 @@ def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
                     u.user_acronym,
                     u.role_id,
                     p.person_name,
-                    r.role_name
+                    r.role_name,
+                    p.duty_id,
+                    pd.duty_name
                 FROM workflow.users AS u
                 JOIN workflow.person AS p ON p.person_id = u.person_id
                 JOIN workflow.roles AS r ON r.role_id = u.role_id
+                LEFT JOIN workflow.person_duty AS pd ON pd.duty_id = p.duty_id
                 ORDER BY u.user_acronym
                 """
             )
@@ -514,10 +537,13 @@ def get_current_user(db: Session = Depends(get_db)) -> UserOut:
                     u.user_acronym,
                     u.role_id,
                     p.person_name,
-                    r.role_name
+                    r.role_name,
+                    p.duty_id,
+                    pd.duty_name
                 FROM workflow.users AS u
                 JOIN workflow.person AS p ON p.person_id = u.person_id
                 JOIN workflow.roles AS r ON r.role_id = u.role_id
+                LEFT JOIN workflow.person_duty AS pd ON pd.duty_id = p.duty_id
                 WHERE u.user_id = 2
                 """
             )
