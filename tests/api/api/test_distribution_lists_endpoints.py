@@ -79,6 +79,14 @@ def test_distribution_lists_crud_and_membership():
         )
         assert created_list_row is not None
         assert created_list_row.get("doc_id") is None
+        filtered_empty = _request(
+            client,
+            "GET",
+            "/distribution-lists",
+            params={"doc_id": dist_id},
+        )
+        assert 200 <= filtered_empty["status"] < 300
+        assert not any(row.get("dist_id") == dist_id for row in filtered_empty["payload"])
 
         add_member = _request(
             client,
@@ -169,6 +177,14 @@ def test_distribution_list_delete_rejected_when_used_by_notification():
         assert created_dl["status"] == 201
         dist_id = created_dl["payload"]["dist_id"]
         assert created_dl["payload"]["doc_id"] == doc_id
+        filtered_by_doc = _request(
+            client,
+            "GET",
+            "/distribution-lists",
+            params={"doc_id": doc_id},
+        )
+        assert 200 <= filtered_by_doc["status"] < 300
+        assert any(row.get("dist_id") == dist_id for row in filtered_by_doc["payload"])
 
         add_member = _request(
             client,

@@ -118,10 +118,10 @@ test: | ensure-pid-dir ## Run unit tests
 			$(LOCAL_API_CMD); \
 	done; \
 	if [ -z "$$ready" ]; then echo "API not ready; log: $(PID_DIR)/uvicorn-test.log"; exit 1; fi
-	pytest -m "not api_smoke"; \
+	$(PYTHON_BIN) -m pytest -m "not api_smoke"; \
 	status=$$?; \
 	if [ $$status -eq 0 ]; then \
-		API_BASE=http://localhost:$(TEST_API_PORT) API_PREFIX=/api/v1 pytest -m api_smoke; \
+		API_BASE=http://localhost:$(TEST_API_PORT) API_PREFIX=/api/v1 $(PYTHON_BIN) -m pytest -m api_smoke; \
 		status=$$?; \
 	fi; \
 	if [ $$status -eq 0 ]; then \

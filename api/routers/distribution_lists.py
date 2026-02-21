@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Path
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
@@ -68,6 +68,7 @@ _COMMON_RESPONSES: dict[int | str, dict[str, Any]] = {
     responses=_COMMON_RESPONSES,
 )
 def list_distribution_lists(
+    doc_id: int | None = Query(None, description="Filter by linked document ID.", gt=0),
     db: Session = Depends(get_db),
 ) -> list[DistributionListOut]:
     """
@@ -79,8 +80,12 @@ def list_distribution_lists(
         SELECT dist_id, distribution_list_name, doc_id
         FROM workflow.distribution_list
     """
+    params: dict[str, int] = {}
+    if doc_id is not None:
+        sql += " WHERE doc_id = :doc_id"
+        params["doc_id"] = doc_id
     sql += " ORDER BY distribution_list_name, dist_id"
-    rows = db.execute(text(sql)).mappings().all()
+    rows = db.execute(text(sql), params).mappings().all()
     return _model_list(DistributionListOut, rows)
 
 

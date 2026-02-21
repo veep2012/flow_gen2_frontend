@@ -9,7 +9,7 @@
 - Version: v1.9
 
 ## Change Log
-- 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, corrected file update-body `id` validation contract to `422` (extra field forbidden), added nullable `doc_id` support for distribution lists (`create/list`), documented `dl_for_each_doc=true` auto-DL creation on document create, and extended people/persons and people/users payloads with duty fields (`duty_id`, `duty_name`).
+- 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, corrected file update-body `id` validation contract to `422` (extra field forbidden), added nullable `doc_id` support for distribution lists (`create/list`), documented `dl_for_each_doc=true` auto-DL creation on document create, extended people/persons and people/users payloads with duty fields (`duty_id`, `duty_name`), and added distribution-list search by `doc_id` (`GET /distribution-lists?doc_id=...`).
 - 2026-02-20 | v1.8 | Renamed commented download query parameter from `file_id` to `id`.
 - 2026-02-19 | v1.7 | Updated API contracts and examples for latest backend behavior.
 
@@ -1187,12 +1187,13 @@ Backend implementation:
 - DB functions: `workflow.create_distribution_list`, `workflow.delete_distribution_list`, `workflow.add_distribution_list_member`, `workflow.remove_distribution_list_member`
 
 ### List
-- `GET /api/v1/distribution-lists` — 200; returns all distribution lists ordered by name and id.
+- `GET /api/v1/distribution-lists` — 200; returns distribution lists ordered by name and id.
+- Optional query param: `doc_id` to return only lists linked to that document.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" \
-  $API_BASE/api/v1/distribution-lists
+  "$API_BASE/api/v1/distribution-lists?doc_id=101"
 ```
 - Example response:
 ```json

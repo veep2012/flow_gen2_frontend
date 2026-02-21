@@ -9,7 +9,7 @@
 - Version: v1.4
 
 ## Change Log
-- 2026-02-21 | v1.4 | Added optional `distribution_list.doc_id` linkage to `core.doc`, synchronized DL API contract notes, and documented auto-creation of doc-linked DLs when `instance_parameters.dl_for_each_doc=true`.
+- 2026-02-21 | v1.4 | Added optional `distribution_list.doc_id` linkage to `core.doc`, synchronized DL API contract notes, documented auto-creation of doc-linked DLs when `instance_parameters.dl_for_each_doc=true`, and documented DL list filtering by `doc_id`.
 - 2026-02-20 | v1.3 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -68,6 +68,7 @@ Router: `api/routers/notifications.py` (`/api/v1/notifications`)
   - Schemas: `api/schemas/distribution_lists.py`
   - Endpoints: list/create/delete list, list/add/remove members
   - `create` and `list` include nullable `doc_id` on distribution list rows
+  - `list` supports optional `doc_id` query filtering (`GET /api/v1/distribution-lists?doc_id=<doc_id>`)
 - Only legacy document-scoped endpoints were removed:
   - `/api/v1/documents/{doc_id}/distribution-lists/*`
 - DL functionality remains part of this module both as standalone DL management API and as notification recipient targeting.

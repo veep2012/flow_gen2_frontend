@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-11
-- Version: v1.3
+- Last Updated: 2026-02-21
+- Version: v1.4
 
 ## Change Log
+- 2026-02-21 | v1.4 | Added person duty model (`person_duty`) and synchronized people/users API payloads with `duty_id` and `duty_name`.
 - 2026-02-20 | v1.3 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -36,6 +37,7 @@ The user/person data is stored across multiple related tables:
 - `person_id` (PrimaryKey): Unique identifier
 - `person_name` (String): **Full name of the person** ✅
 - `photo_s3_uid` (Optional Text): Profile photo reference
+- `duty_id` (Optional ForeignKey): References Person Duty table
 
 #### 2. **User Table** (`workflow.users`, backed by `ref.users`)
 - `user_id` (PrimaryKey): Unique identifier
@@ -43,7 +45,11 @@ The user/person data is stored across multiple related tables:
 - `user_acronym` (String): Short abbreviation (e.g., "KN" for "Konstantin Ni")
 - `role_id` (ForeignKey): References Role table
 
-#### 3. **Role Table** (`workflow.roles`, backed by `ref.roles`)
+#### 3. **Person Duty Table** (`workflow.person_duty`, backed by `ref.person_duty`)
+- `duty_id` (PrimaryKey): Unique identifier
+- `duty_name` (String): Duty name (e.g., "Engineer", "Director")
+
+#### 4. **Role Table** (`workflow.roles`, backed by `ref.roles`)
 - `role_id` (PrimaryKey): Unique identifier
 - `role_name` (String): Role name (e.g., "Designer", "Reviewer", etc.)
 
@@ -53,6 +59,8 @@ User (user_id)
   ├─ person_id → Person (person_id)
   │  └─ person_name ✅ [FULL NAME]
   │  └─ photo_s3_uid
+  │  └─ duty_id → PersonDuty (duty_id)
+  │     └─ duty_name
   └─ role_id → Role (role_id)
      └─ role_name
 ```
@@ -67,6 +75,8 @@ Returns: List of PersonOut objects with:
 - `person_id`
 - `person_name` ✅
 - `photo_s3_uid`
+- `duty_id`
+- `duty_name` (joined from Person Duty table)
 
 Example Response:
 ```json
@@ -74,12 +84,16 @@ Example Response:
   {
     "person_id": 1,
     "person_name": "Konstantin Ni",
-    "photo_s3_uid": null
+    "photo_s3_uid": null,
+    "duty_id": 1,
+    "duty_name": "Engineer"
   },
   {
     "person_id": 2,
     "person_name": "John Doe",
-    "photo_s3_uid": "s3://bucket/photo.jpg"
+    "photo_s3_uid": "s3://bucket/photo.jpg",
+    "duty_id": 4,
+    "duty_name": "Director"
   }
 ]
 ```
@@ -95,6 +109,8 @@ Returns: List of UserOut objects with:
 - `role_id`
 - `person_name` ✅ (joined from Person table)
 - `role_name` (joined from Role table)
+- `duty_id` (joined from Person table)
+- `duty_name` (joined from Person Duty table)
 
 Example Response:
 ```json
@@ -105,7 +121,9 @@ Example Response:
     "user_acronym": "KN",
     "role_id": 2,
     "person_name": "Konstantin Ni",
-    "role_name": "Designer"
+    "role_name": "Designer",
+    "duty_id": 1,
+    "duty_name": "Engineer"
   },
   {
     "user_id": 2,
@@ -113,7 +131,9 @@ Example Response:
     "user_acronym": "JD",
     "role_id": 1,
     "person_name": "John Doe",
-    "role_name": "Reviewer"
+    "role_name": "Reviewer",
+    "duty_id": 4,
+    "duty_name": "Director"
   }
 ]
 ```
@@ -126,6 +146,8 @@ class PersonOut:
     person_id: int
     person_name: str
     photo_s3_uid: Optional[str]
+    duty_id: Optional[int]
+    duty_name: Optional[str]
 ```
 
 #### UserOut Schema (`api/schemas/people.py`)
@@ -137,6 +159,8 @@ class UserOut:
     role_id: int
     person_name: Optional[str]  # ✅ Added by join
     role_name: Optional[str]    # ✅ Added by join
+    duty_id: Optional[int]      # ✅ Added from person
+    duty_name: Optional[str]    # ✅ Added by join with person_duty
 ```
 
 ### How User Names Are Used in the Application
@@ -181,9 +205,12 @@ SELECT
     u.role_id,
     p.person_id,
     p.person_name,
+    p.duty_id,
+    pd.duty_name,
     r.role_name
 FROM workflow.users u
 JOIN workflow.person p ON u.person_id = p.person_id
+LEFT JOIN workflow.person_duty pd ON pd.duty_id = p.duty_id
 JOIN workflow.roles r ON u.role_id = r.role_id
 ORDER BY u.user_acronym;
 ```
@@ -192,7 +219,7 @@ ORDER BY u.user_acronym;
 
 **Summary**: ✅ YES, we have `person_name` in the database for all users, accessible via:
 - `/api/v1/people/persons` - Direct person names
-- `/api/v1/people/users` - User info with person names and roles
+- `/api/v1/people/users` - User info with person names, roles, and duties
 
 ## Edge Cases
 - Users with missing `person` linkage must be treated as data integrity defects.

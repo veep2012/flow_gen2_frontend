@@ -9,7 +9,7 @@
 - Version: v1.6
 
 ## Change Log
-- 2026-02-21 | v1.6 | Added DL `doc_id` scenario expectations for nullable create/list and document-linked create.
+- 2026-02-21 | v1.6 | Added DL `doc_id` scenario expectations for nullable create/list and document-linked create; added list filtering check via `GET /distribution-lists?doc_id=...`.
 - 2026-02-20 | v1.5 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -97,6 +97,8 @@ Expected results:
 - remove member returns `200`
 - listing members after remove no longer includes `USER_B`
 - created/listed DL rows for this scenario have `doc_id = null`
+- filtering by unrelated `doc_id` does not return this global DL:
+  - `curl -s "$API_BASE$API_PREFIX/distribution-lists?doc_id=$DIST_ID" | jq`
 
 ## 4. TS-DL-002 Duplicate DL Name Rejected
 
@@ -270,6 +272,8 @@ DL_IN_USE=$(curl -s -X POST "$API_BASE$API_PREFIX/distribution-lists" \
   -d "{\"distribution_list_name\":\"API DL INUSE $TS\",\"doc_id\":$DOC_ID}")
 DIST_IN_USE_ID=$(echo "$DL_IN_USE" | jq -r '.dist_id')
 echo "$DL_IN_USE" | jq '.doc_id'   # expect DOC_ID
+curl -s "$API_BASE$API_PREFIX/distribution-lists?doc_id=$DOC_ID" | jq \
+  --argjson id "$DIST_IN_USE_ID" '.[] | select(.dist_id==$id)'
 
 curl -s -X POST "$API_BASE$API_PREFIX/distribution-lists/$DIST_IN_USE_ID/members" \
   -H "Content-Type: application/json" \
