@@ -131,9 +131,9 @@ INSERT INTO instance_parameters (parameter, value, description) VALUES
 INSERT INTO users (user_id, person_id, user_acronym, role_id) VALUES 
 (1,1,'ZAML',3),(2,2,'FDQC',1),(3,3,'ASBB',2),(4,4,'KONI',1);
 
--- Randomly assign duties for current users (updates linked person rows only)
+-- Deterministically assign duties for current users (stable across seed runs)
 UPDATE person AS p
-SET duty_id = ((random() * 3)::INT + 1)::SMALLINT
+SET duty_id = (((u.user_id - 1) % 4) + 1)::SMALLINT
 FROM users AS u
 WHERE u.person_id = p.person_id;
 

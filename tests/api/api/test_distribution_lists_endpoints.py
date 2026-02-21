@@ -10,6 +10,7 @@ TEST_SCENARIO_MAP = {
     "test_distribution_lists_crud_and_membership": ["TS-DL-001"],
     "test_distribution_lists_duplicate_name_rejected": ["TS-DL-002"],
     "test_distribution_list_delete_rejected_when_used_by_notification": ["TS-DL-003"],
+    "test_distribution_list_create_with_missing_doc_returns_404": ["TS-DL-004"],
 }
 
 
@@ -83,7 +84,7 @@ def test_distribution_lists_crud_and_membership():
             client,
             "GET",
             "/distribution-lists",
-            params={"doc_id": dist_id},
+            params={"doc_id": 999999},
         )
         assert 200 <= filtered_empty["status"] < 300
         assert not any(row.get("dist_id") == dist_id for row in filtered_empty["payload"])
@@ -211,6 +212,19 @@ def test_distribution_list_delete_rejected_when_used_by_notification():
 
         delete_dl = _request(client, "DELETE", f"/distribution-lists/{dist_id}")
         assert delete_dl["status"] == 409
+
+
+@pytest.mark.api_smoke
+def test_distribution_list_create_with_missing_doc_returns_404():
+    with httpx.Client(timeout=10) as client:
+        suffix = str(int(time.time() * 1000))[-6:]
+        created_dl = _request(
+            client,
+            "POST",
+            "/distribution-lists",
+            json={"distribution_list_name": f"API DL MISSINGDOC {suffix}", "doc_id": 999999},
+        )
+        assert created_dl["status"] == 404
 
 
 def test_distribution_lists_traceability_contract():

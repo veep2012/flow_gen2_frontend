@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-02-11
-- Version: v1.2
+- Last Updated: 2026-02-21
+- Version: v1.3
 
 ## Change Log
+- 2026-02-21 | v1.3 | Added collision scenario for auto-created document DL names (`TS-CD-009`) and synchronized automated mapping.
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -145,6 +146,38 @@ curl -i -X DELETE "$API_BASE$API_PREFIX/documents/$DOC_VOID_ID"
 curl -i -X DELETE "$API_BASE$API_PREFIX/documents/999999"
 ```
 
+## 8. TS-CD-009 Create Document Succeeds on Auto-DL Name Collision
+
+```bash
+TS=$(date +%s)
+COLL_DOCNO="DOC-DL-COLL-$TS"
+COLL_DL_NAME="DL_$COLL_DOCNO"
+
+# pre-create conflicting DL name
+curl -i -X POST "$API_BASE$API_PREFIX/distribution-lists" \
+  -H "Content-Type: application/json" \
+  -d "{\"distribution_list_name\":\"$COLL_DL_NAME\"}"
+
+# document create must still succeed (201)
+curl -i -X POST "$API_BASE$API_PREFIX/documents" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"doc_name_unique\": \"$COLL_DOCNO\",
+    \"title\": \"DL collision test $TS\",
+    \"project_id\": $PROJECT_ID,
+    \"type_id\": $TYPE_ID,
+    \"area_id\": $AREA_ID,
+    \"unit_id\": $UNIT_ID,
+    \"rev_code_id\": $REV_CODE_ID,
+    \"rev_author_id\": $PERSON_ID,
+    \"rev_originator_id\": $PERSON_ID,
+    \"rev_modifier_id\": $PERSON_ID,
+    \"transmital_current_revision\": \"TR-COLL-$TS\",
+    \"planned_start_date\": \"2024-01-01T00:00:00Z\",
+    \"planned_finish_date\": \"2024-12-31T23:59:59Z\"
+  }"
+```
+
 ## Edge Cases
 - Cancel tests depend on current workflow statuses in seed data.
 - Concurrency checks depend on network timing and may return `200`/`404` mix.
@@ -158,6 +191,7 @@ curl -i -X DELETE "$API_BASE$API_PREFIX/documents/999999"
 - `TS-CD-006` repeated delete on voided document is idempotent.
 - `TS-CD-007` concurrent delete requests are safe.
 - `TS-CD-008` deleting missing document returns `404`.
+- `TS-CD-009` document creation must succeed even when auto-created DL name already exists.
 
 ## Automated Test Mapping
 - `tests/api/api/test_cancel_delete_endpoints.py::test_cancel_revision` -> `TS-CD-001`
@@ -168,6 +202,7 @@ curl -i -X DELETE "$API_BASE$API_PREFIX/documents/999999"
 - `tests/api/api/test_cancel_delete_endpoints.py::test_delete_document_void_idempotent` -> `TS-CD-006`
 - `tests/api/api/test_cancel_delete_endpoints.py::test_delete_document_concurrent_requests` -> `TS-CD-007`
 - `tests/api/api/test_cancel_delete_endpoints.py::test_delete_document_not_found` -> `TS-CD-008`
+- `tests/api/api/test_cancel_delete_endpoints.py::test_create_document_succeeds_when_auto_dl_name_already_exists` -> `TS-CD-009`
 
 ## References
 - `tests/api/api/test_cancel_delete_endpoints.py`

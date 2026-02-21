@@ -46,6 +46,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/cancel_delete_api_test_scenarios.md",
         ["TS-CD-008"],
     ),
+    "test_create_document_succeeds_when_auto_dl_name_already_exists": (
+        "documentation/test_scenarios/cancel_delete_api_test_scenarios.md",
+        ["TS-CD-009"],
+    ),
     "test_distribution_lists_crud_and_membership": (
         "documentation/test_scenarios/notifications_api_test_plan.md",
         ["TS-DL-001"],
@@ -57,6 +61,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
     "test_distribution_list_delete_rejected_when_used_by_notification": (
         "documentation/test_scenarios/notifications_api_test_plan.md",
         ["TS-DL-003"],
+    ),
+    "test_distribution_list_create_with_missing_doc_returns_404": (
+        "documentation/test_scenarios/notifications_api_test_plan.md",
+        ["TS-DL-004"],
     ),
     "test_documents_revisions_list": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",

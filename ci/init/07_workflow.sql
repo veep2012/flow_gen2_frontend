@@ -97,7 +97,8 @@ BEGIN
         ) VALUES (
             'DL_' || p_doc_name_unique,
             v_doc_id
-        );
+        )
+        ON CONFLICT (distribution_list_name) DO NOTHING;
     END IF;
 
     RETURN QUERY SELECT v_doc_id, rev_id;
@@ -1160,7 +1161,9 @@ BEGIN
     IF p_doc_id IS NOT NULL THEN
         PERFORM 1 FROM core.doc WHERE doc_id = p_doc_id;
         IF NOT FOUND THEN
-            RAISE EXCEPTION 'Document not found';
+            RAISE EXCEPTION USING
+                MESSAGE = 'Document not found',
+                ERRCODE = 'P0404';
         END IF;
     END IF;
 

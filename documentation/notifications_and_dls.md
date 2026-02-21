@@ -54,6 +54,7 @@ Router: `api/routers/notifications.py` (`/api/v1/notifications`)
   - `core.distribution_list_content` (exposed as `workflow.distribution_list_content`)
 - `core.distribution_list.doc_id` may link a list to `core.doc.doc_id`; the field is optional (`NULL` allowed) for global lists.
 - When `ref.instance_parameters.parameter='dl_for_each_doc'` has value `true`, `workflow.create_document` auto-creates a doc-linked distribution list (`distribution_list_name = 'DL_' || doc_name_unique`, `doc_id = new doc_id`).
+- Auto-created DL insertion is idempotent by `distribution_list_name`; a name collision does not fail document creation and does not insert a duplicate DL row.
 - Notification target and recipient tables:
   - `core.notification_targets`
   - `core.notification_recipients`

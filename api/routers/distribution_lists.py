@@ -58,6 +58,8 @@ _COMMON_RESPONSES: dict[int | str, dict[str, Any]] = {
     },
 }
 
+_SQLSTATE_DOCUMENT_NOT_FOUND = "P0404"
+
 
 @router.get(
     "",
@@ -76,15 +78,18 @@ def list_distribution_lists(
 
     Returns all distribution lists from workflow view.
     """
-    sql = """
+    clauses = [
+        """
         SELECT dist_id, distribution_list_name, doc_id
         FROM workflow.distribution_list
-    """
+        """
+    ]
     params: dict[str, int] = {}
     if doc_id is not None:
-        sql += " WHERE doc_id = :doc_id"
+        clauses.append("WHERE doc_id = :doc_id")
         params["doc_id"] = doc_id
-    sql += " ORDER BY distribution_list_name, dist_id"
+    clauses.append("ORDER BY distribution_list_name, dist_id")
+    sql = "\n".join(clauses)
     rows = db.execute(text(sql), params).mappings().all()
     return _model_list(DistributionListOut, rows)
 
@@ -133,6 +138,9 @@ def create_distribution_list(
         db.commit()
     except DBAPIError as err:
         db.rollback()
+        sqlstate = getattr(getattr(err, "orig", None), "sqlstate", None)
+        if sqlstate == _SQLSTATE_DOCUMENT_NOT_FOUND:
+            raise HTTPException(status_code=404, detail="Document not found") from err
         _raise_for_dbapi_error(err, _DL_DB_ERROR_MAP)
     return _model_out(DistributionListOut, row)
 

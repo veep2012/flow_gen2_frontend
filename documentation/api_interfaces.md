@@ -912,6 +912,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   - Optional fields: `project_id`, `jobpack_id`, `milestone_id`
   - Note: The initial revision automatically uses the status with `start=true` from `doc_rev_statuses`.
   - Note: If `workflow.instance_parameters.parameter='dl_for_each_doc'` has value `true` (case-insensitive), create also auto-creates a `distribution_list` row linked by `doc_id` with name pattern `DL_<doc_name_unique>`.
+  - Note: Auto-DL creation is idempotent by name; if `DL_<doc_name_unique>` already exists, document creation still succeeds and no duplicate DL row is inserted.
 ### Revisions
 - `GET /api/v1/documents/{doc_id}/revisions` — 200 ordered by `seq_num`; empty list if none. 404 if document not found or voided.
 - Headers: `Accept: application/json`

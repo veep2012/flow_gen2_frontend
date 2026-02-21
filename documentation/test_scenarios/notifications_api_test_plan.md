@@ -25,6 +25,7 @@ Assumption: DB is already up and API is reachable on port `4175`.
 - `TS-DL-001` Distribution list CRUD + membership lifecycle must succeed (`201/200/404` sequence) with nullable `doc_id` for global lists.
 - `TS-DL-002` Duplicate distribution list name must be rejected (`400`).
 - `TS-DL-003` Distribution list used in notifications must not be deletable (`409`) and may be linked to `doc_id`.
+- `TS-DL-004` Distribution list create with missing `doc_id` must return `404`.
 - `TS-NTF-001` Notification create -> list unread -> mark read flow must succeed.
 - `TS-NTF-002` Notification replace/delete chain must set dropped/superseded fields correctly.
 - `TS-NTF-003` Replace by non-sender/non-superuser must be forbidden (`403`).
@@ -98,7 +99,7 @@ Expected results:
 - listing members after remove no longer includes `USER_B`
 - created/listed DL rows for this scenario have `doc_id = null`
 - filtering by unrelated `doc_id` does not return this global DL:
-  - `curl -s "$API_BASE$API_PREFIX/distribution-lists?doc_id=$DIST_ID" | jq`
+  - `curl -s "$API_BASE$API_PREFIX/distribution-lists?doc_id=999999" | jq`
 
 ## 4. TS-DL-002 Duplicate DL Name Rejected
 
@@ -305,11 +306,24 @@ TMP_DIST_ID=$(echo "$TMP_DL" | jq -r '.dist_id')
 curl -s -X DELETE "$API_BASE$API_PREFIX/distribution-lists/$TMP_DIST_ID" | jq
 ```
 
+## 13. TS-DL-004 Create DL With Missing doc_id
+
+```bash
+TS=$(date +%s)
+curl -i -X POST "$API_BASE$API_PREFIX/distribution-lists" \
+  -H "Content-Type: application/json" \
+  -d "{\"distribution_list_name\":\"API DL MISSINGDOC $TS\",\"doc_id\":999999}"
+```
+
+Expected result:
+- returns `404` with `Document not found`.
+
 ## Automated Test Mapping
 
 - `tests/api/api/test_distribution_lists_endpoints.py::test_distribution_lists_crud_and_membership` -> `TS-DL-001`
 - `tests/api/api/test_distribution_lists_endpoints.py::test_distribution_lists_duplicate_name_rejected` -> `TS-DL-002`
 - `tests/api/api/test_distribution_lists_endpoints.py::test_distribution_list_delete_rejected_when_used_by_notification` -> `TS-DL-003`
+- `tests/api/api/test_distribution_lists_endpoints.py::test_distribution_list_create_with_missing_doc_returns_404` -> `TS-DL-004`
 - `tests/api/api/test_distribution_lists_endpoints.py::test_distribution_lists_traceability_contract` -> validates this mapping contract.
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_create_list_mark_read_flow` -> `TS-NTF-001`
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_replace_delete_chain` -> `TS-NTF-002`

@@ -117,6 +117,49 @@ def _create_document(client: httpx.Client) -> tuple[int, int | None]:
     return doc_id, project_id
 
 
+def _build_document_create_payload(client: httpx.Client, *, prefix: str) -> tuple[dict, int | None]:
+    areas = _request(client, "GET", "/lookups/areas")
+    area_id = _extract_first_id(areas["payload"], ["area_id"]) if areas["status"] < 300 else None
+    units = _request(client, "GET", "/lookups/units")
+    unit_id = _extract_first_id(units["payload"], ["unit_id"]) if units["status"] < 300 else None
+    doc_types = _request(client, "GET", "/documents/doc_types")
+    type_id = (
+        _extract_first_id(doc_types["payload"], ["type_id"]) if doc_types["status"] < 300 else None
+    )
+    rev_codes = _request(client, "GET", "/documents/revision_overview")
+    rev_code_id = (
+        _extract_first_id(rev_codes["payload"], ["rev_code_id"])
+        if rev_codes["status"] < 300
+        else None
+    )
+    persons = _request(client, "GET", "/people/persons")
+    person_id = (
+        _extract_first_id(persons["payload"], ["person_id"]) if persons["status"] < 300 else None
+    )
+    project_id = _get_project_id(client)
+    if None in (area_id, unit_id, type_id, rev_code_id, person_id):
+        pytest.skip("Missing reference data for document creation test")
+
+    suffix = str(int(time.time() * 1000))[-6:]
+    doc_name_unique = f"{prefix}-{suffix}"
+    payload = {
+        "doc_name_unique": doc_name_unique,
+        "title": f"Test Document {suffix}",
+        "project_id": project_id,
+        "type_id": type_id,
+        "area_id": area_id,
+        "unit_id": unit_id,
+        "rev_code_id": rev_code_id,
+        "rev_author_id": person_id,
+        "rev_originator_id": person_id,
+        "rev_modifier_id": person_id,
+        "transmital_current_revision": f"TR-{suffix}",
+        "planned_start_date": "2024-01-01T00:00:00Z",
+        "planned_finish_date": "2024-12-31T23:59:59Z",
+    }
+    return payload, project_id
+
+
 def _get_final_status_ids(client: httpx.Client) -> set[int]:
     statuses = _request(client, "GET", "/lookups/doc_rev_statuses")
     if not (200 <= statuses["status"] < 300):
@@ -352,3 +395,24 @@ def test_delete_document_not_found():
     with httpx.Client(timeout=10) as client:
         result = _request(client, "DELETE", "/documents/999999")
         assert result["status"] == 404
+
+
+@pytest.mark.api_smoke
+def test_create_document_succeeds_when_auto_dl_name_already_exists():
+    """Scenario IDs: TS-CD-009."""
+    with httpx.Client(timeout=10) as client:
+        payload, _ = _build_document_create_payload(client, prefix="DOC-DL-COLL")
+        conflicting_dl_name = f"DL_{payload['doc_name_unique']}"
+
+        create_dl = _request(
+            client,
+            "POST",
+            "/distribution-lists",
+            json={"distribution_list_name": conflicting_dl_name},
+        )
+        assert create_dl["status"] == 201
+
+        created_doc = _request(client, "POST", "/documents", json=payload)
+        assert (
+            created_doc["status"] == 201
+        ), f"Document creation must not fail due to DL name collision: {created_doc['status']}"

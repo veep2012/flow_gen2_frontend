@@ -9,7 +9,7 @@
 - Version: v0.2
 
 ## Change Log
-- 2026-02-21 | v0.2 | Initial dedicated registry plus documented `dl_for_each_doc` behavior with `DL_<doc_name_unique>` distribution-list naming
+- 2026-02-21 | v0.2 | Initial dedicated registry plus documented `dl_for_each_doc` behavior with `DL_<doc_name_unique>` distribution-list naming and idempotent name-collision handling.
 
 ## Purpose
 Define the source of truth for runtime configuration values stored in `ref.instance_parameters`, including expected value formats, consumers, and fallback behavior.
@@ -74,6 +74,7 @@ Define the source of truth for runtime configuration values stored in `ref.insta
   - Current seed value: `true`.
   - Consumer: `workflow.create_document` in `ci/init/07_workflow.sql`.
   - Behavior: when true, document creation auto-creates a doc-linked distribution list with `distribution_list_name = 'DL_' || doc_name_unique`.
+  - Collision handling: if a row with the same `distribution_list_name` already exists, insertion is skipped (`ON CONFLICT DO NOTHING`) and document creation continues.
   - Fallback: treated as disabled when missing/unset/non-`true`.
 
 ## Requirements
