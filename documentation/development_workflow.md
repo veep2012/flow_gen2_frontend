@@ -5,10 +5,11 @@
 - Owner: Engineering Team
 - Reviewers: Repository maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-06
-- Version: v1.1
+- Last Updated: 2026-02-21
+- Version: v1.2
 
 ## Change Log
+- 2026-02-21 | v1.2 | Documented `PYTHON_BIN`-based pytest execution in `make test` and aligned commit-message example format.
 - 2026-02-20 | v1.1 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -94,6 +95,13 @@ flowchart TD
   ```bash
   make test
   ```
+- Python test runner note:
+  - `make test` runs pytest through the configured interpreter: `$(PYTHON_BIN) -m pytest`.
+  - If `.venv` exists, `PYTHON_BIN` resolves to `.venv/bin/python` (or Windows equivalent).
+  - Override interpreter when needed, for example:
+    ```bash
+    make test PYTHON_BIN=/opt/homebrew/opt/python@3.11/bin/python3.11
+    ```
 
 ## Lint/format
 - Python:
@@ -148,7 +156,7 @@ git push --force-with-lease
   # stage all modifications
   git add .
   # commit with required message format
-  git commit -m "zhandos: 17.12.2025: New frontend window"
+  git commit -m "zhandos: 2025-12-17: Add new frontend window"
   # push frontend to its upstream
   git push
   ```

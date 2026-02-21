@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-11
-- Version: v1.2
+- Last Updated: 2026-02-21
+- Version: v1.4
 
 ## Change Log
+- 2026-02-21 | v1.4 | Synchronized ER model with current schema for distribution lists (`doc_id`, `user_id` membership), person duty fields (`person_duty`, `person.duty_id`, `person.email`), and implemented collaboration entities (`written_comments`, `notifications`, `notification_targets`, `notification_recipients`).
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -146,7 +147,47 @@ erDiagram
         smallint updated_by FK
     }
 
-    FILES_FORBIDDEN {
+    WRITTEN_COMMENTS {
+        integer id PK
+        integer rev_id FK
+        smallint user_id FK
+        text comment_text
+        timestamptz created_at
+        timestamptz updated_at
+        smallint created_by FK
+        smallint updated_by FK
+    }
+
+    NOTIFICATIONS {
+        integer notification_id PK
+        smallint sender_user_id FK
+        string event_type
+        string title
+        text body
+        text remark
+        integer rev_id FK
+        integer commented_file_id FK "nullable"
+        timestamptz created_at
+        timestamptz dropped_at "nullable"
+        smallint dropped_by_user_id FK "nullable"
+        integer superseded_by_notification_id FK "nullable"
+    }
+
+    NOTIFICATION_TARGETS {
+        bigint target_id PK
+        integer notification_id FK
+        smallint recipient_user_id FK "nullable"
+        smallint recipient_dist_id FK "nullable"
+    }
+
+    NOTIFICATION_RECIPIENTS {
+        integer notification_id PK
+        smallint recipient_user_id PK
+        timestamptz delivered_at
+        timestamptz read_at "nullable"
+    }
+
+    FILES_ACCEPTED {
         string file_type PK
         string mimetype
     }
@@ -199,10 +240,17 @@ erDiagram
     %% ==========================================
     %% 3. User & Permissions
     %% ==========================================
+    PERSON_DUTY {
+        smallint duty_id PK
+        string duty_name
+    }
+
     PERSON { 
         smallint person_id PK 
         string person_name 
         text photo_s3_uid "S3 Object Key"
+        string email
+        smallint duty_id FK
     }
 
     USERS { 
@@ -224,12 +272,12 @@ erDiagram
     DISTRIBUTION_LIST {
         smallint dist_id PK
         string distribution_list_name
-        smallint project_id FK
+        integer doc_id FK "nullable"
     }
 
     DISTRIBUTION_LIST_CONTENT {
         smallint dist_id PK
-        smallint person_id PK
+        smallint user_id PK
     }
 
     DOC_CACHE {
@@ -278,9 +326,12 @@ erDiagram
     %% Files
     DOC_REVISION ||--o{ FILES : "attachments"
     FILES ||--o{ FILES_COMMENTED : "annotated in"
-    FILES_FORBIDDEN }o--|| FILES : "mimetype blocked"
+    DOC_REVISION ||--o{ WRITTEN_COMMENTS : "written comments"
+    USERS ||--o{ WRITTEN_COMMENTS : "writes"
+    FILES_ACCEPTED }o--|| FILES : "allowed mimetype"
     
     %% User Management
+    PERSON_DUTY ||--o{ PERSON : "classifies"
     PERSON ||--|| USERS : "has single account"
     ROLES ||--o{ USERS : "assigned"
     USERS ||--o{ FILES_COMMENTED : "comments by"
@@ -291,9 +342,21 @@ erDiagram
     DISCIPLINES |o--o{ PERMISSIONS : "scope"
 
     %% Distribution Lists
-    PROJECTS ||--o{ DISTRIBUTION_LIST : "has lists"
+    DOC |o--o{ DISTRIBUTION_LIST : "linked list"
     DISTRIBUTION_LIST ||--o{ DISTRIBUTION_LIST_CONTENT : "has members"
-    PERSON ||--o{ DISTRIBUTION_LIST_CONTENT : "included in"
+    USERS ||--o{ DISTRIBUTION_LIST_CONTENT : "included in"
+
+    %% Notifications
+    USERS ||--o{ NOTIFICATIONS : "sends"
+    USERS |o--o{ NOTIFICATIONS : "drops"
+    DOC_REVISION ||--o{ NOTIFICATIONS : "context revision"
+    FILES_COMMENTED |o--o{ NOTIFICATIONS : "context commented file"
+    NOTIFICATIONS ||--o{ NOTIFICATION_TARGETS : "targets"
+    USERS |o--o{ NOTIFICATION_TARGETS : "direct target"
+    DISTRIBUTION_LIST |o--o{ NOTIFICATION_TARGETS : "list target"
+    NOTIFICATIONS ||--o{ NOTIFICATION_RECIPIENTS : "delivers to"
+    USERS ||--o{ NOTIFICATION_RECIPIENTS : "recipient"
+    NOTIFICATIONS |o--o| NOTIFICATIONS : "supersedes"
 
     %% Cache
     USERS ||--o{ DOC_CACHE : "cached"

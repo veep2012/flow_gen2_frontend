@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-02-21
-- Version: v1.4
+- Version: v1.5
 
 ## Change Log
-- 2026-02-21 | v1.4 | Added person duty model (`person_duty`) and synchronized people/users API payloads with `duty_id` and `duty_name`.
+- 2026-02-21 | v1.5 | Clarified `ref.person.email` storage and documented that current people API payloads do not expose email.
 - 2026-02-20 | v1.3 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -37,6 +37,7 @@ The user/person data is stored across multiple related tables:
 - `person_id` (PrimaryKey): Unique identifier
 - `person_name` (String): **Full name of the person** ✅
 - `photo_s3_uid` (Optional Text): Profile photo reference
+- `email` (Optional String): Stored in DB, not currently returned by people API response models
 - `duty_id` (Optional ForeignKey): References Person Duty table
 
 #### 2. **User Table** (`workflow.users`, backed by `ref.users`)
