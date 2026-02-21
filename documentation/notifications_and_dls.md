@@ -9,7 +9,7 @@
 - Version: v1.4
 
 ## Change Log
-- 2026-02-21 | v1.4 | Added optional `distribution_list.doc_id` linkage to `core.doc` and synchronized DL API contract notes.
+- 2026-02-21 | v1.4 | Added optional `distribution_list.doc_id` linkage to `core.doc`, synchronized DL API contract notes, and documented auto-creation of doc-linked DLs when `instance_parameters.dl_for_each_doc=true`.
 - 2026-02-20 | v1.3 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -53,6 +53,7 @@ Router: `api/routers/notifications.py` (`/api/v1/notifications`)
   - `core.distribution_list` (exposed as `workflow.distribution_list`)
   - `core.distribution_list_content` (exposed as `workflow.distribution_list_content`)
 - `core.distribution_list.doc_id` may link a list to `core.doc.doc_id`; the field is optional (`NULL` allowed) for global lists.
+- When `ref.instance_parameters.parameter='dl_for_each_doc'` has value `true`, `workflow.create_document` auto-creates a doc-linked distribution list (`distribution_list_name = 'DL_' || doc_name_unique`, `doc_id = new doc_id`).
 - Notification target and recipient tables:
   - `core.notification_targets`
   - `core.notification_recipients`

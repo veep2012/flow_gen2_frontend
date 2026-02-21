@@ -30,6 +30,7 @@ AS $$
 DECLARE
     v_start_status SMALLINT;
     v_doc_id INTEGER;
+    v_dl_for_each_doc BOOLEAN := FALSE;
 BEGIN
     SELECT rev_status_id INTO v_start_status
     FROM ref.doc_rev_statuses WHERE start = TRUE LIMIT 1;
@@ -83,6 +84,21 @@ BEGIN
     UPDATE core.doc
     SET rev_current_id = rev_id
     WHERE core.doc.doc_id = v_doc_id;
+
+    SELECT lower(trim(ip.value)) = 'true'
+    INTO v_dl_for_each_doc
+    FROM ref.instance_parameters AS ip
+    WHERE ip.parameter = 'dl_for_each_doc';
+
+    IF COALESCE(v_dl_for_each_doc, FALSE) THEN
+        INSERT INTO core.distribution_list (
+            distribution_list_name,
+            doc_id
+        ) VALUES (
+            'DL_' || p_doc_name_unique,
+            v_doc_id
+        );
+    END IF;
 
     RETURN QUERY SELECT v_doc_id, rev_id;
 END;

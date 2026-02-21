@@ -98,7 +98,23 @@ def _create_document(client: httpx.Client) -> tuple[int, int | None]:
     created = _request(client, "POST", "/documents", json=payload)
     if created["status"] != 201:
         pytest.skip("Document creation failed for delete test")
-    return created["payload"]["doc_id"], project_id
+    doc_id = created["payload"]["doc_id"]
+
+    distribution_lists = _request(client, "GET", "/distribution-lists")
+    if not (200 <= distribution_lists["status"] < 300):
+        pytest.skip("Distribution lists unavailable for document-linked DL assertion")
+    linked_dl = next(
+        (
+            row
+            for row in distribution_lists["payload"]
+            if isinstance(row, dict) and row.get("doc_id") == doc_id
+        ),
+        None,
+    )
+    assert linked_dl is not None, "Expected auto-created document-linked distribution list"
+    assert linked_dl.get("distribution_list_name") == f"DL_{payload['doc_name_unique']}"
+
+    return doc_id, project_id
 
 
 def _get_final_status_ids(client: httpx.Client) -> set[int]:

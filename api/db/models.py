@@ -223,8 +223,10 @@ class DistributionList(Base):
     __tablename__ = "distribution_list"
 
     dist_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
-    distribution_list_name: Mapped[str] = mapped_column(String(45), nullable=False, unique=True)
-    doc_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("doc.doc_id"))
+    distribution_list_name: Mapped[str] = mapped_column(String(48), nullable=False, unique=True)
+    doc_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("doc.doc_id", ondelete="CASCADE")
+    )
 
     members: Mapped[list["DistributionListContent"]] = relationship(
         back_populates="distribution_list"
@@ -340,7 +342,10 @@ class Doc(Base):
         foreign_keys="DocRevision.doc_id",
         passive_deletes=True,
     )
-    distribution_lists: Mapped[list[DistributionList]] = relationship(back_populates="doc")
+    distribution_lists: Mapped[list[DistributionList]] = relationship(
+        back_populates="doc",
+        passive_deletes=True,
+    )
     current_revision: Mapped[Optional["DocRevision"]] = relationship(
         foreign_keys=[rev_current_id],
         post_update=True,

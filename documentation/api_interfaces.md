@@ -9,7 +9,7 @@
 - Version: v1.9
 
 ## Change Log
-- 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, corrected file update-body `id` validation contract to `422` (extra field forbidden), and added nullable `doc_id` support for distribution lists (`create/list`).
+- 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, corrected file update-body `id` validation contract to `422` (extra field forbidden), added nullable `doc_id` support for distribution lists (`create/list`), and documented `dl_for_each_doc=true` auto-DL creation on document create.
 - 2026-02-20 | v1.8 | Renamed commented download query parameter from `file_id` to `id`.
 - 2026-02-19 | v1.7 | Updated API contracts and examples for latest backend behavior.
 
@@ -875,6 +875,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   - Required fields: `doc_name_unique`, `title`, `type_id`, `area_id`, `unit_id`, `rev_code_id`, `rev_author_id`, `rev_originator_id`, `rev_modifier_id`, `transmital_current_revision`, `planned_start_date`, `planned_finish_date`
   - Optional fields: `project_id`, `jobpack_id`, `milestone_id`
   - Note: The initial revision automatically uses the status with `start=true` from `doc_rev_statuses`.
+  - Note: If `workflow.instance_parameters.parameter='dl_for_each_doc'` has value `true` (case-insensitive), create also auto-creates a `distribution_list` row linked by `doc_id` with name pattern `DL_<doc_name_unique>`.
 ### Revisions
 - `GET /api/v1/documents/{doc_id}/revisions` — 200 ordered by `seq_num`; empty list if none. 404 if document not found or voided.
 - Headers: `Accept: application/json`

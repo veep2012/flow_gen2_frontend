@@ -11,6 +11,7 @@
 - `auth_architecture.md` - Authentication and authorization architecture.
 - `document_flow.md` - Document and revision lifecycle model.
 - `er_diagram.md` - Entity relationship map.
+- `instance_parameters.md` - Runtime parameter registry for `ref.instance_parameters` and consumer behavior.
 
 ## Process and Workflow
 - `development_workflow.md` - Branching, setup, and development process.

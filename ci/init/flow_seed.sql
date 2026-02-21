@@ -113,6 +113,11 @@ INSERT INTO instance_parameters (parameter, value, description) VALUES
     'file_name_com_conv',
     '<BODY>_commented_<UACR>_<TIMEST>.<EXT>',
     'Default naming template for commented files: <BODY>, literal suffix "_commented", <UACR>, <TIMEST>, and <EXT>.'
+),
+(
+    'dl_for_each_doc',
+    'true',
+    'When true, workflow.create_document auto-creates a document-linked distribution list for every new document.'
 );
 
 -- Users
