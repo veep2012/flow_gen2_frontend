@@ -66,6 +66,7 @@ def test_distribution_lists_crud_and_membership():
         )
         assert create["status"] == 201
         dist_id = create["payload"]["dist_id"]
+        assert create["payload"]["doc_id"] is None
 
         listed = _request(
             client,
@@ -73,7 +74,11 @@ def test_distribution_lists_crud_and_membership():
             "/distribution-lists",
         )
         assert 200 <= listed["status"] < 300
-        assert any(row.get("dist_id") == dist_id for row in listed["payload"])
+        created_list_row = next(
+            (row for row in listed["payload"] if row.get("dist_id") == dist_id), None
+        )
+        assert created_list_row is not None
+        assert created_list_row.get("doc_id") is None
 
         add_member = _request(
             client,
@@ -159,10 +164,11 @@ def test_distribution_list_delete_rejected_when_used_by_notification():
             client,
             "POST",
             "/distribution-lists",
-            json={"distribution_list_name": f"API DL INUSE {suffix}"},
+            json={"distribution_list_name": f"API DL INUSE {suffix}", "doc_id": doc_id},
         )
         assert created_dl["status"] == 201
         dist_id = created_dl["payload"]["dist_id"]
+        assert created_dl["payload"]["doc_id"] == doc_id
 
         add_member = _request(
             client,

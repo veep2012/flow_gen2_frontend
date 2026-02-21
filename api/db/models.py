@@ -224,10 +224,12 @@ class DistributionList(Base):
 
     dist_id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     distribution_list_name: Mapped[str] = mapped_column(String(45), nullable=False, unique=True)
+    doc_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("doc.doc_id"))
 
     members: Mapped[list["DistributionListContent"]] = relationship(
         back_populates="distribution_list"
     )
+    doc: Mapped[Optional["Doc"]] = relationship(back_populates="distribution_lists")
 
 
 class DistributionListContent(Base):
@@ -338,6 +340,7 @@ class Doc(Base):
         foreign_keys="DocRevision.doc_id",
         passive_deletes=True,
     )
+    distribution_lists: Mapped[list[DistributionList]] = relationship(back_populates="doc")
     current_revision: Mapped[Optional["DocRevision"]] = relationship(
         foreign_keys=[rev_current_id],
         post_update=True,

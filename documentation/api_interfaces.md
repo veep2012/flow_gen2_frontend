@@ -9,7 +9,7 @@
 - Version: v1.9
 
 ## Change Log
-- 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, and corrected file update-body `id` validation contract to `422` (extra field forbidden)
+- 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, corrected file update-body `id` validation contract to `422` (extra field forbidden), and added nullable `doc_id` support for distribution lists (`create/list`).
 - 2026-02-20 | v1.8 | Renamed commented download query parameter from `file_id` to `id`.
 - 2026-02-19 | v1.7 | Updated API contracts and examples for latest backend behavior.
 
@@ -1126,7 +1126,8 @@ Shape (distribution list):
 ```json
 {
   "dist_id": 1,
-  "distribution_list_name": "Review Team"
+  "distribution_list_name": "Review Team",
+  "doc_id": null
 }
 ```
 Shape (distribution list member):
@@ -1159,23 +1160,24 @@ curl -sS -H "Accept: application/json" \
 - Example response:
 ```json
 [
-  { "dist_id": 1, "distribution_list_name": "Review Team" },
-  { "dist_id": 2, "distribution_list_name": "Construction Team" }
+  { "dist_id": 1, "distribution_list_name": "Review Team", "doc_id": null },
+  { "dist_id": 2, "distribution_list_name": "Construction Team", "doc_id": 101 }
 ]
 ```
 
 ### Create
-- `POST /api/v1/distribution-lists` — 201; creates a global distribution list.
+- `POST /api/v1/distribution-lists` — 201; creates a distribution list (global when `doc_id` is omitted/null).
+- Returns `404` when `doc_id` is provided but the document does not exist.
 - Headers: `Accept: application/json`, `Content-Type: application/json`
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
-  -d '{ "distribution_list_name": "Review Team" }' \
+  -d '{ "distribution_list_name": "Review Team", "doc_id": 101 }' \
   $API_BASE/api/v1/distribution-lists
 ```
 - Example response:
 ```json
-{ "dist_id": 1, "distribution_list_name": "Review Team" }
+{ "dist_id": 1, "distribution_list_name": "Review Team", "doc_id": 101 }
 ```
 
 ### Delete

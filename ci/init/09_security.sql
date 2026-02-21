@@ -47,7 +47,7 @@ GRANT EXECUTE ON FUNCTION workflow.mark_notification_read(
     INTEGER, SMALLINT
 ) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.create_distribution_list(
-    VARCHAR
+    VARCHAR, INTEGER
 ) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.delete_distribution_list(
     SMALLINT

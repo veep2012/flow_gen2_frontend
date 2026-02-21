@@ -13,6 +13,12 @@ class DistributionListOut(BaseModel):
         examples=["Review Team"],
         min_length=1,
     )
+    doc_id: int | None = Field(
+        None,
+        description="Linked document ID. Nullable for global lists.",
+        examples=[101],
+        gt=0,
+    )
 
 
 class DistributionListCreate(BaseModel):
@@ -23,6 +29,12 @@ class DistributionListCreate(BaseModel):
         description="Distribution list name.",
         examples=["Review Team"],
         min_length=1,
+    )
+    doc_id: int | None = Field(
+        None,
+        description="Optional linked document ID.",
+        examples=[101],
+        gt=0,
     )
 
 

@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-11
-- Version: v1.3
+- Last Updated: 2026-02-21
+- Version: v1.4
 
 ## Change Log
+- 2026-02-21 | v1.4 | Added optional `distribution_list.doc_id` linkage to `core.doc` and synchronized DL API contract notes.
 - 2026-02-20 | v1.3 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -51,6 +52,7 @@ Router: `api/routers/notifications.py` (`/api/v1/notifications`)
 - DL source tables:
   - `core.distribution_list` (exposed as `workflow.distribution_list`)
   - `core.distribution_list_content` (exposed as `workflow.distribution_list_content`)
+- `core.distribution_list.doc_id` may link a list to `core.doc.doc_id`; the field is optional (`NULL` allowed) for global lists.
 - Notification target and recipient tables:
   - `core.notification_targets`
   - `core.notification_recipients`
@@ -64,6 +66,7 @@ Router: `api/routers/notifications.py` (`/api/v1/notifications`)
   - Router: `api/routers/distribution_lists.py`
   - Schemas: `api/schemas/distribution_lists.py`
   - Endpoints: list/create/delete list, list/add/remove members
+  - `create` and `list` include nullable `doc_id` on distribution list rows
 - Only legacy document-scoped endpoints were removed:
   - `/api/v1/documents/{doc_id}/distribution-lists/*`
 - DL functionality remains part of this module both as standalone DL management API and as notification recipient targeting.

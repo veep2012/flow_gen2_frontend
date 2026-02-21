@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-11
-- Version: v1.5
+- Last Updated: 2026-02-21
+- Version: v1.6
 
 ## Change Log
+- 2026-02-21 | v1.6 | Added DL `doc_id` scenario expectations for nullable create/list and document-linked create.
 - 2026-02-20 | v1.5 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -21,9 +22,9 @@ Assumption: DB is already up and API is reachable on port `4175`.
 
 ## Scenario Catalog (Automated Coverage Contract)
 
-- `TS-DL-001` Distribution list CRUD + membership lifecycle must succeed (`201/200/404` sequence).
+- `TS-DL-001` Distribution list CRUD + membership lifecycle must succeed (`201/200/404` sequence) with nullable `doc_id` for global lists.
 - `TS-DL-002` Duplicate distribution list name must be rejected (`400`).
-- `TS-DL-003` Distribution list used in notifications must not be deletable (`409`).
+- `TS-DL-003` Distribution list used in notifications must not be deletable (`409`) and may be linked to `doc_id`.
 - `TS-NTF-001` Notification create -> list unread -> mark read flow must succeed.
 - `TS-NTF-002` Notification replace/delete chain must set dropped/superseded fields correctly.
 - `TS-NTF-003` Replace by non-sender/non-superuser must be forbidden (`403`).
@@ -77,6 +78,7 @@ DL_CREATE=$(curl -s -X POST "$API_BASE$API_PREFIX/distribution-lists" \
   -d "{\"distribution_list_name\":\"API DL $TS\"}")
 echo "$DL_CREATE" | jq
 DIST_ID=$(echo "$DL_CREATE" | jq -r '.dist_id')
+echo "$DL_CREATE" | jq '.doc_id'   # expect null for global DL
 
 curl -s "$API_BASE$API_PREFIX/distribution-lists" | jq --argjson id "$DIST_ID" '.[] | select(.dist_id==$id)'
 
@@ -94,6 +96,7 @@ Expected results:
 - create member returns `201`
 - remove member returns `200`
 - listing members after remove no longer includes `USER_B`
+- created/listed DL rows for this scenario have `doc_id = null`
 
 ## 4. TS-DL-002 Duplicate DL Name Rejected
 
@@ -264,8 +267,9 @@ Expected result:
 ```bash
 DL_IN_USE=$(curl -s -X POST "$API_BASE$API_PREFIX/distribution-lists" \
   -H "Content-Type: application/json" \
-  -d "{\"distribution_list_name\":\"API DL INUSE $TS\"}")
+  -d "{\"distribution_list_name\":\"API DL INUSE $TS\",\"doc_id\":$DOC_ID}")
 DIST_IN_USE_ID=$(echo "$DL_IN_USE" | jq -r '.dist_id')
+echo "$DL_IN_USE" | jq '.doc_id'   # expect DOC_ID
 
 curl -s -X POST "$API_BASE$API_PREFIX/distribution-lists/$DIST_IN_USE_ID/members" \
   -H "Content-Type: application/json" \

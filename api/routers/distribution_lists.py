@@ -22,6 +22,7 @@ _DL_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("distribution list not found", 404, "Distribution list not found"),
     ("distribution list is referenced by notifications", 409, "Distribution list is in use"),
     ("distribution list member not found", 404, "Distribution list member not found"),
+    ("document not found", 404, "Document not found"),
     ("user not found", 404, "User not found"),
     ("duplicate key", 400, "Distribution list or membership already exists"),
 )
@@ -75,7 +76,7 @@ def list_distribution_lists(
     Returns all distribution lists from workflow view.
     """
     sql = """
-        SELECT dist_id, distribution_list_name
+        SELECT dist_id, distribution_list_name, doc_id
         FROM workflow.distribution_list
     """
     sql += " ORDER BY distribution_list_name, dist_id"
@@ -102,21 +103,23 @@ def create_distribution_list(
     """
     Create distribution list.
 
-    Creates a global distribution list with unique name.
+    Creates a distribution list with unique name, optionally linked to a document.
     """
     try:
         row = (
             db.execute(
                 text(
                     """
-                    SELECT dist_id, distribution_list_name
+                    SELECT dist_id, distribution_list_name, doc_id
                     FROM workflow.create_distribution_list(
-                        :distribution_list_name
+                        :distribution_list_name,
+                        :doc_id
                     )
                     """
                 ),
                 {
                     "distribution_list_name": payload.distribution_list_name,
+                    "doc_id": payload.doc_id,
                 },
             )
             .mappings()

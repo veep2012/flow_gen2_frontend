@@ -1131,7 +1131,8 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION workflow.create_distribution_list(
-    p_distribution_list_name VARCHAR
+    p_distribution_list_name VARCHAR,
+    p_doc_id INTEGER DEFAULT NULL
 ) RETURNS core.distribution_list
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1140,10 +1141,19 @@ AS $$
 DECLARE
     v_row core.distribution_list%ROWTYPE;
 BEGIN
+    IF p_doc_id IS NOT NULL THEN
+        PERFORM 1 FROM core.doc WHERE doc_id = p_doc_id;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Document not found';
+        END IF;
+    END IF;
+
     INSERT INTO core.distribution_list (
-        distribution_list_name
+        distribution_list_name,
+        doc_id
     ) VALUES (
-        p_distribution_list_name
+        p_distribution_list_name,
+        p_doc_id
     )
     RETURNING * INTO v_row;
 
