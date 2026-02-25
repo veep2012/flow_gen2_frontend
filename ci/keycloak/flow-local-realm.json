@@ -47,6 +47,47 @@
       ],
       "webOrigins": [
         "http://localhost"
+      ],
+      "protocolMappers": [
+        {
+          "name": "acronym claim",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "acronym",
+            "claim.name": "acronym",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "preferred_username from acronym",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "acronym",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience flow-oauth2-proxy",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "flow-oauth2-proxy",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
       ]
     }
   ],
@@ -58,6 +99,11 @@
       "firstName": "Test",
       "lastName": "User",
       "email": "testuser@local",
+      "attributes": {
+        "acronym": [
+          "FDQC"
+        ]
+      },
       "credentials": [
         {
           "type": "password",
