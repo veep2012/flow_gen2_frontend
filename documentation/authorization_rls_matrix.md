@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-21
-- Last Updated: 2026-02-21
-- Version: v0.4
+- Last Updated: 2026-02-25
+- Version: v0.5
 
 ## Change Log
+- 2026-02-25 | v0.5 | Added architecture review summary, gradual implementation plan, edge cases, and references.
 - 2026-02-21 | v0.4 | Added local developer mode using `APP_USER` to bootstrap `app.user_id` with strict non-production guardrails.
 
 ## Purpose
@@ -23,6 +24,19 @@ Define the future-state role-based authorization and row-level security (RLS) mo
   - Full OIDC/Keycloak operational setup details.
   - UI implementation details.
   - SQL migration scripts.
+
+## Audience
+- Backend and database engineers
+- Security reviewers
+- API maintainers
+- QA and release engineers
+
+## Definitions
+- Capability: Allowed action level for a resource (`read-only`, `read-write`).
+- Scope: Allowed data slice boundaries (`PROJECT`, `AREA`, `UNIT`) with grouped AND/OR logic.
+- Super-role: Role with `is_super = true`; bypasses scope checks but still requires valid capability.
+- RLS: PostgreSQL Row-Level Security policies that enforce row visibility and write eligibility.
+- Session context: Per-request DB settings used by authorization predicates (for example `app.user_id`).
 
 ## Design / Behavior
 The target model is role-driven authorization with database-enforced row filtering:
@@ -259,17 +273,134 @@ Note:
 - NFR-4: Permission-check function should be `STABLE` and optimized to avoid repeated expensive joins in hot query paths.
 - NFR-5: `APP_USER` local mode must be environment-gated and impossible to enable in production deployments.
 
+## Architecture review summary
+This architecture is directionally strong and aligned with least-privilege and fail-closed design. It correctly separates identity resolution (application side) from authorization enforcement (database side), and proposes one authorization predicate for both workflow checks and RLS policies, which should reduce drift.
+
+Primary strengths:
+- Single permission-check contract centralizes authorization semantics.
+- Capability and scope are independent and composable.
+- Super-role behavior is explicit and auditable (`is_super`).
+- Local `APP_USER` mode is explicitly constrained to local-only usage.
+
+Gaps to resolve before implementation:
+- Ownership for authoritative role assignment source is not specified (DB-managed vs IdP-managed sync).
+- Scope precedence/conflict rules across many roles need explicit deterministic behavior documentation.
+- Audit requirements for authorization decisions are not yet defined (what to log, where, retention).
+- Performance target/SLO for authorization predicate latency is not yet defined.
+
+Decision needed before build start:
+- Confirm whether `SUPERUSER` must bypass both scope and capability, or only scope. Current document assumes scope bypass only.
+
+## Gradual implementation plan
+### Phase 0 - Foundations and guardrails
+Objective:
+- Prepare schema and environment guardrails without changing runtime behavior.
+
+Tasks:
+- Create `ref.roles`, `ref.user_roles`, `ref.role_permissions`, `ref.role_scopes` tables and required indexes.
+- Add strict `APP_USER` environment gating and startup validation for non-production only.
+- Introduce capability/resource enums or constrained check rules to prevent invalid values.
+- Add migration rollback scripts and seed minimal baseline roles.
+
+Exit criteria:
+- Migrations apply/rollback cleanly in local and CI databases.
+- Production configuration hard-blocks `APP_USER`.
+- Baseline role/capability records are present and validated.
+
+### Phase 1 - Read-path authorization predicate
+Objective:
+- Implement and validate read authorization logic before write-path enforcement.
+
+Tasks:
+- Implement `workflow.check_user_permission(...)` for `read-only` capability first.
+- Integrate predicate into read-side workflow functions.
+- Add RLS `USING` policies for `core.doc` and inherited read policies for related entities.
+- Add integration tests for multi-role union behavior and fail-closed outcomes.
+
+Exit criteria:
+- Read endpoints respect capability + scope model with no unauthorized data exposure.
+- Super-role and non-super-role read cases pass test scenarios.
+- Explain plans show index usage for hot authorization queries.
+
+### Phase 2 - Write-path enforcement
+Objective:
+- Extend model to enforce mutation permissions with consistent semantics.
+
+Tasks:
+- Extend predicate logic to full `read-write` support.
+- Add workflow prechecks for create/update/delete-sensitive paths.
+- Add RLS `WITH CHECK` write policies for protected tables.
+- Add negative tests for forbidden write operations by scope/capability.
+
+Exit criteria:
+- Unauthorized writes are blocked at both workflow and RLS layers.
+- Authorized writes succeed for all matrix-defined role/resource combinations.
+- No regression in existing mutation API behavior outside authorization semantics.
+
+### Phase 3 - Identity and role mapping integration
+Objective:
+- Replace local/dev identity assumptions with trusted identity mapping flow.
+
+Tasks:
+- Implement trusted auth context resolver (JWT/header to internal user mapping).
+- Add IdP role/group to `ref.roles.external_name` mapping job or synchronization path.
+- Add stale mapping handling and fail-closed behavior for unknown external roles.
+- Add observability around mapping errors and authorization denials.
+
+Exit criteria:
+- End-to-end auth flow works without `APP_USER` outside local environment.
+- Role sync/mapping is deterministic and monitored.
+- Unknown identity/role inputs fail closed with traceable audit evidence.
+
+### Phase 4 - Hardening, performance, and rollout
+Objective:
+- Validate production readiness and roll out with controlled blast radius.
+
+Tasks:
+- Run load tests focused on authorization predicate overhead.
+- Add audit logging for authorization allow/deny decisions and policy path.
+- Run staged rollout: shadow mode metrics, then enforced mode by environment.
+- Conduct security review and finalize role matrix sign-off with business owners.
+
+Exit criteria:
+- Authorization path meets agreed latency/error SLOs.
+- Security review findings are resolved or formally accepted.
+- Production rollout completed with monitored deny-rate and no data isolation incidents.
+
+## Rollout / Migration
+- Backward compatibility:
+  - During Phase 1 and Phase 2, keep legacy checks in place until RLS + workflow checks are validated in parallel.
+- Data migration steps:
+  - Seed roles, permissions, and scope records before enabling enforcement.
+  - Backfill `user_roles` assignments from current source-of-truth mapping.
+- Deployment notes:
+  - Enable enforcement progressively by environment: local -> integration -> staging -> production.
+  - Add feature flag for auth enforcement mode (`observe`, `enforce`) during rollout.
+
 ## Edge Cases
-- Role exists but has no capabilities for a requested action.
-- Role has capabilities but no scope rows.
-- Multiple scope groups with partial matches.
-- Super-role with explicit deny requirement (if deny semantics are introduced later).
-- Missing `app.user_id` session value.
-- `p_doc_id` provided but document row does not exist.
-- User has one super-role and one limited role (super-role must win).
-- `APP_USER` points to unknown external identity in local mode.
+- User has no roles:
+  - Authorization must return `false`; API must surface `403`.
+- User has multiple roles with mixed capabilities:
+  - Effective capability is union; `read-write` implies `read-only`.
+- User has valid capability but no matching scope group:
+  - Access must be denied unless any assigned role has `is_super = true`.
+- Invalid or missing `app.user_id` session context:
+  - Authorization must fail closed and not default to anonymous access.
+- Orphaned lineage (`files` or `doc_revision` references missing parent scope context):
+  - Permission check must return `false` and write path must reject operation.
+- `APP_USER` accidentally set in non-local environment:
+  - Startup or request middleware must hard-fail and emit security alert.
+
+## Open Questions
+- Should super-role bypass capability checks or only scope checks?
+- What is the required audit schema for authorization decisions (fields, retention, PII policy)?
+- Should scope model support explicit deny rules in addition to grant rules?
+- What SLO must be enforced for `workflow.check_user_permission(...)` at p95/p99?
 
 ## References
 - `documentation/auth_architecture.md`
 - `documentation/api_db_rules.md`
-- `documentation/document_flow.md`
+- `documentation/er_diagram.md`
+- `documentation/_documentation_template.md`
+- `documentation/_documentation_standards.md`
+- `documentation/_naming_convention.md`
