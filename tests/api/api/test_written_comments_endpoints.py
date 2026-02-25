@@ -13,7 +13,7 @@ from tests.api.api.comments_test_helpers import (
 def test_written_comments_crud():
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
-        user_id, _ = _get_test_user(client)
+        user_id, user_acronym = _get_test_user(client)
 
         created = _request(
             client,
@@ -43,7 +43,7 @@ def test_written_comments_crud():
             client,
             "DELETE",
             f"/documents/revisions/comments/{comment_id}",
-            headers={"X-User-Id": str(user_id)},
+            headers={"X-User-Id": user_acronym},
         )
         assert deleted["status"] == 204
 
@@ -98,10 +98,11 @@ def test_written_comments_missing_references():
 def test_written_comments_delete_forbidden_non_author():
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
-        author_user_id, _ = _get_test_user(client)
-        other_user_id = _get_second_test_user(client, author_user_id)
-        if other_user_id is None:
+        author_user_id, author_acronym = _get_test_user(client)
+        other_user = _get_second_test_user(client, author_user_id)
+        if other_user is None:
             pytest.skip("Need two users for forbidden written comment delete check")
+        other_user_id, other_acronym = other_user
 
         created = _request(
             client,
@@ -119,7 +120,7 @@ def test_written_comments_delete_forbidden_non_author():
             client,
             "DELETE",
             f"/documents/revisions/comments/{comment_id}",
-            headers={"X-User-Id": str(other_user_id)},
+            headers={"X-User-Id": other_acronym},
         )
         assert forbidden["status"] == 403
 
@@ -127,7 +128,7 @@ def test_written_comments_delete_forbidden_non_author():
             client,
             "DELETE",
             f"/documents/revisions/comments/{comment_id}",
-            headers={"X-User-Id": str(author_user_id)},
+            headers={"X-User-Id": author_acronym},
         )
 
 
@@ -135,7 +136,7 @@ def test_written_comments_delete_forbidden_non_author():
 def test_written_comments_update():
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
-        user_id, _ = _get_test_user(client)
+        user_id, user_acronym = _get_test_user(client)
 
         created = _request(
             client,
@@ -151,7 +152,7 @@ def test_written_comments_update():
             "PUT",
             f"/documents/revisions/comments/{comment_id}",
             json={"comment_text": "updated text"},
-            headers={"X-User-Id": str(user_id)},
+            headers={"X-User-Id": user_acronym},
         )
         assert updated["status"] == 200
         assert updated["payload"]["id"] == comment_id
@@ -161,7 +162,7 @@ def test_written_comments_update():
             client,
             "DELETE",
             f"/documents/revisions/comments/{comment_id}",
-            headers={"X-User-Id": str(user_id)},
+            headers={"X-User-Id": user_acronym},
         )
 
 
@@ -169,10 +170,11 @@ def test_written_comments_update():
 def test_written_comments_update_forbidden_non_author():
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
-        author_user_id, _ = _get_test_user(client)
-        other_user_id = _get_second_test_user(client, author_user_id)
-        if other_user_id is None:
+        author_user_id, author_acronym = _get_test_user(client)
+        other_user = _get_second_test_user(client, author_user_id)
+        if other_user is None:
             pytest.skip("Need two non-superuser users for forbidden update check")
+        other_user_id, other_acronym = other_user
 
         created = _request(
             client,
@@ -188,7 +190,7 @@ def test_written_comments_update_forbidden_non_author():
             "PUT",
             f"/documents/revisions/comments/{comment_id}",
             json={"comment_text": "forbidden update"},
-            headers={"X-User-Id": str(other_user_id)},
+            headers={"X-User-Id": other_acronym},
         )
         assert forbidden["status"] == 403
 
@@ -196,5 +198,5 @@ def test_written_comments_update_forbidden_non_author():
             client,
             "DELETE",
             f"/documents/revisions/comments/{comment_id}",
-            headers={"X-User-Id": str(author_user_id)},
+            headers={"X-User-Id": author_acronym},
         )

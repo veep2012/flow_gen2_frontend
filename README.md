@@ -130,6 +130,10 @@ export OAUTH2_PROXY_COOKIE_SECRET="your-32-byte-secret"
 - `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` are required for MinIO access in local dev and CI.
 - `MAX_UPLOAD_SIZE_MB` limits upload size (default 128).
 - `MINIO_RETRIES` / `MINIO_RETRY_DELAY_SEC` control MinIO retry behavior.
+- `APP_ENV` controls environment mode (`local/dev/test/ci` recommended for local runs).
+- `APP_USER` optionally bootstraps DB session user in non-production only; value must be `user_acronym`, and startup validation checks it resolves in `workflow.users`.
+- `APP_USER_DB_WAIT_SEC` controls how long API startup waits for DB readiness during `APP_USER` validation (default `30`).
+- `APP_USER_DB_WAIT_POLL_SEC` controls retry interval for that wait loop (default `1`).
 
 ### Seed data (Postgres)
 - `ci/init/flow_seed.sql` inserts into `ref/core/workflow` tables and must run as a privileged role

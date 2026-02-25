@@ -254,6 +254,11 @@ function App() {
   const [projectMenuOpen, setProjectMenuOpen] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+  const [currentUser, setCurrentUser] = React.useState({
+    person_name: "Konstantin Ni",
+    duty_name: "Designer",
+    user_acronym: "KONI",
+  });
   const [docTypes, setDocTypes] = React.useState([]);
   const [disciplines, setDisciplines] = React.useState([]);
   const [jobpacks, setJobpacks] = React.useState([]);
@@ -279,6 +284,35 @@ function App() {
     };
     fetchRevisions();
   }, [apiBase, selectedDocId]);
+  React.useEffect(() => {
+    let isActive = true;
+    const loadCurrentUser = async () => {
+      try {
+        const response = await fetch(`${apiBase}/people/users/current_user`, {
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) {
+          return;
+        }
+        const payload = await response.json();
+        if (!isActive || !payload || typeof payload !== "object") {
+          return;
+        }
+        setCurrentUser((prev) => ({
+          person_name: String(payload.person_name || "").trim() || prev.person_name,
+          duty_name: String(payload.duty_name || "").trim() || prev.duty_name,
+          user_acronym: String(payload.user_acronym || "").trim() || prev.user_acronym,
+        }));
+      } catch {
+        // Keep fallback user info for local UI rendering when endpoint is unavailable.
+      }
+    };
+
+    loadCurrentUser();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase]);
   const [people, setPeople] = React.useState([]);
   // Selected revision row in Revisions tab
   const [selectedRevisionIdx, setSelectedRevisionIdx] = React.useState(null);
@@ -1257,7 +1291,9 @@ function App() {
             >
               <img
                 id="avatar-img"
-                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Konstantin"
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+                  currentUser.person_name || currentUser.user_acronym || "user",
+                )}`}
                 alt="User avatar"
                 style={{
                   width: "100%",
@@ -1292,7 +1328,7 @@ function App() {
                   letterSpacing: "-0.3px",
                 }}
               >
-                Konstantin Ni
+                {currentUser.person_name || currentUser.user_acronym || "Unknown user"}
               </div>
               <div
                 style={{
@@ -1302,7 +1338,7 @@ function App() {
                   fontWeight: 500,
                 }}
               >
-                Designer
+                {currentUser.duty_name || "No duty"}
               </div>
             </button>
 
@@ -1330,10 +1366,10 @@ function App() {
                   }}
                 >
                   <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>
-                    John Doe
+                    {currentUser.person_name || currentUser.user_acronym || "Unknown user"}
                   </div>
                   <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
-                    john.doe@example.com
+                    {currentUser.duty_name || "No duty"}
                   </div>
                 </div>
 

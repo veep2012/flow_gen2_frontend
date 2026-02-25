@@ -5,10 +5,14 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-21
-- Version: v1.9
+- Last Updated: 2026-02-25
+- Version: v2.3
 
 ## Change Log
+- 2026-02-25 | v2.3 | Updated `GET /api/v1/people/users/current_user` to resolve current user from session context (`app.user`) instead of hardcoded `user_id=2`.
+- 2026-02-25 | v2.2 | Enforced `user_acronym`-only identity input for `X-User-Id` and `APP_USER` resolution.
+- 2026-02-25 | v2.1 | Removed legacy default fallback variable; user context now resolves from `X-User-Id` header first, then optional `APP_USER` only. Header/env values resolve by `user_acronym` (preferred) or `user_id`.
+- 2026-02-25 | v2.0 | Documented `APP_USER` local/dev bootstrap behavior, non-production-only guardrails, startup validation against `ref.users`, and dual DB session context keys (`app.user`, `app.user_id`).
 - 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, corrected file update-body `id` validation contract to `422` (extra field forbidden), added nullable `doc_id` support for distribution lists (`create/list`), documented `dl_for_each_doc=true` auto-DL creation on document create, extended people/persons and people/users payloads with duty fields (`duty_id`, `duty_name`), and added distribution-list search by `doc_id` (`GET /distribution-lists?doc_id=...`).
 - 2026-02-20 | v1.8 | Renamed commented download query parameter from `file_id` to `id`.
 - 2026-02-19 | v1.7 | Updated API contracts and examples for latest backend behavior.
@@ -100,7 +104,12 @@ OpenAPI/Swagger:
 
 Audit fields (created_by / updated_by):
 - `created_by` and `updated_by` are set by the application or by DB triggers when NULL.
-- DB triggers read the session setting `app.user` (a SMALLINT user id). The API sets it per request (via `set_config('app.user', ...)`) from the `X-User-Id` header when provided; otherwise it uses `DEFAULT_APP_USER` (default fallback is `1`).
+- DB triggers read session setting `app.user` (SMALLINT user id). The API sets both `app.user` (current) and `app.user_id` (forward-compatible auth context) per request.
+- User resolution order:
+  - `X-User-Id` header when provided.
+  - `APP_USER` environment fallback when header is missing.
+- `X-User-Id` value must be existing `user_acronym`; API resolves it to internal `user_id` before setting DB session context.
+- `APP_USER` is guarded: it must be used only in non-production environments (`local/dev/test/ci/ci_test`), and startup validation must confirm that configured value resolves to a row in `workflow.users`.
 
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
@@ -382,7 +391,7 @@ curl -sS -H "Accept: application/json" \
 - Default stored filename is generated from `workflow.instance_parameters.parameter='file_name_conv'` template (`<DOCNO>-<BODY>_<UACR>_<TIMEST>.<EXT>`), where:
   - `<DOCNO>` = document name (`doc_name_unique`)
   - `<BODY>` = uploaded filename body
-  - `<UACR>` = uploader acronym from current `app.user` (from `X-User-Id` or `DEFAULT_APP_USER`)
+  - `<UACR>` = uploader acronym from current `app.user` (from `X-User-Id` or optional `APP_USER`)
   - `<TIMEST>` = current UTC timestamp
   - `<EXT>` = uploaded extension
 - Fallback behavior: if the parameter/user context/template rendering is unavailable or invalid, API keeps the uploaded filename unchanged.
@@ -719,8 +728,8 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/users
 ]
 ```
 ### Current user
-- `GET /api/v1/people/users/current_user` — 200; returns current user (currently hardcoded to `user_id=2`); 404 if user not found.
-- Headers: `Accept: application/json`
+- `GET /api/v1/people/users/current_user` — 200; returns current user from DB session context (`app.user`); 401 if session user is missing; 404 if user not found.
+- Headers: `Accept: application/json`, optional `X-User-Id: <user_acronym>`
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/users/current_user

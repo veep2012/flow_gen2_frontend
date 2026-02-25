@@ -56,6 +56,20 @@ def _find_notification(rows: list[dict], notification_id: int) -> dict | None:
     return None
 
 
+def _user_acronym_map(payload: list[dict] | None) -> dict[int, str]:
+    mapping: dict[int, str] = {}
+    if not payload:
+        return mapping
+    for row in payload:
+        if not isinstance(row, dict):
+            continue
+        user_id = row.get("user_id")
+        user_acronym = row.get("user_acronym")
+        if user_id is not None and user_acronym:
+            mapping[user_id] = user_acronym
+    return mapping
+
+
 def _resolve_test_users(client: httpx.Client) -> tuple[int, int, int, int]:
     users = _request(client, "GET", "/people/users")
     if not (200 <= users["status"] < 300) or not users["payload"]:
@@ -77,6 +91,8 @@ def _resolve_test_users(client: httpx.Client) -> tuple[int, int, int, int]:
 def test_notifications_create_list_mark_read_flow():
     with httpx.Client(timeout=10) as client:
         user_a, _, _, superuser_id = _resolve_test_users(client)
+        users = _request(client, "GET", "/people/users")
+        user_map = _user_acronym_map(users["payload"])
         rev_id = _get_first_revision_id(client)
         if rev_id is None:
             pytest.skip("No revision available for notifications test")
@@ -85,7 +101,7 @@ def test_notifications_create_list_mark_read_flow():
             client,
             "POST",
             "/notifications",
-            headers={"X-User-Id": str(superuser_id)},
+            headers={"X-User-Id": user_map[superuser_id]},
             json={
                 "title": "Smoke notification",
                 "body": "Please review this revision",
@@ -115,7 +131,7 @@ def test_notifications_create_list_mark_read_flow():
             client,
             "POST",
             f"/notifications/{created_id}/read",
-            headers={"X-User-Id": str(user_a)},
+            headers={"X-User-Id": user_map[user_a]},
             json={},
         )
         assert 200 <= marked["status"] < 300
@@ -128,6 +144,8 @@ def test_notifications_create_list_mark_read_flow():
 def test_notifications_replace_delete_chain():
     with httpx.Client(timeout=10) as client:
         user_a, _, _, superuser_id = _resolve_test_users(client)
+        users = _request(client, "GET", "/people/users")
+        user_map = _user_acronym_map(users["payload"])
         rev_id = _get_first_revision_id(client)
         if rev_id is None:
             pytest.skip("No revision available for notifications chain test")
@@ -136,7 +154,7 @@ def test_notifications_replace_delete_chain():
             client,
             "POST",
             "/notifications",
-            headers={"X-User-Id": str(superuser_id)},
+            headers={"X-User-Id": user_map[superuser_id]},
             json={
                 "title": "Chain original",
                 "body": "Original body",
@@ -152,7 +170,7 @@ def test_notifications_replace_delete_chain():
             client,
             "POST",
             f"/notifications/{original_id}/replace",
-            headers={"X-User-Id": str(superuser_id)},
+            headers={"X-User-Id": user_map[superuser_id]},
             json={"title": "Chain changed", "body": "Changed body", "remark": "changed"},
         )
         assert 200 <= replaced["status"] < 300
@@ -179,7 +197,7 @@ def test_notifications_replace_delete_chain():
             client,
             "POST",
             f"/notifications/{changed_id}/delete",
-            headers={"X-User-Id": str(superuser_id)},
+            headers={"X-User-Id": user_map[superuser_id]},
             json={"remark": "dropped"},
         )
         assert 200 <= dropped["status"] < 300
@@ -208,6 +226,7 @@ def test_notifications_replace_forbidden_for_non_sender_non_superuser():
     with httpx.Client(timeout=10) as client:
         user_a, user_b, _, superuser_id = _resolve_test_users(client)
         users = _request(client, "GET", "/people/users")
+        user_map = _user_acronym_map(users["payload"])
         if not (200 <= users["status"] < 300) or not users["payload"]:
             pytest.skip("No users available for forbidden replace test")
         candidate_user_ids = [
@@ -226,7 +245,7 @@ def test_notifications_replace_forbidden_for_non_sender_non_superuser():
                 client,
                 "POST",
                 "/notifications",
-                headers={"X-User-Id": str(user_a)},
+                headers={"X-User-Id": user_map[user_a]},
                 json={
                     "title": "Forbidden replace source",
                     "body": "Sender is user 1",
@@ -242,7 +261,7 @@ def test_notifications_replace_forbidden_for_non_sender_non_superuser():
                 client,
                 "POST",
                 f"/notifications/{notification_id}/replace",
-                headers={"X-User-Id": str(actor_user_id)},
+                headers={"X-User-Id": user_map[actor_user_id]},
                 json={"title": "Nope", "body": "Nope"},
             )
             if forbidden["status"] == 403:
@@ -263,6 +282,8 @@ def test_notifications_replace_forbidden_for_non_sender_non_superuser():
 def test_notifications_mark_read_rejects_payload_user_field():
     with httpx.Client(timeout=10) as client:
         user_a, _, _, superuser_id = _resolve_test_users(client)
+        users = _request(client, "GET", "/people/users")
+        user_map = _user_acronym_map(users["payload"])
         rev_id = _get_first_revision_id(client)
         if rev_id is None:
             pytest.skip("No revision available for mark-read validation test")
@@ -271,7 +292,7 @@ def test_notifications_mark_read_rejects_payload_user_field():
             client,
             "POST",
             "/notifications",
-            headers={"X-User-Id": str(superuser_id)},
+            headers={"X-User-Id": user_map[superuser_id]},
             json={
                 "title": "Read validation",
                 "body": "Read validation body",
@@ -287,7 +308,7 @@ def test_notifications_mark_read_rejects_payload_user_field():
             client,
             "POST",
             f"/notifications/{notification_id}/read",
-            headers={"X-User-Id": str(user_a)},
+            headers={"X-User-Id": user_map[user_a]},
             json={"recipient_user_id": user_a},
         )
         assert bad_payload["status"] == 422
@@ -297,6 +318,8 @@ def test_notifications_mark_read_rejects_payload_user_field():
 def test_notifications_create_on_behalf_sender():
     with httpx.Client(timeout=10) as client:
         user_a, _, user_c, superuser_id = _resolve_test_users(client)
+        users = _request(client, "GET", "/people/users")
+        user_map = _user_acronym_map(users["payload"])
         rev_id = _get_first_revision_id(client)
         if rev_id is None:
             pytest.skip("No revision available for on-behalf create test")
@@ -305,7 +328,7 @@ def test_notifications_create_on_behalf_sender():
             client,
             "POST",
             "/notifications",
-            headers={"X-User-Id": str(superuser_id)},
+            headers={"X-User-Id": user_map[superuser_id]},
             json={
                 "sender_user_id": user_a,
                 "title": "On behalf create",
@@ -334,6 +357,8 @@ def test_notifications_create_on_behalf_sender():
 def test_notifications_create_requires_at_least_one_recipient_target():
     with httpx.Client(timeout=10) as client:
         _, _, _, superuser_id = _resolve_test_users(client)
+        users = _request(client, "GET", "/people/users")
+        user_map = _user_acronym_map(users["payload"])
         rev_id = _get_first_revision_id(client)
         if rev_id is None:
             pytest.skip("No revision available for recipient validation test")
@@ -342,7 +367,7 @@ def test_notifications_create_requires_at_least_one_recipient_target():
             client,
             "POST",
             "/notifications",
-            headers={"X-User-Id": str(superuser_id)},
+            headers={"X-User-Id": user_map[superuser_id]},
             json={
                 "title": "No recipients",
                 "body": "No recipients body",

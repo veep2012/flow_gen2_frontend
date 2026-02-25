@@ -111,7 +111,7 @@ def test_audit_fields_document_and_revision():
             client,
             "POST",
             "/documents",
-            headers={"X-User-Id": "1"},
+            headers={"X-User-Id": "ZAML"},
             json=payload,
         )
         assert 200 <= created["status"] < 300, f"document create failed: {created['status']}"
@@ -128,7 +128,7 @@ def test_audit_fields_document_and_revision():
             client,
             "PUT",
             f"/documents/{doc_id}",
-            headers={"X-User-Id": "2"},
+            headers={"X-User-Id": "FDQC"},
             json={"title": f"Audit Document Updated {suffix}"},
         )
         assert 200 <= updated["status"] < 300, f"document update failed: {updated['status']}"
@@ -153,7 +153,7 @@ def test_audit_fields_document_and_revision():
             client,
             "PUT",
             f"/documents/revisions/{rev_id}",
-            headers={"X-User-Id": "3"},
+            headers={"X-User-Id": "ASBB"},
             json={"transmital_current_revision": f"TR-AUD-{suffix}"},
         )
         assert 200 <= rev_update["status"] < 300
@@ -192,7 +192,7 @@ def test_audit_fields_files_and_commented():
             client,
             "POST",
             "/files/",
-            headers={"X-User-Id": "1"},
+            headers={"X-User-Id": "ZAML"},
             files=file_payload,
             data={"rev_id": str(rev_id)},
         )
@@ -214,7 +214,7 @@ def test_audit_fields_files_and_commented():
             client,
             "POST",
             "/files/commented/",
-            headers={"X-User-Id": "2"},
+            headers={"X-User-Id": "FDQC"},
             files=commented_payload,
             data={"file_id": str(file_id), "user_id": "1"},
         )

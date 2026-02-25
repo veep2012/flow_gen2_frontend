@@ -9,6 +9,7 @@
 - `api_db_rules.md` - Backend/database contract for workflow invariants.
 - `api_interfaces.md` - Current API surface and endpoint behavior.
 - `auth_architecture.md` - Authentication and authorization architecture.
+- `authentication_rls_matrix_as_is.md` - Current implemented authentication/authorization and RLS-related baseline (as-is snapshot).
 - `authorization_rls_matrix.md` - Future-state role-based authorization and RLS matrix.
 - `document_flow.md` - Document and revision lifecycle model.
 - `er_diagram.md` - Entity relationship map.

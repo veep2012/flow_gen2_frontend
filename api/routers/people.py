@@ -510,7 +510,7 @@ def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
 @router.get(
     "/users/current_user",
     summary="Get current user.",
-    description="Returns the current user and person info (currently hardcoded to user_id=2).",
+    description="Returns the current user and person info from session context (`app.user`).",
     operation_id="get_current_user",
     tags=["people"],
     response_model=UserOut,
@@ -525,8 +525,14 @@ def get_current_user(db: Session = Depends(get_db)) -> UserOut:
     """
     Get current user.
 
-    Returns the current user and person info. Currently hardcoded to user_id=2.
+    Returns the current user and person info from DB session context.
     """
+    current_user_id = db.execute(
+        text("SELECT NULLIF(current_setting('app.user', true), '')::SMALLINT")
+    ).scalar_one_or_none()
+    if current_user_id is None:
+        raise HTTPException(status_code=401, detail="Current user is required")
+
     row = (
         db.execute(
             text(
@@ -544,9 +550,10 @@ def get_current_user(db: Session = Depends(get_db)) -> UserOut:
                 JOIN workflow.person AS p ON p.person_id = u.person_id
                 JOIN workflow.roles AS r ON r.role_id = u.role_id
                 LEFT JOIN workflow.person_duty AS pd ON pd.duty_id = p.duty_id
-                WHERE u.user_id = 2
+                WHERE u.user_id = :user_id
                 """
-            )
+            ),
+            {"user_id": current_user_id},
         )
         .mappings()
         .one_or_none()

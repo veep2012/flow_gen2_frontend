@@ -82,7 +82,7 @@ def _get_test_user(client: httpx.Client) -> tuple[int, str]:
     pytest.skip("No user_id/user_acronym available for comments test")
 
 
-def _get_second_test_user(client: httpx.Client, exclude_user_id: int) -> int | None:
+def _get_second_test_user(client: httpx.Client, exclude_user_id: int) -> tuple[int, str] | None:
     users = _request(client, "GET", "/people/users")
     if users["status"] == 404:
         return None
@@ -92,9 +92,11 @@ def _get_second_test_user(client: httpx.Client, exclude_user_id: int) -> int | N
         if not isinstance(item, dict):
             continue
         user_id = item.get("user_id")
+        user_acronym = item.get("user_acronym")
         role_name = str(item.get("role_name") or "").strip().lower()
         if (
             user_id is not None
+            and user_acronym
             and user_id != exclude_user_id
             and role_name
             not in {
@@ -102,7 +104,7 @@ def _get_second_test_user(client: httpx.Client, exclude_user_id: int) -> int | N
                 "admin",
             }
         ):
-            return user_id
+            return user_id, user_acronym
     return None
 
 

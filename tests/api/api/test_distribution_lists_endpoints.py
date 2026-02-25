@@ -33,6 +33,20 @@ def _request(client: httpx.Client, method: str, path: str, **kwargs) -> dict:
     return {"status": response.status_code, "payload": payload, "duration_ms": duration_ms}
 
 
+def _user_acronym_map(payload: list[dict] | None) -> dict[int, str]:
+    mapping: dict[int, str] = {}
+    if not payload:
+        return mapping
+    for row in payload:
+        if not isinstance(row, dict):
+            continue
+        user_id = row.get("user_id")
+        user_acronym = row.get("user_acronym")
+        if user_id is not None and user_acronym:
+            mapping[user_id] = user_acronym
+    return mapping
+
+
 def _resolve_test_users(client: httpx.Client) -> tuple[int, int, int, int]:
     result = _request(client, "GET", "/people/users")
     if not (200 <= result["status"] < 300) or not result["payload"]:
@@ -154,6 +168,8 @@ def test_distribution_list_delete_rejected_when_used_by_notification():
     """Scenario IDs: TS-DL-003."""
     with httpx.Client(timeout=10) as client:
         user_a, _, _, superuser_id = _resolve_test_users(client)
+        users = _request(client, "GET", "/people/users")
+        user_map = _user_acronym_map(users["payload"])
 
         projects = _request(client, "GET", "/lookups/projects")
         if not (200 <= projects["status"] < 300) or not projects["payload"]:
@@ -199,7 +215,7 @@ def test_distribution_list_delete_rejected_when_used_by_notification():
             client,
             "POST",
             "/notifications",
-            headers={"X-User-Id": str(superuser_id)},
+            headers={"X-User-Id": user_map[superuser_id]},
             json={
                 "title": "DL in use check",
                 "body": "Use DL in notification",

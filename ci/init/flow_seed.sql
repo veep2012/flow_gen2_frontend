@@ -95,9 +95,12 @@ INSERT INTO doc_rev_statuses (
 (3,'READY FOR ISSUE',3,4,TRUE,FALSE,FALSE,FALSE),
 (4,'OFFICIAL',4,NULL,FALSE,FALSE,TRUE,FALSE);
 
--- Roles
-INSERT INTO roles (role_id, role_name) VALUES 
-(1,'SuperUser'),(2,'User/DCC'),(3,'Limited User');
+-- Roles (Phase 0 baseline)
+INSERT INTO roles (role_id, role_name, role_code, external_name, is_super) VALUES
+(1,'SuperUser','SUPERUSER','FLOW_SUPERUSER',TRUE),
+(2,'DCC User','DCC_USER','FLOW_DCC_USER',FALSE),
+(3,'Author','AUTHOR','FLOW_AUTHOR',FALSE),
+(4,'Reviewer','REVIEWER','FLOW_REVIEWER',FALSE);
 
 -- Accepted File Types
 INSERT INTO files_accepted (file_type, mimetype) VALUES
@@ -128,8 +131,38 @@ INSERT INTO instance_parameters (parameter, value, description) VALUES
 );
 
 -- Users
-INSERT INTO users (user_id, person_id, user_acronym, role_id) VALUES 
-(1,1,'ZAML',3),(2,2,'FDQC',1),(3,3,'ASBB',2),(4,4,'KONI',1);
+INSERT INTO users (user_id, person_id, user_acronym, role_id) VALUES
+(1,1,'ZAML',4),
+(2,2,'FDQC',1),
+(3,3,'ASBB',2),
+(4,4,'KONI',1);
+
+-- User-role bridge seed (kept aligned with users.role_id by trigger as well)
+INSERT INTO user_roles (user_id, role_id) VALUES
+(1,4),
+(2,1),
+(3,2),
+(4,1)
+ON CONFLICT DO NOTHING;
+
+-- Role capability baseline
+INSERT INTO role_permissions (role_id, resource, capability) VALUES
+(1,'doc','read-write'),
+(1,'doc_revision','read-write'),
+(1,'files','read-write'),
+(1,'files_commented','read-write'),
+(2,'doc','read-write'),
+(2,'doc_revision','read-write'),
+(2,'files','read-write'),
+(2,'files_commented','read-write'),
+(3,'doc','read-write'),
+(3,'doc_revision','read-write'),
+(3,'files','read-write'),
+(3,'files_commented','read-write'),
+(4,'doc','read-only'),
+(4,'doc_revision','read-only'),
+(4,'files','read-only'),
+(4,'files_commented','read-only');
 
 -- Deterministically assign duties for current users (stable across seed runs)
 UPDATE person AS p
