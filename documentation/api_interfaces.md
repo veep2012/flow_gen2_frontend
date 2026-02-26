@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-25
-- Version: v2.3
+- Last Updated: 2026-02-26
+- Version: v2.4
 
 ## Change Log
+- 2026-02-26 | v2.4 | Documented Phase 1 read authorization effects on lookup reads: `GET /lookups/projects` is scope-filtered by role project scope; `areas` and `units` remain unfiltered in this phase.
 - 2026-02-25 | v2.3 | Updated `GET /api/v1/people/users/current_user` to resolve current user from session context (`app.user`) instead of hardcoded `user_id=2`.
 - 2026-02-25 | v2.2 | Enforced `user_acronym`-only identity input for `X-User-Id` and `APP_USER` resolution.
 - 2026-02-25 | v2.1 | Removed legacy default fallback variable; user context now resolves from `X-User-Id` header first, then optional `APP_USER` only. Header/env values resolve by `user_acronym` (preferred) or `user_id`.
@@ -146,6 +147,7 @@ Schema references:
 - Response: `api/schemas/lookups.py` `AreaOut`
 ### List
 - `GET /api/v1/lookups/areas` — 200 sorted by `area_name`; empty list if no areas.
+- Current phase note: areas are not scope-filtered yet (project-only lookup scoping is implemented).
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
@@ -184,6 +186,9 @@ Schema references:
 - Response: `api/schemas/lookups.py` `ProjectOut`
 ### List
 - `GET /api/v1/lookups/projects` — 200 sorted by `project_name`; empty list if none.
+- Visibility is authorization-scoped in current implementation:
+  - result includes only projects allowed by the caller's `role_scopes` (`scope_type='PROJECT'`) and capability checks.
+  - when caller has no matching project scopes and is not superuser, response is an empty list.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
@@ -202,6 +207,7 @@ Schema references:
 - Response: `api/schemas/lookups.py` `UnitOut`
 ### List
 - `GET /api/v1/lookups/units` — 200 sorted by `unit_name`; empty list if none.
+- Current phase note: units are not scope-filtered yet (project-only lookup scoping is implemented).
 - Headers: `Accept: application/json`
 - Example request:
 ```bash

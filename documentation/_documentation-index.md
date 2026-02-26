@@ -26,6 +26,7 @@
 
 ## Test Scenarios
 - `test_scenarios/audit_fields_api_test_scenarios.md` - Scenario contract for audit-field API smoke tests.
+- `test_scenarios/authorization_read_rls_api_test_scenarios.md` - Scenario contract for Phase 1 read authorization/RLS coverage.
 - `test_scenarios/cancel_delete_api_test_scenarios.md` - Scenario contract for revision cancel and document delete tests.
 - `test_scenarios/documents_revisions_api_test_scenarios.md` - Scenario contract for revisions list/create/update/status transitions.
 - `test_scenarios/files_api_test_scenarios.md` - Scenario contract for file upload/update/download/validation tests.

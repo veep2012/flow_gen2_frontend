@@ -6,10 +6,10 @@
 - Reviewers: Security and API maintainers
 - Created: 2026-02-21
 - Last Updated: 2026-02-26
-- Version: v0.6
+- Version: v0.7
 
 ## Change Log
-- 2026-02-26 | v0.6 | Updated Phase 0 reality notes: `APP_USER`/`X-User-Id` now resolve by `user_acronym`; documented controlled runtime behavior changes and rollout expectations.
+- 2026-02-26 | v0.7 | Updated implementation reality through Phase 1: read-path predicate/RLS and project-scoped lookup filtering are now implemented and test-covered.
 - 2026-02-25 | v0.5 | Added architecture review summary, gradual implementation plan, edge cases, and references.
 - 2026-02-21 | v0.4 | Added local developer mode using `APP_USER` to bootstrap `app.user_id` with strict non-production guardrails.
 
@@ -328,6 +328,17 @@ Tasks:
 - Integrate predicate into read-side workflow functions.
 - Add RLS `USING` policies for `core.doc` and inherited read policies for related entities.
 - Add integration tests for multi-role union behavior and fail-closed outcomes.
+
+Implementation reality (as of v0.7):
+- Implemented:
+  - `workflow.check_user_permission(...)` with fail-closed behavior and capability normalization.
+  - Read-side filtering in `workflow.v_documents`, `workflow.v_document_revisions`, `workflow.v_files`, and `workflow.v_files_commented`.
+  - RLS `USING` policies for `core.doc`, `core.doc_revision`, `core.files`, and `core.files_commented`.
+  - Project-scoped lookup filtering via `workflow.v_projects` and `workflow.check_lookup_scope_permission(...)`.
+  - Integration coverage for multi-role union and fail-closed scenarios (`tests/api/api/test_authorization_read_rls.py`).
+- Not implemented in Phase 1:
+  - Area/unit lookup scope filtering is not enabled yet.
+  - Write-path (`read-write`) enforcement remains a Phase 2 task.
 
 Exit criteria:
 - Read endpoints respect capability + scope model with no unauthorized data exposure.

@@ -5,14 +5,17 @@
 - Owner: Platform and Backend Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-11
-- Version: v1.4
+- Last Updated: 2026-02-26
+- Version: v1.5
 
 ## Change Log
+- 2026-02-26 | v1.5 | Clarified document positioning as target architecture and linked current implemented state to `authentication_rls_matrix_as_is.md`.
 - 2026-02-20 | v1.4 | Added Change Log section for standards compliance
 
 ## Purpose
 Define the target authentication and authorization architecture for Flow Gen2, including staged rollout guidance.
+
+Current implementation snapshot is maintained separately in `documentation/authentication_rls_matrix_as_is.md`.
 
 ## Scope
 - In scope:
