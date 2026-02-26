@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-21
-- Last Updated: 2026-02-25
-- Version: v0.5
+- Last Updated: 2026-02-26
+- Version: v0.6
 
 ## Change Log
+- 2026-02-26 | v0.6 | Updated Phase 0 reality notes: `APP_USER`/`X-User-Id` now resolve by `user_acronym`; documented controlled runtime behavior changes and rollout expectations.
 - 2026-02-25 | v0.5 | Added architecture review summary, gradual implementation plan, edge cases, and references.
 - 2026-02-21 | v0.4 | Added local developer mode using `APP_USER` to bootstrap `app.user_id` with strict non-production guardrails.
 
@@ -65,8 +66,8 @@ The target model is role-driven authorization with database-enforced row filteri
 For local development only, application may bootstrap session context from environment variable `APP_USER`.
 
 Contract:
-- `APP_USER` contains internal `user_id` value.
-- API startup/request middleware validates that `APP_USER` exists in `ref.users`.
+- `APP_USER` contains `user_acronym`.
+- API startup/request middleware validates that `APP_USER` resolves in `ref.users`.
 - Middleware sets DB session:
   - `set_config('app.user_id', '<resolved_user_id>', true)`
 - If `APP_USER` is missing or unresolved:
@@ -82,8 +83,8 @@ Example (application side pseudocode):
 
 ```text
 if APP_ENV == "local" and APP_USER is set:
-    v_user_id = cast(APP_USER as bigint)
-    assert exists(select 1 from ref.users where user_id = v_user_id)
+    v_user_id = resolve APP_USER by ref.users.user_acronym
+    assert v_user_id is not null
     set local app.user_id = v_user_id
 else:
     user_id = resolve from trusted auth context
@@ -294,7 +295,7 @@ Decision needed before build start:
 ## Gradual implementation plan
 ### Phase 0 - Foundations and guardrails
 Objective:
-- Prepare schema and environment guardrails without changing runtime behavior.
+- Prepare schema and environment guardrails, accepting controlled runtime hardening where required for fail-closed identity resolution.
 
 Tasks:
 - Create `ref.roles`, `ref.user_roles`, `ref.role_permissions`, `ref.role_scopes` tables and required indexes.
@@ -302,8 +303,19 @@ Tasks:
 - Introduce capability/resource enums or constrained check rules to prevent invalid values.
 - Add migration rollback scripts and seed minimal baseline roles.
 
+Implementation reality (as of v0.6):
+- Implemented:
+  - New role-model tables and indexes.
+  - `APP_USER` non-production gating with startup validation.
+  - Constrained check rules for resource/capability/scope values.
+  - Baseline role and capability seed data.
+- Changed runtime behavior:
+  - `X-User-Id` and `APP_USER` are resolved by `user_acronym` (not numeric `user_id`) and fail closed when unresolved.
+- Not implemented:
+  - Dedicated migration rollback scripts are not currently present in this repository; initialization is driven by `ci/init/*.sql`.
+
 Exit criteria:
-- Migrations apply/rollback cleanly in local and CI databases.
+- Migrations or init scripts apply cleanly in local and CI databases.
 - Production configuration hard-blocks `APP_USER`.
 - Baseline role/capability records are present and validated.
 
