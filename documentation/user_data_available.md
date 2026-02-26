@@ -33,24 +33,24 @@ The sections below explain entity relationships and how name data flows from dat
 
 The user/person data is stored across multiple related tables:
 
-#### 1. **Person Table** (`workflow.person`, backed by `ref.person`)
+#### 1. **Person Table** (`workflow.v_person`, backed by `ref.person`)
 - `person_id` (PrimaryKey): Unique identifier
 - `person_name` (String): **Full name of the person** ✅
 - `photo_s3_uid` (Optional Text): Profile photo reference
 - `email` (Optional String): Stored in DB, not currently returned by people API response models
 - `duty_id` (Optional ForeignKey): References Person Duty table
 
-#### 2. **User Table** (`workflow.users`, backed by `ref.users`)
+#### 2. **User Table** (`workflow.v_users`, backed by `ref.users`)
 - `user_id` (PrimaryKey): Unique identifier
 - `person_id` (ForeignKey): References Person table
 - `user_acronym` (String): Short abbreviation (e.g., "KN" for "Konstantin Ni")
 - `role_id` (ForeignKey): References Role table
 
-#### 3. **Person Duty Table** (`workflow.person_duty`, backed by `ref.person_duty`)
+#### 3. **Person Duty Table** (`workflow.v_person_duty`, backed by `ref.person_duty`)
 - `duty_id` (PrimaryKey): Unique identifier
 - `duty_name` (String): Duty name (e.g., "Engineer", "Director")
 
-#### 4. **Role Table** (`workflow.roles`, backed by `ref.roles`)
+#### 4. **Role Table** (`workflow.v_roles`, backed by `ref.roles`)
 - `role_id` (PrimaryKey): Unique identifier
 - `role_name` (String): Role name (e.g., "Designer", "Reviewer", etc.)
 
@@ -209,10 +209,10 @@ SELECT
     p.duty_id,
     pd.duty_name,
     r.role_name
-FROM workflow.users u
-JOIN workflow.person p ON u.person_id = p.person_id
-LEFT JOIN workflow.person_duty pd ON pd.duty_id = p.duty_id
-JOIN workflow.roles r ON u.role_id = r.role_id
+FROM workflow.v_users u
+JOIN workflow.v_person p ON u.person_id = p.person_id
+LEFT JOIN workflow.v_person_duty pd ON pd.duty_id = p.duty_id
+JOIN workflow.v_roles r ON u.role_id = r.role_id
 ORDER BY u.user_acronym;
 ```
 

@@ -160,6 +160,7 @@ def test_files_insert_empty_file_rejected():
             client,
             "POST",
             "/files/",
+            headers={"X-User-Id": "FDQC"},
             files={"file": ("empty.txt", b"", "text/plain")},
             data={"rev_id": "1"},
         )
@@ -174,6 +175,7 @@ def test_files_insert_long_filename_rejected():
             client,
             "POST",
             "/files/",
+            headers={"X-User-Id": "FDQC"},
             files={"file": (long_name, b"content", "text/plain")},
             data={"rev_id": "1"},
         )

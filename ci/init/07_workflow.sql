@@ -773,6 +773,183 @@ AS $$
     );
 $$;
 
+CREATE OR REPLACE FUNCTION workflow.check_user_permission(
+    p_user_id BIGINT,
+    p_resource TEXT,
+    p_capability TEXT,
+    p_doc_id BIGINT DEFAULT NULL,
+    p_project_id BIGINT DEFAULT NULL,
+    p_area_id BIGINT DEFAULT NULL,
+    p_unit_id BIGINT DEFAULT NULL
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+SET search_path = core, ref, workflow, pg_temp
+AS $$
+DECLARE
+    v_has_roles BOOLEAN := FALSE;
+    v_is_super BOOLEAN := FALSE;
+    v_has_capability BOOLEAN := FALSE;
+    v_scope_allowed BOOLEAN := FALSE;
+    v_project_id BIGINT := p_project_id;
+BEGIN
+    IF p_user_id IS NULL OR p_user_id <= 0 THEN
+        RETURN FALSE;
+    END IF;
+
+    IF p_resource NOT IN ('doc', 'doc_revision', 'files', 'files_commented') THEN
+        RETURN FALSE;
+    END IF;
+
+    IF p_capability NOT IN ('read-only', 'read-write') THEN
+        RETURN FALSE;
+    END IF;
+
+    SELECT
+        COUNT(*) > 0,
+        COALESCE(BOOL_OR(r.is_super), FALSE),
+        COALESCE(
+            BOOL_OR(
+                CASE
+                    WHEN p_capability = 'read-only'
+                        THEN rp.capability IN ('read-only', 'read-write')
+                    WHEN p_capability = 'read-write'
+                        THEN rp.capability = 'read-write'
+                    ELSE FALSE
+                END
+            ),
+            FALSE
+        )
+    INTO v_has_roles, v_is_super, v_has_capability
+    FROM ref.user_roles ur
+    JOIN ref.roles r ON r.role_id = ur.role_id
+    LEFT JOIN ref.role_permissions rp
+        ON rp.role_id = ur.role_id
+       AND rp.resource = p_resource
+    WHERE ur.user_id = p_user_id;
+
+    IF NOT v_has_roles OR NOT v_has_capability THEN
+        RETURN FALSE;
+    END IF;
+
+    IF v_is_super THEN
+        RETURN TRUE;
+    END IF;
+
+    IF p_doc_id IS NOT NULL AND v_project_id IS NULL THEN
+        SELECT d.project_id
+        INTO v_project_id
+        FROM core.doc d
+        WHERE d.doc_id = p_doc_id;
+
+        IF NOT FOUND THEN
+            RETURN FALSE;
+        END IF;
+    END IF;
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM (
+            SELECT
+                rs.role_id,
+                rs.logic_group,
+                BOOL_OR(rs.scope_type = 'PROJECT') AS has_project_scope,
+                BOOL_OR(
+                    rs.scope_type = 'PROJECT'
+                    AND v_project_id IS NOT NULL
+                    AND rs.entity_id = v_project_id
+                ) AS project_match
+            FROM ref.user_roles ur
+            JOIN ref.role_scopes rs ON rs.role_id = ur.role_id
+            WHERE ur.user_id = p_user_id
+            GROUP BY rs.role_id, rs.logic_group
+        ) grouped_scopes
+        WHERE (NOT grouped_scopes.has_project_scope OR grouped_scopes.project_match)
+    ) INTO v_scope_allowed;
+
+    RETURN COALESCE(v_scope_allowed, FALSE);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.check_lookup_scope_permission(
+    p_user_id BIGINT,
+    p_scope_type TEXT,
+    p_entity_id BIGINT,
+    p_resource TEXT DEFAULT 'doc',
+    p_capability TEXT DEFAULT 'read-only'
+) RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+SET search_path = ref, workflow, pg_temp
+AS $$
+DECLARE
+    v_has_roles BOOLEAN := FALSE;
+    v_is_super BOOLEAN := FALSE;
+    v_has_capability BOOLEAN := FALSE;
+    v_scope_match BOOLEAN := FALSE;
+BEGIN
+    IF p_user_id IS NULL OR p_user_id <= 0 OR p_entity_id IS NULL THEN
+        RETURN FALSE;
+    END IF;
+
+    IF p_scope_type NOT IN ('PROJECT', 'AREA', 'UNIT') THEN
+        RETURN FALSE;
+    END IF;
+
+    IF p_resource NOT IN ('doc', 'doc_revision', 'files', 'files_commented') THEN
+        RETURN FALSE;
+    END IF;
+
+    IF p_capability NOT IN ('read-only', 'read-write') THEN
+        RETURN FALSE;
+    END IF;
+
+    SELECT
+        COUNT(*) > 0,
+        COALESCE(BOOL_OR(r.is_super), FALSE),
+        COALESCE(
+            BOOL_OR(
+                CASE
+                    WHEN p_capability = 'read-only'
+                        THEN rp.capability IN ('read-only', 'read-write')
+                    WHEN p_capability = 'read-write'
+                        THEN rp.capability = 'read-write'
+                    ELSE FALSE
+                END
+            ),
+            FALSE
+        )
+    INTO v_has_roles, v_is_super, v_has_capability
+    FROM ref.user_roles ur
+    JOIN ref.roles r ON r.role_id = ur.role_id
+    LEFT JOIN ref.role_permissions rp
+        ON rp.role_id = ur.role_id
+       AND rp.resource = p_resource
+    WHERE ur.user_id = p_user_id;
+
+    IF NOT v_has_roles OR NOT v_has_capability THEN
+        RETURN FALSE;
+    END IF;
+
+    IF v_is_super THEN
+        RETURN TRUE;
+    END IF;
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM ref.user_roles ur
+        JOIN ref.role_scopes rs ON rs.role_id = ur.role_id
+        WHERE ur.user_id = p_user_id
+          AND rs.scope_type = p_scope_type
+          AND rs.entity_id = p_entity_id
+    ) INTO v_scope_match;
+
+    RETURN COALESCE(v_scope_match, FALSE);
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION workflow.delete_written_comment(
     p_id INTEGER,
     p_actor_user_id SMALLINT

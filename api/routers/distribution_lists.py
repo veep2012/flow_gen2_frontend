@@ -81,7 +81,7 @@ def list_distribution_lists(
     clauses = [
         """
         SELECT dist_id, distribution_list_name, doc_id
-        FROM workflow.distribution_list
+        FROM workflow.v_distribution_list
         """
     ]
     params: dict[str, int] = {}
@@ -198,7 +198,7 @@ def list_distribution_list_members(
     """
     exists = (
         db.execute(
-            text("SELECT 1 FROM workflow.distribution_list WHERE dist_id = :dist_id"),
+            text("SELECT 1 FROM workflow.v_distribution_list WHERE dist_id = :dist_id"),
             {"dist_id": dist_id},
         )
         .mappings()
@@ -217,9 +217,9 @@ def list_distribution_list_members(
                     u.person_id,
                     u.user_acronym,
                     p.person_name
-                FROM workflow.distribution_list_content dlc
-                JOIN workflow.users u ON u.user_id = dlc.user_id
-                LEFT JOIN workflow.person p ON p.person_id = u.person_id
+                FROM workflow.v_distribution_list_content dlc
+                JOIN workflow.v_users u ON u.user_id = dlc.user_id
+                LEFT JOIN workflow.v_person p ON p.person_id = u.person_id
                 WHERE dlc.dist_id = :dist_id
                 ORDER BY u.user_acronym, dlc.user_id
                 """
@@ -277,9 +277,9 @@ def add_distribution_list_member(
                         u.person_id,
                         u.user_acronym,
                         p.person_name
-                    FROM workflow.distribution_list_content dlc
-                    JOIN workflow.users u ON u.user_id = dlc.user_id
-                    LEFT JOIN workflow.person p ON p.person_id = u.person_id
+                    FROM workflow.v_distribution_list_content dlc
+                    JOIN workflow.v_users u ON u.user_id = dlc.user_id
+                    LEFT JOIN workflow.v_person p ON p.person_id = u.person_id
                     WHERE dlc.dist_id = :dist_id
                       AND dlc.user_id = :user_id
                     """

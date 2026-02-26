@@ -87,7 +87,7 @@ def _parse_accepted_file_mime_map() -> dict[str, str]:
 
 
 def _load_accepted_types(db: Session) -> dict[str, str]:
-    rows = db.execute(text("SELECT file_type, mimetype FROM workflow.files_accepted")).mappings()
+    rows = db.execute(text("SELECT file_type, mimetype FROM workflow.v_files_accepted")).mappings()
     mapping = {row["file_type"].lower(): row["mimetype"] for row in rows}
     mapping.update(_parse_accepted_file_mime_map())
     return mapping
@@ -252,7 +252,7 @@ def insert_file(
                     p.project_name
                 FROM workflow.v_document_revisions AS r
                 JOIN workflow.v_documents AS d ON d.doc_id = r.doc_id
-                LEFT JOIN workflow.projects AS p ON p.project_id = d.project_id
+                LEFT JOIN workflow.v_projects AS p ON p.project_id = d.project_id
                 WHERE r.rev_id = :rev_id
                 """
             ),
@@ -505,7 +505,7 @@ def delete_file(
     """
     file_row = (
         db.execute(
-            text("SELECT id, s3_uid FROM workflow.files WHERE id = :file_id"),
+            text("SELECT id, s3_uid FROM workflow.v_files WHERE id = :file_id"),
             {"file_id": file_id},
         )
         .mappings()
@@ -729,7 +729,7 @@ def download_file(
             text(
                 """
                 SELECT id, filename, s3_uid, mimetype
-                FROM workflow.files
+                FROM workflow.v_files
                 WHERE id = :file_id
                 """
             ),

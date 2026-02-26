@@ -300,10 +300,10 @@ flowchart TD
 Flow Gen2 already has a robust authorization schema:
 
 **Tables:**
-- `workflow.roles` - User roles (Admin, Engineer, Viewer, etc.), backed by `ref.roles`
-- `workflow.person` - Person entities with profile information, backed by `ref.person`
-- `workflow.users` - User accounts linked to persons and roles, backed by `ref.users`
-- `workflow.permissions` - Scoped access grants (project + discipline combinations), backed by `ref.permissions`
+- `workflow.v_roles` - User roles (Admin, Engineer, Viewer, etc.), backed by `ref.roles`
+- `workflow.v_person` - Person entities with profile information, backed by `ref.person`
+- `workflow.v_users` - User accounts linked to persons and roles, backed by `ref.users`
+- `workflow.v_permissions` - Scoped access grants (project + discipline combinations), backed by `ref.permissions`
 
 **Permission Enforcement:**
 ```python

@@ -53,7 +53,7 @@ def _resolve_user_id(db: Session, raw_value: str) -> str | None:
         text(
             """
             SELECT user_id
-            FROM workflow.users
+            FROM workflow.v_users
             WHERE lower(user_acronym) = lower(:raw_value)
             LIMIT 1
             """
@@ -87,7 +87,7 @@ def validate_startup_app_user_mode() -> None:
                 resolved = _resolve_user_id(db, app_user)
                 if resolved is None:
                     raise RuntimeError(
-                        "APP_USER must reference existing workflow.users.user_acronym"
+                        "APP_USER must reference existing workflow.v_users.user_acronym"
                     )
                 return
         except OperationalError as exc:
@@ -114,16 +114,16 @@ def _set_app_user(db: Session, request: Request) -> None:
             )
     if user_value:
         db.execute(
-            text("SELECT set_config('app.user', :user_id, true)"),
+            text("SELECT set_config('app.user', :user_id, false)"),
             {"user_id": user_value},
         )
         db.execute(
-            text("SELECT set_config('app.user_id', :user_id, true)"),
+            text("SELECT set_config('app.user_id', :user_id, false)"),
             {"user_id": user_value},
         )
     else:
-        db.execute(text("SELECT set_config('app.user', '', true)"))
-        db.execute(text("SELECT set_config('app.user_id', '', true)"))
+        db.execute(text("SELECT set_config('app.user', '', false)"))
+        db.execute(text("SELECT set_config('app.user_id', '', false)"))
 
 
 def get_db(request: Request) -> Iterable[Session]:

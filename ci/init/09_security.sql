@@ -58,6 +58,82 @@ GRANT EXECUTE ON FUNCTION workflow.add_distribution_list_member(
 GRANT EXECUTE ON FUNCTION workflow.remove_distribution_list_member(
     SMALLINT, SMALLINT
 ) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.check_user_permission(
+    BIGINT, TEXT, TEXT, BIGINT, BIGINT, BIGINT, BIGINT
+) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.check_lookup_scope_permission(
+    BIGINT, TEXT, BIGINT, TEXT, TEXT
+) TO app_user;
 
 -- admin override only for db_admin
 GRANT EXECUTE ON FUNCTION workflow.admin_override_transition(INTEGER, SMALLINT, TEXT) TO db_admin;
+
+ALTER TABLE core.doc ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS p_core_doc_read ON core.doc;
+CREATE POLICY p_core_doc_read ON core.doc
+FOR SELECT
+TO app_user
+USING (
+    workflow.check_user_permission(
+        NULLIF(current_setting('app.user_id', true), '')::BIGINT,
+        'doc',
+        'read-only',
+        NULL,
+        project_id,
+        area_id,
+        unit_id
+    )
+);
+
+ALTER TABLE core.doc_revision ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS p_core_doc_revision_read ON core.doc_revision;
+CREATE POLICY p_core_doc_revision_read ON core.doc_revision
+FOR SELECT
+TO app_user
+USING (
+    workflow.check_user_permission(
+        NULLIF(current_setting('app.user_id', true), '')::BIGINT,
+        'doc_revision',
+        'read-only',
+        doc_id
+    )
+);
+
+ALTER TABLE core.files ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS p_core_files_read ON core.files;
+CREATE POLICY p_core_files_read ON core.files
+FOR SELECT
+TO app_user
+USING (
+    workflow.check_user_permission(
+        NULLIF(current_setting('app.user_id', true), '')::BIGINT,
+        'files',
+        'read-only',
+        (
+            SELECT r.doc_id
+            FROM core.doc_revision r
+            WHERE r.rev_id = core.files.rev_id
+            LIMIT 1
+        )
+    )
+);
+
+ALTER TABLE core.files_commented ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS p_core_files_commented_read ON core.files_commented;
+CREATE POLICY p_core_files_commented_read ON core.files_commented
+FOR SELECT
+TO app_user
+USING (
+    workflow.check_user_permission(
+        NULLIF(current_setting('app.user_id', true), '')::BIGINT,
+        'files_commented',
+        'read-only',
+        (
+            SELECT r.doc_id
+            FROM core.files f
+            JOIN core.doc_revision r ON r.rev_id = f.rev_id
+            WHERE f.id = core.files_commented.file_id
+            LIMIT 1
+        )
+    )
+);

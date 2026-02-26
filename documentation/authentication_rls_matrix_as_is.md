@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-25
-- Last Updated: 2026-02-25
-- Version: v0.1
+- Last Updated: 2026-02-26
+- Version: v0.2
 
 ## Change Log
+- 2026-02-26 | v0.2 | Clarified that API sets `app.user`/`app.user_id` at DB session scope (not transaction-local) so authorization context persists across per-request commits.
 - 2026-02-25 | v0.1 | Initial as-is snapshot of implemented authentication and authorization-related schema/session behavior.
 
 ## Purpose
@@ -37,10 +38,11 @@ Current implementation is a hybrid state: legacy behavior remains active, and ne
 - API writes both DB session keys:
   - `app.user` (legacy/currently used by triggers/functions).
   - `app.user_id` (forward-compatible key for target model).
+  - Both keys are set at session scope, so they remain available after endpoint-level `COMMIT` statements inside the same request.
 - `APP_USER` is environment-gated:
   - Allowed only for `local/dev/development/test/testing/ci/ci_test`.
   - Startup fails when `APP_USER` is set in blocked/unknown environments.
-  - Startup validates that `APP_USER` resolves to a row in `workflow.users`.
+  - Startup validates that `APP_USER` resolves to a row in `workflow.v_users`.
 
 ### Role model foundation (implemented)
 - `ref.roles` now includes:
@@ -65,9 +67,9 @@ Current implementation is a hybrid state: legacy behavior remains active, and ne
   - new bridge path (`ref.user_roles` + `ref.roles.is_super`), and
   - legacy path (`ref.users.role_id` + role-name fallback).
 - New read-only views are exposed:
-  - `workflow.user_roles`
-  - `workflow.role_permissions`
-  - `workflow.role_scopes`
+  - `workflow.v_user_roles`
+  - `workflow.v_role_permissions`
+  - `workflow.v_role_scopes`
 
 ### Seed baseline (implemented)
 - Baseline roles are seeded with stable codes:
@@ -86,7 +88,7 @@ Current implementation is a hybrid state: legacy behavior remains active, and ne
   - API startup must fail closed.
 - `APP_USER` configured with numeric id:
   - API startup must fail because only `user_acronym` is accepted.
-- `APP_USER` configured but user does not exist in `workflow.users`:
+- `APP_USER` configured but user does not exist in `workflow.v_users`:
   - API startup must fail closed.
 - User-role divergence risk:
   - `ref.sync_user_primary_role()` currently rewrites `ref.user_roles` from `ref.users.role_id`; multi-role semantics are not active yet.

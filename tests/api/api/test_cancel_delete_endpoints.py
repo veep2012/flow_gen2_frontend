@@ -408,11 +408,18 @@ def test_create_document_succeeds_when_auto_dl_name_already_exists():
             client,
             "POST",
             "/distribution-lists",
+            headers={"X-User-Id": "FDQC"},
             json={"distribution_list_name": conflicting_dl_name},
         )
         assert create_dl["status"] == 201
 
-        created_doc = _request(client, "POST", "/documents", json=payload)
+        created_doc = _request(
+            client,
+            "POST",
+            "/documents",
+            headers={"X-User-Id": "FDQC"},
+            json=payload,
+        )
         assert (
             created_doc["status"] == 201
         ), f"Document creation must not fail due to DL name collision: {created_doc['status']}"

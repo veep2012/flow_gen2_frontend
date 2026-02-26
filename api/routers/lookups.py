@@ -113,7 +113,7 @@ def list_areas(db: Session = Depends(get_db)) -> list[AreaOut]:
         text(
             """
             SELECT area_id, area_name, area_acronym
-            FROM workflow.areas
+            FROM workflow.v_areas
             ORDER BY area_name
             """
         )
@@ -274,7 +274,7 @@ def list_disciplines(db: Session = Depends(get_db)) -> list[DisciplineOut]:
         text(
             """
             SELECT discipline_id, discipline_name, discipline_acronym
-            FROM workflow.disciplines
+            FROM workflow.v_disciplines
             ORDER BY discipline_name
             """
         )
@@ -446,7 +446,7 @@ def list_projects(db: Session = Depends(get_db)) -> list[ProjectOut]:
         text(
             """
             SELECT project_id, project_name
-            FROM workflow.projects
+            FROM workflow.v_projects
             ORDER BY project_name
             """
         )
@@ -605,7 +605,7 @@ def list_units(db: Session = Depends(get_db)) -> list[UnitOut]:
         text(
             """
             SELECT unit_id, unit_name
-            FROM workflow.units
+            FROM workflow.v_units
             ORDER BY unit_name
             """
         )
@@ -764,7 +764,7 @@ def list_jobpacks(db: Session = Depends(get_db)) -> list[JobpackOut]:
         text(
             """
             SELECT jobpack_id, jobpack_name
-            FROM workflow.jobpacks
+            FROM workflow.v_jobpacks
             ORDER BY jobpack_name
             """
         )
@@ -922,7 +922,7 @@ def list_doc_rev_status_ui_behaviors(
         text(
             """
             SELECT ui_behavior_id, ui_behavior_name, ui_behavior_file
-            FROM workflow.doc_rev_status_ui_behaviors
+            FROM workflow.v_doc_rev_status_ui_behaviors
             ORDER BY ui_behavior_name
             """
         )
@@ -1095,7 +1095,7 @@ def list_doc_rev_statuses(db: Session = Depends(get_db)) -> list[DocRevStatusOut
                    editable,
                    final,
                    start
-            FROM workflow.doc_rev_statuses
+            FROM workflow.v_doc_rev_statuses
             ORDER BY rev_status_name
             """
         )

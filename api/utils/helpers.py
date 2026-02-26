@@ -142,7 +142,7 @@ def _build_default_filename_from_instance_parameter(
             text(
                 """
                 SELECT value
-                FROM workflow.instance_parameters
+                FROM workflow.v_instance_parameters
                 WHERE parameter = :parameter_name
                 """
             ),
@@ -152,7 +152,7 @@ def _build_default_filename_from_instance_parameter(
             text(
                 """
                 SELECT u.user_acronym
-                FROM workflow.users AS u
+                FROM workflow.v_users AS u
                 WHERE u.user_id = NULLIF(current_setting('app.user', true), '')::SMALLINT
                 """
             )

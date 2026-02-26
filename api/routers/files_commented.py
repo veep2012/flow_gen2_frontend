@@ -89,7 +89,7 @@ def _parse_accepted_file_mime_map() -> dict[str, str]:
 
 
 def _load_accepted_types(db: Session) -> dict[str, str]:
-    rows = db.execute(text("SELECT file_type, mimetype FROM workflow.files_accepted")).mappings()
+    rows = db.execute(text("SELECT file_type, mimetype FROM workflow.v_files_accepted")).mappings()
     mapping = {row["file_type"].lower(): row["mimetype"] for row in rows}
     mapping.update(_parse_accepted_file_mime_map())
     return mapping
@@ -229,13 +229,12 @@ def list_commented_files_for_file(
             fc.user_id,
             fc.s3_uid,
             fc.mimetype,
-            f.rev_id,
+            fc.rev_id,
             fc.created_at,
             fc.updated_at,
             fc.created_by,
             fc.updated_by
-        FROM workflow.files_commented AS fc
-        JOIN workflow.v_files AS f ON f.id = fc.file_id
+        FROM workflow.v_files_commented AS fc
         WHERE fc.file_id = :file_id
     """
     params: dict[str, Any] = {"file_id": file_id}
@@ -298,7 +297,7 @@ def insert_commented_file(
                     FROM workflow.v_files AS f
                     JOIN workflow.v_document_revisions AS r ON r.rev_id = f.rev_id
                     JOIN workflow.v_documents AS d ON d.doc_id = r.doc_id
-                    LEFT JOIN workflow.projects AS p ON p.project_id = d.project_id
+                    LEFT JOIN workflow.v_projects AS p ON p.project_id = d.project_id
                     WHERE f.id = :file_id
                     """
                 ),
@@ -314,7 +313,7 @@ def insert_commented_file(
         raise HTTPException(status_code=404, detail="File not found")
 
     user_exists = db.execute(
-        text("SELECT user_id FROM workflow.users WHERE user_id = :user_id"),
+        text("SELECT user_id FROM workflow.v_users WHERE user_id = :user_id"),
         {"user_id": user_id},
     ).scalar_one_or_none()
     if not user_exists:
@@ -539,7 +538,7 @@ def delete_commented_file(
     """
     file_row = (
         db.execute(
-            text("SELECT id, s3_uid FROM workflow.files_commented WHERE id = :id"),
+            text("SELECT id, s3_uid FROM workflow.v_files_commented WHERE id = :id"),
             {"id": commented_file_id},
         )
         .mappings()
@@ -764,7 +763,7 @@ def download_commented_file(
                     fc.id,
                     fc.s3_uid,
                     fc.mimetype
-                FROM workflow.files_commented AS fc
+                FROM workflow.v_files_commented AS fc
                 WHERE fc.id = :id
                 """
             ),

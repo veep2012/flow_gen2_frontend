@@ -109,7 +109,7 @@ Audit fields (created_by / updated_by):
   - `X-User-Id` header when provided.
   - `APP_USER` environment fallback when header is missing.
 - `X-User-Id` value must be existing `user_acronym`; API resolves it to internal `user_id` before setting DB session context.
-- `APP_USER` is guarded: it must be used only in non-production environments (`local/dev/test/ci/ci_test`), and startup validation must confirm that configured value resolves to a row in `workflow.users`.
+- `APP_USER` is guarded: it must be used only in non-production environments (`local/dev/test/ci/ci_test`), and startup validation must confirm that configured value resolves to a row in `workflow.v_users`.
 
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
@@ -388,7 +388,7 @@ curl -sS -H "Accept: application/json" \
   $API_BASE/api/v1/files/
 ```
 - Form fields: `rev_id` (int), `file` (binary).
-- Default stored filename is generated from `workflow.instance_parameters.parameter='file_name_conv'` template (`<DOCNO>-<BODY>_<UACR>_<TIMEST>.<EXT>`), where:
+- Default stored filename is generated from `workflow.v_instance_parameters.parameter='file_name_conv'` template (`<DOCNO>-<BODY>_<UACR>_<TIMEST>.<EXT>`), where:
   - `<DOCNO>` = document name (`doc_name_unique`)
   - `<BODY>` = uploaded filename body
   - `<UACR>` = uploader acronym from current `app.user` (from `X-User-Id` or optional `APP_USER`)
@@ -531,7 +531,7 @@ curl -sS -H "Accept: application/json" \
 - Form fields: `file_id` (int), `user_id` (int), `file` (binary, optional).
 - If `file` is omitted, API copies source file bytes from `file_id` into a new commented file object.
 - If `file` is provided, API validates mimetype against the original file.
-- Commented-file object naming uses `workflow.instance_parameters.parameter='file_name_com_conv'` (`<BODY>_commented_<UACR>_<TIMEST>.<EXT>`), where `<BODY>` is taken from the source file linked by `file_id` (applies both when uploading manually and when copying without `file`), with the same fallback behavior (original name unchanged when template resolution fails).
+- Commented-file object naming uses `workflow.v_instance_parameters.parameter='file_name_com_conv'` (`<BODY>_commented_<UACR>_<TIMEST>.<EXT>`), where `<BODY>` is taken from the source file linked by `file_id` (applies both when uploading manually and when copying without `file`), with the same fallback behavior (original name unchanged when template resolution fails).
 - Response `filename` for commented files reflects the commented object name (derived from commented `s3_uid`), not the original source file name.
 - Rejects duplicates per `(file_id, user_id)`.
 - Example response:
@@ -920,7 +920,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   - Required fields: `doc_name_unique`, `title`, `type_id`, `area_id`, `unit_id`, `rev_code_id`, `rev_author_id`, `rev_originator_id`, `rev_modifier_id`, `transmital_current_revision`, `planned_start_date`, `planned_finish_date`
   - Optional fields: `project_id`, `jobpack_id`, `milestone_id`
   - Note: The initial revision automatically uses the status with `start=true` from `doc_rev_statuses`.
-  - Note: If `workflow.instance_parameters.parameter='dl_for_each_doc'` has value `true` (case-insensitive), create also auto-creates a `distribution_list` row linked by `doc_id` with name pattern `DL_<doc_name_unique>`.
+  - Note: If `workflow.v_instance_parameters.parameter='dl_for_each_doc'` has value `true` (case-insensitive), create also auto-creates a `distribution_list` row linked by `doc_id` with name pattern `DL_<doc_name_unique>`.
   - Note: Auto-DL creation is idempotent by name; if `DL_<doc_name_unique>` already exists, document creation still succeeds and no duplicate DL row is inserted.
 ### Revisions
 - `GET /api/v1/documents/{doc_id}/revisions` — 200 ordered by `seq_num`; empty list if none. 404 if document not found or voided.

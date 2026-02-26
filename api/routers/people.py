@@ -139,7 +139,7 @@ def list_roles(db: Session = Depends(get_db)) -> list[RoleOut]:
             text(
                 """
                 SELECT role_id, role_name
-                FROM workflow.roles
+                FROM workflow.v_roles
                 ORDER BY role_name
                 """
             )
@@ -305,8 +305,8 @@ def list_persons(db: Session = Depends(get_db)) -> list[PersonOut]:
                     p.photo_s3_uid,
                     p.duty_id,
                     pd.duty_name
-                FROM workflow.person AS p
-                LEFT JOIN workflow.person_duty AS pd ON pd.duty_id = p.duty_id
+                FROM workflow.v_person AS p
+                LEFT JOIN workflow.v_person_duty AS pd ON pd.duty_id = p.duty_id
                 ORDER BY person_name
                 """
             )
@@ -493,10 +493,10 @@ def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
                     r.role_name,
                     p.duty_id,
                     pd.duty_name
-                FROM workflow.users AS u
-                JOIN workflow.person AS p ON p.person_id = u.person_id
-                JOIN workflow.roles AS r ON r.role_id = u.role_id
-                LEFT JOIN workflow.person_duty AS pd ON pd.duty_id = p.duty_id
+                FROM workflow.v_users AS u
+                JOIN workflow.v_person AS p ON p.person_id = u.person_id
+                JOIN workflow.v_roles AS r ON r.role_id = u.role_id
+                LEFT JOIN workflow.v_person_duty AS pd ON pd.duty_id = p.duty_id
                 ORDER BY u.user_acronym
                 """
             )
@@ -546,10 +546,10 @@ def get_current_user(db: Session = Depends(get_db)) -> UserOut:
                     r.role_name,
                     p.duty_id,
                     pd.duty_name
-                FROM workflow.users AS u
-                JOIN workflow.person AS p ON p.person_id = u.person_id
-                JOIN workflow.roles AS r ON r.role_id = u.role_id
-                LEFT JOIN workflow.person_duty AS pd ON pd.duty_id = p.duty_id
+                FROM workflow.v_users AS u
+                JOIN workflow.v_person AS p ON p.person_id = u.person_id
+                JOIN workflow.v_roles AS r ON r.role_id = u.role_id
+                LEFT JOIN workflow.v_person_duty AS pd ON pd.duty_id = p.duty_id
                 WHERE u.user_id = :user_id
                 """
             ),
@@ -748,11 +748,11 @@ def list_permissions(db: Session = Depends(get_db)) -> list[PermissionOut]:
                     p.person_name,
                     proj.project_name,
                     d.discipline_name
-                FROM workflow.permissions AS perm
-                JOIN workflow.users AS u ON u.user_id = perm.user_id
-                JOIN workflow.person AS p ON p.person_id = u.person_id
-                LEFT JOIN workflow.projects AS proj ON proj.project_id = perm.project_id
-                LEFT JOIN workflow.disciplines AS d ON d.discipline_id = perm.discipline_id
+                FROM workflow.v_permissions AS perm
+                JOIN workflow.v_users AS u ON u.user_id = perm.user_id
+                JOIN workflow.v_person AS p ON p.person_id = u.person_id
+                LEFT JOIN workflow.v_projects AS proj ON proj.project_id = perm.project_id
+                LEFT JOIN workflow.v_disciplines AS d ON d.discipline_id = perm.discipline_id
                 ORDER BY perm.user_id
                 """
             )

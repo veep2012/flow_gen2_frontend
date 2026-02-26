@@ -105,7 +105,7 @@ def list_written_comments_for_revision(
             updated_at,
             created_by,
             updated_by
-        FROM workflow.written_comments
+        FROM workflow.v_written_comments
         WHERE rev_id = :rev_id
     """
     params: dict[str, Any] = {"rev_id": rev_id}
@@ -167,7 +167,7 @@ def create_written_comment(
         Newly created written comment.
     """
     user_exists = db.execute(
-        text("SELECT user_id FROM workflow.users WHERE user_id = :user_id"),
+        text("SELECT user_id FROM workflow.v_users WHERE user_id = :user_id"),
         {"user_id": payload.user_id},
     ).scalar_one_or_none()
     if not user_exists:
@@ -358,7 +358,7 @@ def delete_written_comment(
         )
     row = (
         db.execute(
-            text("SELECT id FROM workflow.written_comments WHERE id = :id"),
+            text("SELECT id FROM workflow.v_written_comments WHERE id = :id"),
             {"id": id},
         )
         .mappings()

@@ -133,8 +133,8 @@ def list_doc_types(db: Session = Depends(get_db)) -> list[DocTypeOut]:
                     dt.doc_type_acronym,
                     d.discipline_name,
                     d.discipline_acronym
-                FROM workflow.doc_types AS dt
-                JOIN workflow.disciplines AS d ON d.discipline_id = dt.ref_discipline_id
+                FROM workflow.v_doc_types AS dt
+                JOIN workflow.v_disciplines AS d ON d.discipline_id = dt.ref_discipline_id
                 ORDER BY dt.doc_type_name
                 """
             )
@@ -365,15 +365,15 @@ def list_documents_for_project(
             d.created_by,
             d.updated_by
         FROM workflow.v_documents AS d
-        JOIN workflow.doc_types AS dt ON dt.type_id = d.type_id
-        JOIN workflow.disciplines AS disc ON disc.discipline_id = dt.ref_discipline_id
-        LEFT JOIN workflow.projects AS p ON p.project_id = d.project_id
-        LEFT JOIN workflow.jobpacks AS j ON j.jobpack_id = d.jobpack_id
-        LEFT JOIN workflow.areas AS a ON a.area_id = d.area_id
-        LEFT JOIN workflow.units AS u ON u.unit_id = d.unit_id
-        LEFT JOIN workflow.doc_revision AS rc ON rc.rev_id = d.rev_current_id
-        LEFT JOIN workflow.revision_overview AS ro ON ro.rev_code_id = rc.rev_code_id
-        LEFT JOIN workflow.doc_rev_statuses AS rs ON rs.rev_status_id = rc.rev_status_id
+        JOIN workflow.v_doc_types AS dt ON dt.type_id = d.type_id
+        JOIN workflow.v_disciplines AS disc ON disc.discipline_id = dt.ref_discipline_id
+        LEFT JOIN workflow.v_projects AS p ON p.project_id = d.project_id
+        LEFT JOIN workflow.v_jobpacks AS j ON j.jobpack_id = d.jobpack_id
+        LEFT JOIN workflow.v_areas AS a ON a.area_id = d.area_id
+        LEFT JOIN workflow.v_units AS u ON u.unit_id = d.unit_id
+        LEFT JOIN workflow.v_document_revisions AS rc ON rc.rev_id = d.rev_current_id
+        LEFT JOIN workflow.v_revision_overview AS ro ON ro.rev_code_id = rc.rev_code_id
+        LEFT JOIN workflow.v_doc_rev_statuses AS rs ON rs.rev_status_id = rc.rev_status_id
         WHERE d.project_id = :project_id
     """
     params: dict[str, Any] = {"project_id": project_id}
@@ -422,15 +422,15 @@ def _fetch_doc_out(db: Session, doc_id: int, *, allow_voided: bool = True) -> Do
                     d.created_by,
                     d.updated_by
                 FROM workflow.v_documents AS d
-                JOIN workflow.doc_types AS dt ON dt.type_id = d.type_id
-                JOIN workflow.disciplines AS disc ON disc.discipline_id = dt.ref_discipline_id
-                LEFT JOIN workflow.projects AS p ON p.project_id = d.project_id
-                LEFT JOIN workflow.jobpacks AS j ON j.jobpack_id = d.jobpack_id
-                LEFT JOIN workflow.areas AS a ON a.area_id = d.area_id
-                LEFT JOIN workflow.units AS u ON u.unit_id = d.unit_id
-                LEFT JOIN workflow.doc_revision AS rc ON rc.rev_id = d.rev_current_id
-                LEFT JOIN workflow.revision_overview AS ro ON ro.rev_code_id = rc.rev_code_id
-                LEFT JOIN workflow.doc_rev_statuses AS rs ON rs.rev_status_id = rc.rev_status_id
+                JOIN workflow.v_doc_types AS dt ON dt.type_id = d.type_id
+                JOIN workflow.v_disciplines AS disc ON disc.discipline_id = dt.ref_discipline_id
+                LEFT JOIN workflow.v_projects AS p ON p.project_id = d.project_id
+                LEFT JOIN workflow.v_jobpacks AS j ON j.jobpack_id = d.jobpack_id
+                LEFT JOIN workflow.v_areas AS a ON a.area_id = d.area_id
+                LEFT JOIN workflow.v_units AS u ON u.unit_id = d.unit_id
+                LEFT JOIN workflow.v_document_revisions AS rc ON rc.rev_id = d.rev_current_id
+                LEFT JOIN workflow.v_revision_overview AS ro ON ro.rev_code_id = rc.rev_code_id
+                LEFT JOIN workflow.v_doc_rev_statuses AS rs ON rs.rev_status_id = rc.rev_status_id
                 WHERE d.doc_id = :doc_id
                 """
             ),
@@ -568,11 +568,11 @@ def list_document_revisions(
                     r.created_by,
                     r.updated_by
                 FROM workflow.v_document_revisions AS r
-                LEFT JOIN workflow.revision_overview AS ro
+                LEFT JOIN workflow.v_revision_overview AS ro
                     ON ro.rev_code_id = r.rev_code_id
-                LEFT JOIN workflow.doc_rev_milestones AS m
+                LEFT JOIN workflow.v_doc_rev_milestones AS m
                     ON m.milestone_id = r.milestone_id
-                LEFT JOIN workflow.doc_rev_statuses AS rs
+                LEFT JOIN workflow.v_doc_rev_statuses AS rs
                     ON rs.rev_status_id = r.rev_status_id
                 WHERE r.doc_id = :doc_id
                 ORDER BY r.seq_num, r.rev_id
@@ -700,11 +700,11 @@ def _build_doc_revision_out(db: Session, rev_id: int) -> DocRevisionOut:
                     r.created_by,
                     r.updated_by
                 FROM workflow.v_document_revisions AS r
-                LEFT JOIN workflow.revision_overview AS ro
+                LEFT JOIN workflow.v_revision_overview AS ro
                     ON ro.rev_code_id = r.rev_code_id
-                LEFT JOIN workflow.doc_rev_milestones AS m
+                LEFT JOIN workflow.v_doc_rev_milestones AS m
                     ON m.milestone_id = r.milestone_id
-                LEFT JOIN workflow.doc_rev_statuses AS rs
+                LEFT JOIN workflow.v_doc_rev_statuses AS rs
                     ON rs.rev_status_id = r.rev_status_id
                 WHERE r.rev_id = :rev_id
                 """
@@ -1108,7 +1108,7 @@ def list_doc_rev_milestones(db: Session = Depends(get_db)) -> list[DocRevMilesto
             text(
                 """
                 SELECT milestone_id, milestone_name, progress
-                FROM workflow.doc_rev_milestones
+                FROM workflow.v_doc_rev_milestones
                 ORDER BY milestone_name
                 """
             )
@@ -1282,7 +1282,7 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
                     rev_code_acronym,
                     rev_description,
                     percentage
-                FROM workflow.revision_overview
+                FROM workflow.v_revision_overview
                 ORDER BY rev_code_name
                 """
             )

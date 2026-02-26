@@ -2,6 +2,18 @@ import ast
 from pathlib import Path
 
 SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
+    "test_read_rls_multi_role_scope_union": (
+        "documentation/test_scenarios/authorization_read_rls_api_test_scenarios.md",
+        ["TS-AUTH-001"],
+    ),
+    "test_read_rls_fail_closed_for_missing_or_unknown_session_user": (
+        "documentation/test_scenarios/authorization_read_rls_api_test_scenarios.md",
+        ["TS-AUTH-002"],
+    ),
+    "test_check_user_permission_fail_closed_inputs": (
+        "documentation/test_scenarios/authorization_read_rls_api_test_scenarios.md",
+        ["TS-AUTH-003"],
+    ),
     "test_audit_fields_document_and_revision": (
         "documentation/test_scenarios/audit_fields_api_test_scenarios.md",
         ["TS-AUD-001"],
@@ -261,6 +273,7 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
 }
 
 TEST_FILES = [
+    "tests/api/api/test_authorization_read_rls.py",
     "tests/api/api/test_audit_fields.py",
     "tests/api/api/test_cancel_delete_endpoints.py",
     "tests/api/api/test_distribution_lists_endpoints.py",

@@ -16,7 +16,7 @@ Define the source of truth for runtime configuration values stored in `ref.insta
 
 ## Scope
 - In scope:
-  - Table schema and access path (`ref.instance_parameters`, `workflow.instance_parameters`).
+  - Table schema and access path (`ref.instance_parameters`, `workflow.v_instance_parameters`).
   - Current parameters used by backend and workflow SQL.
   - Rules for adding new parameters.
 - Out of scope:
@@ -36,7 +36,7 @@ Define the source of truth for runtime configuration values stored in `ref.insta
 ## Design / Behavior
 - Storage model:
   - Table `ref.instance_parameters` stores one row per parameter key.
-  - View `workflow.instance_parameters` exposes the same data for workflow consumers.
+  - View `workflow.v_instance_parameters` exposes the same data for workflow consumers.
 - Resolution model:
   - Consumers query by exact parameter key.
   - Missing, invalid, or unusable values must trigger safe fallback behavior in the consumer.
@@ -47,7 +47,7 @@ Define the source of truth for runtime configuration values stored in `ref.insta
 ## Data Model
 - Tables/entities:
   - `ref.instance_parameters`: parameter registry table.
-  - `workflow.instance_parameters`: read-only view over `ref.instance_parameters`.
+  - `workflow.v_instance_parameters`: read-only view over `ref.instance_parameters`.
 - Key fields:
   - `parameter` (`VARCHAR(64)`, PK): unique key.
   - `value` (`VARCHAR(255)`, NOT NULL): raw configured value.

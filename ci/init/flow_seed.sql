@@ -164,6 +164,14 @@ INSERT INTO role_permissions (role_id, resource, capability) VALUES
 (4,'files','read-only'),
 (4,'files_commented','read-only');
 
+-- Role scope baseline (Phase 1): non-super roles are globally scoped across seeded entities.
+INSERT INTO role_scopes (role_id, scope_type, entity_id, logic_group)
+SELECT r.role_id, 'PROJECT', p.project_id, 1
+FROM ref.roles r
+JOIN ref.projects p ON TRUE
+WHERE r.role_code IN ('DCC_USER', 'AUTHOR', 'REVIEWER')
+ON CONFLICT DO NOTHING;
+
 -- Deterministically assign duties for current users (stable across seed runs)
 UPDATE person AS p
 SET duty_id = (((u.user_id - 1) % 4) + 1)::SMALLINT
