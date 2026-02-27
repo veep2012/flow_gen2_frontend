@@ -137,3 +137,13 @@ USING (
         )
     )
 );
+
+-- Indexes to support RLS policy correlated subqueries and joins
+-- Improves performance of:
+--   - doc_revision lookup via files.rev_id in p_core_files_read
+--   - files lookup via files_commented.file_id in p_core_files_commented_read
+CREATE INDEX IF NOT EXISTS idx_core_files_rev_id
+    ON core.files (rev_id);
+
+CREATE INDEX IF NOT EXISTS idx_core_files_commented_file_id
+    ON core.files_commented (file_id);
