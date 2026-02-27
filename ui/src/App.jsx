@@ -292,6 +292,11 @@ function App() {
           headers: { Accept: "application/json" },
         });
         if (!response.ok) {
+          console.error(
+            "Failed to load current user info from API:",
+            response.status,
+            response.statusText,
+          );
           return;
         }
         const payload = await response.json();
@@ -303,7 +308,8 @@ function App() {
           duty_name: String(payload.duty_name || "").trim() || prev.duty_name,
           user_acronym: String(payload.user_acronym || "").trim() || prev.user_acronym,
         }));
-      } catch {
+      } catch (error) {
+        console.error("Failed to load current user info from API:", error);
         // Keep fallback user info for local UI rendering when endpoint is unavailable.
       }
     };

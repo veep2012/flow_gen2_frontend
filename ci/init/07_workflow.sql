@@ -752,25 +752,34 @@ LANGUAGE sql
 SECURITY DEFINER
 SET search_path = ref, pg_temp
 AS $$
-    SELECT EXISTS (
-        SELECT 1
-        FROM ref.user_roles ur
-        JOIN ref.roles r ON r.role_id = ur.role_id
-        WHERE ur.user_id = p_user_id
-          AND (
-              r.is_super = TRUE
-              OR lower(r.role_name) IN ('superuser', 'admin')
-          )
-    ) OR EXISTS (
-        SELECT 1
-        FROM ref.users u
-        JOIN ref.roles r ON r.role_id = u.role_id
-        WHERE u.user_id = p_user_id
-          AND (
-              r.is_super = TRUE
-              OR lower(r.role_name) IN ('superuser', 'admin')
-          )
-    );
+    SELECT CASE
+        -- Prefer the new bridge model when role bindings exist.
+        WHEN EXISTS (
+            SELECT 1
+            FROM ref.user_roles ur
+            WHERE ur.user_id = p_user_id
+        ) THEN EXISTS (
+            SELECT 1
+            FROM ref.user_roles ur
+            JOIN ref.roles r ON r.role_id = ur.role_id
+            WHERE ur.user_id = p_user_id
+              AND (
+                  r.is_super = TRUE
+                  OR lower(r.role_name) IN ('superuser', 'admin')
+              )
+        )
+        -- Legacy fallback during migration for users without bridge bindings.
+        ELSE EXISTS (
+            SELECT 1
+            FROM ref.users u
+            JOIN ref.roles r ON r.role_id = u.role_id
+            WHERE u.user_id = p_user_id
+              AND (
+                  r.is_super = TRUE
+                  OR lower(r.role_name) IN ('superuser', 'admin')
+              )
+        )
+    END;
 $$;
 
 CREATE OR REPLACE FUNCTION workflow.check_user_permission(

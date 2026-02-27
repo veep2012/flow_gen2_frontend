@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-21
-- Last Updated: 2026-02-26
-- Version: v0.7
+- Last Updated: 2026-02-27
+- Version: v0.8
 
 ## Change Log
+- 2026-02-27 | v0.8 | Clarified implemented DB session-context scope: `set_config(..., false)` (session-level) is intentional so auth context persists across endpoint-level commits within one request/connection.
 - 2026-02-26 | v0.7 | Updated implementation reality through Phase 1: read-path predicate/RLS and project-scoped lookup filtering are now implemented and test-covered.
 - 2026-02-25 | v0.5 | Added architecture review summary, gradual implementation plan, edge cases, and references.
 - 2026-02-21 | v0.4 | Added local developer mode using `APP_USER` to bootstrap `app.user_id` with strict non-production guardrails.
@@ -69,7 +70,8 @@ Contract:
 - `APP_USER` contains `user_acronym`.
 - API startup/request middleware validates that `APP_USER` resolves in `ref.users`.
 - Middleware sets DB session:
-  - `set_config('app.user_id', '<resolved_user_id>', true)`
+  - `set_config('app.user_id', '<resolved_user_id>', false)` (session-level scope).
+  - Session-level scope is intentional so context remains available after endpoint-level `COMMIT` statements on the same request connection.
 - If `APP_USER` is missing or unresolved:
   - fail closed (`401`/`403`) by default, or
   - allow explicit fallback to predefined local user only when `APP_ENV=local`.
@@ -85,10 +87,10 @@ Example (application side pseudocode):
 if APP_ENV == "local" and APP_USER is set:
     v_user_id = resolve APP_USER by ref.users.user_acronym
     assert v_user_id is not null
-    set local app.user_id = v_user_id
+    set_config('app.user_id', v_user_id, false)
 else:
     user_id = resolve from trusted auth context
-    set local app.user_id = user_id
+    set_config('app.user_id', user_id, false)
 ```
 
 ### RLS target behavior (conceptual)

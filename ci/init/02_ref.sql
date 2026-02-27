@@ -215,8 +215,11 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    DELETE FROM ref.user_roles WHERE user_id = NEW.user_id;
-    INSERT INTO ref.user_roles (user_id, role_id) VALUES (NEW.user_id, NEW.role_id);
+    -- Legacy compatibility sync: keep users.role_id mirrored into user_roles,
+    -- but do not remove existing secondary role assignments.
+    INSERT INTO ref.user_roles (user_id, role_id)
+    VALUES (NEW.user_id, NEW.role_id)
+    ON CONFLICT (user_id, role_id) DO NOTHING;
     RETURN NEW;
 END;
 $$;

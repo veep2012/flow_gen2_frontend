@@ -162,7 +162,9 @@ def _prepare_rls_fixture(conn) -> dict:
         },
     ).scalar_one()
 
-    # Remove primary seeded role binding so fixture uses only test roles.
+    # The insert sets ref.users.role_id=4 to satisfy the FK/default seeded shape.
+    # Then we intentionally clear ref.user_roles so this fixture is driven only by
+    # the two test-specific roles added below.
     conn.execute(
         text("DELETE FROM ref.user_roles WHERE user_id = :user_id"), {"user_id": temp_user_id}
     )

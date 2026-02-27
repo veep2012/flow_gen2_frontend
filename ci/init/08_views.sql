@@ -2,16 +2,51 @@
 -- --------------------------------------------------------
 DO $$
 DECLARE
-    v_view RECORD;
+    v_legacy_view TEXT;
+    v_legacy_views CONSTANT TEXT[] := ARRAY[
+        'areas',
+        'disciplines',
+        'projects',
+        'units',
+        'jobpacks',
+        'roles',
+        'user_roles',
+        'role_permissions',
+        'role_scopes',
+        'doc_rev_milestones',
+        'revision_overview',
+        'doc_rev_statuses',
+        'doc_rev_status_ui_behaviors',
+        'files_accepted',
+        'leased_doc_nums',
+        'sql_queries',
+        'instance_parameters',
+        'person_duty',
+        'person',
+        'users',
+        'doc_types',
+        'distribution_list',
+        'distribution_list_content',
+        'permissions',
+        'doc_cache',
+        'written_comments',
+        'notifications',
+        'notification_targets',
+        'notification_recipients',
+        'notification_inbox',
+        'doc_revision_history',
+        'doc_revision_history_view',
+        'documents',
+        'document_revisions',
+        'files',
+        'files_commented'
+    ];
 BEGIN
-    -- Remove legacy non-prefixed workflow views so only v_* names remain canonical.
-    FOR v_view IN
-        SELECT schemaname, viewname
-        FROM pg_catalog.pg_views
-        WHERE schemaname = 'workflow'
-          AND viewname NOT LIKE 'v\_%' ESCAPE '\'
+    -- One-time cleanup: only drop known pre-v_* legacy view names.
+    -- Avoid dropping arbitrary user/application views in workflow schema.
+    FOREACH v_legacy_view IN ARRAY v_legacy_views
     LOOP
-        EXECUTE format('DROP VIEW IF EXISTS %I.%I CASCADE', v_view.schemaname, v_view.viewname);
+        EXECUTE format('DROP VIEW IF EXISTS workflow.%I CASCADE', v_legacy_view);
     END LOOP;
 END;
 $$;

@@ -54,7 +54,9 @@ def _resolve_user_id(db: Session, raw_value: str) -> str | None:
             """
             SELECT user_id
             FROM workflow.v_users
-            WHERE lower(user_acronym) = lower(:raw_value)
+            -- Explicitly ignore NULL acronyms; case-insensitive match applies to real values only.
+            WHERE user_acronym IS NOT NULL
+              AND lower(user_acronym) = lower(:raw_value)
             LIMIT 1
             """
         ),
@@ -80,8 +82,13 @@ def validate_startup_app_user_mode() -> None:
             "Use APP_USER only in local/dev/test/ci environments."
         )
 
-    deadline = time.monotonic() + max(_APP_USER_DB_WAIT_SEC, 0)
-    while True:
+    poll_sec = max(_APP_USER_DB_WAIT_POLL_SEC, 0.1)
+    wait_sec = max(_APP_USER_DB_WAIT_SEC, 0)
+    deadline = time.monotonic() + wait_sec
+    max_attempts = max(int(wait_sec / poll_sec) + 1, 1)
+    attempts = 0
+    while attempts < max_attempts:
+        attempts += 1
         try:
             with SessionLocal() as db:
                 resolved = _resolve_user_id(db, app_user)
@@ -91,11 +98,12 @@ def validate_startup_app_user_mode() -> None:
                     )
                 return
         except OperationalError as exc:
-            if time.monotonic() >= deadline:
+            if time.monotonic() >= deadline or attempts >= max_attempts:
                 raise RuntimeError(
-                    "Database not ready while validating APP_USER during startup"
+                    f"Database not ready while validating APP_USER during startup "
+                    f"(attempts={attempts}, max_attempts={max_attempts})"
                 ) from exc
-            time.sleep(max(_APP_USER_DB_WAIT_POLL_SEC, 0.1))
+            time.sleep(poll_sec)
 
 
 def _set_app_user(db: Session, request: Request) -> None:
@@ -113,6 +121,8 @@ def _set_app_user(db: Session, request: Request) -> None:
                 detail="Invalid X-User-Id header. Expected existing user_acronym.",
             )
     if user_value:
+        # Use session scope (is_local=false) so context survives endpoint-level COMMITs
+        # on the same DB connection during a single request lifecycle.
         db.execute(
             text("SELECT set_config('app.user', :user_id, false)"),
             {"user_id": user_value},
@@ -122,6 +132,7 @@ def _set_app_user(db: Session, request: Request) -> None:
             {"user_id": user_value},
         )
     else:
+        # Clear both keys at session scope for consistency on reused pooled connections.
         db.execute(text("SELECT set_config('app.user', '', false)"))
         db.execute(text("SELECT set_config('app.user_id', '', false)"))
 
