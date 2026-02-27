@@ -859,13 +859,15 @@ BEGIN
                     rs.scope_type = 'PROJECT'
                     AND v_project_id IS NOT NULL
                     AND rs.entity_id = v_project_id
-                ) AS project_match
+                ) AS project_match,
+                BOOL_OR(rs.scope_type = 'PROJECT') OVER () AS any_project_scope
             FROM ref.user_roles ur
             JOIN ref.role_scopes rs ON rs.role_id = ur.role_id
             WHERE ur.user_id = p_user_id
             GROUP BY rs.role_id, rs.logic_group
         ) grouped_scopes
-        WHERE (NOT grouped_scopes.has_project_scope OR grouped_scopes.project_match)
+        WHERE (NOT grouped_scopes.any_project_scope)
+           OR (grouped_scopes.has_project_scope AND grouped_scopes.project_match)
     ) INTO v_scope_allowed;
 
     RETURN COALESCE(v_scope_allowed, FALSE);
