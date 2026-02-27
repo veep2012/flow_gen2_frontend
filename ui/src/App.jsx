@@ -310,6 +310,9 @@ function App() {
         }));
       } catch (error) {
         console.error("Failed to load current user info from API:", error);
+        if (import.meta.env.MODE !== "production") {
+          console.debug("Using fallback current user info for local UI rendering.");
+        }
         // Keep fallback user info for local UI rendering when endpoint is unavailable.
       }
     };

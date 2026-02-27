@@ -719,6 +719,64 @@ def _build_doc_revision_out(db: Session, rev_id: int) -> DocRevisionOut:
     return _model_out(DocRevisionOut, row)
 
 
+def _build_doc_revision_out_from_core_row(db: Session, row: dict[str, Any]) -> DocRevisionOut:
+    rev_code = (
+        db.execute(
+            text(
+                """
+                SELECT rev_code_name, rev_code_acronym, rev_description
+                FROM workflow.v_revision_overview
+                WHERE rev_code_id = :rev_code_id
+                """
+            ),
+            {"rev_code_id": row["rev_code_id"]},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    milestone = None
+    if row.get("milestone_id") is not None:
+        milestone = (
+            db.execute(
+                text(
+                    """
+                    SELECT milestone_name
+                    FROM workflow.v_doc_rev_milestones
+                    WHERE milestone_id = :milestone_id
+                    """
+                ),
+                {"milestone_id": row["milestone_id"]},
+            )
+            .mappings()
+            .one_or_none()
+        )
+    rev_status = (
+        db.execute(
+            text(
+                """
+                SELECT rev_status_name
+                FROM workflow.v_doc_rev_statuses
+                WHERE rev_status_id = :rev_status_id
+                """
+            ),
+            {"rev_status_id": row["rev_status_id"]},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    return _model_out(
+        DocRevisionOut,
+        {
+            **row,
+            "rev_code_name": rev_code["rev_code_name"] if rev_code else None,
+            "rev_code_acronym": rev_code["rev_code_acronym"] if rev_code else None,
+            "rev_description": rev_code["rev_description"] if rev_code else None,
+            "milestone_name": milestone["milestone_name"] if milestone else None,
+            "rev_status_name": rev_status["rev_status_name"] if rev_status else None,
+        },
+    )
+
+
 _REV_STATUS_TRANSITION_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("already at final status", 409, "Revision already at final status"),
     ("already at start status", 409, "Revision already at start status"),
@@ -811,16 +869,20 @@ def create_revision_status_transition(
     Status changes are enforced by database rules (start/final/revertible).
     """
     try:
-        db.execute(
-            text("SELECT workflow.transition_revision(:rev_id, :direction)"),
-            {"rev_id": rev_id, "direction": payload.direction},
+        rev_row = (
+            db.execute(
+                text("SELECT r.* FROM workflow.transition_revision(:rev_id, :direction) AS r"),
+                {"rev_id": rev_id, "direction": payload.direction},
+            )
+            .mappings()
+            .one()
         )
         db.commit()
     except DBAPIError as err:
         db.rollback()
         _raise_for_status_transition_db_error(err)
 
-    return _build_doc_revision_out(db, rev_id)
+    return _build_doc_revision_out_from_core_row(db, dict(rev_row))
 
 
 def insert_document_revision(
@@ -1567,15 +1629,19 @@ def cancel_revision(
         HTTPException: 404 if revision not found.
     """
     try:
-        db.execute(
-            text("SELECT workflow.cancel_revision(:rev_id)"),
-            {"rev_id": rev_id},
+        rev_row = (
+            db.execute(
+                text("SELECT r.* FROM workflow.cancel_revision(:rev_id) AS r"),
+                {"rev_id": rev_id},
+            )
+            .mappings()
+            .one()
         )
         db.commit()
     except DBAPIError as err:
         db.rollback()
         _raise_for_dbapi_error(err, _CANCEL_REVISION_DB_ERROR_MAP)
-    return _build_doc_revision_out(db, rev_id)
+    return _build_doc_revision_out_from_core_row(db, dict(rev_row))
 
 
 @router.delete(

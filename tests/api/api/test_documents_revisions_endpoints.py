@@ -302,6 +302,8 @@ def test_documents_revisions_status_transition_forward():
             status = status_map.get(rev.get("rev_status_id"))
             if not status:
                 continue
+            if rev.get("superseded"):
+                continue
             if status.get("final") or status.get("next_rev_status_id") is None:
                 continue
             candidate = (rev, status)
@@ -347,6 +349,8 @@ def test_documents_revisions_status_transition_back():
         for rev in revisions["payload"]:
             status = status_map.get(rev.get("rev_status_id"))
             if not status:
+                continue
+            if rev.get("superseded"):
                 continue
             prev_id = prev_map.get(status.get("rev_status_id"))
             if status.get("start") or not status.get("revertible"):

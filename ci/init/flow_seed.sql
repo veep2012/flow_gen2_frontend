@@ -164,12 +164,20 @@ INSERT INTO role_permissions (role_id, resource, capability) VALUES
 (4,'files','read-only'),
 (4,'files_commented','read-only');
 
--- Role scope baseline (Phase 1): non-super roles are globally scoped across seeded entities.
+-- Role scope baseline (Phase 1):
+-- - DCC_USER and AUTHOR stay globally scoped across seeded projects.
+-- - REVIEWER is intentionally limited to project_id=3 (ZAML seed user scope).
 INSERT INTO role_scopes (role_id, scope_type, entity_id, logic_group)
 SELECT r.role_id, 'PROJECT', p.project_id, 1
 FROM ref.roles r
 JOIN ref.projects p ON TRUE
-WHERE r.role_code IN ('DCC_USER', 'AUTHOR', 'REVIEWER')
+WHERE r.role_code IN ('DCC_USER', 'AUTHOR')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO role_scopes (role_id, scope_type, entity_id, logic_group)
+SELECT r.role_id, 'PROJECT', 3, 1
+FROM ref.roles r
+WHERE r.role_code = 'REVIEWER'
 ON CONFLICT DO NOTHING;
 
 -- Deterministically assign duties for current users (stable across seed runs)

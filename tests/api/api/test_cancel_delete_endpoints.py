@@ -204,13 +204,23 @@ def test_cancel_revision():
         assert initial_canceled_date is None, "canceled_date should be None initially"
 
         # Cancel the revision
-        result = _request(client, "PATCH", f"/documents/revisions/{rev_id}/cancel")
+        result = _request(
+            client,
+            "PATCH",
+            f"/documents/revisions/{rev_id}/cancel",
+            headers={"X-User-Id": "FDQC"},
+        )
         assert 200 <= result["status"] < 300, f"Expected 2xx status, got {result['status']}"
         assert result["payload"]["rev_id"] == rev_id
         assert result["payload"]["canceled_date"] is not None, "canceled_date should be set"
 
         # Cancel again should be idempotent
-        second_result = _request(client, "PATCH", f"/documents/revisions/{rev_id}/cancel")
+        second_result = _request(
+            client,
+            "PATCH",
+            f"/documents/revisions/{rev_id}/cancel",
+            headers={"X-User-Id": "FDQC"},
+        )
         assert 200 <= second_result["status"] < 300
         assert second_result["payload"]["canceled_date"] == result["payload"]["canceled_date"]
 

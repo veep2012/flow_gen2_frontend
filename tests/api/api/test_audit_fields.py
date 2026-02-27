@@ -18,6 +18,7 @@ CORE_AUDIT_TABLES = (
     "notification_targets",
     "notification_recipients",
 )
+ZAML_PROJECT_ID = 3
 
 
 def _build_base_url() -> str:
@@ -83,7 +84,11 @@ def test_audit_fields_document_and_revision():
 
         area_id = _pick_id(areas, "area_id")
         unit_id = _pick_id(units, "unit_id")
-        project_id = _pick_id(projects, "project_id")
+        project_id = (
+            ZAML_PROJECT_ID
+            if any(p.get("project_id") == ZAML_PROJECT_ID for p in projects)
+            else None
+        )
         type_id = _pick_id(doc_types, "type_id")
         rev_code_id = _pick_id(rev_codes, "rev_code_id")
         person_id = _pick_id(people, "person_id")
@@ -167,18 +172,33 @@ def test_audit_fields_files_and_commented():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
         projects = _ensure_list(_request(client, "GET", "/lookups/projects"))
-        project_id = _pick_id(projects, "project_id")
+        project_id = (
+            ZAML_PROJECT_ID
+            if any(p.get("project_id") == ZAML_PROJECT_ID for p in projects)
+            else None
+        )
         if project_id is None:
             pytest.skip("No projects available for files audit test")
 
-        docs = _request(client, "GET", "/documents", params={"project_id": project_id})
+        docs = _request(
+            client,
+            "GET",
+            "/documents",
+            headers={"X-User-Id": "ZAML"},
+            params={"project_id": project_id},
+        )
         if not (200 <= docs["status"] < 300) or not docs["payload"]:
             pytest.skip("No documents available for files audit test")
         doc_id = _pick_id(docs["payload"], "doc_id")
         if doc_id is None:
             pytest.skip("No doc_id available for files audit test")
 
-        revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        revisions = _request(
+            client,
+            "GET",
+            f"/documents/{doc_id}/revisions",
+            headers={"X-User-Id": "ZAML"},
+        )
         if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
             pytest.skip("No revisions available for files audit test")
         rev_id = revisions["payload"][0].get("rev_id")

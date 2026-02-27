@@ -5,10 +5,12 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-25
-- Last Updated: 2026-02-26
-- Version: v0.3
+- Last Updated: 2026-02-27
+- Version: v0.5
 
 ## Change Log
+- 2026-02-27 | v0.5 | Revision mutation endpoints (`status transition`, `cancel`) now build response payloads from workflow function return rows (plus lookup enrichments) instead of re-reading through scope-filtered revision views, preventing false `Revision not found` after successful writes.
+- 2026-02-27 | v0.4 | Corrected `ref.sync_user_primary_role()` behavior: mirror insert from `ref.users.role_id` is non-destructive and preserves existing secondary `ref.user_roles` assignments; added one `EXPLAIN (ANALYZE, BUFFERS)` read-path baseline for `workflow.v_documents` with RLS predicate active.
 - 2026-02-26 | v0.3 | Updated as-is snapshot for Phase 1: documented implemented `workflow.check_user_permission(...)`, read-side RLS policies, project-scoped lookup behavior, and fail-closed outcomes.
 - 2026-02-25 | v0.1 | Initial as-is snapshot of implemented authentication and authorization-related schema/session behavior.
 
@@ -65,7 +67,7 @@ Current implementation is a hybrid state: role-model foundations are active, and
 
 ### Compatibility behavior (implemented)
 - `ref.users.role_id` is still present and used by existing API and ORM contracts.
-- Trigger `ref.sync_user_primary_role()` keeps `ref.user_roles` synchronized with `ref.users.role_id`.
+- Trigger `ref.sync_user_primary_role()` mirrors `ref.users.role_id` into `ref.user_roles` with `INSERT ... ON CONFLICT DO NOTHING` (non-destructive sync).
 - `workflow.is_superuser(...)` now checks:
   - new bridge path (`ref.user_roles` + `ref.roles.is_super`), and
   - legacy path (`ref.users.role_id` + role-name fallback).
@@ -108,6 +110,10 @@ Current implementation is a hybrid state: role-model foundations are active, and
   - `workflow.v_files`
   - `workflow.v_files_commented`
 
+### Write endpoint response behavior (implemented)
+- Revision mutation handlers for transition/cancel return the mutated revision from workflow function outputs and then enrich lookup names (`revision_overview`, `milestones`, `statuses`).
+- This avoids coupling write success responses to read-scope view visibility and prevents false 404 responses (`Revision not found`) after a successful mutation.
+
 ### Lookup scope behavior (implemented)
 - Project lookup is scope-filtered:
   - `workflow.v_projects` uses `workflow.check_lookup_scope_permission(...)` with `scope_type='PROJECT'`.
@@ -131,6 +137,19 @@ Current implementation is a hybrid state: role-model foundations are active, and
 - Automated tests:
   - `tests/api/api/test_authorization_read_rls.py`
 
+### Read-path performance sample (observed)
+- Context:
+  - Local seeded test database (`make test-db-up`, PostgreSQL 18.1 image).
+  - Session context set to non-super user: `set_config('app.user_id', '3', false)`.
+  - Query:
+    - `EXPLAIN (ANALYZE, BUFFERS) SELECT doc_id, project_id, title FROM workflow.v_documents ORDER BY doc_id LIMIT 25;`
+- Observed plan summary:
+  - `Index Scan using doc_pkey on doc`
+  - Filter includes `workflow.check_user_permission(...)` RLS predicate.
+  - Buffers: `shared hit=864 read=4`
+  - Planning time: `0.522 ms`
+  - Execution time: `2.540 ms`
+
 ## Edge Cases
 - `APP_USER` set in production/staging:
   - API startup must fail closed.
@@ -139,7 +158,7 @@ Current implementation is a hybrid state: role-model foundations are active, and
 - `APP_USER` configured but user does not exist in `workflow.v_users`:
   - API startup must fail closed.
 - User-role divergence risk:
-  - `ref.sync_user_primary_role()` currently rewrites `ref.user_roles` from `ref.users.role_id` when primary role changes, so externally managed multi-role assignments can be overwritten if not coordinated.
+  - `ref.sync_user_primary_role()` adds/ensures the primary role binding from `ref.users.role_id`; it does not remove secondary `ref.user_roles` assignments. Divergence can still occur if external role management does not keep legacy `ref.users.role_id` aligned with intended primary role.
 - Scope rows absent for non-super user:
   - Current implementation denies reads (fail-closed), because no scope-group match exists.
 - Mixed legacy/new superuser checks:
