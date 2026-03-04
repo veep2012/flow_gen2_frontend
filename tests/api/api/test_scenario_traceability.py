@@ -18,6 +18,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/authorization_read_rls_api_test_scenarios.md",
         ["TS-AUTH-004"],
     ),
+    "test_read_rls_rejects_unsupported_scope_types": (
+        "documentation/test_scenarios/authorization_read_rls_api_test_scenarios.md",
+        ["TS-AUTH-005"],
+    ),
     "test_audit_fields_document_and_revision": (
         "documentation/test_scenarios/audit_fields_api_test_scenarios.md",
         ["TS-AUD-001"],

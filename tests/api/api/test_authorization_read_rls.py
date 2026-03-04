@@ -10,6 +10,7 @@ SCENARIO_MULTI_ROLE_UNION = "TS-AUTH-001"
 SCENARIO_FAIL_CLOSED_SESSION = "TS-AUTH-002"
 SCENARIO_FAIL_CLOSED_PREDICATE = "TS-AUTH-003"
 SCENARIO_TRANSACTION_IDENTITY_ISOLATION = "TS-AUTH-004"
+SCENARIO_UNSUPPORTED_SCOPE_FAIL_CLOSED = "TS-AUTH-005"
 
 
 def _build_admin_database_url() -> str:
@@ -337,6 +338,124 @@ def _prepare_rls_fixture(conn) -> dict:
     }
 
 
+def _prepare_unsupported_scope_fixture(conn, scope_type: str) -> dict:
+    if scope_type not in {"AREA", "UNIT"}:
+        raise ValueError(f"Unsupported scope_type for fixture: {scope_type}")
+
+    entity_column = "area_id" if scope_type == "AREA" else "unit_id"
+    seed = (
+        conn.execute(
+            text(
+                f"""
+                SELECT
+                    d.doc_id,
+                    d.{entity_column} AS entity_id,
+                    (
+                        SELECT p.duty_id
+                        FROM ref.person p
+                        ORDER BY p.person_id
+                        LIMIT 1
+                    ) AS duty_id
+                FROM core.doc d
+                WHERE d.voided IS FALSE
+                  AND d.{entity_column} IS NOT NULL
+                ORDER BY d.doc_id
+                LIMIT 1
+                """
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if not seed:
+        pytest.skip(f"No document with non-null {entity_column} found for unsupported scope test")
+    if seed["duty_id"] is None:
+        pytest.skip("No person duty found for unsupported scope test")
+
+    marker = uuid.uuid4().hex[:10]
+    role_id = conn.execute(
+        text(
+            """
+            INSERT INTO ref.roles (role_name, role_code, external_name, is_super)
+            VALUES (:role_name, :role_code, :external_name, FALSE)
+            RETURNING role_id
+            """
+        ),
+        {
+            "role_name": f"TS_UNSUPPORTED_{scope_type}_{marker}",
+            "role_code": f"TS_UNSUPPORTED_{scope_type}_{marker}",
+            "external_name": f"TS_UNSUPPORTED_EXT_{scope_type}_{marker}",
+        },
+    ).scalar_one()
+    temp_person_id = conn.execute(
+        text(
+            """
+            INSERT INTO ref.person (person_name, duty_id)
+            VALUES (:person_name, :duty_id)
+            RETURNING person_id
+            """
+        ),
+        {"person_name": f"TS Unsupported {scope_type} {marker}", "duty_id": seed["duty_id"]},
+    ).scalar_one()
+    temp_user_id = conn.execute(
+        text(
+            """
+            INSERT INTO ref.users (person_id, user_acronym, role_id)
+            VALUES (:person_id, :user_acronym, :role_id)
+            RETURNING user_id
+            """
+        ),
+        {
+            "person_id": temp_person_id,
+            "user_acronym": f"TSU{marker[:7]}",
+            "role_id": 4,
+        },
+    ).scalar_one()
+
+    conn.execute(
+        text("DELETE FROM ref.user_roles WHERE user_id = :user_id"), {"user_id": temp_user_id}
+    )
+    conn.execute(
+        text(
+            """
+            INSERT INTO ref.role_permissions (role_id, resource, capability)
+            VALUES (:role_id, 'doc', 'read-only')
+            """
+        ),
+        {"role_id": role_id},
+    )
+    conn.execute(
+        text(
+            """
+            INSERT INTO ref.role_scopes (role_id, scope_type, entity_id, logic_group)
+            VALUES (:role_id, :scope_type, :entity_id, 1)
+            """
+        ),
+        {
+            "role_id": role_id,
+            "scope_type": scope_type,
+            "entity_id": seed["entity_id"],
+        },
+    )
+    conn.execute(
+        text(
+            """
+            INSERT INTO ref.user_roles (user_id, role_id)
+            VALUES (:user_id, :role_id)
+            ON CONFLICT DO NOTHING
+            """
+        ),
+        {"user_id": temp_user_id, "role_id": role_id},
+    )
+
+    return {
+        "user_id": int(temp_user_id),
+        "doc_id": int(seed["doc_id"]),
+        "role_id": int(role_id),
+        "temp_person_id": int(temp_person_id),
+    }
+
+
 def _cleanup_rls_fixture(conn, fixture: dict) -> None:
     conn.execute(
         text(
@@ -402,6 +521,40 @@ def _cleanup_rls_fixture(conn, fixture: dict) -> None:
             """
         ),
         {"role_a": fixture["role_a"], "role_b": fixture["role_b"]},
+    )
+    conn.execute(
+        text("DELETE FROM ref.users WHERE user_id = :user_id"), {"user_id": fixture["user_id"]}
+    )
+    conn.execute(
+        text("DELETE FROM ref.person WHERE person_id = :person_id"),
+        {"person_id": fixture["temp_person_id"]},
+    )
+
+
+def _cleanup_unsupported_scope_fixture(conn, fixture: dict) -> None:
+    conn.execute(
+        text(
+            """
+            DELETE FROM ref.user_roles
+            WHERE user_id = :user_id
+              AND role_id = :role_id
+            """
+        ),
+        {
+            "user_id": fixture["user_id"],
+            "role_id": fixture["role_id"],
+        },
+    )
+    conn.execute(
+        text("DELETE FROM ref.role_scopes WHERE role_id = :role_id"),
+        {"role_id": fixture["role_id"]},
+    )
+    conn.execute(
+        text("DELETE FROM ref.role_permissions WHERE role_id = :role_id"),
+        {"role_id": fixture["role_id"]},
+    )
+    conn.execute(
+        text("DELETE FROM ref.roles WHERE role_id = :role_id"), {"role_id": fixture["role_id"]}
     )
     conn.execute(
         text("DELETE FROM ref.users WHERE user_id = :user_id"), {"user_id": fixture["user_id"]}
@@ -719,6 +872,39 @@ def test_check_user_permission_fail_closed_inputs():
                 unknown_user is False
             ), f"{SCENARIO_FAIL_CLOSED_PREDICATE} unknown user must fail closed"
     finally:
+        admin_engine.dispose()
+        app_engine.dispose()
+
+
+@pytest.mark.api_smoke
+@pytest.mark.parametrize("scope_type", ["AREA", "UNIT"])
+def test_read_rls_rejects_unsupported_scope_types(scope_type: str):
+    admin_engine = create_engine(_build_admin_database_url(), future=True)
+    app_engine = create_engine(_build_app_user_database_url(), future=True)
+    fixture = None
+    try:
+        with admin_engine.begin() as admin_conn:
+            fixture = _prepare_unsupported_scope_fixture(admin_conn, scope_type)
+
+        with app_engine.connect() as app_conn:
+            visible_docs = _query_visible_ids(
+                app_conn,
+                user_id=fixture["user_id"],
+                sql_text="""
+                    SELECT doc_id
+                    FROM workflow.v_documents
+                    WHERE doc_id = :doc_id
+                """,
+                params={"doc_id": fixture["doc_id"]},
+            )
+            assert visible_docs == [], (
+                f"{SCENARIO_UNSUPPORTED_SCOPE_FAIL_CLOSED} expected no visibility for "
+                f"unsupported {scope_type} scope assignments"
+            )
+    finally:
+        if fixture is not None:
+            with admin_engine.begin() as admin_conn:
+                _cleanup_unsupported_scope_fixture(admin_conn, fixture)
         admin_engine.dispose()
         app_engine.dispose()
 

@@ -846,6 +846,16 @@ BEGIN
         RETURN TRUE;
     END IF;
 
+    IF EXISTS (
+        SELECT 1
+        FROM ref.user_roles ur
+        JOIN ref.role_scopes rs ON rs.role_id = ur.role_id
+        WHERE ur.user_id = p_user_id
+          AND rs.scope_type <> 'PROJECT'
+    ) THEN
+        RETURN FALSE;
+    END IF;
+
     IF p_doc_id IS NOT NULL AND v_project_id IS NULL THEN
         SELECT d.project_id
         INTO v_project_id
@@ -951,6 +961,16 @@ BEGIN
 
     IF v_is_super THEN
         RETURN TRUE;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM ref.user_roles ur
+        JOIN ref.role_scopes rs ON rs.role_id = ur.role_id
+        WHERE ur.user_id = p_user_id
+          AND rs.scope_type <> 'PROJECT'
+    ) THEN
+        RETURN FALSE;
     END IF;
 
     SELECT EXISTS (

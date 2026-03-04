@@ -128,6 +128,11 @@ Behavior:
   - resolved document scope when `p_doc_id` is provided.
 - Returns `true` when access is allowed, else `false`.
 
+Current implementation note:
+- The target model allows `PROJECT`, `AREA`, and `UNIT` scope dimensions.
+- Phase 1 implemented/read-path deployments support only `PROJECT` scope assignments.
+- `AREA` and `UNIT` scope types remain target-state design elements until a later rollout phase activates and tests them.
+
 Fail-closed rules:
 - Unknown user, no roles, invalid capability, or unresolved document must return `false`.
 - Workflow wrapper functions may convert `false` to `403` (for API) or explicit DB exception.

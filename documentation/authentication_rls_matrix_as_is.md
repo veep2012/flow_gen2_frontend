@@ -9,7 +9,7 @@
 - Version: v1.0
 
 ## Change Log
-- 2026-03-04 | v1.0 | Added implemented auth observability surface: Prometheus-style `/metrics` counters for current-user resolution failures, observable RLS denials, and identity header parse failures; and structured auth-event logs carrying request correlation IDs and auth mode.
+- 2026-03-04 | v1.0 | Added implemented auth observability surface: Prometheus-style `/metrics` counters for current-user resolution failures, observable RLS denials, and identity header parse failures; added structured auth-event logs carrying request correlation IDs and auth mode; clarified that Phase 1 supports only `PROJECT` scope assignments while `AREA`/`UNIT` scope types remain reserved for future phases; and documented fail-closed handling for unsupported non-project scope assignments.
 - 2026-02-27 | v0.5 | Corrected `ref.sync_user_primary_role()` behavior so mirror inserts from `ref.users.role_id` are non-destructive and preserve existing secondary `ref.user_roles` assignments, added one `EXPLAIN (ANALYZE, BUFFERS)` read-path baseline for `workflow.v_documents` with the RLS predicate active, and documented that revision mutation endpoints (`status transition`, `cancel`) now build response payloads from workflow function return rows (plus lookup enrichments) instead of re-reading through scope-filtered revision views, preventing false `Revision not found` after successful writes.
 - 2026-02-26 | v0.3 | Updated as-is snapshot for Phase 1: documented implemented `workflow.check_user_permission(...)`, read-side RLS policies, project-scoped lookup behavior, and fail-closed outcomes.
 - 2026-02-25 | v0.1 | Initial as-is snapshot of implemented authentication and authorization-related schema/session behavior.
@@ -134,6 +134,9 @@ Current implementation is a hybrid state: role-model foundations are active, and
   - `read-write` request accepts grant `read-write` only.
 - Scope evaluation in this phase is project-based:
   - Non-super users are matched through `ref.role_scopes` rows where `scope_type='PROJECT'`.
+  - Only `PROJECT` scope assignments are part of the supported Phase 1 operating model.
+  - `AREA` and `UNIT` scope types exist in schema as forward-looking shape only and are excluded from current deployment/seed usage.
+  - If unsupported `AREA` or `UNIT` scope rows are assigned anyway, read authorization fails closed in Phase 1.
   - `logic_group` is evaluated per role/group boundary in predicate grouping.
   - If no matching scope groups exist, access is denied (fail-closed).
 - Super-role shortcut is active:
@@ -162,6 +165,8 @@ Current implementation is a hybrid state: role-model foundations are active, and
   - `workflow.v_projects` uses `workflow.check_lookup_scope_permission(...)` with `scope_type='PROJECT'`.
 - `areas` and `units` are not scope-filtered in this phase:
   - `workflow.v_areas` and `workflow.v_units` remain unfiltered lookup views.
+- `AREA` and `UNIT` entries in `ref.role_scopes` are out of current supported scope:
+  - they are reserved for later phases and must not be treated as active read-path authorization inputs in Phase 1 operations/documentation.
 - `workflow.check_lookup_scope_permission(...)` is fail-closed for invalid/unknown context and non-super users without matching scope rows.
 
 ### Seed baseline (implemented)
@@ -205,6 +210,8 @@ Current implementation is a hybrid state: role-model foundations are active, and
   - `ref.sync_user_primary_role()` adds/ensures the primary role binding from `ref.users.role_id`; it does not remove secondary `ref.user_roles` assignments. Divergence can still occur if external role management does not keep legacy `ref.users.role_id` aligned with intended primary role.
 - Scope rows absent for non-super user:
   - Current implementation denies reads (fail-closed), because no scope-group match exists.
+- `AREA`/`UNIT` role scopes assigned during Phase 1:
+  - This is outside the supported operating model. Phase 1 documentation, seeds, and tests assume only `PROJECT` scope assignments are active.
 - Mixed legacy/new superuser checks:
   - `workflow.is_superuser(...)` accepts both `is_super=true` and legacy role-name matching.
 
