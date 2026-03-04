@@ -12,10 +12,19 @@ from api.schemas.written_comments import (
     WrittenCommentOut,
     WrittenCommentUpdate,
 )
-from api.utils.database import get_db
+from api.utils.database import (
+    MISSING_IDENTITY_DETAIL,
+    get_db,
+    get_effective_user_id,
+    require_effective_identity,
+)
 from api.utils.helpers import _model_list, _model_out, _raise_for_dbapi_error
 
-router = APIRouter(prefix="/api/v1/documents/revisions", tags=["comments"])
+router = APIRouter(
+    prefix="/api/v1/documents/revisions",
+    tags=["comments"],
+    dependencies=[Depends(require_effective_identity)],
+)
 
 _WRITTEN_COMMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("revision not found", 404, "Revision not found"),
@@ -33,17 +42,6 @@ _WRITTEN_COMMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ),
     ("comment text must not be blank", 400, "Comment text must not be blank"),
 )
-
-
-def _current_app_user_id(db: Session) -> int | None:
-    row = (
-        db.execute(
-            text("SELECT NULLIF(current_setting('app.user', true), '')::SMALLINT AS user_id")
-        )
-        .mappings()
-        .one()
-    )
-    return row["user_id"]
 
 
 @router.get(
@@ -259,12 +257,9 @@ def update_written_comment(
 
     Uses current app user (X-User-Id header) as actor for authorization.
     """
-    actor_user_id = _current_app_user_id(db)
+    actor_user_id = get_effective_user_id(db)
     if not actor_user_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Current user is required (set X-User-Id header)",
-        )
+        raise HTTPException(status_code=401, detail=MISSING_IDENTITY_DETAIL)
     try:
         row = (
             db.execute(
@@ -350,12 +345,9 @@ def delete_written_comment(
 
     Uses current app user (X-User-Id header) as actor for authorization.
     """
-    actor_user_id = _current_app_user_id(db)
+    actor_user_id = get_effective_user_id(db)
     if not actor_user_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Current user is required (set X-User-Id header)",
-        )
+        raise HTTPException(status_code=401, detail=MISSING_IDENTITY_DETAIL)
     row = (
         db.execute(
             text("SELECT id FROM workflow.v_written_comments WHERE id = :id"),

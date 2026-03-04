@@ -5,15 +5,13 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-26
-- Version: v2.4
+- Last Updated: 2026-03-04
+- Version: v2.9
 
 ## Change Log
+- 2026-03-04 | v2.9 | Added `/metrics` system endpoint for in-process auth observability counters; documented auth metrics for current-user resolution failures, observable RLS denials by endpoint, and identity header parse failures; and documented structured auth-event logs with correlation IDs and auth mode.
 - 2026-02-26 | v2.4 | Documented Phase 1 read authorization effects on lookup reads: `GET /lookups/projects` is scope-filtered by role project scope; `areas` and `units` remain unfiltered in this phase.
-- 2026-02-25 | v2.3 | Updated `GET /api/v1/people/users/current_user` to resolve current user from session context (`app.user`) instead of hardcoded `user_id=2`.
-- 2026-02-25 | v2.2 | Enforced `user_acronym`-only identity input for `X-User-Id` and `APP_USER` resolution.
-- 2026-02-25 | v2.1 | Removed legacy default fallback variable; user context now resolves from `X-User-Id` header first, then optional `APP_USER` only. Header/env values resolve by `user_acronym` (preferred) or `user_id`.
-- 2026-02-25 | v2.0 | Documented `APP_USER` local/dev bootstrap behavior, non-production-only guardrails, startup validation against `ref.users`, and dual DB session context keys (`app.user`, `app.user_id`).
+- 2026-02-25 | v2.3 | Documented `APP_USER` local/dev bootstrap behavior with non-production-only guardrails and startup validation against `ref.users`, removed the legacy default fallback variable so user context resolves from `X-User-Id` first then optional `APP_USER`, enforced `user_acronym`-only identity input for those sources, documented dual DB session context keys (`app.user`, `app.user_id`), and updated `GET /api/v1/people/users/current_user` to resolve the current user from session context instead of hardcoded `user_id=2`.
 - 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, corrected file update-body `id` validation contract to `422` (extra field forbidden), added nullable `doc_id` support for distribution lists (`create/list`), documented `dl_for_each_doc=true` auto-DL creation on document create, extended people/persons and people/users payloads with duty fields (`duty_id`, `duty_name`), and added distribution-list search by `doc_id` (`GET /distribution-lists?doc_id=...`).
 - 2026-02-20 | v1.8 | Renamed commented download query parameter from `file_id` to `id`.
 - 2026-02-19 | v1.7 | Updated API contracts and examples for latest backend behavior.
@@ -85,7 +83,7 @@ Common status codes (by endpoint and context):
 - `201 Created` — Successful create responses.
 - `204 No Content` — Successful delete responses.
 - `400 Bad Request` — Domain validation or duplicate/uniqueness violations.
-- `401 Unauthorized` — Authentication required (not currently enforced in this API surface).
+- `401 Unauthorized` — Authentication required for auth-sensitive routers when effective session identity is missing.
 - `403 Forbidden` — Authenticated but not authorized (enforced for notification replace/drop actions).
 - `404 Not Found` — Resource does not exist.
 - `409 Conflict` — Returned when workflow/business rules reject the action (for example: revision status transition/cancel constraints, distribution list in use).
@@ -106,11 +104,31 @@ OpenAPI/Swagger:
 Audit fields (created_by / updated_by):
 - `created_by` and `updated_by` are set by the application or by DB triggers when NULL.
 - DB triggers read session setting `app.user` (SMALLINT user id). The API sets both `app.user` (current) and `app.user_id` (forward-compatible auth context) per request.
+- The API stores the resolved user id on the SQLAlchemy request session and writes both DB keys with transaction-local scope (`set_config(..., true)`) whenever a DB transaction begins.
+- This transaction-local re-application is required because many endpoints issue mid-request `COMMIT` / `ROLLBACK`; after each new transaction begins, identity is pushed again before business queries run.
+- When effective identity is absent, the API still writes both keys as empty strings at transaction scope so reused pooled connections cannot inherit a previous request's session-level residue.
 - User resolution order:
   - `X-User-Id` header when provided.
   - `APP_USER` environment fallback when header is missing.
 - `X-User-Id` value must be existing `user_acronym`; API resolves it to internal `user_id` before setting DB session context.
 - `APP_USER` is guarded: it must be used only in non-production environments (`local/dev/test/ci/ci_test`), and startup validation must confirm that configured value resolves to a row in `workflow.v_users`.
+- `APP_USER` format is validated at startup with a strict uppercase acronym regex: `^[A-Z]{2,12}$`.
+- `APP_ENV=production` (or other blocked/unknown non-allowed envs) plus `APP_USER` causes startup failure before the API begins serving requests.
+- Startup logs emit a clear identity banner:
+  - `startup_identity_mode=request_header_only ...` when only request-header identity is active.
+  - `startup_identity_mode=app_user_bootstrap ...` when `APP_USER` bootstrap mode is active.
+- Auth-sensitive routers fail closed with `401 Unauthorized` when both `X-User-Id` and effective session identity are absent. The API logs a security event with `X-Request-Id`, HTTP method, and path only.
+- Auth observability counters are exposed at `GET /metrics` in Prometheus text format:
+  - `flow_auth_current_user_resolution_failures_total{reason=...}`
+  - `flow_auth_denied_by_rls_total{endpoint=...,status_code=...,auth_mode=...}`
+  - `flow_auth_identity_header_parse_failures_total{auth_mode=...}`
+- Auth-event logs are structured as key-value fields and include:
+  - `event`
+  - `request_id`
+  - `auth_mode`
+  - `method`
+  - `path`
+  - reason-specific fields such as `reason` or `header_name`
 
 ## Health and root
 - `GET /` — Returns `{"message": "Flow backend is running"}`.
@@ -132,6 +150,18 @@ curl -sS -H "Accept: application/json" $API_BASE/health
 - Example response:
 ```json
 { "status": "ok" }
+```
+- `GET /metrics` — Returns Prometheus text-format counters for in-process API observability.
+- Headers: `Accept: text/plain`
+- Example request:
+```bash
+curl -sS -H "Accept: text/plain" $API_BASE/metrics
+```
+- Example response:
+```text
+# HELP flow_auth_current_user_resolution_failures_total Current-user resolution failures by reason.
+# TYPE flow_auth_current_user_resolution_failures_total counter
+flow_auth_current_user_resolution_failures_total{reason="missing_identity"} 3
 ```
 
 ## Lookups
@@ -734,24 +764,36 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/users
 ]
 ```
 ### Current user
-- `GET /api/v1/people/users/current_user` — 200; returns current user from DB session context (`app.user`); 401 if session user is missing; 404 if user not found.
+- `GET /api/v1/people/users/current_user` — 200; returns current user from DB session context (`app.user`).
+- `401 Unauthorized` when no effective session identity exists.
+- `404 Not Found` when a session identity exists but the current-user read model cannot resolve it.
+  - Includes users filtered/hidden from the visible read model.
+  - Includes inactive/disabled/deprovisioned users that no longer resolve in the active user dataset.
 - Headers: `Accept: application/json`, optional `X-User-Id: <user_acronym>`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/users/current_user
+curl -sS -H "Accept: application/json" -H "X-User-Id: FDQC" $API_BASE/api/v1/people/users/current_user
 ```
 - Example response:
 ```json
 {
   "user_id": 2,
   "person_id": 1,
-  "user_acronym": "USR",
-  "role_id": 1,
-  "person_name": "User",
-  "role_name": "Viewer",
+  "user_acronym": "FDQC",
+  "role_id": 4,
+  "person_name": "Flow DCC",
+  "role_name": "DCC User",
   "duty_id": 1,
   "duty_name": "Engineer"
 }
+```
+- Example `401` response:
+```json
+{ "detail": "Authentication required" }
+```
+- Example `404` response:
+```json
+{ "detail": "Current user not found" }
 ```
 ## Permissions
 Shape (single item):

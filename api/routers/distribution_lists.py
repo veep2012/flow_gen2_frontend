@@ -13,10 +13,14 @@ from api.schemas.distribution_lists import (
     DistributionListMemberOut,
     DistributionListOut,
 )
-from api.utils.database import get_db
+from api.utils.database import get_db, require_effective_identity
 from api.utils.helpers import _example_for, _model_list, _model_out, _raise_for_dbapi_error
 
-router = APIRouter(prefix="/api/v1/distribution-lists", tags=["distribution-lists"])
+router = APIRouter(
+    prefix="/api/v1/distribution-lists",
+    tags=["distribution-lists"],
+    dependencies=[Depends(require_effective_identity)],
+)
 
 _DL_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("distribution list not found", 404, "Distribution list not found"),

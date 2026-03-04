@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-26
-- Last Updated: 2026-02-26
-- Version: v0.1
+- Last Updated: 2026-03-04
+- Version: v0.2
 
 ## Change Log
+- 2026-03-04 | v0.2 | Added transaction-scoped session identity propagation scenario to prove pooled DB connections do not leak identity across rapid alternating API requests.
 - 2026-02-26 | v0.1 | Initial Phase 1 read-path authorization scenarios for `workflow.check_user_permission(...)` and inherited RLS read policies.
 
 ## Purpose
@@ -20,6 +21,7 @@ Define repeatable integration scenarios for Phase 1 read authorization enforceme
   - fail-closed read behavior for missing/unknown session user
   - fail-closed predicate behavior for invalid inputs and unresolved resources
   - inherited read filtering for `doc_revision`, `files`, and `files_commented`
+  - transaction-scoped identity behavior across pooled API requests
 - Out of scope:
   - write-path authorization (`read-write`, `WITH CHECK` policies)
   - IdP/JWT role mapping flow
@@ -31,6 +33,7 @@ Authorization is enforced by a single DB predicate and RLS `USING` policies. Rea
 - `TS-AUTH-001`: User with two scoped roles gets union visibility across both scoped projects, including inherited entities.
 - `TS-AUTH-002`: Missing or unknown `app.user_id` is fail-closed and returns no rows through read views.
 - `TS-AUTH-003`: `workflow.check_user_permission(...)` returns `false` for invalid capability/resource, unresolved doc, or role-less user context.
+- `TS-AUTH-004`: Rapid alternating API requests for different users do not leak `app.user` / `app.user_id` across pooled DB connections.
 
 ## Scenario Details
 
@@ -76,10 +79,25 @@ Authorization is enforced by a single DB predicate and RLS `USING` policies. Rea
 - Cleanup:
   - None beyond role/test fixture cleanup.
 
+### TS-AUTH-004 Transaction-Scoped Identity Isolation
+- Intent: Validate that request identity is re-applied per DB transaction so pooled connections cannot leak the previous caller.
+- Setup/Preconditions:
+  - Have at least two resolvable users with distinct `user_id` / `user_acronym` values.
+  - API is running with the normal pooled SQLAlchemy engine.
+- Request/Action:
+  - Send rapid alternating `GET /api/v1/people/users/current_user` requests with different `X-User-Id` values, including concurrent overlap.
+- Expected:
+  - Every response returns `200`.
+  - Each response body resolves the same `user_id` and `user_acronym` as the request header that triggered it.
+  - No response may return the other caller's identity.
+- Cleanup:
+  - None.
+
 ## Automated Test Mapping
 - `tests/api/api/test_authorization_read_rls.py::test_read_rls_multi_role_scope_union` -> `TS-AUTH-001`
 - `tests/api/api/test_authorization_read_rls.py::test_read_rls_fail_closed_for_missing_or_unknown_session_user` -> `TS-AUTH-002`
 - `tests/api/api/test_authorization_read_rls.py::test_check_user_permission_fail_closed_inputs` -> `TS-AUTH-003`
+- `tests/api/api/test_authorization_read_rls.py::test_current_user_identity_does_not_leak_across_rapid_requests` -> `TS-AUTH-004`
 
 ## References
 - `documentation/authorization_rls_matrix.md`

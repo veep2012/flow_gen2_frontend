@@ -6,10 +6,11 @@
 - Owner: Backend and Database Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-20
-- Version: v1.2
+- Last Updated: 2026-03-04
+- Version: v1.3
 
 ## Change Log
+- 2026-03-04 | v1.3 | Clarified that API read SQL must target `workflow.v_*` views only and documented the repository static guard for this contract.
 - 2026-02-20 | v1.2 | Added mandatory core-table audit metadata requirement, synchronized skill fallback reference, and added missing `core.written_comments` to authoritative `core` table inventory
 - 2026-02-06 | v1.1 | Established initial approved backend-database contract baseline
 
@@ -98,6 +99,7 @@ This is achieved via:
 The backend:
 - does **not** perform direct `INSERT/UPDATE/DELETE` on core tables
 - invokes workflow functions representing domain actions
+- performs read-side SQL through `workflow.v_*` views rather than `core`, `ref`, `audit`, or non-view `workflow.*` relations
 - maps database exceptions to HTTP responses
 
 Correctness does not depend on application logic.
@@ -192,6 +194,9 @@ Restrictions:
 - no direct DML on `core`
 - no direct access to `audit`
 - no mutation of `ref`
+
+Repository enforcement:
+- API Python read SQL is statically checked to ensure `FROM`/`JOIN` targets use `workflow.v_*` only, with a small explicit allowlist for workflow mutation functions that return rows.
 
 ---
 

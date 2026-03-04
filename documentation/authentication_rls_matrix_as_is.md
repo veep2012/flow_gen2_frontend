@@ -5,12 +5,12 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-25
-- Last Updated: 2026-02-27
-- Version: v0.5
+- Last Updated: 2026-03-04
+- Version: v1.0
 
 ## Change Log
-- 2026-02-27 | v0.5 | Revision mutation endpoints (`status transition`, `cancel`) now build response payloads from workflow function return rows (plus lookup enrichments) instead of re-reading through scope-filtered revision views, preventing false `Revision not found` after successful writes.
-- 2026-02-27 | v0.4 | Corrected `ref.sync_user_primary_role()` behavior: mirror insert from `ref.users.role_id` is non-destructive and preserves existing secondary `ref.user_roles` assignments; added one `EXPLAIN (ANALYZE, BUFFERS)` read-path baseline for `workflow.v_documents` with RLS predicate active.
+- 2026-03-04 | v1.0 | Added implemented auth observability surface: Prometheus-style `/metrics` counters for current-user resolution failures, observable RLS denials, and identity header parse failures; and structured auth-event logs carrying request correlation IDs and auth mode.
+- 2026-02-27 | v0.5 | Corrected `ref.sync_user_primary_role()` behavior so mirror inserts from `ref.users.role_id` are non-destructive and preserve existing secondary `ref.user_roles` assignments, added one `EXPLAIN (ANALYZE, BUFFERS)` read-path baseline for `workflow.v_documents` with the RLS predicate active, and documented that revision mutation endpoints (`status transition`, `cancel`) now build response payloads from workflow function return rows (plus lookup enrichments) instead of re-reading through scope-filtered revision views, preventing false `Revision not found` after successful writes.
 - 2026-02-26 | v0.3 | Updated as-is snapshot for Phase 1: documented implemented `workflow.check_user_permission(...)`, read-side RLS policies, project-scoped lookup behavior, and fail-closed outcomes.
 - 2026-02-25 | v0.1 | Initial as-is snapshot of implemented authentication and authorization-related schema/session behavior.
 
@@ -43,11 +43,54 @@ Current implementation is a hybrid state: role-model foundations are active, and
 - API writes both DB session keys:
   - `app.user` (legacy/currently used by triggers/functions).
   - `app.user_id` (forward-compatible key for target model).
-  - Both keys are set at session scope, so they remain available after endpoint-level `COMMIT` statements inside the same request.
+  - Both keys are set with transaction-local scope (`set_config(..., true)`), not pooled-connection session scope.
+  - Resolved identity is stored on the SQLAlchemy request session and re-applied automatically on every transaction begin.
+  - This preserves identity after endpoint-level `COMMIT` / `ROLLBACK` while preventing connection-pool bleed between requests.
+  - When no identity is present, both keys are explicitly set to empty strings for the transaction so stale session-level residue cannot survive checkout reuse.
 - `APP_USER` is environment-gated:
   - Allowed only for `local/dev/development/test/testing/ci/ci_test`.
   - Startup fails when `APP_USER` is set in blocked/unknown environments.
+  - Explicitly, `APP_ENV=production` + `APP_USER` is a startup error.
+  - `APP_USER` must match `^[A-Z]{2,12}$`.
   - Startup validates that `APP_USER` resolves to a row in `workflow.v_users`.
+- Startup emits a banner describing active identity mode:
+  - `startup_identity_mode=request_header_only` when `APP_USER` is not configured.
+  - `startup_identity_mode=app_user_bootstrap` when `APP_USER` bootstrap is active.
+- API-layer fail-closed guard is active for auth-sensitive routers:
+  - `documents`
+  - `files`
+  - `files_commented`
+  - `written_comments`
+  - `notifications`
+  - `distribution_lists`
+  - Requests without effective session identity return `401 Unauthorized` instead of running with an anonymous DB session.
+- Missing-identity denials are logged as security events with:
+  - `X-Request-Id`
+  - HTTP method
+  - request path
+  - no user acronym, token, cookie, or other PII
+- Structured auth-event logs now carry:
+  - `event`
+  - `request_id`
+  - `auth_mode`
+  - `method`
+  - `path`
+  - event-specific non-PII fields such as `reason`, `status_code`, or `header_name`
+- Current-user endpoint contract is explicit:
+  - `GET /api/v1/people/users/current_user` returns `401` when no effective session identity exists.
+  - The same endpoint returns `404` when identity exists but no current-user row resolves from the read model.
+  - This `404` includes hidden/filtered and deprovisioned/inactive user states.
+
+### Auth observability (implemented)
+- `GET /metrics` exposes in-process counters in Prometheus text format.
+- Current auth counters:
+  - `flow_auth_current_user_resolution_failures_total{reason=missing_identity|unresolved_read_model}`
+  - `flow_auth_denied_by_rls_total{endpoint=...,status_code=...,auth_mode=...}`
+  - `flow_auth_identity_header_parse_failures_total{auth_mode=...}`
+- `flow_auth_denied_by_rls_total` counts observable API-layer auth denials:
+  - explicit `403` responses on auth-sensitive endpoints
+  - `404` on `GET /api/v1/people/users/current_user` when an authenticated identity is filtered/unresolved
+- Silent read filtering that returns `200` with an empty list remains intentionally out of metric scope because the API cannot distinguish that from “no matching rows” without changing endpoint contracts.
 
 ### Role model foundation (implemented)
 - `ref.roles` now includes:
@@ -132,6 +175,7 @@ Current implementation is a hybrid state: role-model foundations are active, and
 - Multi-role union read behavior is covered.
 - Missing/unknown session user fail-closed behavior is covered.
 - Predicate fail-closed behavior for invalid inputs is covered.
+- Rapid alternating-user API requests are covered to assert no cross-user identity leakage through pooled connections.
 - Scenario source of truth:
   - `documentation/test_scenarios/authorization_read_rls_api_test_scenarios.md`
 - Automated tests:
@@ -140,7 +184,7 @@ Current implementation is a hybrid state: role-model foundations are active, and
 ### Read-path performance sample (observed)
 - Context:
   - Local seeded test database (`make test-db-up`, PostgreSQL 18.1 image).
-  - Session context set to non-super user: `set_config('app.user_id', '3', false)`.
+  - Transaction context set to non-super user: `set_config('app.user_id', '3', true)`.
   - Query:
     - `EXPLAIN (ANALYZE, BUFFERS) SELECT doc_id, project_id, title FROM workflow.v_documents ORDER BY doc_id LIMIT 25;`
 - Observed plan summary:

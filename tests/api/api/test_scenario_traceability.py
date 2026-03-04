@@ -14,6 +14,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/authorization_read_rls_api_test_scenarios.md",
         ["TS-AUTH-003"],
     ),
+    "test_current_user_identity_does_not_leak_across_rapid_requests": (
+        "documentation/test_scenarios/authorization_read_rls_api_test_scenarios.md",
+        ["TS-AUTH-004"],
+    ),
     "test_audit_fields_document_and_revision": (
         "documentation/test_scenarios/audit_fields_api_test_scenarios.md",
         ["TS-AUD-001"],
@@ -78,6 +82,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/notifications_api_test_plan.md",
         ["TS-DL-004"],
     ),
+    "test_distribution_lists_require_session_identity": (
+        "documentation/test_scenarios/notifications_api_test_plan.md",
+        ["TS-DL-005"],
+    ),
     "test_documents_revisions_list": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-001"],
@@ -138,6 +146,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-015"],
     ),
+    "test_documents_revisions_require_session_identity": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-016"],
+    ),
     "test_files_commented_list": (
         "documentation/test_scenarios/files_commented_api_test_scenarios.md",
         ["TS-FC-001"],
@@ -182,6 +194,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/files_commented_api_test_scenarios.md",
         ["TS-FC-011"],
     ),
+    "test_files_commented_require_session_identity": (
+        "documentation/test_scenarios/files_commented_api_test_scenarios.md",
+        ["TS-FC-012"],
+    ),
     "test_written_comments_crud": (
         "documentation/test_scenarios/written_comments_api_test_scenarios.md",
         ["TS-WC-001"],
@@ -205,6 +221,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
     "test_written_comments_update_forbidden_non_author": (
         "documentation/test_scenarios/written_comments_api_test_scenarios.md",
         ["TS-WC-006"],
+    ),
+    "test_written_comments_require_session_identity": (
+        "documentation/test_scenarios/written_comments_api_test_scenarios.md",
+        ["TS-WC-007"],
     ),
     "test_files_crud_and_download": (
         "documentation/test_scenarios/files_api_test_scenarios.md",
@@ -242,9 +262,21 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/files_api_test_scenarios.md",
         ["TS-F-009"],
     ),
+    "test_files_require_session_identity": (
+        "documentation/test_scenarios/files_api_test_scenarios.md",
+        ["TS-F-010"],
+    ),
     "test_all_get_endpoints": (
         "documentation/test_scenarios/get_endpoints_api_test_scenarios.md",
         ["TS-GET-001"],
+    ),
+    "test_critical_list_endpoints_match_response_models": (
+        "documentation/test_scenarios/endpoint_contract_api_test_scenarios.md",
+        ["TS-CTR-001"],
+    ),
+    "test_current_user_detail_matches_response_model": (
+        "documentation/test_scenarios/endpoint_contract_api_test_scenarios.md",
+        ["TS-CTR-002"],
     ),
     "test_notifications_create_list_mark_read_flow": (
         "documentation/test_scenarios/notifications_api_test_plan.md",
@@ -270,6 +302,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/notifications_api_test_plan.md",
         ["TS-NTF-006"],
     ),
+    "test_notifications_require_session_identity": (
+        "documentation/test_scenarios/notifications_api_test_plan.md",
+        ["TS-NTF-007"],
+    ),
 }
 
 TEST_FILES = [
@@ -280,6 +316,7 @@ TEST_FILES = [
     "tests/api/api/test_documents_revisions_endpoints.py",
     "tests/api/api/test_files_commented_endpoints.py",
     "tests/api/api/test_files_endpoints.py",
+    "tests/api/api/test_endpoint_contracts.py",
     "tests/api/api/test_get_endpoints.py",
     "tests/api/api/test_notifications_endpoints.py",
     "tests/api/api/test_written_comments_endpoints.py",

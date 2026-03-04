@@ -1,6 +1,6 @@
 """People and security endpoints for persons, users, and permissions."""
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Query, Session
@@ -18,7 +18,12 @@ from api.schemas.people import (
     UserOut,
     UserUpdate,
 )
-from api.utils.database import get_db
+from api.utils.database import (
+    MISSING_IDENTITY_DETAIL,
+    get_db,
+    get_effective_user_id,
+    record_current_user_resolution_failure,
+)
 from api.utils.helpers import (
     _example_for,
     _handle_integrity_error,
@@ -28,6 +33,8 @@ from api.utils.helpers import (
 )
 
 router = APIRouter(prefix="/api/v1/people", tags=["people"])
+
+CURRENT_USER_NOT_FOUND_DETAIL = "Current user not found"
 
 
 def _build_user_out(user: User) -> UserOut:
@@ -515,23 +522,26 @@ def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
     tags=["people"],
     response_model=UserOut,
     responses={
+        401: {
+            "description": "Unauthorized",
+            "content": {"application/json": {"example": {"detail": MISSING_IDENTITY_DETAIL}}},
+        },
         404: {
             "description": "Not Found",
-            "content": {"application/json": {"example": {"detail": "User not found"}}},
+            "content": {"application/json": {"example": {"detail": CURRENT_USER_NOT_FOUND_DETAIL}}},
         },
     },
 )
-def get_current_user(db: Session = Depends(get_db)) -> UserOut:
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> UserOut:
     """
     Get current user.
 
     Returns the current user and person info from DB session context.
     """
-    current_user_id = db.execute(
-        text("SELECT NULLIF(current_setting('app.user', true), '')::SMALLINT")
-    ).scalar_one_or_none()
+    current_user_id = get_effective_user_id(db)
     if current_user_id is None:
-        raise HTTPException(status_code=401, detail="Current user is required")
+        record_current_user_resolution_failure(request, reason="missing_identity")
+        raise HTTPException(status_code=401, detail=MISSING_IDENTITY_DETAIL)
 
     row = (
         db.execute(
@@ -559,7 +569,10 @@ def get_current_user(db: Session = Depends(get_db)) -> UserOut:
         .one_or_none()
     )
     if not row:
-        raise HTTPException(status_code=404, detail="User not found")
+        # A session identity exists, but the current-user read model no longer resolves it.
+        # This covers hidden/filtered/deprovisioned user states with one stable contract.
+        record_current_user_resolution_failure(request, reason="unresolved_read_model")
+        raise HTTPException(status_code=404, detail=CURRENT_USER_NOT_FOUND_DETAIL)
     return _model_out(UserOut, row)
 
 

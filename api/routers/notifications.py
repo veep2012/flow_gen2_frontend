@@ -17,7 +17,12 @@ from api.schemas.notifications import (
     NotificationRecipientStateOut,
     NotificationReplace,
 )
-from api.utils.database import get_db
+from api.utils.database import (
+    MISSING_IDENTITY_DETAIL,
+    get_db,
+    get_effective_user_id,
+    require_effective_identity,
+)
 from api.utils.helpers import (
     _example_for,
     _model_list,
@@ -26,7 +31,11 @@ from api.utils.helpers import (
     _raise_for_dbapi_error,
 )
 
-router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
+router = APIRouter(
+    prefix="/api/v1/notifications",
+    tags=["notifications"],
+    dependencies=[Depends(require_effective_identity)],
+)
 
 _NOTIFICATION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("notification not found", 404, "Notification not found"),
@@ -80,19 +89,8 @@ _COMMON_RESPONSES: dict[int | str, dict[str, Any]] = {
 }
 
 
-def _current_app_user_id(db: Session) -> int | None:
-    row = (
-        db.execute(
-            text("SELECT NULLIF(current_setting('app.user', true), '')::SMALLINT AS user_id")
-        )
-        .mappings()
-        .one()
-    )
-    return row["user_id"]
-
-
 def _resolve_user_or_fail(db: Session, explicit_user_id: int | None, *, field_name: str) -> int:
-    user_id = explicit_user_id or _current_app_user_id(db)
+    user_id = explicit_user_id or get_effective_user_id(db)
     if not user_id:
         raise HTTPException(
             status_code=400,
@@ -102,12 +100,9 @@ def _resolve_user_or_fail(db: Session, explicit_user_id: int | None, *, field_na
 
 
 def _require_current_user(db: Session) -> int:
-    user_id = _current_app_user_id(db)
+    user_id = get_effective_user_id(db)
     if not user_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Current user is required (set X-User-Id header)",
-        )
+        raise HTTPException(status_code=401, detail=MISSING_IDENTITY_DETAIL)
     return user_id
 
 

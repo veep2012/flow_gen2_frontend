@@ -4,6 +4,8 @@ import time
 import httpx
 import pytest
 
+_DEFAULT_TEST_USER_ACRONYM = os.getenv("TEST_USER_ACRONYM", "FDQC")
+
 
 def _base_and_prefix() -> tuple[str, str]:
     base = os.getenv("API_BASE", "http://localhost:4175").rstrip("/")
@@ -13,9 +15,18 @@ def _base_and_prefix() -> tuple[str, str]:
     return base, prefix
 
 
+def _merge_default_auth(kwargs: dict) -> dict:
+    merged = dict(kwargs)
+    if merged.pop("auth", True):
+        headers = dict(merged.get("headers") or {})
+        headers.setdefault("X-User-Id", _DEFAULT_TEST_USER_ACRONYM)
+        merged["headers"] = headers
+    return merged
+
+
 def _request(client: httpx.Client, url: str, **kwargs) -> dict:
     start = time.perf_counter()
-    response = client.get(url, **kwargs)
+    response = client.get(url, **_merge_default_auth(kwargs))
     duration_ms = (time.perf_counter() - start) * 1000
     payload = None
     if response.content:
@@ -47,6 +58,10 @@ def test_all_get_endpoints():
 
         root = _request(client, f"{base}/")
         assert 200 <= root["status"] < 300, f"/ failed: {root['status']}"
+
+        metrics = _request(client, f"{base}/metrics", auth=False)
+        assert 200 <= metrics["status"] < 300, f"/metrics failed: {metrics['status']}"
+        assert isinstance(metrics["payload"], str), "/metrics must return text payload"
 
         projects = _request(client, f"{base}{prefix}/lookups/projects")
         project_id = None

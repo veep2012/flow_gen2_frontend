@@ -26,14 +26,18 @@
 
 ## Test Scenarios
 - `test_scenarios/audit_fields_api_test_scenarios.md` - Scenario contract for audit-field API smoke tests.
+- `test_scenarios/auth_router_matrix_api_test_scenarios.md` - Router-level fail-closed auth regression matrix for changed auth-sensitive routes.
 - `test_scenarios/authorization_read_rls_api_test_scenarios.md` - Scenario contract for Phase 1 read authorization/RLS coverage.
 - `test_scenarios/cancel_delete_api_test_scenarios.md` - Scenario contract for revision cancel and document delete tests.
 - `test_scenarios/documents_revisions_api_test_scenarios.md` - Scenario contract for revisions list/create/update/status transitions.
+- `test_scenarios/endpoint_contract_api_test_scenarios.md` - Response-shape contract checks for critical list and detail endpoints.
 - `test_scenarios/files_api_test_scenarios.md` - Scenario contract for file upload/update/download/validation tests.
 - `test_scenarios/files_commented_api_test_scenarios.md` - Scenario contract for commented-file endpoints.
 - `test_scenarios/written_comments_api_test_scenarios.md` - Scenario contract for written-comments endpoints.
 - `test_scenarios/get_endpoints_api_test_scenarios.md` - Scenario contract for global GET endpoint smoke validation.
 - `test_scenarios/notifications_api_test_plan.md` - End-to-end curl plan for notification lifecycle API validation.
+- `test_scenarios/current_user_api_test_scenarios.md` - Contract scenarios for `GET /people/users/current_user`.
+- `test_scenarios/read_sql_guard_api_test_scenarios.md` - Static guard contract for API SQL reads using `workflow.v_*` views only.
 
 ## Standards and Templates
 - `_documentation_standards.md` - Required structure and writing rules.

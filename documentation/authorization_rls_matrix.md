@@ -5,11 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-21
-- Last Updated: 2026-02-27
-- Version: v0.8
+- Last Updated: 2026-03-04
+- Version: v1.0
 
 ## Change Log
-- 2026-02-27 | v0.8 | Clarified implemented DB session-context scope: `set_config(..., false)` (session-level) is intentional so auth context persists across endpoint-level commits within one request/connection.
+- 2026-03-04 | v1.0 | Added explicit auth observability requirements for rollout: counters for current-user resolution failures, observable deny events by endpoint, identity parse failures, and structured auth-event logs with correlation IDs and auth mode.
 - 2026-02-26 | v0.7 | Updated implementation reality through Phase 1: read-path predicate/RLS and project-scoped lookup filtering are now implemented and test-covered.
 - 2026-02-25 | v0.5 | Added architecture review summary, gradual implementation plan, edge cases, and references.
 - 2026-02-21 | v0.4 | Added local developer mode using `APP_USER` to bootstrap `app.user_id` with strict non-production guardrails.
@@ -69,9 +69,10 @@ For local development only, application may bootstrap session context from envir
 Contract:
 - `APP_USER` contains `user_acronym`.
 - API startup/request middleware validates that `APP_USER` resolves in `ref.users`.
-- Middleware sets DB session:
-  - `set_config('app.user_id', '<resolved_user_id>', false)` (session-level scope).
-  - Session-level scope is intentional so context remains available after endpoint-level `COMMIT` statements on the same request connection.
+- Middleware stores resolved identity on the request-scoped SQLAlchemy session and sets DB transaction context:
+  - `set_config('app.user_id', '<resolved_user_id>', true)` (transaction-local scope).
+  - The same transaction-begin hook must re-apply identity after each endpoint-level `COMMIT` / `ROLLBACK`.
+  - When identity is absent, the hook must set empty-string values transaction-locally to override any stale connection residue.
 - If `APP_USER` is missing or unresolved:
   - fail closed (`401`/`403`) by default, or
   - allow explicit fallback to predefined local user only when `APP_ENV=local`.
@@ -87,10 +88,10 @@ Example (application side pseudocode):
 if APP_ENV == "local" and APP_USER is set:
     v_user_id = resolve APP_USER by ref.users.user_acronym
     assert v_user_id is not null
-    set_config('app.user_id', v_user_id, false)
+    on each transaction begin: set_config('app.user_id', v_user_id, true)
 else:
     user_id = resolve from trusted auth context
-    set_config('app.user_id', user_id, false)
+    on each transaction begin: set_config('app.user_id', user_id, true)
 ```
 
 ### RLS target behavior (conceptual)
@@ -385,6 +386,16 @@ Tasks:
 - Run load tests focused on authorization predicate overhead.
 - Add audit logging for authorization allow/deny decisions and policy path.
 - Run staged rollout: shadow mode metrics, then enforced mode by environment.
+  - Required counters:
+    - `flow_auth_current_user_resolution_failures_total`
+    - `flow_auth_denied_by_rls_total`
+    - `flow_auth_identity_header_parse_failures_total`
+  - Required structured log fields:
+    - `event`
+    - `request_id`
+    - `auth_mode`
+    - `method`
+    - `path`
 - Conduct security review and finalize role matrix sign-off with business owners.
 
 Exit criteria:

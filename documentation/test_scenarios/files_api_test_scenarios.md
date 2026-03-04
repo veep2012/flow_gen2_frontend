@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-02-11
-- Version: v1.2
+- Last Updated: 2026-03-04
+- Version: v1.3
 
 ## Change Log
+- 2026-03-04 | v1.3 | Added fail-closed session-identity scenario for files router access.
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -103,6 +104,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/files/" -F "rev_id=$REV_ID" -F "file=@/etc
 - `TS-F-007` accepted PDF upload succeeds (`201`).
 - `TS-F-008` filename without extension is rejected (`400`).
 - `TS-F-009` concurrent uploads to same revision succeed.
+- `TS-F-010` files router denies requests when effective session identity is missing.
 
 ## Automated Test Mapping
 - `tests/api/api/test_files_endpoints.py::test_files_crud_and_download` -> `TS-F-001`
@@ -114,6 +116,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/files/" -F "rev_id=$REV_ID" -F "file=@/etc
 - `tests/api/api/test_files_endpoints.py::test_files_insert_accepted_file_type_pdf` -> `TS-F-007`
 - `tests/api/api/test_files_endpoints.py::test_files_insert_no_extension_rejected` -> `TS-F-008`
 - `tests/api/api/test_files_endpoints.py::test_files_concurrent_uploads_same_revision` -> `TS-F-009`
+- `tests/api/api/test_files_endpoints.py::test_files_require_session_identity` -> `TS-F-010`
 
 ## References
 - `tests/api/api/test_files_endpoints.py`

@@ -40,6 +40,21 @@ def test_files_commented_list_missing_file_id():
 
 
 @pytest.mark.api_smoke
+def test_files_commented_require_session_identity():
+    with httpx.Client(timeout=10) as client:
+        result = _request(
+            client,
+            "GET",
+            "/files/commented/list",
+            params={"file_id": 1},
+            headers={"X-User-Id": ""},
+            auth=False,
+        )
+        assert result["status"] == 401
+        assert result["payload"] == {"detail": "Authentication required"}
+
+
+@pytest.mark.api_smoke
 def test_files_commented_insert_and_download():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:

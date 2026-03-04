@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-21
-- Version: v1.6
+- Last Updated: 2026-03-04
+- Version: v1.7
 
 ## Change Log
+- 2026-03-04 | v1.7 | Added fail-closed session-identity scenarios for distribution-lists and notifications routers.
 - 2026-02-21 | v1.6 | Added DL `doc_id` scenario expectations for nullable create/list and document-linked create; added list filtering check via `GET /distribution-lists?doc_id=...`.
 - 2026-02-20 | v1.5 | Added Change Log section for standards compliance
 
@@ -26,12 +27,14 @@ Assumption: DB is already up and API is reachable on port `4175`.
 - `TS-DL-002` Duplicate distribution list name must be rejected (`400`).
 - `TS-DL-003` Distribution list used in notifications must not be deletable (`409`) and may be linked to `doc_id`.
 - `TS-DL-004` Distribution list create with missing `doc_id` must return `404`.
+- `TS-DL-005` Distribution-lists router must return `401` when effective session identity is missing.
 - `TS-NTF-001` Notification create -> list unread -> mark read flow must succeed.
 - `TS-NTF-002` Notification replace/delete chain must set dropped/superseded fields correctly.
 - `TS-NTF-003` Replace by non-sender/non-superuser must be forbidden (`403`).
 - `TS-NTF-004` Mark-read payload must reject `recipient_user_id` field (`422`).
 - `TS-NTF-005` Superuser on-behalf create must persist `sender_user_id`.
 - `TS-NTF-006` Notification create must reject empty `recipient_user_ids` and `recipient_dist_ids`.
+- `TS-NTF-007` Notifications router must return `401` when effective session identity is missing.
 
 Any change to these acceptance criteria must be reflected in:
 - this scenario document
@@ -318,12 +321,31 @@ curl -i -X POST "$API_BASE$API_PREFIX/distribution-lists" \
 Expected result:
 - returns `404` with `Document not found`.
 
+## 14. TS-DL-005 Distribution-lists Require Session Identity
+
+```bash
+curl -i "$API_BASE$API_PREFIX/distribution-lists"
+```
+
+Expected result:
+- returns `401` when `X-User-Id` is omitted and no default session user is configured.
+
+## 15. TS-NTF-007 Notifications Require Session Identity
+
+```bash
+curl -i "$API_BASE$API_PREFIX/notifications?recipient_user_id=$USER_A"
+```
+
+Expected result:
+- returns `401` when `X-User-Id` is omitted and no default session user is configured.
+
 ## Automated Test Mapping
 
 - `tests/api/api/test_distribution_lists_endpoints.py::test_distribution_lists_crud_and_membership` -> `TS-DL-001`
 - `tests/api/api/test_distribution_lists_endpoints.py::test_distribution_lists_duplicate_name_rejected` -> `TS-DL-002`
 - `tests/api/api/test_distribution_lists_endpoints.py::test_distribution_list_delete_rejected_when_used_by_notification` -> `TS-DL-003`
 - `tests/api/api/test_distribution_lists_endpoints.py::test_distribution_list_create_with_missing_doc_returns_404` -> `TS-DL-004`
+- `tests/api/api/test_distribution_lists_endpoints.py::test_distribution_lists_require_session_identity` -> `TS-DL-005`
 - `tests/api/api/test_distribution_lists_endpoints.py::test_distribution_lists_traceability_contract` -> validates this mapping contract.
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_create_list_mark_read_flow` -> `TS-NTF-001`
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_replace_delete_chain` -> `TS-NTF-002`
@@ -331,6 +353,7 @@ Expected result:
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_mark_read_rejects_payload_user_field` -> `TS-NTF-004`
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_create_on_behalf_sender` -> `TS-NTF-005`
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_create_requires_at_least_one_recipient_target` -> `TS-NTF-006`
+- `tests/api/api/test_notifications_endpoints.py::test_notifications_require_session_identity` -> `TS-NTF-007`
 
 ## References
 - `api/routers/notifications.py`

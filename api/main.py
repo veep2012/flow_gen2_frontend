@@ -2,10 +2,11 @@
 
 import inspect
 import os
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.routing import APIRoute
@@ -23,10 +24,14 @@ from api.routers import (
     written_comments,
 )
 from api.utils.database import (
+    REQUEST_ID_HEADER,
     _build_database_url,  # noqa: F401
+    get_auth_mode,
+    get_endpoint_label,
     validate_startup_app_user_mode,
 )
 from api.utils.minio import _build_file_object_key, _s3_safe_segment  # noqa: F401
+from api.utils.observability import increment_counter
 
 
 @asynccontextmanager
@@ -52,6 +57,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def attach_request_id(request: Request, call_next):
+    request_id = request.headers.get(REQUEST_ID_HEADER) or uuid.uuid4().hex
+    request.state.request_id = request_id
+    request.state.auth_mode = "unknown"
+    request.state.auth_identity_present = False
+    response = await call_next(request)
+    is_current_user_unresolved = (
+        response.status_code == 404 and request.url.path == "/api/v1/people/users/current_user"
+    )
+    is_authenticated_forbidden = response.status_code == 403 and bool(
+        getattr(request.state, "auth_identity_present", False)
+    )
+    if is_current_user_unresolved or is_authenticated_forbidden:
+        increment_counter(
+            "flow_auth_denied_by_rls_total",
+            endpoint=get_endpoint_label(request),
+            status_code=str(response.status_code),
+            auth_mode=get_auth_mode(request),
+        )
+    response.headers[REQUEST_ID_HEADER] = request_id
+    return response
+
 
 # Register routers
 app.include_router(system.router)

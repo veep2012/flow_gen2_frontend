@@ -34,7 +34,7 @@ from api.schemas.documents import (
     RevisionOverviewOut,
     RevisionOverviewUpdate,
 )
-from api.utils.database import get_db
+from api.utils.database import get_db, require_effective_identity
 from api.utils.helpers import (
     _example_for,
     _handle_integrity_error,
@@ -45,7 +45,11 @@ from api.utils.helpers import (
     _require_non_null_fields,
 )
 
-router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
+router = APIRouter(
+    prefix="/api/v1/documents",
+    tags=["documents"],
+    dependencies=[Depends(require_effective_identity)],
+)
 logger = logging.getLogger(__name__)
 
 

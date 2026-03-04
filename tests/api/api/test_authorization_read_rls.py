@@ -1,12 +1,15 @@
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
+import httpx
 import pytest
 from sqlalchemy import create_engine, text
 
 SCENARIO_MULTI_ROLE_UNION = "TS-AUTH-001"
 SCENARIO_FAIL_CLOSED_SESSION = "TS-AUTH-002"
 SCENARIO_FAIL_CLOSED_PREDICATE = "TS-AUTH-003"
+SCENARIO_TRANSACTION_IDENTITY_ISOLATION = "TS-AUTH-004"
 
 
 def _build_admin_database_url() -> str:
@@ -35,6 +38,14 @@ def _build_app_user_database_url() -> str:
     return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{db_name}"
 
 
+def _build_api_base_url() -> str:
+    base = os.getenv("API_BASE", "http://localhost:4175").rstrip("/")
+    prefix = os.getenv("API_PREFIX", "/api/v1").rstrip("/")
+    if prefix and not prefix.startswith("/"):
+        prefix = f"/{prefix}"
+    return f"{base}{prefix}"
+
+
 def _set_app_user_id(conn, user_id: int | None) -> None:
     value = "" if user_id is None else str(user_id)
     conn.execute(text("SELECT set_config('app.user_id', :value, true)"), {"value": value})
@@ -43,6 +54,30 @@ def _set_app_user_id(conn, user_id: int | None) -> None:
 def _query_visible_ids(conn, *, user_id: int | None, sql_text: str, params: dict) -> list[int]:
     _set_app_user_id(conn, user_id)
     return list(conn.execute(text(sql_text), params).scalars())
+
+
+def _load_two_distinct_users(conn) -> list[dict[str, int | str]]:
+    rows = (
+        conn.execute(
+            text(
+                """
+                SELECT user_id, user_acronym
+                FROM workflow.v_users
+                WHERE user_acronym IS NOT NULL
+                ORDER BY user_id
+                LIMIT 2
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    if len(rows) < 2:
+        pytest.skip("Need at least two users for transaction identity isolation test")
+
+    return [
+        {"user_id": int(row["user_id"]), "user_acronym": str(row["user_acronym"])} for row in rows
+    ]
 
 
 def _prepare_rls_fixture(conn) -> dict:
@@ -686,3 +721,43 @@ def test_check_user_permission_fail_closed_inputs():
     finally:
         admin_engine.dispose()
         app_engine.dispose()
+
+
+@pytest.mark.api_smoke
+def test_current_user_identity_does_not_leak_across_rapid_requests():
+    admin_engine = create_engine(_build_admin_database_url(), future=True)
+    try:
+        with admin_engine.connect() as admin_conn:
+            users = _load_two_distinct_users(admin_conn)
+
+        request_plan = [users[index % 2] for index in range(40)]
+        url = f"{_build_api_base_url()}/people/users/current_user"
+
+        def _fetch_current_user(
+            expected_user: dict[str, int | str]
+        ) -> tuple[dict[str, int | str], int, dict]:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(
+                    url,
+                    headers={"X-User-Id": str(expected_user["user_acronym"])},
+                )
+            return expected_user, response.status_code, response.json()
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            results = list(executor.map(_fetch_current_user, request_plan))
+
+        for expected_user, status_code, payload in results:
+            assert status_code == 200, (
+                f"{SCENARIO_TRANSACTION_IDENTITY_ISOLATION} expected 200 for "
+                f"{expected_user['user_acronym']}"
+            )
+            assert payload["user_id"] == expected_user["user_id"], (
+                f"{SCENARIO_TRANSACTION_IDENTITY_ISOLATION} expected user_id "
+                f"{expected_user['user_id']} but got {payload['user_id']}"
+            )
+            assert payload["user_acronym"] == expected_user["user_acronym"], (
+                f"{SCENARIO_TRANSACTION_IDENTITY_ISOLATION} expected acronym "
+                f"{expected_user['user_acronym']} but got {payload['user_acronym']}"
+            )
+    finally:
+        admin_engine.dispose()

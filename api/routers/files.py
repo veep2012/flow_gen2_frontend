@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
 from api.schemas.files import FileOut, FileUpdate
-from api.utils.database import get_db
+from api.utils.database import get_db, require_effective_identity
 from api.utils.helpers import (
     _build_default_filename_from_instance_parameter,
     _example_for,
@@ -34,7 +34,11 @@ from api.utils.minio import (
     _minio_with_retry,
 )
 
-router = APIRouter(prefix="/api/v1/files", tags=["files"])
+router = APIRouter(
+    prefix="/api/v1/files",
+    tags=["files"],
+    dependencies=[Depends(require_effective_identity)],
+)
 
 logger = logging.getLogger(__name__)
 

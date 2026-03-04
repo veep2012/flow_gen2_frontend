@@ -6,6 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 import httpx
 import pytest
 
+_DEFAULT_TEST_USER_ACRONYM = os.getenv("TEST_USER_ACRONYM", "FDQC")
+
 
 def _build_base_url() -> str:
     base = os.getenv("API_BASE", "http://localhost:4175").rstrip("/")
@@ -15,10 +17,19 @@ def _build_base_url() -> str:
     return f"{base}{prefix}"
 
 
+def _merge_default_auth(kwargs: dict) -> dict:
+    merged = dict(kwargs)
+    if merged.pop("auth", True):
+        headers = dict(merged.get("headers") or {})
+        headers.setdefault("X-User-Id", _DEFAULT_TEST_USER_ACRONYM)
+        merged["headers"] = headers
+    return merged
+
+
 def _request(client: httpx.Client, method: str, path: str, **kwargs) -> dict:
     url = f"{_build_base_url()}{path}"
     start = time.perf_counter()
-    response = client.request(method, url, **kwargs)
+    response = client.request(method, url, **_merge_default_auth(kwargs))
     duration_ms = (time.perf_counter() - start) * 1000
     payload = None
     if response.content and "application/json" in response.headers.get("content-type", ""):
@@ -165,6 +176,22 @@ def test_files_insert_empty_file_rejected():
             data={"rev_id": "1"},
         )
         assert result["status"] == 400
+
+
+@pytest.mark.api_smoke
+def test_files_require_session_identity():
+    with httpx.Client(timeout=10) as client:
+        rev_id = _get_test_revision_id(client)
+        result = _request(
+            client,
+            "GET",
+            "/files",
+            params={"rev_id": rev_id},
+            headers={"X-User-Id": ""},
+            auth=False,
+        )
+        assert result["status"] == 401
+        assert result["payload"] == {"detail": "Authentication required"}
 
 
 @pytest.mark.api_smoke

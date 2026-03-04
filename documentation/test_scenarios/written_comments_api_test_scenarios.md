@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-21
-- Last Updated: 2026-02-21
-- Version: v1.0
+- Last Updated: 2026-03-04
+- Version: v1.1
 
 ## Change Log
+- 2026-03-04 | v1.1 | Added fail-closed session-identity scenario for written-comments router access.
 - 2026-02-21 | v1.0 | Initial split from `files_commented_api_test_scenarios.md` into dedicated written-comments scenario contract.
 
 ## Purpose
@@ -131,6 +132,7 @@ curl -i -X DELETE -H "X-User-Id: $USER_ID" "$API_BASE$API_PREFIX/documents/revis
 - `TS-WC-004` delete by non-author/non-superuser is rejected (`403`).
 - `TS-WC-005` update by author succeeds.
 - `TS-WC-006` update by non-author/non-superuser is rejected (`403`).
+- `TS-WC-007` written-comments router denies requests when effective session identity is missing.
 
 ## Automated Test Mapping
 - `tests/api/api/test_written_comments_endpoints.py::test_written_comments_crud` -> `TS-WC-001`
@@ -139,6 +141,7 @@ curl -i -X DELETE -H "X-User-Id: $USER_ID" "$API_BASE$API_PREFIX/documents/revis
 - `tests/api/api/test_written_comments_endpoints.py::test_written_comments_delete_forbidden_non_author` -> `TS-WC-004`
 - `tests/api/api/test_written_comments_endpoints.py::test_written_comments_update` -> `TS-WC-005`
 - `tests/api/api/test_written_comments_endpoints.py::test_written_comments_update_forbidden_non_author` -> `TS-WC-006`
+- `tests/api/api/test_written_comments_endpoints.py::test_written_comments_require_session_identity` -> `TS-WC-007`
 
 ## References
 - `tests/api/api/test_written_comments_endpoints.py`

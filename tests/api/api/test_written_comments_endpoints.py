@@ -72,6 +72,21 @@ def test_written_comments_validation():
 
 
 @pytest.mark.api_smoke
+def test_written_comments_require_session_identity():
+    with httpx.Client(timeout=10) as client:
+        rev_id = _get_test_revision_id(client)
+        denied = _request(
+            client,
+            "GET",
+            f"/documents/revisions/{rev_id}/comments",
+            headers={"X-User-Id": ""},
+            auth=False,
+        )
+        assert denied["status"] == 401
+        assert denied["payload"] == {"detail": "Authentication required"}
+
+
+@pytest.mark.api_smoke
 def test_written_comments_missing_references():
     with httpx.Client(timeout=10) as client:
         user_id, _ = _get_test_user(client)

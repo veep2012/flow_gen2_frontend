@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-02-11
-- Version: v1.2
+- Last Updated: 2026-03-04
+- Version: v1.3
 
 ## Change Log
+- 2026-03-04 | v1.3 | Added `/metrics` to the baseline GET smoke sweep and documented the observability endpoint contract.
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -17,6 +18,7 @@ Provide repeatable curl-based smoke validation for baseline GET endpoints.
 ## Scope
 - In scope:
   - service health/root checks
+  - system observability endpoint
   - lookup and people endpoints
   - documents list with resolved project
 - Out of scope:
@@ -37,6 +39,7 @@ export API_PREFIX=/api/v1
 ```bash
 curl -i "$API_BASE/health"
 curl -i "$API_BASE/"
+curl -i "$API_BASE/metrics"
 
 for ep in \
   /lookups/areas \
@@ -65,6 +68,7 @@ curl -i "$API_BASE$API_PREFIX/documents?project_id=$PROJECT_ID"
 ## Edge Cases
 - If no project exists, `/documents?project_id=...` cannot be validated.
 - In empty seeds, some endpoints may return `404`; treat as environment limitation.
+- `/metrics` may return zero-valued or sparse counters before auth-related failures are exercised; the endpoint must still return `200`.
 
 ## Scenario Catalog
 - `TS-GET-001`: baseline GET endpoint set responds with success codes.

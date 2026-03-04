@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-02-21
-- Version: v1.6
+- Last Updated: 2026-03-04
+- Version: v1.7
 
 ## Change Log
+- 2026-03-04 | v1.7 | Added fail-closed session-identity scenario for commented-files router access.
 - 2026-02-21 | v1.6 | Added written comments scenarios and mappings, added update scenarios, moved automated mapping to dedicated test module/router references, and split written-comments scenarios into dedicated `written_comments_api_test_scenarios.md`
 - 2026-02-20 | v1.5 | Updated commented download examples to use query parameter `id`.
 - 2026-02-19 | v1.4 | Added scenario for insert without file and synchronized mapping.
@@ -137,6 +138,7 @@ curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COPIED_ID"
 - `TS-FC-009` missing file/user references return `404`.
 - `TS-FC-010` mimetype mismatch rejected (`400`/`415`).
 - `TS-FC-011` insert without multipart `file` copies source file bytes from `file_id`.
+- `TS-FC-012` commented-files router denies requests when effective session identity is missing.
 
 ## Automated Test Mapping
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_list` -> `TS-FC-001`
@@ -150,6 +152,7 @@ curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COPIED_ID"
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_nonexistent_file_or_user` -> `TS-FC-009`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_mimetype_mismatch` -> `TS-FC-010`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_without_file_copies_source` -> `TS-FC-011`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_require_session_identity` -> `TS-FC-012`
 
 ## References
 - `tests/api/api/test_files_commented_endpoints.py`

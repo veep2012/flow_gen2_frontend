@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-02-11
-- Version: v1.2
+- Last Updated: 2026-03-04
+- Version: v1.3
 
 ## Change Log
+- 2026-03-04 | v1.3 | Added fail-closed session-identity scenario for revisions router reads.
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
 
 ## Purpose
@@ -145,6 +146,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents/revisions/$REV_ID/status-transit
 - `TS-REV-013` invalid direction returns `422`.
 - `TS-REV-014` forward transition from final state returns `409`.
 - `TS-REV-015` back transition from non-revertible state returns `409`.
+- `TS-REV-016` revisions router denies requests when effective session identity is missing.
 
 ## Automated Test Mapping
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_list` -> `TS-REV-001`
@@ -162,6 +164,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents/revisions/$REV_ID/status-transit
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_invalid_direction` -> `TS-REV-013`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_already_final` -> `TS-REV-014`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_not_revertible` -> `TS-REV-015`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_require_session_identity` -> `TS-REV-016`
 
 ## References
 - `tests/api/api/test_documents_revisions_endpoints.py`

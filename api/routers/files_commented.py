@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
 from api.schemas.files import FileCommentedOut
-from api.utils.database import get_db
+from api.utils.database import get_db, require_effective_identity
 from api.utils.helpers import (
     _build_default_filename_from_instance_parameter,
     _handle_integrity_error,
@@ -33,7 +33,11 @@ from api.utils.minio import (
     _minio_with_retry,
 )
 
-router = APIRouter(prefix="/api/v1/files/commented", tags=["comments"])
+router = APIRouter(
+    prefix="/api/v1/files/commented",
+    tags=["comments"],
+    dependencies=[Depends(require_effective_identity)],
+)
 
 logger = logging.getLogger(__name__)
 

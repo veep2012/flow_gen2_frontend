@@ -5,12 +5,15 @@ from pathlib import Path
 import httpx
 import pytest
 
+_DEFAULT_TEST_USER_ACRONYM = os.getenv("TEST_USER_ACRONYM", "FDQC")
+
 SCENARIO_DOC_PATH = Path("documentation/test_scenarios/notifications_api_test_plan.md")
 TEST_SCENARIO_MAP = {
     "test_distribution_lists_crud_and_membership": ["TS-DL-001"],
     "test_distribution_lists_duplicate_name_rejected": ["TS-DL-002"],
     "test_distribution_list_delete_rejected_when_used_by_notification": ["TS-DL-003"],
     "test_distribution_list_create_with_missing_doc_returns_404": ["TS-DL-004"],
+    "test_distribution_lists_require_session_identity": ["TS-DL-005"],
 }
 
 
@@ -22,10 +25,19 @@ def _build_base_url() -> str:
     return f"{base}{prefix}"
 
 
+def _merge_default_auth(kwargs: dict) -> dict:
+    merged = dict(kwargs)
+    if merged.pop("auth", True):
+        headers = dict(merged.get("headers") or {})
+        headers.setdefault("X-User-Id", _DEFAULT_TEST_USER_ACRONYM)
+        merged["headers"] = headers
+    return merged
+
+
 def _request(client: httpx.Client, method: str, path: str, **kwargs) -> dict:
     url = f"{_build_base_url()}{path}"
     start = time.perf_counter()
-    response = client.request(method, url, **kwargs)
+    response = client.request(method, url, **_merge_default_auth(kwargs))
     duration_ms = (time.perf_counter() - start) * 1000
     payload = None
     if response.content and "application/json" in response.headers.get("content-type", ""):
@@ -241,6 +253,20 @@ def test_distribution_list_create_with_missing_doc_returns_404():
             json={"distribution_list_name": f"API DL MISSINGDOC {suffix}", "doc_id": 999999},
         )
         assert created_dl["status"] == 404
+
+
+@pytest.mark.api_smoke
+def test_distribution_lists_require_session_identity():
+    with httpx.Client(timeout=10) as client:
+        denied = _request(
+            client,
+            "GET",
+            "/distribution-lists",
+            headers={"X-User-Id": ""},
+            auth=False,
+        )
+        assert denied["status"] == 401
+        assert denied["payload"] == {"detail": "Authentication required"}
 
 
 def test_distribution_lists_traceability_contract():
