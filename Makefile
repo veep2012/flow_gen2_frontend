@@ -48,9 +48,7 @@ PID_DIR := .local
 KEYCLOAK_LOG_DIR := $(CURDIR)/.local/keycloak
 API_PID_FILE := $(PID_DIR)/uvicorn.pid
 UI_PID_FILE := $(PID_DIR)/vite.pid
-UI_ALT_PID_FILE := $(PID_DIR)/vite-alt.pid
 UI_LOG_FILE := $(PID_DIR)/vite.log
-UI_ALT_LOG_FILE := $(PID_DIR)/vite-alt.log
 PYTHON_BIN ?= /opt/homebrew/opt/python@3.11/bin/python3.11
 LOCAL_API_PORT ?= 5556
 API_WAIT_TIMEOUT ?= 30
@@ -62,19 +60,15 @@ ACTIVATE_VENV := .venv\Scripts\Activate.ps1
 VENV_PY := .venv\Scripts\python.exe
 LOCAL_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api.ps1
 LOCAL_UI_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-ui.ps1 -PidFile "$(UI_PID_FILE)"
-LOCAL_UI_ALT_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-ui.ps1 -PidFile "$(UI_ALT_PID_FILE)" -ProjectPath "ui_alt" -UiPort "5560"
 STOP_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api-stop.ps1 -PidFile "$(API_PID_FILE)"
 STOP_UI_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-ui-stop.ps1 -PidFile "$(UI_PID_FILE)"
-STOP_UI_ALT_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-ui-stop.ps1 -PidFile "$(UI_ALT_PID_FILE)"
 else
 ACTIVATE_VENV := .venv/bin/activate
 VENV_PY := .venv/bin/python
 LOCAL_API_CMD := bash scripts/local-api.sh
 LOCAL_UI_CMD := PID_FILE="$(UI_PID_FILE)" LOG_FILE="$(UI_LOG_FILE)" bash scripts/local-ui.sh
-LOCAL_UI_ALT_CMD := PID_FILE="$(UI_ALT_PID_FILE)" LOG_FILE="$(UI_ALT_LOG_FILE)" PROJECT_PATH="ui_alt" UI_PORT="5560" bash scripts/local-ui.sh
 STOP_API_CMD := bash scripts/local-api-stop.sh
 STOP_UI_CMD := PID_FILE="$(UI_PID_FILE)" bash scripts/local-ui-stop.sh
-STOP_UI_ALT_CMD := PID_FILE="$(UI_ALT_PID_FILE)" bash scripts/local-ui-stop.sh
 endif
 
 ifneq (,$(wildcard .venv))
@@ -94,7 +88,7 @@ ensure-keycloak-log-dir:
 .PHONY: help
 help: | ensure-pid-dir ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
-	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-up test-down test-ui-unit test-ui-e2e test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-alt-start local-ui-alt-stop db-up db-down minio-up minio-down up up-no-keycloak down build rebuild completely-rebuild logs help test audit mypy lint; do \
+	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-up test-down test-ui-unit test-ui-e2e test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down db-up db-down minio-up minio-down up up-no-keycloak down build rebuild completely-rebuild logs help test audit mypy lint; do \
 		grep -E "^$${target} " .local/.make-help.tmp || true; \
 	done
 	@rm -f .local/.make-help.tmp
@@ -188,7 +182,6 @@ audit-python: ## Run pip-audit against API requirements
 
 audit-node: ## Run npm audit against UI lockfiles
 	cd ui && npm audit --package-lock-only
-	cd ui_alt && npm audit --package-lock-only
 
 .PHONY: mypy
 mypy: ## Run static type checks with mypy
@@ -400,14 +393,6 @@ local-ui-up: | ensure-pid-dir ## Start UI locally (vite dev)
 .PHONY: local-ui-down
 local-ui-down: ## Stop local UI dev server using PID file
 	$(STOP_UI_CMD)
-
-.PHONY: local-ui-alt-start
-local-ui-alt-start: | ensure-pid-dir ## Start UI alt locally (vite dev on port 5560)
-	$(LOCAL_UI_ALT_CMD)
-
-.PHONY: local-ui-alt-stop
-local-ui-alt-stop: ## Stop UI alt dev server using PID file
-	$(STOP_UI_ALT_CMD)
 
 .PHONY: local-up
 local-up: local-postgres-up local-minio-up ## Start local Postgres, MinIO, API, and UI

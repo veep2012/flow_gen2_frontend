@@ -62,10 +62,6 @@ With the API running (`make local-api-up`):
 - `make local-ui-up`
 - `make local-ui-down`
 
-### Run the UI alt
-- `make local-ui-alt-start`
-- `make local-ui-alt-stop`
-
 ### Run MinIO (object storage)
 - `make local-minio-up`
 - `make local-minio-down`
@@ -142,7 +138,6 @@ export OAUTH2_PROXY_COOKIE_SECRET="your-32-byte-secret"
 ### Ports used by local services (defaults)
 - API: `5556`
 - UI: `5558`
-- UI alt: `5560`
 - Postgres (local): `5432`
 - Postgres (tests): `5433`
 - API tests: `4175`

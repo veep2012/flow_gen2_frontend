@@ -5,10 +5,11 @@
 - Owner: Engineering Team
 - Reviewers: Repository maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-21
-- Version: v1.2
+- Last Updated: 2026-03-04
+- Version: v1.3
 
 ## Change Log
+- 2026-03-04 | v1.3 | Removed deprecated `ui_alt` local setup references.
 - 2026-02-21 | v1.2 | Documented `PYTHON_BIN`-based pytest execution in `make test` and aligned commit-message example format.
 - 2026-02-20 | v1.1 | Added Change Log section for standards compliance
 
@@ -89,7 +90,6 @@ flowchart TD
 - Install frontend deps:
   ```bash
   npm --prefix ui install
-  npm --prefix ui_alt install
   ```
 - Run tests:
   ```bash
