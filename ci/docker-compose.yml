@@ -88,6 +88,7 @@ services:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://localhost:5557,http://89.35.124.200:5557}
       APP_DB_USER: ${APP_DB_USER:-app_user}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:-app_pass}
+      APP_ENV: ${APP_ENV:-production}
     expose:
       - "5556"
     depends_on:
