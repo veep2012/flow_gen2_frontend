@@ -374,21 +374,18 @@ Objective:
 
 Tasks:
 - Implement trusted auth context resolver (JWT/header to internal user mapping).
-- Add IdP role/group to `ref.roles.external_name` mapping job or synchronization path.
-- Add stale mapping handling and fail-closed behavior for unknown external roles.
 - Add observability around mapping errors and authorization denials.
 
 Exit criteria:
 - End-to-end auth flow works without `APP_USER` outside local environment.
-- Role sync/mapping is deterministic and monitored.
-- Unknown identity/role inputs fail closed with traceable audit evidence.
+- Unknown trusted identity inputs fail closed with traceable audit evidence.
 
 Implementation reality (as of v1.1):
 - Implemented:
   - Trusted identity resolver path through configurable header (`TRUSTED_IDENTITY_HEADER`, default `X-Auth-User`) with `trusted_identity_header` auth mode.
   - Fail-closed identity behavior for unknown trusted identities (`401`).
   - Structured auth events and existing auth counters remain active for deny/parse visibility.
-- Not implemented in Phase 3:
+- Deferred to dedicated identity-sync module (out of Phase 3 scope):
   - Full JWT token verification pipeline in API (trusted-header integration is current implementation path).
   - Runtime external-role mapping via `ref.roles.external_name` in request/workflow paths.
   - Dedicated identity-sync module that owns LDAP/IdP role reconciliation into `ref.user_roles`.

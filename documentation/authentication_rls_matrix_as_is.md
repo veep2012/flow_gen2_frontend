@@ -6,10 +6,10 @@
 - Reviewers: Security and API maintainers
 - Created: 2026-02-25
 - Last Updated: 2026-03-05
-- Version: v1.1
+- Version: v1.2
 
 ## Change Log
-- 2026-03-05 | v1.1 | Implemented trusted identity header mode (`X-Auth-User`) with fail-closed unknown-identity behavior, and clarified that `ref.roles.external_name` is reference-only for a dedicated identity-sync module rather than a request-path/workflow authorization input.
+- 2026-03-05 | v1.2 | Implemented trusted identity header mode (`X-Auth-User`) with fail-closed unknown-identity behavior, clarified that `ref.roles.external_name` is reference-only for a dedicated identity-sync module rather than a request-path/workflow authorization input, and documented current identity-header precedence limitation (`X-User-Id` evaluated before trusted header) with required proxy stripping/rewriting controls in non-local environments.
 - 2026-02-27 | v0.5 | Corrected `ref.sync_user_primary_role()` behavior so mirror inserts from `ref.users.role_id` are non-destructive and preserve existing secondary `ref.user_roles` assignments, added one `EXPLAIN (ANALYZE, BUFFERS)` read-path baseline for `workflow.v_documents` with the RLS predicate active, and documented that revision mutation endpoints (`status transition`, `cancel`) now build response payloads from workflow function return rows (plus lookup enrichments) instead of re-reading through scope-filtered revision views, preventing false `Revision not found` after successful writes.
 - 2026-02-26 | v0.3 | Updated as-is snapshot for Phase 1: documented implemented `workflow.check_user_permission(...)`, read-side RLS policies, project-scoped lookup behavior, and fail-closed outcomes.
 - 2026-02-25 | v0.1 | Initial as-is snapshot of implemented authentication and authorization-related schema/session behavior.
@@ -38,6 +38,9 @@ Current implementation is a hybrid state: role-model foundations are active, and
   - `X-User-Id` request header.
   - Trusted identity header (`X-Auth-User`, configurable via `TRUSTED_IDENTITY_HEADER`).
   - `APP_USER` environment variable.
+- Current limitation:
+  - When both headers are present, `X-User-Id` takes precedence over trusted identity header.
+  - In non-local environments, safe operation requires proxy/network controls that strip inbound identity headers from clients and set canonical trusted identity headers after OIDC validation.
 - Header/env identifier format:
   - `user_acronym` only.
   - resolved identifier is converted to internal `user_id` before session set.
