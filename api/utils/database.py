@@ -24,8 +24,10 @@ REQUEST_ID_HEADER = "X-Request-Id"
 MISSING_IDENTITY_DETAIL = "Authentication required"
 _IDENTITY_SESSION_INFO_KEY = "effective_user_id"
 _AUTH_MODE_HEADER = "x_user_id_header"
+_AUTH_MODE_TRUSTED_HEADER = "trusted_identity_header"
 _AUTH_MODE_BOOTSTRAP = "app_user_bootstrap"
 _AUTH_MODE_NONE = "missing_identity"
+_TRUSTED_IDENTITY_HEADER = os.getenv("TRUSTED_IDENTITY_HEADER", "X-Auth-User")
 
 
 def _build_database_url() -> str:
@@ -202,12 +204,21 @@ def validate_startup_app_user_mode() -> None:
 
 def _set_app_user(db: Session, request: Request) -> None:
     header_value = request.headers.get("X-User-Id")
+    trusted_header_value = request.headers.get(_TRUSTED_IDENTITY_HEADER)
     if header_value is None:
-        raw_user_value = _configured_app_user() or ""
-        auth_mode = _AUTH_MODE_BOOTSTRAP if raw_user_value else _AUTH_MODE_NONE
+        if trusted_header_value and trusted_header_value.strip():
+            raw_user_value = trusted_header_value.strip()
+            auth_mode = _AUTH_MODE_TRUSTED_HEADER
+            header_name = _TRUSTED_IDENTITY_HEADER
+        else:
+            raw_user_value = _configured_app_user() or ""
+            auth_mode = _AUTH_MODE_BOOTSTRAP if raw_user_value else _AUTH_MODE_NONE
+            header_name = "APP_USER"
     else:
         raw_user_value = header_value.strip()
         auth_mode = _AUTH_MODE_HEADER if raw_user_value else _AUTH_MODE_NONE
+        header_name = "X-User-Id"
+
     user_value = ""
     if raw_user_value:
         user_value = _resolve_user_id(db, raw_user_value) or ""
@@ -222,8 +233,10 @@ def _set_app_user(db: Session, request: Request) -> None:
                 logging.WARNING,
                 "identity_header_parse_failure",
                 request,
-                header_name="X-User-Id",
+                header_name=header_name,
             )
+            if auth_mode == _AUTH_MODE_TRUSTED_HEADER:
+                raise HTTPException(status_code=401, detail=MISSING_IDENTITY_DETAIL)
             raise HTTPException(
                 status_code=400,
                 detail="Invalid X-User-Id header. Expected existing user_acronym.",

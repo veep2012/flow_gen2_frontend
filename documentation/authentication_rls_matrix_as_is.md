@@ -5,11 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-25
-- Last Updated: 2026-03-04
-- Version: v1.0
+- Last Updated: 2026-03-05
+- Version: v1.1
 
 ## Change Log
-- 2026-03-04 | v1.0 | Added implemented auth observability surface: Prometheus-style `/metrics` counters for current-user resolution failures, observable RLS denials, and identity header parse failures; added structured auth-event logs carrying request correlation IDs and auth mode; clarified that Phase 1 supports only `PROJECT` scope assignments while `AREA`/`UNIT` scope types remain reserved for future phases; and documented fail-closed handling for unsupported non-project scope assignments.
+- 2026-03-05 | v1.1 | Implemented trusted identity header mode (`X-Auth-User`) with fail-closed unknown-identity behavior, and clarified that `ref.roles.external_name` is reference-only for a dedicated identity-sync module rather than a request-path/workflow authorization input.
 - 2026-02-27 | v0.5 | Corrected `ref.sync_user_primary_role()` behavior so mirror inserts from `ref.users.role_id` are non-destructive and preserve existing secondary `ref.user_roles` assignments, added one `EXPLAIN (ANALYZE, BUFFERS)` read-path baseline for `workflow.v_documents` with the RLS predicate active, and documented that revision mutation endpoints (`status transition`, `cancel`) now build response payloads from workflow function return rows (plus lookup enrichments) instead of re-reading through scope-filtered revision views, preventing false `Revision not found` after successful writes.
 - 2026-02-26 | v0.3 | Updated as-is snapshot for Phase 1: documented implemented `workflow.check_user_permission(...)`, read-side RLS policies, project-scoped lookup behavior, and fail-closed outcomes.
 - 2026-02-25 | v0.1 | Initial as-is snapshot of implemented authentication and authorization-related schema/session behavior.
@@ -36,10 +36,15 @@ Current implementation is a hybrid state: role-model foundations are active, and
 ### Session user context (implemented)
 - API resolves acting user in this order:
   - `X-User-Id` request header.
+  - Trusted identity header (`X-Auth-User`, configurable via `TRUSTED_IDENTITY_HEADER`).
   - `APP_USER` environment variable.
 - Header/env identifier format:
   - `user_acronym` only.
   - resolved identifier is converted to internal `user_id` before session set.
+- Trusted role mapping:
+  - `ref.roles.external_name` exists as reference key for dedicated LDAP/IdP synchronization tooling.
+  - Request/workflow authorization paths do not evaluate `external_name` directly.
+  - Runtime role reconciliation is intentionally delegated to a dedicated sync module and is outside current request execution flow.
 - API writes both DB session keys:
   - `app.user` (legacy/currently used by triggers/functions).
   - `app.user_id` (forward-compatible key for target model).

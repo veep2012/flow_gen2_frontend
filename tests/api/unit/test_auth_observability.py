@@ -94,3 +94,15 @@ def test_current_user_resolution_failures_increment_metrics_and_logs(caplog) -> 
         f"request_id={request_id} auth_mode=unknown method=GET "
         "path=/api/v1/people/users/current_user reason=unresolved_read_model" in caplog.text
     )
+
+
+def test_trusted_identity_header_unresolved_fails_closed(monkeypatch) -> None:
+    request = _make_request()
+    request.headers = {"X-Auth-User": "NOTREAL"}
+    db = _DummySession()
+    monkeypatch.setattr(database, "_resolve_user_id", lambda _db, _raw_value: None)
+
+    with pytest.raises(HTTPException, match="Authentication required") as exc:
+        database._set_app_user(db, request)
+
+    assert exc.value.status_code == 401

@@ -5,11 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-21
-- Last Updated: 2026-03-04
-- Version: v1.0
+- Last Updated: 2026-03-05
+- Version: v1.1
 
 ## Change Log
-- 2026-03-04 | v1.0 | Added explicit auth observability requirements for rollout: counters for current-user resolution failures, observable deny events by endpoint, identity parse failures, and structured auth-event logs with correlation IDs and auth mode.
+- 2026-03-05 | v1.1 | Implemented Phase 3 trusted identity resolver path and clarified architecture boundary: `ref.roles.external_name` remains reference-only for a dedicated identity-sync module and is not evaluated in request/workflow authorization execution.
 - 2026-02-26 | v0.7 | Updated implementation reality through Phase 1: read-path predicate/RLS and project-scoped lookup filtering are now implemented and test-covered.
 - 2026-02-25 | v0.5 | Added architecture review summary, gradual implementation plan, edge cases, and references.
 - 2026-02-21 | v0.4 | Added local developer mode using `APP_USER` to bootstrap `app.user_id` with strict non-production guardrails.
@@ -382,6 +382,16 @@ Exit criteria:
 - End-to-end auth flow works without `APP_USER` outside local environment.
 - Role sync/mapping is deterministic and monitored.
 - Unknown identity/role inputs fail closed with traceable audit evidence.
+
+Implementation reality (as of v1.1):
+- Implemented:
+  - Trusted identity resolver path through configurable header (`TRUSTED_IDENTITY_HEADER`, default `X-Auth-User`) with `trusted_identity_header` auth mode.
+  - Fail-closed identity behavior for unknown trusted identities (`401`).
+  - Structured auth events and existing auth counters remain active for deny/parse visibility.
+- Not implemented in Phase 3:
+  - Full JWT token verification pipeline in API (trusted-header integration is current implementation path).
+  - Runtime external-role mapping via `ref.roles.external_name` in request/workflow paths.
+  - Dedicated identity-sync module that owns LDAP/IdP role reconciliation into `ref.user_roles`.
 
 ### Phase 4 - Hardening, performance, and rollout
 Objective:
