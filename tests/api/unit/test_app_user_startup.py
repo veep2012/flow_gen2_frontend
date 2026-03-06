@@ -43,8 +43,8 @@ def test_validate_startup_app_user_mode_logs_header_only_banner(monkeypatch, cap
     database.validate_startup_app_user_mode()
 
     assert (
-        "startup_identity_mode=request_header_only app_env=production identity_source=X-User-Id"
-        in caplog.text
+        "startup_identity_mode=request_header_only app_env=production "
+        "identity_source=X-Auth-User>X-User-Id" in caplog.text
     )
 
 

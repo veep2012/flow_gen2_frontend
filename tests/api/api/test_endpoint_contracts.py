@@ -194,3 +194,56 @@ def test_current_user_detail_matches_response_model():
         response = _request(client, "GET", "/people/users/current_user")
         assert response["status"] == 200
         _assert_contract(response["payload"], UserOut)
+
+
+@pytest.mark.api_smoke
+def test_current_user_trusted_header_takes_precedence_over_x_user_id():
+    """Scenario IDs: TS-CTR-003."""
+    with httpx.Client(timeout=10) as client:
+        first_user_id, second_user_id, user_map = _resolve_test_users(client)
+        if first_user_id == second_user_id:
+            pytest.skip("Need two distinct users for trusted-header precedence test")
+        trusted_user = user_map.get(second_user_id)
+        less_trusted_user = user_map.get(first_user_id)
+        if not trusted_user or not less_trusted_user:
+            pytest.skip("Need user acronyms for trusted-header precedence test")
+
+        response = _request(
+            client,
+            "GET",
+            "/people/users/current_user",
+            auth=False,
+            headers={
+                "X-User-Id": less_trusted_user,
+                "X-Auth-User": trusted_user,
+            },
+        )
+
+        assert response["status"] == 200
+        _assert_contract(response["payload"], UserOut)
+        assert response["payload"]["user_id"] == second_user_id
+        assert response["payload"]["user_acronym"] == trusted_user
+
+
+@pytest.mark.api_smoke
+def test_current_user_invalid_trusted_header_fails_closed_even_with_valid_x_user_id():
+    """Scenario IDs: TS-CTR-004."""
+    with httpx.Client(timeout=10) as client:
+        first_user_id, _second_user_id, user_map = _resolve_test_users(client)
+        less_trusted_user = user_map.get(first_user_id)
+        if not less_trusted_user:
+            pytest.skip("Need a user acronym for trusted-header fail-closed test")
+
+        response = _request(
+            client,
+            "GET",
+            "/people/users/current_user",
+            auth=False,
+            headers={
+                "X-User-Id": less_trusted_user,
+                "X-Auth-User": "NOTREAL",
+            },
+        )
+
+        assert response["status"] == 401
+        assert response["payload"] == {"detail": "Authentication required"}

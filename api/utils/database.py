@@ -74,8 +74,9 @@ def _validate_app_user_format(app_user: str) -> None:
 def _log_startup_identity_mode(*, env: str, app_user: str | None) -> None:
     if app_user is None:
         logger.info(
-            "startup_identity_mode=request_header_only app_env=%s identity_source=X-User-Id",
+            "startup_identity_mode=request_header_only app_env=%s identity_source=%s",
             env or "unknown",
+            f"{_TRUSTED_IDENTITY_HEADER}>X-User-Id",
         )
         return
 
@@ -205,19 +206,18 @@ def validate_startup_app_user_mode() -> None:
 def _set_app_user(db: Session, request: Request) -> None:
     header_value = request.headers.get("X-User-Id")
     trusted_header_value = request.headers.get(_TRUSTED_IDENTITY_HEADER)
-    if header_value is None:
-        if trusted_header_value and trusted_header_value.strip():
-            raw_user_value = trusted_header_value.strip()
-            auth_mode = _AUTH_MODE_TRUSTED_HEADER
-            header_name = _TRUSTED_IDENTITY_HEADER
-        else:
-            raw_user_value = _configured_app_user() or ""
-            auth_mode = _AUTH_MODE_BOOTSTRAP if raw_user_value else _AUTH_MODE_NONE
-            header_name = "APP_USER"
-    else:
+    if trusted_header_value and trusted_header_value.strip():
+        raw_user_value = trusted_header_value.strip()
+        auth_mode = _AUTH_MODE_TRUSTED_HEADER
+        header_name = _TRUSTED_IDENTITY_HEADER
+    elif header_value is not None:
         raw_user_value = header_value.strip()
         auth_mode = _AUTH_MODE_HEADER if raw_user_value else _AUTH_MODE_NONE
         header_name = "X-User-Id"
+    else:
+        raw_user_value = _configured_app_user() or ""
+        auth_mode = _AUTH_MODE_BOOTSTRAP if raw_user_value else _AUTH_MODE_NONE
+        header_name = "APP_USER"
 
     user_value = ""
     if raw_user_value:

@@ -5,10 +5,11 @@
 - Owner: Platform and Backend Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-26
-- Version: v1.5
+- Last Updated: 2026-03-06
+- Version: v1.6
 
 ## Change Log
+- 2026-03-06 | v1.6 | Updated the target edge-to-API header contract to use trusted `X-Auth-User` forwarding for API requests while retaining `X-User-Id` compatibility expectations only where explicitly needed outside the API hop.
 - 2026-02-26 | v1.5 | Clarified document positioning as target architecture and linked current implemented state to `authentication_rls_matrix_as_is.md`.
 - 2026-02-20 | v1.4 | Added Change Log section for standards compliance
 
@@ -74,7 +75,7 @@ flowchart TB
     nginx -.->|auth_request| oauth2
     oauth2 -->|OIDC Auth Code + PKCE| keycloak
     nginx -->|X-User-Id, X-Email headers| ui
-    nginx -->|X-User-Id, X-Email headers| api
+    nginx -->|X-Auth-User, X-Email headers| api
     api --> postgres
     api --> minio
     
@@ -117,7 +118,7 @@ sequenceDiagram
     
     NGINX->>OAuth2Proxy: 13. auth_request /oauth2/auth
     OAuth2Proxy-->>NGINX: 14. 200 OK + identity headers
-    NGINX->>API: 15. Map/forward as X-User-Id (+ optional X-Email)
+    NGINX->>API: 15. Map/forward as X-Auth-User (+ optional X-Email)
     API->>DB: 16. Check user permissions
     DB-->>API: 17. Permission result
     API-->>NGINX: 18. Response (200/403)
@@ -264,7 +265,7 @@ The phases below are planning guidance. They are not claims of implemented behav
 
 ### Phase 1: Baseline Authentication
 - Configure OIDC login flow through `oauth2-proxy` and Keycloak.
-- Validate trusted-header propagation and mapping to API contract (`X-User-Id`; optional `X-Email`).
+- Validate trusted-header propagation and mapping to API contract (`X-Auth-User`; optional `X-Email`).
 - Define user provisioning process (manual or scripted) and operational owner.
 
 ### Phase 2: Security Hardening
@@ -312,7 +313,7 @@ Flow Gen2 already has a robust authorization schema:
 ```python
 # API validates permissions before data access
 # Example: GET /api/v1/documents?project_id=3
-# 1. Extract user from X-User-Id header
+# 1. Extract user from trusted X-Auth-User header
 # 2. Query: SELECT * FROM permissions WHERE user_id=? AND project_id=3
 # 3. If no matching permission → 403 Forbidden
 # 4. If permission exists → filter results to allowed disciplines

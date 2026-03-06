@@ -282,6 +282,14 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/endpoint_contract_api_test_scenarios.md",
         ["TS-CTR-002"],
     ),
+    "test_current_user_trusted_header_takes_precedence_over_x_user_id": (
+        "documentation/test_scenarios/endpoint_contract_api_test_scenarios.md",
+        ["TS-CTR-003"],
+    ),
+    "test_current_user_invalid_trusted_header_fails_closed_even_with_valid_x_user_id": (
+        "documentation/test_scenarios/endpoint_contract_api_test_scenarios.md",
+        ["TS-CTR-004"],
+    ),
     "test_notifications_create_list_mark_read_flow": (
         "documentation/test_scenarios/notifications_api_test_plan.md",
         ["TS-NTF-001"],

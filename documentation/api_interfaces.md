@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-04
-- Version: v2.9
+- Last Updated: 2026-03-06
+- Version: v3.0
 
 ## Change Log
+- 2026-03-06 | v3.0 | Updated auth identity resolution order so trusted header (`X-Auth-User`, configurable via `TRUSTED_IDENTITY_HEADER`) takes precedence over `X-User-Id`, documented fail-closed behavior when trusted identity is invalid, and synchronized the request-header startup banner wording.
 - 2026-03-04 | v2.9 | Added `/metrics` system endpoint for in-process auth observability counters; documented auth metrics for current-user resolution failures, observable RLS denials by endpoint, and identity header parse failures; and documented structured auth-event logs with correlation IDs and auth mode.
 - 2026-02-26 | v2.4 | Documented Phase 1 read authorization effects on lookup reads: `GET /lookups/projects` is scope-filtered by role project scope; `areas` and `units` remain unfiltered in this phase.
 - 2026-02-25 | v2.3 | Documented `APP_USER` local/dev bootstrap behavior with non-production-only guardrails and startup validation against `ref.users`, removed the legacy default fallback variable so user context resolves from `X-User-Id` first then optional `APP_USER`, enforced `user_acronym`-only identity input for those sources, documented dual DB session context keys (`app.user`, `app.user_id`), and updated `GET /api/v1/people/users/current_user` to resolve the current user from session context instead of hardcoded `user_id=2`.
@@ -108,14 +109,17 @@ Audit fields (created_by / updated_by):
 - This transaction-local re-application is required because many endpoints issue mid-request `COMMIT` / `ROLLBACK`; after each new transaction begins, identity is pushed again before business queries run.
 - When effective identity is absent, the API still writes both keys as empty strings at transaction scope so reused pooled connections cannot inherit a previous request's session-level residue.
 - User resolution order:
-  - `X-User-Id` header when provided.
-  - `APP_USER` environment fallback when header is missing.
-- `X-User-Id` value must be existing `user_acronym`; API resolves it to internal `user_id` before setting DB session context.
+  - trusted identity header (`X-Auth-User` by default; configurable via `TRUSTED_IDENTITY_HEADER`) when present and non-empty
+  - `X-User-Id` header only when trusted identity header is absent or empty
+  - `APP_USER` environment fallback when both request headers are absent
+- Request-header identity values must be existing `user_acronym`; API resolves them to internal `user_id` before setting DB session context.
+- When both trusted and less-trusted headers are present, the trusted header is authoritative.
+- If the trusted identity header is present but unresolved, the API fails closed with `401 Unauthorized` instead of falling back to `X-User-Id`.
 - `APP_USER` is guarded: it must be used only in non-production environments (`local/dev/test/ci/ci_test`), and startup validation must confirm that configured value resolves to a row in `workflow.v_users`.
 - `APP_USER` format is validated at startup with a strict uppercase acronym regex: `^[A-Z]{2,12}$`.
 - `APP_ENV=production` (or other blocked/unknown non-allowed envs) plus `APP_USER` causes startup failure before the API begins serving requests.
 - Startup logs emit a clear identity banner:
-  - `startup_identity_mode=request_header_only ...` when only request-header identity is active.
+  - `startup_identity_mode=request_header_only ... identity_source=X-Auth-User>X-User-Id` when only request-header identity is active.
   - `startup_identity_mode=app_user_bootstrap ...` when `APP_USER` bootstrap mode is active.
 - Auth-sensitive routers fail closed with `401 Unauthorized` when both `X-User-Id` and effective session identity are absent. The API logs a security event with `X-Request-Id`, HTTP method, and path only.
 - Auth observability counters are exposed at `GET /metrics` in Prometheus text format:
