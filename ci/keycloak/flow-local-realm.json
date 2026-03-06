@@ -93,12 +93,92 @@
   ],
   "users": [
     {
-      "username": "testuser",
+      "username": "zaml",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Test",
+      "firstName": "ZAML",
       "lastName": "User",
-      "email": "testuser@local",
+      "email": "zaml@local",
+      "attributes": {
+        "acronym": [
+          "ZAML"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "zaml",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "fdqc",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "FDQC",
+      "lastName": "User",
+      "email": "fdqc@local",
+      "attributes": {
+        "acronym": [
+          "FDQC"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "fdqc",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "asbb",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "ASBB",
+      "lastName": "User",
+      "email": "asbb@local",
+      "attributes": {
+        "acronym": [
+          "ASBB"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "asbb",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "koni",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "KONI",
+      "lastName": "User",
+      "email": "koni@local",
+      "attributes": {
+        "acronym": [
+          "KONI"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "koni",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "siar",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "SIAR",
+      "lastName": "User",
+      "email": "siar@local",
       "attributes": {
         "acronym": [
           "SIAR"
@@ -107,7 +187,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "TestUser!2345",
+          "value": "siar",
           "temporary": false
         }
       ]

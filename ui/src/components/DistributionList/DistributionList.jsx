@@ -1,10 +1,11 @@
 import React from "react";
 import PropTypes from "prop-types";
 import "./DistributionList.css";
+import { fetchWithAuthHandling, isAuthResponseError } from "../../utils/authFetch";
 
 const PURPOSE_OPTIONS = ["For Information", "For Review", "For Approval", "For Action"];
 
-const DistributionList = ({ docId, apiBase }) => {
+const DistributionList = ({ docId, apiBase, onAuthFailure }) => {
   const [persons, setPersons] = React.useState([]);
   const [roles, setRoles] = React.useState([]);
   const [loadingPersons, setLoadingPersons] = React.useState(false);
@@ -18,8 +19,8 @@ const DistributionList = ({ docId, apiBase }) => {
     try {
       setLoadingPersons(true);
       const [personResponse, rolesResponse] = await Promise.all([
-        fetch(`${apiBase}/people/persons`),
-        fetch(`${apiBase}/people/roles`),
+        fetchWithAuthHandling(`${apiBase}/people/persons`, {}, { onAuthFailure }),
+        fetchWithAuthHandling(`${apiBase}/people/roles`, {}, { onAuthFailure }),
       ]);
 
       if (personResponse.ok) {
@@ -40,11 +41,14 @@ const DistributionList = ({ docId, apiBase }) => {
         console.error("Failed to load roles");
       }
     } catch (err) {
+      if (isAuthResponseError(err)) {
+        return;
+      }
       console.error("Error loading persons or roles:", err);
     } finally {
       setLoadingPersons(false);
     }
-  }, [apiBase]);
+  }, [apiBase, onAuthFailure]);
 
   const getRoleForPerson = (personId) => {
     if (!personId) return "-";
@@ -79,16 +83,20 @@ const DistributionList = ({ docId, apiBase }) => {
       setSavingEntry(true);
       setSaveError("");
 
-      const response = await fetch(`${apiBase}/documents/${docId}/distribution-lists`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetchWithAuthHandling(
+        `${apiBase}/documents/${docId}/distribution-lists`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            person_id: parseInt(modalPersonId, 10),
+            purpose: modalPurpose,
+          }),
         },
-        body: JSON.stringify({
-          person_id: parseInt(modalPersonId, 10),
-          purpose: modalPurpose,
-        }),
-      });
+        { onAuthFailure },
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -97,12 +105,15 @@ const DistributionList = ({ docId, apiBase }) => {
 
       closeAddModal();
     } catch (err) {
+      if (isAuthResponseError(err)) {
+        return;
+      }
       console.error("Error saving distribution entry:", err);
       setSaveError(err.message || "Failed to save distribution entry");
     } finally {
       setSavingEntry(false);
     }
-  }, [apiBase, closeAddModal, docId, modalPersonId, modalPurpose]);
+  }, [apiBase, closeAddModal, docId, modalPersonId, modalPurpose, onAuthFailure]);
 
   return (
     <div className="distribution-list-container" data-doc-id={docId ?? ""}>
@@ -224,6 +235,7 @@ const DistributionList = ({ docId, apiBase }) => {
 DistributionList.propTypes = {
   docId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   apiBase: PropTypes.string.isRequired,
+  onAuthFailure: PropTypes.func,
 };
 
 export default DistributionList;

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mapDocumentRow } from "../grids/documents";
+import { fetchWithAuthHandling, isAuthResponseError } from "../utils/authFetch";
 
-export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
+export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns, onAuthFailure }) {
   const normalizedBase = useMemo(() => {
     const fallback = "/api/v1";
     const raw = (apiBase || fallback).toString().trim();
@@ -45,7 +46,11 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
     setDocumentsLoading(true);
     setDocumentsError(null);
 
-    fetch(`${normalizedBase}/documents?project_id=${encodeURIComponent(project)}`, { signal })
+    fetchWithAuthHandling(
+      `${normalizedBase}/documents?project_id=${encodeURIComponent(project)}`,
+      { signal },
+      { onAuthFailure },
+    )
       .then((res) => {
         if (res.status === 404) {
           return [];
@@ -75,6 +80,7 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
       })
       .catch((err) => {
         if (signal.aborted || err.name === "AbortError") return;
+        if (isAuthResponseError(err)) return;
         const message =
           err.type === "api"
             ? err.message
@@ -87,7 +93,7 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
       });
 
     return () => controller.abort();
-  }, [project, normalizedBase]);
+  }, [onAuthFailure, project, normalizedBase]);
 
   const normalizeFilterConfig = useCallback((raw) => {
     if (!raw) return null;
@@ -190,7 +196,7 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
     };
 
     let active = true;
-    fetch(`${normalizedBase}/lookups/projects`)
+    fetchWithAuthHandling(`${normalizedBase}/lookups/projects`, {}, { onAuthFailure })
       .then((res) => {
         if (res.status === 404) {
           return [];
@@ -212,6 +218,7 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
       .catch((err) => {
         if (!active) return;
         if (err.name === "AbortError") return;
+        if (isAuthResponseError(err)) return;
         const message =
           err.type === "api"
             ? err.message
@@ -221,7 +228,7 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
     return () => {
       active = false;
     };
-  }, [normalizedBase]);
+  }, [normalizedBase, onAuthFailure]);
 
   useEffect(() => {
     if (!project) {
@@ -237,7 +244,11 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
     setDocumentsLoading(true);
     setDocumentsError(null);
 
-    fetch(`${normalizedBase}/documents?project_id=${encodeURIComponent(project)}`, { signal })
+    fetchWithAuthHandling(
+      `${normalizedBase}/documents?project_id=${encodeURIComponent(project)}`,
+      { signal },
+      { onAuthFailure },
+    )
       .then((res) => {
         if (res.status === 404) {
           return [];
@@ -267,6 +278,7 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
       })
       .catch((err) => {
         if (signal.aborted || err.name === "AbortError") return;
+        if (isAuthResponseError(err)) return;
         const message =
           err.type === "api"
             ? err.message
@@ -279,7 +291,7 @@ export function useFetchDocuments({ apiBase = "/api/v1", visibleColumns }) {
       });
 
     return () => controller.abort();
-  }, [project, normalizedBase, createEmptyFilters]);
+  }, [createEmptyFilters, onAuthFailure, project, normalizedBase]);
 
   return {
     project,

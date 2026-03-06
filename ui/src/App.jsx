@@ -5,6 +5,8 @@ import { getFileKey } from "./utils/fileKey";
 import { normalizeFile } from "./utils/normalizeFile";
 import { useFetchDocuments } from "./hooks/useFetchDocuments";
 import { resolveBehaviorByFile } from "./components/DocRevStatusBehaviors";
+import AuthErrorPage from "./components/AuthErrorPage/AuthErrorPage";
+import { fetchWithAuthHandling, isAuthResponseError } from "./utils/authFetch";
 
 const allColumns = documentGridColumns.map(({ id, label, field, hidden }) => ({
   key: field,
@@ -61,6 +63,18 @@ const resolveCurrentStatusKey = (doc, orderedStatuses = []) => {
 
 function App() {
   const apiBase = normalizeApiBase(import.meta.env.VITE_API_BASE_URL);
+  const [authError, setAuthError] = React.useState(null);
+  const handleAuthFailure = React.useCallback((error) => {
+    setAuthError({
+      status: Number(error?.status) || 401,
+      detail: String(error?.detail || "").trim(),
+      requestId: String(error?.requestId || "").trim(),
+    });
+  }, []);
+  const apiFetch = React.useCallback(
+    (input, init = {}) => fetchWithAuthHandling(input, init, { onAuthFailure: handleAuthFailure }),
+    [handleAuthFailure],
+  );
   const [hiddenColumnIds, setHiddenColumnIds] = React.useState(() => new Set(["doc_id"]));
   const [columnOrder, setColumnOrder] = React.useState(() => allColumns.map((col) => col.id));
   const [dragColumnId, setDragColumnId] = React.useState(null);
@@ -103,7 +117,7 @@ function App() {
     documentsError,
     documentsLoading,
     reloadDocuments,
-  } = useFetchDocuments({ apiBase, visibleColumns });
+  } = useFetchDocuments({ apiBase, visibleColumns, onAuthFailure: handleAuthFailure });
 
   const renderCell = (doc, col) => {
     if (col.id === "rev_percent") {
@@ -274,31 +288,26 @@ function App() {
         return;
       }
       try {
-        const res = await fetch(`${apiBase}/documents/${selectedDocId}/revisions`);
+        const res = await apiFetch(`${apiBase}/documents/${selectedDocId}/revisions`);
         if (!res.ok) throw new Error("Failed to fetch revisions");
         const data = await res.json();
         setRevisionOverviews(Array.isArray(data) ? data : []);
-      } catch {
+      } catch (error) {
+        if (isAuthResponseError(error)) {
+          return;
+        }
         setRevisionOverviews([]);
       }
     };
     fetchRevisions();
-  }, [apiBase, selectedDocId]);
+  }, [apiBase, apiFetch, selectedDocId]);
   React.useEffect(() => {
     let isActive = true;
     const loadCurrentUser = async () => {
       try {
-        const response = await fetch(`${apiBase}/people/users/current_user`, {
+        const response = await apiFetch(`${apiBase}/people/users/current_user`, {
           headers: { Accept: "application/json" },
         });
-        if (!response.ok) {
-          console.error(
-            "Failed to load current user info from API:",
-            response.status,
-            response.statusText,
-          );
-          return;
-        }
         const payload = await response.json();
         if (!isActive || !payload || typeof payload !== "object") {
           return;
@@ -309,6 +318,9 @@ function App() {
           user_acronym: String(payload.user_acronym || "").trim() || prev.user_acronym,
         }));
       } catch (error) {
+        if (isAuthResponseError(error)) {
+          return;
+        }
         console.error("Failed to load current user info from API:", error);
         if (import.meta.env.MODE !== "production") {
           console.debug("Using fallback current user info for local UI rendering.");
@@ -321,7 +333,7 @@ function App() {
     return () => {
       isActive = false;
     };
-  }, [apiBase]);
+  }, [apiBase, apiFetch]);
   const [people, setPeople] = React.useState([]);
   // Selected revision row in Revisions tab
   const [selectedRevisionIdx, setSelectedRevisionIdx] = React.useState(null);
@@ -441,7 +453,7 @@ function App() {
             const direction = targetIndex > sourceIndex ? "forward" : "back";
             const steps = Math.abs(targetIndex - sourceIndex);
             for (let i = 0; i < steps; i += 1) {
-              const response = await fetch(
+              const response = await apiFetch(
                 `${apiBase}/documents/revisions/${selectedDoc.rev_current_id}/status-transitions`,
                 {
                   method: "POST",
@@ -481,6 +493,9 @@ function App() {
       };
 
       finishDrop().catch((err) => {
+        if (isAuthResponseError(err)) {
+          return;
+        }
         const message = err instanceof Error ? err.message : "Failed to move document status";
         alert(message);
       });
@@ -501,6 +516,7 @@ function App() {
     uploadedFiles,
     revStatuses,
     apiBase,
+    apiFetch,
     reloadDocuments,
   ]);
 
@@ -690,7 +706,7 @@ function App() {
     try {
       await Promise.all(
         cleanedIds.map(async (docId) => {
-          const res = await fetch(`${apiBase}/documents/${docId}`, { method: "DELETE" });
+          const res = await apiFetch(`${apiBase}/documents/${docId}`, { method: "DELETE" });
           if (!res.ok) {
             const errorText = await res.text();
             throw new Error(errorText || `Delete failed (${res.status})`);
@@ -704,10 +720,13 @@ function App() {
       setEditRowId(null);
       reloadDocuments();
     } catch (err) {
+      if (isAuthResponseError(err)) {
+        return;
+      }
       setSaveStatus("error");
       setSaveError(err.message || "Unknown error while deleting");
     }
-  }, [apiBase, reloadDocuments, selectedDoc, selectedDocIds]);
+  }, [apiBase, apiFetch, reloadDocuments, selectedDoc, selectedDocIds]);
 
   const ToolbarMenu = () => {
     const handleAddNew = () => {
@@ -848,7 +867,7 @@ function App() {
             };
             const jobpackId = toLookupId(row.jobpack_id);
             if (jobpackId) payload.jobpack_id = jobpackId;
-            const res = await fetch(`${apiBase}/documents`, {
+            const res = await apiFetch(`${apiBase}/documents`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(payload),
@@ -868,6 +887,9 @@ function App() {
         setLastCreatedDocIds(new Set(createdIds));
         reloadDocuments();
       } catch (err) {
+        if (isAuthResponseError(err)) {
+          return;
+        }
         setCreateStatus("error");
         setCreateError(err.message || "Paste failed");
       }
@@ -1655,7 +1677,7 @@ function App() {
       setSaveError(null);
 
       try {
-        const res = await fetch(`${apiBase}/documents/${docId}`, {
+        const res = await apiFetch(`${apiBase}/documents/${docId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -1671,12 +1693,15 @@ function App() {
         setEditRowId(null);
         reloadDocuments();
       } catch (err) {
+        if (isAuthResponseError(err)) {
+          return;
+        }
         console.error("Save error:", err);
         setSaveStatus("error");
         setSaveError(err.message || "Unknown error while saving");
       }
     },
-    [apiBase, editValues, reloadDocuments],
+    [apiBase, apiFetch, editValues, reloadDocuments],
   );
 
   const createDocument = React.useCallback(async () => {
@@ -1737,7 +1762,7 @@ function App() {
     setCreateError(null);
 
     try {
-      const res = await fetch(`${apiBase}/documents`, {
+      const res = await apiFetch(`${apiBase}/documents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1758,10 +1783,13 @@ function App() {
         title: "",
       }));
     } catch (err) {
+      if (isAuthResponseError(err)) {
+        return;
+      }
       setCreateStatus("error");
       setCreateError(err.message || "Unknown error while creating document");
     }
-  }, [apiBase, newDocValues, people, project, reloadDocuments, revCodeOptions]);
+  }, [apiBase, apiFetch, newDocValues, people, project, reloadDocuments, revCodeOptions]);
 
   const handleUploadFiles = React.useCallback(
     async (files, statusKey) => {
@@ -1785,7 +1813,7 @@ function App() {
           formData.append("rev_id", revisionId);
           formData.append("file", file);
 
-          const response = await fetch(`${apiBase}/files/`, {
+          const response = await apiFetch(`${apiBase}/files/`, {
             method: "POST",
             body: formData,
           });
@@ -1834,6 +1862,9 @@ function App() {
             };
           });
         } catch (err) {
+          if (isAuthResponseError(err)) {
+            return;
+          }
           console.error(`Error uploading ${file.name}:`, err);
           alert(`Error uploading ${file.name}: ${err.message}`);
         }
@@ -1845,7 +1876,7 @@ function App() {
         [statusKey]: { ...prev[statusKey], isOpen: true },
       }));
     },
-    [selectedDocId, selectedDoc, apiBase],
+    [selectedDocId, selectedDoc, apiBase, apiFetch],
   );
 
   const handleUploadDrop = React.useCallback(
@@ -1904,7 +1935,7 @@ function App() {
       try {
         // Download file from API
         const downloadUrl = `${apiBase}/files/${fileId}/download`;
-        const response = await fetch(downloadUrl);
+        const response = await apiFetch(downloadUrl);
 
         if (!response.ok) {
           throw new Error(`Download failed: ${response.statusText}`);
@@ -1921,11 +1952,14 @@ function App() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } catch (err) {
+        if (isAuthResponseError(err)) {
+          return;
+        }
         console.error(`Error downloading file ${displayName}:`, err);
         alert(`Failed to download ${displayName}: ${err.message}`);
       }
     },
-    [apiBase, getFileId],
+    [apiBase, apiFetch, getFileId],
   );
 
   const handleDeleteFile = React.useCallback(
@@ -1945,7 +1979,7 @@ function App() {
       }
 
       try {
-        const response = await fetch(`${apiBase}/files/${fileId}`, {
+        const response = await apiFetch(`${apiBase}/files/${fileId}`, {
           method: "DELETE",
         });
 
@@ -1979,11 +2013,14 @@ function App() {
           return updated;
         });
       } catch (err) {
+        if (isAuthResponseError(err)) {
+          return;
+        }
         console.error(`Error deleting file ${displayName}:`, err);
         alert(`Failed to delete ${displayName}: ${err.message}`);
       }
     },
-    [apiBase, getFileId, selectedDocId],
+    [apiBase, apiFetch, getFileId, selectedDocId],
   );
 
   const handleRevisionToggle = React.useCallback((revKey) => {
@@ -2006,7 +2043,7 @@ function App() {
       if (!revisionId) return;
 
       try {
-        const response = await fetch(`${apiBase}/files?rev_id=${revisionId}`);
+        const response = await apiFetch(`${apiBase}/files?rev_id=${revisionId}`);
         if (!response.ok) {
           if (response.status === 404) {
             // No files for this revision yet - keep existing local files
@@ -2067,13 +2104,16 @@ function App() {
           };
         });
       } catch (err) {
+        if (isAuthResponseError(err)) {
+          return;
+        }
         console.error("Failed to fetch files for revision:", err);
       }
     };
 
     fetchFilesForRevision();
     // When a document is selected, automatically show the current flow step
-  }, [selectedDocId, selectedDoc, apiBase]);
+  }, [selectedDocId, selectedDoc, apiBase, apiFetch]);
 
   React.useEffect(() => {
     let isActive = true;
@@ -2082,8 +2122,8 @@ function App() {
       setRevStatusError(null);
       try {
         const [statusRes, behaviorRes] = await Promise.all([
-          fetch(`${apiBase}/lookups/doc_rev_statuses`),
-          fetch(`${apiBase}/lookups/doc_rev_status_ui_behaviors`),
+          apiFetch(`${apiBase}/lookups/doc_rev_statuses`),
+          apiFetch(`${apiBase}/lookups/doc_rev_status_ui_behaviors`),
         ]);
         if (!statusRes.ok && statusRes.status !== 404) {
           throw new Error(`Failed to load statuses (${statusRes.status})`);
@@ -2098,6 +2138,9 @@ function App() {
           setRevStatusBehaviors(Array.isArray(behaviors) ? behaviors : []);
         }
       } catch (err) {
+        if (isAuthResponseError(err)) {
+          return;
+        }
         if (isActive) {
           setRevStatusError(err instanceof Error ? err.message : "Failed to load statuses");
         }
@@ -2112,7 +2155,7 @@ function App() {
     return () => {
       isActive = false;
     };
-  }, [apiBase]);
+  }, [apiBase, apiFetch]);
 
   React.useEffect(() => {
     let isActive = true;
@@ -2127,13 +2170,13 @@ function App() {
           revisionOverviewsRes,
           peopleRes,
         ] = await Promise.all([
-          fetch(`${apiBase}/documents/doc_types`),
-          fetch(`${apiBase}/lookups/disciplines`),
-          fetch(`${apiBase}/lookups/jobpacks`),
-          fetch(`${apiBase}/lookups/areas`),
-          fetch(`${apiBase}/lookups/units`),
-          fetch(`${apiBase}/documents/revision_overview`),
-          fetch(`${apiBase}/people/persons`),
+          apiFetch(`${apiBase}/documents/doc_types`),
+          apiFetch(`${apiBase}/lookups/disciplines`),
+          apiFetch(`${apiBase}/lookups/jobpacks`),
+          apiFetch(`${apiBase}/lookups/areas`),
+          apiFetch(`${apiBase}/lookups/units`),
+          apiFetch(`${apiBase}/documents/revision_overview`),
+          apiFetch(`${apiBase}/people/persons`),
         ]);
         const readJson = async (res) => (res.status === 404 ? [] : await res.json());
         if (!isActive) return;
@@ -2145,6 +2188,9 @@ function App() {
         setRevCodeOptions((await readJson(revisionOverviewsRes)) || []);
         setPeople((await readJson(peopleRes)) || []);
       } catch (err) {
+        if (isAuthResponseError(err)) {
+          return;
+        }
         if (!isActive) return;
         console.error("Failed to load lookup data:", err);
         setDocTypes([]);
@@ -2161,7 +2207,7 @@ function App() {
     return () => {
       isActive = false;
     };
-  }, [apiBase]);
+  }, [apiBase, apiFetch]);
 
   const behaviorNameById = React.useMemo(() => {
     return Object.fromEntries(
@@ -2278,6 +2324,10 @@ function App() {
     setInfoActiveStep(null);
     hasInitializedFlowRef.current = true;
   }, [orderedStatuses, infoActiveStep, selectedDoc, selectedDocId, uploadedFiles]);
+
+  if (authError) {
+    return <AuthErrorPage authError={authError} />;
+  }
 
   return (
     <main
@@ -5718,6 +5768,7 @@ function App() {
                                 onDeleteFile={handleDeleteFile}
                                 selectedFileId={selectedFileId}
                                 apiBase={apiBase}
+                                onAuthFailure={handleAuthFailure}
                               />
                             </React.Suspense>
                           </div>

@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { getFileIcon, getFileTypeLabel } from "../../utils/fileIcons";
 import DistributionList from "../DistributionList/DistributionList";
 import { getFileKey } from "../../utils/fileKey";
+import { fetchWithAuthHandling, isAuthResponseError } from "../../utils/authFetch";
 
 const IDCBehavior = ({
   selectedDoc,
@@ -16,6 +17,7 @@ const IDCBehavior = ({
   onDownloadFile,
   selectedFileId,
   apiBase = "/api/v1",
+  onAuthFailure,
 }) => {
   const [commentText, setCommentText] = React.useState("");
   const [comments, setComments] = React.useState([]);
@@ -100,11 +102,12 @@ const IDCBehavior = ({
       setCommentedSourceName(sourceName);
       onSubTabChange("Files with Comments");
       try {
-        const response = await fetch(
+        const response = await fetchWithAuthHandling(
           `${apiBase}/files/commented/list?file_id=${encodeURIComponent(String(sourceFileId))}`,
           {
             headers: { Accept: "application/json" },
           },
+          { onAuthFailure },
         );
         if (!response.ok) {
           const errorText = await response.text().catch(() => "");
@@ -120,6 +123,9 @@ const IDCBehavior = ({
               : [];
         setCommentedFiles(list);
       } catch (err) {
+        if (isAuthResponseError(err)) {
+          return;
+        }
         setCommentedFiles([]);
         setCommentedFilesError(
           err instanceof Error ? err.message : "Failed to load commented files",
@@ -128,7 +134,7 @@ const IDCBehavior = ({
         setCommentedFilesLoading(false);
       }
     },
-    [apiBase, getSourceFileId, onSubTabChange],
+    [apiBase, getSourceFileId, onAuthFailure, onSubTabChange],
   );
 
   const copyFileForComments = React.useCallback(
@@ -152,11 +158,12 @@ const IDCBehavior = ({
       onSubTabChange("Files with Comments");
 
       try {
-        const downloadResponse = await fetch(
+        const downloadResponse = await fetchWithAuthHandling(
           `${apiBase}/files/${encodeURIComponent(String(sourceFileId))}/download`,
           {
             headers: { Accept: "application/octet-stream" },
           },
+          { onAuthFailure },
         );
         if (!downloadResponse.ok) {
           const errorText = await downloadResponse.text().catch(() => "");
@@ -173,11 +180,15 @@ const IDCBehavior = ({
         formData.append("user_id", String(currentUserId));
         formData.append("file", uploadFile);
 
-        const createResponse = await fetch(`${apiBase}/files/commented`, {
-          method: "POST",
-          headers: { Accept: "application/json" },
-          body: formData,
-        });
+        const createResponse = await fetchWithAuthHandling(
+          `${apiBase}/files/commented`,
+          {
+            method: "POST",
+            headers: { Accept: "application/json" },
+            body: formData,
+          },
+          { onAuthFailure },
+        );
         if (!createResponse.ok) {
           const errorText = await createResponse.text().catch(() => "");
           throw new Error(
@@ -187,13 +198,16 @@ const IDCBehavior = ({
         await createResponse.json().catch(() => ({}));
         await loadCommentedFiles(file);
       } catch (err) {
+        if (isAuthResponseError(err)) {
+          return;
+        }
         setCommentedFilesError(
           err instanceof Error ? err.message : "Failed to create commented copy",
         );
         setCommentedFilesLoading(false);
       }
     },
-    [apiBase, currentUserId, getSourceFileId, loadCommentedFiles, onSubTabChange],
+    [apiBase, currentUserId, getSourceFileId, loadCommentedFiles, onAuthFailure, onSubTabChange],
   );
 
   React.useEffect(() => {
@@ -223,9 +237,13 @@ const IDCBehavior = ({
     let isActive = true;
     const loadUsers = async () => {
       try {
-        const usersRes = await fetch(`${apiBase}/people/users`, {
-          headers: { Accept: "application/json" },
-        });
+        const usersRes = await fetchWithAuthHandling(
+          `${apiBase}/people/users`,
+          {
+            headers: { Accept: "application/json" },
+          },
+          { onAuthFailure },
+        );
         if (usersRes.ok) {
           const users = await usersRes.json();
           if (isActive && Array.isArray(users)) {
@@ -238,14 +256,21 @@ const IDCBehavior = ({
             setUserNameById(byId);
           }
         }
-      } catch {
+      } catch (error) {
+        if (isAuthResponseError(error)) {
+          return;
+        }
         // Optional lookup data; use fallback labels.
       }
 
       try {
-        const currentRes = await fetch(`${apiBase}/people/users/current_user`, {
-          headers: { Accept: "application/json" },
-        });
+        const currentRes = await fetchWithAuthHandling(
+          `${apiBase}/people/users/current_user`,
+          {
+            headers: { Accept: "application/json" },
+          },
+          { onAuthFailure },
+        );
         if (currentRes.ok) {
           const current = await currentRes.json();
           const resolved = Number(current?.user_id);
@@ -253,7 +278,10 @@ const IDCBehavior = ({
             setCurrentUserId(resolved);
           }
         }
-      } catch {
+      } catch (error) {
+        if (isAuthResponseError(error)) {
+          return;
+        }
         const envUserId = Number(import.meta.env.VITE_APP_USER_ID || 1);
         if (isActive && Number.isFinite(envUserId) && envUserId > 0) {
           setCurrentUserId(envUserId);
@@ -265,7 +293,7 @@ const IDCBehavior = ({
     return () => {
       isActive = false;
     };
-  }, [apiBase]);
+  }, [apiBase, onAuthFailure]);
 
   // Organize files by revision letter (RevA, RevB, RevC) - case insensitive
   const filesByRevision = {
@@ -986,7 +1014,7 @@ const IDCBehavior = ({
             )}
           </>
         ) : (
-          <DistributionList docId={docId} apiBase={apiBase} />
+          <DistributionList docId={docId} apiBase={apiBase} onAuthFailure={onAuthFailure} />
         )}
       </div>
     </>
@@ -1025,6 +1053,7 @@ IDCBehavior.propTypes = {
   onDownloadFile: PropTypes.func,
   selectedFileId: PropTypes.string,
   apiBase: PropTypes.string,
+  onAuthFailure: PropTypes.func,
 };
 
 export default IDCBehavior;

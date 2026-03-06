@@ -101,6 +101,8 @@ Provide the secret to oauth2-proxy via environment variables (Makefile uses `.en
 export OAUTH2_PROXY_CLIENT_SECRET="your-client-secret"
 ```
 
+For local account switching from the UI authentication error page, the compose stack sets `OAUTH2_PROXY_PROMPT=login` so `/oauth2/start` forces a fresh Keycloak login prompt instead of silently reusing the current IdP session.
+
 Generate a cookie secret (32 bytes) for oauth2-proxy:
 ```bash
 python - <<'PY'
@@ -131,6 +133,8 @@ export OAUTH2_PROXY_COOKIE_SECRET="your-32-byte-secret"
 - Non-local compose/runtime flows should leave `APP_USER` unset and provide identity through the trusted request header (`TRUSTED_IDENTITY_HEADER`, default `X-Auth-User`) injected by the edge proxy.
 - `APP_USER_DB_WAIT_SEC` controls how long API startup waits for DB readiness during `APP_USER` validation (default `30`).
 - `APP_USER_DB_WAIT_POLL_SEC` controls retry interval for that wait loop (default `1`).
+- `VITE_AUTH_START_URL` optionally overrides the UI auth re-entry target used by the authentication error page. Set it to the nginx/oauth2-proxy entrypoint (for example `http://localhost/oauth2/start`) when the UI is served directly from Vite on `:5558` instead of through nginx.
+- For compose/containerized UI builds, put `VITE_API_BASE_URL` and `VITE_AUTH_START_URL` in `.env.compose` because the UI image is built by `ci/Dockerfile.ui` and Vite reads these values at build time.
 
 ### Seed data (Postgres)
 - `ci/init/flow_seed.sql` inserts into `ref/core/workflow` tables and must run as a privileged role

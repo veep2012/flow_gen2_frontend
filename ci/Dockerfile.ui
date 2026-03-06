@@ -2,6 +2,11 @@ FROM node:20.19-alpine
 
 WORKDIR /app
 
+ARG VITE_API_BASE_URL=/api/v1
+ARG VITE_AUTH_START_URL=/oauth2/start
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_AUTH_START_URL=$VITE_AUTH_START_URL
+
 COPY ui/package.json ui/vite.config.js ui/index.html /app/
 COPY ui/src /app/src
 

@@ -100,6 +100,9 @@ services:
     build:
       context: ..
       dockerfile: ci/Dockerfile.ui
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+        VITE_AUTH_START_URL: ${VITE_AUTH_START_URL:-http://localhost/oauth2/start}
     expose:
       - "5558"
     depends_on:
@@ -169,6 +172,7 @@ services:
       OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
       OAUTH2_PROXY_PREFER_EMAIL_TO_USER: "true"
       OAUTH2_PROXY_USER_ID_CLAIM: acronym
+      OAUTH2_PROXY_PROMPT: login
       # WARNING: Insecure setting for local/CI use over HTTP only. Must be set to "true" in production.
       OAUTH2_PROXY_COOKIE_SECURE: "false"
       # WARNING: Insecure setting for local/CI use only. Do NOT enable issuer verification skipping in production.
