@@ -80,6 +80,33 @@ describe("App auth error screen", () => {
     );
   });
 
+  it("routes logout through sign_out and back into switch-user login", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("fetch", buildFetchMock(200, "Authentication required", "req-200"));
+    vi.stubEnv("VITE_AUTH_START_URL", "http://localhost/oauth2/start");
+
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...window.location,
+        origin: "http://localhost:5558",
+        pathname: "/documents",
+        search: "?tab=current",
+        hash: "#info",
+        assign,
+      },
+    });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /konstantin ni designer/i }));
+    fireEvent.click(screen.getByRole("button", { name: /logout/i }));
+
+    expect(assign).toHaveBeenCalledWith(
+      "http://localhost/oauth2/sign_out?rd=http%3A%2F%2Flocalhost%2Foauth2%2Fstart%3Frd%3D%252Fdocuments%253Ftab%253Dcurrent%2523info",
+    );
+  });
+
   it("renders the dedicated auth error page for 400 responses", async () => {
     vi.stubGlobal(
       "fetch",

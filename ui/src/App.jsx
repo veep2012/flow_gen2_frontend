@@ -7,6 +7,10 @@ import { useFetchDocuments } from "./hooks/useFetchDocuments";
 import { resolveBehaviorByFile } from "./components/DocRevStatusBehaviors";
 import AuthErrorPage from "./components/AuthErrorPage/AuthErrorPage";
 import { fetchWithAuthHandling, isAuthResponseError } from "./utils/authFetch";
+import {
+  buildLogoutForUserSwitchUrl,
+  resolveAuthStartBase,
+} from "./utils/authNavigation";
 
 const allColumns = documentGridColumns.map(({ id, label, field, hidden }) => ({
   key: field,
@@ -63,6 +67,10 @@ const resolveCurrentStatusKey = (doc, orderedStatuses = []) => {
 
 function App() {
   const apiBase = normalizeApiBase(import.meta.env.VITE_API_BASE_URL);
+  const authStartBase = React.useMemo(
+    () => resolveAuthStartBase(import.meta.env.VITE_AUTH_START_URL),
+    [],
+  );
   const [authError, setAuthError] = React.useState(null);
   const handleAuthFailure = React.useCallback((error) => {
     setAuthError({
@@ -75,6 +83,11 @@ function App() {
     (input, init = {}) => fetchWithAuthHandling(input, init, { onAuthFailure: handleAuthFailure }),
     [handleAuthFailure],
   );
+  const handleLogout = React.useCallback(() => {
+    setUserMenuOpen(false);
+    const redirectPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.assign(buildLogoutForUserSwitchUrl(authStartBase, redirectPath || "/"));
+  }, [authStartBase]);
   const [hiddenColumnIds, setHiddenColumnIds] = React.useState(() => new Set(["doc_id"]));
   const [columnOrder, setColumnOrder] = React.useState(() => allColumns.map((col) => col.id));
   const [dragColumnId, setDragColumnId] = React.useState(null);
@@ -1458,9 +1471,7 @@ function App() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                  }}
+                  onClick={handleLogout}
                   style={{
                     display: "block",
                     width: "100%",

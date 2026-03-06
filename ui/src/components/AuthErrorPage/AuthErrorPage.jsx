@@ -1,5 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
+import { buildReauthUrl, resolveAuthStartBase } from "../../utils/authNavigation";
 
 const shellStyle = {
   minHeight: "100vh",
@@ -102,19 +103,6 @@ function describeStatus(status) {
   };
 }
 
-function resolveAuthStartBase(rawValue) {
-  const value = String(rawValue || "").trim();
-  if (!value) {
-    return "/oauth2/start";
-  }
-  try {
-    return new URL(value, window.location.origin).toString();
-  } catch {
-    console.warn("Invalid VITE_AUTH_START_URL, falling back to /oauth2/start");
-    return "/oauth2/start";
-  }
-}
-
 export default function AuthErrorPage({ authError }) {
   const status = Number(authError?.status) || 401;
   const descriptor = describeStatus(status);
@@ -131,9 +119,7 @@ export default function AuthErrorPage({ authError }) {
 
   const handleSignIn = React.useCallback(() => {
     const redirectPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    const target = new URL(authStartBase, window.location.origin);
-    target.searchParams.set("rd", redirectPath || "/");
-    window.location.assign(target.toString());
+    window.location.assign(buildReauthUrl(authStartBase, redirectPath || "/"));
   }, [authStartBase]);
 
   return (
