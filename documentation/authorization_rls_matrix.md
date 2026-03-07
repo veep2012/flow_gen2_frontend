@@ -5,10 +5,12 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-21
-- Last Updated: 2026-03-05
-- Version: v1.1
+- Last Updated: 2026-03-07
+- Version: v1.3
 
 ## Change Log
+- 2026-03-07 | v1.3 | Expanded Phase 3 target scope to include full JWT token verification in the API while keeping external role mapping and identity-sync work out of scope.
+- 2026-03-07 | v1.2 | Re-scoped Phase 3 to trusted identity integration only, clarified that external role mapping is out of current phase scope, and moved identity-sync/reconciliation work into a separate future phase.
 - 2026-03-05 | v1.1 | Implemented Phase 3 trusted identity resolver path and clarified architecture boundary: `ref.roles.external_name` remains reference-only for a dedicated identity-sync module and is not evaluated in request/workflow authorization execution.
 - 2026-02-26 | v0.7 | Updated implementation reality through Phase 1: read-path predicate/RLS and project-scoped lookup filtering are now implemented and test-covered.
 - 2026-02-25 | v0.5 | Added architecture review summary, gradual implementation plan, edge cases, and references.
@@ -368,25 +370,28 @@ Exit criteria:
 - Authorized writes succeed for all matrix-defined role/resource combinations.
 - No regression in existing mutation API behavior outside authorization semantics.
 
-### Phase 3 - Identity and role mapping integration
+### Phase 3 - Trusted identity integration
 Objective:
-- Replace local/dev identity assumptions with trusted identity mapping flow.
+- Replace local/dev identity assumptions in non-local environments with API-verified trusted identity resolution flow.
 
 Tasks:
-- Implement trusted auth context resolver (JWT/header to internal user mapping).
-- Add observability around mapping errors and authorization denials.
+- Implement full JWT token verification pipeline in the API for identity resolution.
+- Support trusted auth context resolver from verified JWT claims or trusted header to internal user mapping.
+- Add observability around identity resolution errors and authorization denials.
 
 Exit criteria:
 - End-to-end auth flow works without `APP_USER` outside local environment.
-- Unknown trusted identity inputs fail closed with traceable audit evidence.
+- API can validate JWT signature and required claims before resolving internal user identity.
+- Unknown trusted identity inputs fail closed with traceable auth evidence.
 
-Implementation reality (as of v1.1):
+Implementation reality (as of v1.3):
 - Implemented:
   - Trusted identity resolver path through configurable header (`TRUSTED_IDENTITY_HEADER`, default `X-Auth-User`) with `trusted_identity_header` auth mode.
   - Fail-closed identity behavior for unknown trusted identities (`401`).
   - Structured auth events and existing auth counters remain active for deny/parse visibility.
-- Deferred to dedicated identity-sync module (out of Phase 3 scope):
-  - Full JWT token verification pipeline in API (trusted-header integration is current implementation path).
+- Not yet implemented in Phase 3:
+  - Full JWT token verification pipeline in API (signature verification, claim validation, key rotation handling).
+- Explicitly out of Phase 3 scope:
   - Runtime external-role mapping via `ref.roles.external_name` in request/workflow paths.
   - Dedicated identity-sync module that owns LDAP/IdP role reconciliation into `ref.user_roles`.
 
@@ -414,6 +419,20 @@ Exit criteria:
 - Authorization path meets agreed latency/error SLOs.
 - Security review findings are resolved or formally accepted.
 - Production rollout completed with monitored deny-rate and no data isolation incidents.
+
+### Future phase - Identity synchronization and external role reconciliation
+Objective:
+- Add deterministic synchronization from external identity/group sources into internal role assignments without coupling role reconciliation to request execution.
+
+Tasks:
+- Implement a dedicated identity-sync module or job that maps external groups/roles to internal roles through `ref.roles.external_name`.
+- Reconcile `ref.user_roles` from the external identity source with deterministic add/remove behavior.
+- Add monitoring, auditability, and integration coverage for sync lag, mapping failures, and role propagation.
+
+Exit criteria:
+- External role changes propagate into `ref.user_roles` through the dedicated synchronization path.
+- Request/workflow authorization continues to evaluate only internal role tables and does not depend on live IdP/group lookups.
+- Sync failures are observable and operationally actionable.
 
 ## Rollout / Migration
 - Backward compatibility:
