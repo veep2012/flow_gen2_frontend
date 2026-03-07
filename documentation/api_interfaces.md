@@ -6,9 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-07
-- Version: v3.4
+- Version: v3.5
 
 ## Change Log
+- 2026-03-07 | v3.5 | Restricted raw `X-User-Id` identity fallback to non-production environments only; production-capable modes now accept bearer JWT, then trusted header, then optional local `APP_USER`.
 - 2026-03-07 | v3.4 | Clarified that JWKS retrieval/client failures during bearer JWT verification fail closed as `401 Unauthorized` and increment `flow_auth_jwt_validation_failures_total{reason="jwks_fetch_failed"}`.
 - 2026-03-07 | v3.3 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT auth configuration and observability, documented nginx bearer-token passthrough for `/api` requests, and aligned local compose/Keycloak defaults so direct-access bearer-token testing uses `aud=flow-ui`.
 - 2026-03-06 | v3.0 | Updated auth identity resolution order so trusted header (`X-Auth-User`, configurable via `TRUSTED_IDENTITY_HEADER`) takes precedence over `X-User-Id`, documented fail-closed behavior when trusted identity is invalid, and synchronized the request-header startup banner wording.
@@ -113,7 +114,7 @@ Audit fields (created_by / updated_by):
 - User resolution order:
   - verified bearer JWT from `Authorization: Bearer <token>` when present
   - trusted identity header (`X-Auth-User` by default; configurable via `TRUSTED_IDENTITY_HEADER`) when present and non-empty
-  - `X-User-Id` header only when trusted identity header is absent or empty
+  - `X-User-Id` header only when trusted identity header is absent or empty and `APP_ENV`/`ENV` is one of `local/dev/development/test/testing/ci/ci_test`
   - `APP_USER` environment fallback when both request headers are absent
 - Bearer JWT verification contract:
   - API validates signature, issuer, audience, expiry, and configured algorithms before resolving internal identity.
@@ -125,11 +126,13 @@ Audit fields (created_by / updated_by):
 - If bearer-token validation fails, the API returns `401 Unauthorized` and does not fall back to trusted-header or `X-User-Id` identity sources for that request.
 - When both trusted and less-trusted headers are present, the trusted header is authoritative.
 - If the trusted identity header is present but unresolved, the API fails closed with `401 Unauthorized` instead of falling back to `X-User-Id`.
+- In production-capable environments (`prod/production/stage/staging`), the API ignores inbound `X-User-Id` and requires bearer JWT or the trusted identity header for request-sourced identity.
 - `APP_USER` is guarded: it must be used only in non-production environments (`local/dev/test/ci/ci_test`), and startup validation must confirm that configured value resolves to a row in `workflow.v_users`.
 - `APP_USER` format is validated at startup with a strict uppercase acronym regex: `^[A-Z]{2,12}$`.
 - `APP_ENV=production` (or other blocked/unknown non-allowed envs) plus `APP_USER` causes startup failure before the API begins serving requests.
 - Startup logs emit a clear identity banner:
-  - `startup_identity_mode=request_header_only ... identity_source=Authorization>X-Auth-User>X-User-Id` when request/header identity resolution is active.
+  - `startup_identity_mode=request_header_only ... identity_source=Authorization>X-Auth-User>X-User-Id` in non-production environments where raw header fallback is enabled.
+  - `startup_identity_mode=request_header_only ... identity_source=Authorization>X-Auth-User` in production-capable environments where raw header fallback is disabled.
   - `startup_identity_mode=app_user_bootstrap ...` when `APP_USER` bootstrap mode is active.
 - Auth-sensitive routers fail closed with `401 Unauthorized` when no supported identity source resolves to an effective session identity. The API logs a security event with `X-Request-Id`, HTTP method, and path only.
 - Local nginx ingress behavior:

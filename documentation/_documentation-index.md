@@ -37,6 +37,7 @@
 - `test_scenarios/get_endpoints_api_test_scenarios.md` - Scenario contract for global GET endpoint smoke validation.
 - `test_scenarios/notifications_api_test_plan.md` - End-to-end curl plan for notification lifecycle API validation.
 - `test_scenarios/current_user_api_test_scenarios.md` - Contract scenarios for `GET /people/users/current_user`.
+- `test_scenarios/jwt_auth_validation_api_test_scenarios.md` - Fail-closed JWT/JWKS validation matrix and automated test coverage mapping.
 - `test_scenarios/read_sql_guard_api_test_scenarios.md` - Static guard contract for API SQL reads using `workflow.v_*` views only.
 
 ## Standards and Templates

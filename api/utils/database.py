@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 _APP_USER_ALLOWED_ENVS = {"local", "dev", "development", "test", "testing", "ci", "ci_test"}
 _APP_USER_BLOCKED_ENVS = {"prod", "production", "stage", "staging"}
+_X_USER_ID_ALLOWED_ENVS = _APP_USER_ALLOWED_ENVS
 _APP_USER_PATTERN = re.compile(r"^[A-Z]{2,12}$")
 _APP_USER_DB_WAIT_SEC = int(os.getenv("APP_USER_DB_WAIT_SEC", "30"))
 _APP_USER_DB_WAIT_POLL_SEC = float(os.getenv("APP_USER_DB_WAIT_POLL_SEC", "1"))
@@ -80,6 +81,11 @@ def _configured_app_user() -> str | None:
     return value or None
 
 
+def _x_user_id_enabled(env: str | None = None) -> bool:
+    effective_env = (env or _current_app_env()).strip().lower()
+    return effective_env in _X_USER_ID_ALLOWED_ENVS
+
+
 def _validate_app_user_format(app_user: str) -> None:
     if _APP_USER_PATTERN.fullmatch(app_user):
         return
@@ -89,11 +95,15 @@ def _validate_app_user_format(app_user: str) -> None:
 
 
 def _log_startup_identity_mode(*, env: str, app_user: str | None) -> None:
+    identity_sources = f"Authorization>{_TRUSTED_IDENTITY_HEADER}"
+    if _x_user_id_enabled(env):
+        identity_sources = f"{identity_sources}>X-User-Id"
+
     if app_user is None:
         logger.info(
             "startup_identity_mode=request_header_only app_env=%s identity_source=%s",
             env or "unknown",
-            f"Authorization>{_TRUSTED_IDENTITY_HEADER}>X-User-Id",
+            identity_sources,
         )
         return
 
@@ -369,6 +379,7 @@ def _set_app_user(db: Session, request: Request) -> None:
     bearer_identity = _resolve_bearer_identity(request)
     header_value = request.headers.get("X-User-Id")
     trusted_header_value = request.headers.get(_TRUSTED_IDENTITY_HEADER)
+    x_user_id_enabled = _x_user_id_enabled()
     if bearer_identity is not None:
         raw_user_value = bearer_identity
         auth_mode = _AUTH_MODE_JWT
@@ -377,7 +388,7 @@ def _set_app_user(db: Session, request: Request) -> None:
         raw_user_value = trusted_header_value.strip()
         auth_mode = _AUTH_MODE_TRUSTED_HEADER
         header_name = _TRUSTED_IDENTITY_HEADER
-    elif header_value is not None:
+    elif x_user_id_enabled and header_value is not None:
         raw_user_value = header_value.strip()
         auth_mode = _AUTH_MODE_HEADER if raw_user_value else _AUTH_MODE_NONE
         header_name = "X-User-Id"

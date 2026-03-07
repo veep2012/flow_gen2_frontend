@@ -64,10 +64,6 @@ GRANT EXECUTE ON FUNCTION workflow.check_user_permission(
 GRANT EXECUTE ON FUNCTION workflow.check_lookup_scope_permission(
     BIGINT, TEXT, BIGINT, TEXT, TEXT
 ) TO app_user;
-GRANT EXECUTE ON FUNCTION workflow.sync_user_roles_from_external_names(
-    SMALLINT, TEXT[]
-) TO db_admin;
-
 -- admin override only for db_admin
 GRANT EXECUTE ON FUNCTION workflow.admin_override_transition(INTEGER, SMALLINT, TEXT) TO db_admin;
 

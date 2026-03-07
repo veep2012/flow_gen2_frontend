@@ -6,9 +6,10 @@
 - Reviewers: Security and API maintainers
 - Created: 2026-02-25
 - Last Updated: 2026-03-07
-- Version: v1.5
+- Version: v1.6
 
 ## Change Log
+- 2026-03-07 | v1.6 | Restricted raw `X-User-Id` fallback to non-production environments and updated the startup identity banner accordingly.
 - 2026-03-07 | v1.5 | Clarified that JWKS client/fetch failures during bearer JWT verification fail closed as `401` and emit `jwks_fetch_failed` observability.
 - 2026-03-07 | v1.4 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT verification inputs and failure telemetry, and synchronized the startup identity banner.
 - 2026-03-06 | v1.3 | Made trusted identity header resolution authoritative over `X-User-Id`, documented fail-closed behavior when the trusted header is unresolved, and synchronized compose/nginx trusted-header forwarding expectations.
@@ -40,7 +41,7 @@ Current implementation is a hybrid state: role-model foundations are active, and
 - API resolves acting user in this order:
   - Verified bearer JWT from `Authorization: Bearer <token>`.
   - Trusted identity header (`X-Auth-User`, configurable via `TRUSTED_IDENTITY_HEADER`).
-  - `X-User-Id` request header only when the trusted header is absent or empty.
+  - `X-User-Id` request header only when the trusted header is absent or empty and the app environment is `local/dev/development/test/testing/ci/ci_test`.
   - `APP_USER` environment variable.
 - Bearer JWT verification:
   - API validates signature, issuer, audience, expiry, and configured algorithms before resolving internal identity.
@@ -53,6 +54,9 @@ Current implementation is a hybrid state: role-model foundations are active, and
   - When both headers are present, trusted identity header resolution is authoritative.
   - If the trusted identity header is present but unresolved, the request fails closed with `401 Unauthorized` and does not fall back to `X-User-Id`.
   - In non-local environments, safe operation requires proxy/network controls that strip inbound identity headers from clients and set canonical trusted identity headers after OIDC validation.
+- Production-capable environments do not honor inbound `X-User-Id`:
+  - `prod/production/stage/staging` ignore `X-User-Id` entirely for request identity resolution.
+  - This prevents raw client-controlled header fallback if the API becomes directly reachable or edge stripping is misconfigured.
 - Header/env identifier format:
   - `user_acronym` only.
   - resolved identifier is converted to internal `user_id` before session set.
@@ -74,7 +78,8 @@ Current implementation is a hybrid state: role-model foundations are active, and
   - `APP_USER` must match `^[A-Z]{2,12}$`.
   - Startup validates that `APP_USER` resolves to a row in `workflow.v_users`.
 - Startup emits a banner describing active identity mode:
-  - `startup_identity_mode=request_header_only identity_source=Authorization>X-Auth-User>X-User-Id` when `APP_USER` is not configured.
+  - `startup_identity_mode=request_header_only identity_source=Authorization>X-Auth-User>X-User-Id` when `APP_USER` is not configured and non-production raw header fallback is enabled.
+  - `startup_identity_mode=request_header_only identity_source=Authorization>X-Auth-User` when `APP_USER` is not configured in production-capable environments.
   - `startup_identity_mode=app_user_bootstrap` when `APP_USER` bootstrap is active.
 - API-layer fail-closed guard is active for auth-sensitive routers:
   - `documents`
