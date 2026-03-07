@@ -13,6 +13,7 @@ from urllib.request import urlopen
 import jwt
 from fastapi import Depends, HTTPException, Request
 from jwt import InvalidTokenError, PyJWKClient
+from jwt import exceptions as jwt_exceptions
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
@@ -35,6 +36,15 @@ _AUTH_MODE_TRUSTED_HEADER = "trusted_identity_header"
 _AUTH_MODE_BOOTSTRAP = "app_user_bootstrap"
 _AUTH_MODE_NONE = "missing_identity"
 _TRUSTED_IDENTITY_HEADER = os.getenv("TRUSTED_IDENTITY_HEADER", "X-Auth-User")
+_PYJWK_CLIENT_EXCEPTIONS = tuple(
+    exc
+    for exc in (
+        getattr(jwt_exceptions, "PyJWKClientError", None),
+        getattr(jwt_exceptions, "PyJWKClientConnectionError", None),
+    )
+    if exc is not None
+)
+_JWKS_FETCH_EXCEPTIONS = (json.JSONDecodeError, URLError, *_PYJWK_CLIENT_EXCEPTIONS)
 
 
 def _build_database_url() -> str:
@@ -287,7 +297,7 @@ def _resolve_bearer_identity(request: Request) -> str | None:
     except RuntimeError:
         _record_jwt_validation_failure(request, reason="jwt_verifier_unconfigured")
         raise HTTPException(status_code=401, detail=MISSING_IDENTITY_DETAIL) from None
-    except (json.JSONDecodeError, URLError):
+    except _JWKS_FETCH_EXCEPTIONS:
         _record_jwt_validation_failure(request, reason="jwks_fetch_failed")
         raise HTTPException(status_code=401, detail=MISSING_IDENTITY_DETAIL) from None
     except InvalidTokenError:

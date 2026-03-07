@@ -1,3 +1,4 @@
+import json
 import logging
 from types import SimpleNamespace
 
@@ -77,6 +78,43 @@ def test_malformed_authorization_header_increments_metric_and_logs(caplog) -> No
         "event=jwt_validation_failure request_id=req-123 auth_mode=jwt_bearer "
         "method=GET path=/api/v1/people/users/current_user reason=malformed_authorization_header"
         in caplog.text
+    )
+
+
+def test_jwks_client_failure_fails_closed_and_records_metric(monkeypatch, caplog) -> None:
+    reset_metrics()
+    request = _make_request(headers={"Authorization": "Bearer token"})
+    db = _DummySession()
+    caplog.set_level(logging.WARNING)
+
+    class _FakeJwksClientError(Exception):
+        pass
+
+    class _BrokenJwksClient:
+        def get_signing_key_from_jwt(self, _token: str):
+            raise _FakeJwksClientError("jwks unavailable")
+
+    monkeypatch.setattr(database, "_jwt_issuer_url", lambda: "https://issuer.example")
+    monkeypatch.setattr(database, "_jwt_audience", lambda: "flow-ui")
+    monkeypatch.setattr(database, "_jwt_shared_secret", lambda: "")
+    monkeypatch.setattr(database, "_jwt_algorithms", lambda: ("RS256",))
+    monkeypatch.setattr(database, "_effective_jwks_url", lambda: "https://issuer.example/jwks")
+    monkeypatch.setattr(database, "_jwt_jwk_client", lambda _jwks_url: _BrokenJwksClient())
+    monkeypatch.setattr(
+        database,
+        "_JWKS_FETCH_EXCEPTIONS",
+        (json.JSONDecodeError, database.URLError, _FakeJwksClientError),
+    )
+
+    with pytest.raises(HTTPException, match="Authentication required") as exc:
+        database._set_app_user(db, request)
+
+    assert exc.value.status_code == 401
+    metrics = render_prometheus_text()
+    assert 'flow_auth_jwt_validation_failures_total{reason="jwks_fetch_failed"} 1' in metrics
+    assert (
+        "event=jwt_validation_failure request_id=req-123 auth_mode=jwt_bearer "
+        "method=GET path=/api/v1/people/users/current_user reason=jwks_fetch_failed" in caplog.text
     )
 
 

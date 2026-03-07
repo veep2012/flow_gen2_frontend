@@ -1,4 +1,7 @@
-const AUTH_ERROR_STATUSES = new Set([400, 401]);
+const AUTH_ERROR_STATUSES = new Set([401]);
+const AUTH_ERROR_400_DETAILS = [
+  "Invalid X-User-Id header. Expected existing user_acronym.",
+];
 
 export class AuthResponseError extends Error {
   constructor({ status, detail, requestId, url }) {
@@ -33,13 +36,20 @@ async function extractAuthDetail(response) {
 
 export async function fetchWithAuthHandling(input, init = {}, options = {}) {
   const response = await fetch(input, init);
-  if (!AUTH_ERROR_STATUSES.has(response.status)) {
+  const detail = await extractAuthDetail(response);
+
+  const isAuthFailure =
+    AUTH_ERROR_STATUSES.has(response.status) ||
+    (response.status === 400 &&
+      AUTH_ERROR_400_DETAILS.some((message) => detail === message));
+
+  if (!isAuthFailure) {
     return response;
   }
 
   const authError = {
     status: response.status,
-    detail: await extractAuthDetail(response),
+    detail,
     requestId: response.headers.get("X-Request-Id") || "",
     url: typeof input === "string" ? input : input?.url || "",
   };

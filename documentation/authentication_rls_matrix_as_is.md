@@ -6,9 +6,10 @@
 - Reviewers: Security and API maintainers
 - Created: 2026-02-25
 - Last Updated: 2026-03-07
-- Version: v1.4
+- Version: v1.5
 
 ## Change Log
+- 2026-03-07 | v1.5 | Clarified that JWKS client/fetch failures during bearer JWT verification fail closed as `401` and emit `jwks_fetch_failed` observability.
 - 2026-03-07 | v1.4 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT verification inputs and failure telemetry, and synchronized the startup identity banner.
 - 2026-03-06 | v1.3 | Made trusted identity header resolution authoritative over `X-User-Id`, documented fail-closed behavior when the trusted header is unresolved, and synchronized compose/nginx trusted-header forwarding expectations.
 - 2026-03-05 | v1.2 | Implemented trusted identity header mode (`X-Auth-User`) with fail-closed unknown-identity behavior, clarified that `ref.roles.external_name` is reference-only for a dedicated identity-sync module rather than a request-path/workflow authorization input, and documented current identity-header precedence limitation (`X-User-Id` evaluated before trusted header) with required proxy stripping/rewriting controls in non-local environments.
@@ -107,6 +108,7 @@ Current implementation is a hybrid state: role-model foundations are active, and
   - `flow_auth_denied_by_rls_total{endpoint=...,status_code=...,auth_mode=...}`
   - `flow_auth_identity_header_parse_failures_total{auth_mode=...}`
   - `flow_auth_jwt_validation_failures_total{reason=...}`
+- JWKS URL fetch failures, JWKS client parsing failures, and equivalent bearer-token key-resolution failures must fail closed with `401` and increment `flow_auth_jwt_validation_failures_total{reason="jwks_fetch_failed"}`.
 - `flow_auth_denied_by_rls_total` counts observable API-layer auth denials:
   - explicit `403` responses on auth-sensitive endpoints
   - `404` on `GET /api/v1/people/users/current_user` when an authenticated identity is filtered/unresolved

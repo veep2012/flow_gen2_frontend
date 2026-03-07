@@ -6,9 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-07
-- Version: v3.3
+- Version: v3.4
 
 ## Change Log
+- 2026-03-07 | v3.4 | Clarified that JWKS retrieval/client failures during bearer JWT verification fail closed as `401 Unauthorized` and increment `flow_auth_jwt_validation_failures_total{reason="jwks_fetch_failed"}`.
 - 2026-03-07 | v3.3 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT auth configuration and observability, documented nginx bearer-token passthrough for `/api` requests, and aligned local compose/Keycloak defaults so direct-access bearer-token testing uses `aud=flow-ui`.
 - 2026-03-06 | v3.0 | Updated auth identity resolution order so trusted header (`X-Auth-User`, configurable via `TRUSTED_IDENTITY_HEADER`) takes precedence over `X-User-Id`, documented fail-closed behavior when trusted identity is invalid, and synchronized the request-header startup banner wording.
 - 2026-03-04 | v2.9 | Added `/metrics` system endpoint for in-process auth observability counters; documented auth metrics for current-user resolution failures, observable RLS denials by endpoint, and identity header parse failures; and documented structured auth-event logs with correlation IDs and auth mode.
@@ -117,8 +118,9 @@ Audit fields (created_by / updated_by):
 - Bearer JWT verification contract:
   - API validates signature, issuer, audience, expiry, and configured algorithms before resolving internal identity.
   - JWT identity claim search order is configurable through `AUTH_JWT_IDENTITY_CLAIMS` and defaults to `acronym,preferred_username,sub`.
-  - JWT verification requires `AUTH_JWT_ISSUER_URL` and `AUTH_JWT_AUDIENCE`, plus either `AUTH_JWT_SHARED_SECRET` or JWKS discovery/override via `AUTH_JWT_JWKS_URL`.
+- JWT verification requires `AUTH_JWT_ISSUER_URL` and `AUTH_JWT_AUDIENCE`, plus either `AUTH_JWT_SHARED_SECRET` or JWKS discovery/override via `AUTH_JWT_JWKS_URL`.
   - Local compose defaults expect `aud=flow-ui`; the bundled local Keycloak realm is configured to emit that audience for `flow-ui` direct-access tokens.
+  - JWKS discovery, fetch, and client-parsing failures must fail closed as `401 Unauthorized` and increment `flow_auth_jwt_validation_failures_total{reason="jwks_fetch_failed"}`.
 - Request-header identity values must be existing `user_acronym`; API resolves them to internal `user_id` before setting DB session context.
 - If bearer-token validation fails, the API returns `401 Unauthorized` and does not fall back to trusted-header or `X-User-Id` identity sources for that request.
 - When both trusted and less-trusted headers are present, the trusted header is authoritative.

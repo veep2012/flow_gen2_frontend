@@ -124,4 +124,17 @@ describe("App auth error screen", () => {
     );
     expect(screen.getByText(/Request ID:/)).toHaveTextContent("Request ID: req-400");
   });
+
+  it("does not treat non-auth 400 validation errors as auth failures", async () => {
+    vi.stubGlobal("fetch", buildFetchMock(400, "No fields provided for update", "req-400-validation"));
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Session verification failed" })).not.toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("heading", { name: "Sign-in is required" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Select project")).toBeInTheDocument();
+  });
 });
