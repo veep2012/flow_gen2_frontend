@@ -9,8 +9,7 @@
 - Version: v1.4
 
 ## Change Log
-- 2026-03-07 | v1.4 | Expanded Phase 3 target scope to include full JWT token verification in the API and aligned implementation reality with bearer-JWT verification while keeping external role mapping and identity-sync work out of scope.
-- 2026-03-07 | v1.2 | Re-scoped Phase 3 to trusted identity integration only, clarified that external role mapping is out of current phase scope, and moved identity-sync/reconciliation work into a separate future phase.
+- 2026-03-07 | v1.4 | Re-scoped Phase 3 around trusted identity integration, expanded it to include full JWT token verification in the API, aligned implementation reality with bearer-JWT verification, and kept external role mapping and identity-sync work out of scope.
 - 2026-03-05 | v1.1 | Implemented Phase 3 trusted identity resolver path and clarified architecture boundary: `ref.roles.external_name` remains reference-only for a dedicated identity-sync module and is not evaluated in request/workflow authorization execution.
 - 2026-02-26 | v0.7 | Updated implementation reality through Phase 1: read-path predicate/RLS and project-scoped lookup filtering are now implemented and test-covered.
 - 2026-02-25 | v0.5 | Added architecture review summary, gradual implementation plan, edge cases, and references.

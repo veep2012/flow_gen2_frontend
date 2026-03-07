@@ -9,10 +9,7 @@
 - Version: v2.0
 
 ## Change Log
-- 2026-03-07 | v2.0 | Added local `flow-ui` audience mapper guidance and aligned compose JWT audience defaults so direct-access Keycloak tokens satisfy API audience validation.
-- 2026-03-07 | v1.9 | Added nginx API bearer-token passthrough behavior for `/api` requests carrying `Authorization: Bearer ...` while preserving oauth2-proxy cookie flow for browser requests.
-- 2026-03-07 | v1.8 | Added local compose defaults for API JWT verification against the bundled Keycloak realm so direct bearer-token testing works without extra environment wiring.
-- 2026-03-07 | v1.7 | Documented API-verified bearer JWT as a supported identity ingress path alongside trusted edge headers for backend authentication.
+- 2026-03-07 | v2.0 | Documented API-verified bearer JWT as a supported identity ingress path alongside trusted edge headers, added nginx bearer-token passthrough behavior for `/api` requests, and aligned local compose/Keycloak defaults so direct-access bearer-token testing works with `aud=flow-ui`.
 - 2026-03-06 | v1.6 | Updated the target edge-to-API header contract to use trusted `X-Auth-User` forwarding for API requests while retaining `X-User-Id` compatibility expectations only where explicitly needed outside the API hop.
 - 2026-02-26 | v1.5 | Clarified document positioning as target architecture and linked current implemented state to `authentication_rls_matrix_as_is.md`.
 - 2026-02-20 | v1.4 | Added Change Log section for standards compliance

@@ -9,9 +9,7 @@
 - Version: v3.3
 
 ## Change Log
-- 2026-03-07 | v3.3 | Aligned local compose JWT audience defaults to `flow-ui` and documented that the bundled local Keycloak realm adds `aud=flow-ui` for direct-access bearer-token testing.
-- 2026-03-07 | v3.2 | Documented nginx bearer-token passthrough for `/api` requests that carry `Authorization: Bearer ...` and clarified that browser/cookie traffic still uses oauth2-proxy trusted-header flow.
-- 2026-03-07 | v3.1 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT auth configuration/observability, and updated current-user contract examples accordingly.
+- 2026-03-07 | v3.3 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT auth configuration and observability, documented nginx bearer-token passthrough for `/api` requests, and aligned local compose/Keycloak defaults so direct-access bearer-token testing uses `aud=flow-ui`.
 - 2026-03-06 | v3.0 | Updated auth identity resolution order so trusted header (`X-Auth-User`, configurable via `TRUSTED_IDENTITY_HEADER`) takes precedence over `X-User-Id`, documented fail-closed behavior when trusted identity is invalid, and synchronized the request-header startup banner wording.
 - 2026-03-04 | v2.9 | Added `/metrics` system endpoint for in-process auth observability counters; documented auth metrics for current-user resolution failures, observable RLS denials by endpoint, and identity header parse failures; and documented structured auth-event logs with correlation IDs and auth mode.
 - 2026-02-26 | v2.4 | Documented Phase 1 read authorization effects on lookup reads: `GET /lookups/projects` is scope-filtered by role project scope; `areas` and `units` remain unfiltered in this phase.
