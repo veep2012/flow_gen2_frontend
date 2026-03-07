@@ -58,7 +58,7 @@ case "$COMMAND" in
     ;;
   dev)
     ensure_deps
-    exec npm run dev -- --host "${UI_HOST:-0.0.0.0}" --port "${UI_PORT:-5558}"
+    exec npm run dev
     ;;
   test)
     if has_script test; then
