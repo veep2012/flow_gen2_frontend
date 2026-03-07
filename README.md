@@ -4,9 +4,7 @@
 
 ### Install system packages
 ```bash
-sudo dnf install -y git podman python3.11 npm openssh-clients
-sudo dnf module enable -y nodejs:22
-sudo dnf module install -y nodejs:22
+sudo dnf install -y git podman python3.11 openssh-clients
 ```
 
 ### Configure SSH access
@@ -26,7 +24,6 @@ git clone git@github.com:veep2012/flow_gen2.git -b frontend
 ### Prepare the local environment
 ```bash
 make local-venv
-make local-npm
 make local-up
 ```
 
@@ -34,19 +31,30 @@ make local-up
 
 ### Prerequisites
 - Python 3.11 (see `PYTHON_BIN` in `Makefile`)
-- Node.js 20.19+ (Vite 7 requires Node >= 20.19 or >= 22.12)
-- npm
 - Podman or Docker (Makefile uses `podman` by default)
 - `psql` (optional, useful for inspecting local Postgres)
+
+### Default frontend workflow
+- `make local-ui-up` starts the Vite dev server in a persistent `node:22.14.0-alpine` container with the repository bind-mounted from the host.
+- `make local-ui-down` stops and removes the dev container.
+- `make local-ui-logs` tails the dev container logs.
+- `make local-ui-test` runs UI unit tests in a short-lived container when `ui/package.json` defines `test`.
+- `make local-ui-lint` runs `eslint` and `prettier --write` in a short-lived container.
+- `make local-ui-build` runs the production UI build in a short-lived container and writes the result to `ui/dist` in the host repo.
+- `make local-ui-audit` runs `npm audit --package-lock-only` in a short-lived container.
+- `make local-ui-reset` removes the UI container and the named `node_modules` volume.
+- `make local-ui-hard-reset` also removes the pinned Node image.
+
+The local UI workflow keeps source code on the host and stores `ui/node_modules` in the named container volume `flow_gen2_ui_node_modules`. The toolchain refreshes dependencies with `npm ci` when `ui/package-lock.json` changes, and normal source edits do not trigger reinstall or image rebuild.
 
 ### Run tests locally (Makefile targets)
 - `make test` (runs API tests + type checks + lint; runs UI test targets if configured)
 - `make test-up` / `make test-down` (bring test stack up/down for iterative debugging)
-- `make test-ui-unit` (runs UI unit tests if `ui/package.json` has a `test` script)
-- `make test-ui-e2e` (runs UI E2E tests if `ui/package.json` has a `test:e2e` script)
+- `make test-ui-unit` (reuses `make local-ui-test`)
+- `make test-ui-e2e` (runs UI E2E tests in a short-lived container if `ui/package.json` has a `test:e2e` script)
 - `make test-db-up` / `make test-db-down`
 - `make test-minio-up` / `make test-minio-down`
-- `make audit` (runs `pip-audit` + `npm audit` against lockfiles)
+- `make audit` (runs `pip-audit` + `make local-ui-audit`)
 
 ### Run the API
 - `make local-api-up`
@@ -61,6 +69,9 @@ With the API running (`make local-api-up`):
 ### Run the UI
 - `make local-ui-up`
 - `make local-ui-down`
+- `make local-ui-logs`
+- `make local-ui-reset`
+- `make local-ui-hard-reset`
 
 ### Run MinIO (object storage)
 - `make local-minio-up`
@@ -135,6 +146,12 @@ export OAUTH2_PROXY_COOKIE_SECRET="your-32-byte-secret"
 - `APP_USER_DB_WAIT_POLL_SEC` controls retry interval for that wait loop (default `1`).
 - `VITE_AUTH_START_URL` optionally overrides the UI auth re-entry target used by the authentication error page. Set it to the nginx/oauth2-proxy entrypoint (for example `http://localhost/oauth2/start`) when the UI is served directly from Vite on `:5558` instead of through nginx.
 - For compose/containerized UI builds, put `VITE_API_BASE_URL` and `VITE_AUTH_START_URL` in `.env.compose` because the UI image is built by `ci/Dockerfile.ui` and Vite reads these values at build time.
+
+### UI troubleshooting
+- If the UI dev container starts but dependencies look stale, run `make local-ui-reset`.
+- If the Node image itself is corrupted or you want a full frontend runtime rebuild from scratch, run `make local-ui-hard-reset`.
+- File-watch behavior depends on the local container runtime. If hot reload is delayed, inspect `make local-ui-logs` first and confirm the repository is bind-mounted from the host.
+- Host-side `ui/node_modules` is not part of the supported workflow. The containerized workflow mounts its own named volume over that path.
 
 ### Seed data (Postgres)
 - `ci/init/flow_seed.sql` inserts into `ref/core/workflow` tables and must run as a privileged role

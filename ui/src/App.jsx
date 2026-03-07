@@ -7,10 +7,7 @@ import { useFetchDocuments } from "./hooks/useFetchDocuments";
 import { resolveBehaviorByFile } from "./components/DocRevStatusBehaviors";
 import AuthErrorPage from "./components/AuthErrorPage/AuthErrorPage";
 import { fetchWithAuthHandling, isAuthResponseError } from "./utils/authFetch";
-import {
-  buildLogoutForUserSwitchUrl,
-  resolveAuthStartBase,
-} from "./utils/authNavigation";
+import { buildLogoutForUserSwitchUrl, resolveAuthStartBase } from "./utils/authNavigation";
 
 const allColumns = documentGridColumns.map(({ id, label, field, hidden }) => ({
   key: field,

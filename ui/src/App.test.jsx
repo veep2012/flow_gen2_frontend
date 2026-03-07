@@ -68,9 +68,7 @@ describe("App auth error screen", () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Sign in as different user" }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Sign in as different user" })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in as different user" }));

@@ -49,6 +49,11 @@ KEYCLOAK_LOG_DIR := $(CURDIR)/.local/keycloak
 API_PID_FILE := $(PID_DIR)/uvicorn.pid
 UI_PID_FILE := $(PID_DIR)/vite.pid
 UI_LOG_FILE := $(PID_DIR)/vite.log
+UI_CONTAINER_NAME ?= flow_gen2_ui_local
+UI_NODE_IMAGE ?= node:22.14.0-alpine
+UI_NODE_MODULES_VOLUME ?= flow_gen2_ui_node_modules
+UI_PORT ?= 5558
+UI_HOST ?= 0.0.0.0
 PYTHON_BIN ?= /opt/homebrew/opt/python@3.11/bin/python3.11
 LOCAL_API_PORT ?= 5556
 API_WAIT_TIMEOUT ?= 30
@@ -92,7 +97,7 @@ ensure-keycloak-log-dir:
 .PHONY: help
 help: | ensure-pid-dir ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
-	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-up test-down test-ui-unit test-ui-e2e test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down db-up db-down minio-up minio-down up up-no-keycloak down build rebuild completely-rebuild logs help test audit mypy lint; do \
+	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-up test-down test-ui-unit test-ui-e2e test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-test local-ui-lint local-ui-build local-ui-audit local-ui-reset local-ui-hard-reset local-ui-logs db-up db-down minio-up minio-down up up-no-keycloak down build rebuild completely-rebuild logs help test audit mypy lint; do \
 		grep -E "^$${target} " .local/.make-help.tmp || true; \
 	done
 	@rm -f .local/.make-help.tmp
@@ -180,20 +185,13 @@ test-down: ## Stop test API, MinIO, and DB
 	$(MAKE) test-minio-down
 
 .PHONY: test-ui-unit
-test-ui-unit: ## Run UI unit tests when configured
-	@if node -e "const s=require('./ui/package.json').scripts||{};process.exit(s.test?0:1)"; then \
-		cd ui && npm test; \
-	else \
-		echo "Skipping test-ui-unit: ui/package.json has no 'test' script"; \
-	fi
+test-ui-unit: ## Run UI unit tests through the containerized UI toolchain
+	$(MAKE) local-ui-test
 
 .PHONY: test-ui-e2e
-test-ui-e2e: ## Run UI e2e tests when configured
-	@if node -e "const s=require('./ui/package.json').scripts||{};process.exit(s['test:e2e']?0:1)"; then \
-		cd ui && PLAYWRIGHT_PORT=$(PLAYWRIGHT_PORT) TEST_API_PORT=$(TEST_API_PORT) npm run test:e2e; \
-	else \
-		echo "Skipping test-ui-e2e: ui/package.json has no 'test:e2e' script"; \
-	fi
+test-ui-e2e: ## Run UI e2e tests when configured through the containerized UI toolchain
+	PLAYWRIGHT_PORT=$(PLAYWRIGHT_PORT) TEST_API_PORT=$(TEST_API_PORT) \
+		bash scripts/local-ui-container.sh run test-e2e
 
 .PHONY: audit audit-python audit-node
 audit: audit-python audit-node ## Run dependency vulnerability audits
@@ -202,7 +200,7 @@ audit-python: ## Run pip-audit against API requirements
 	$(PYTHON_BIN) -m pip_audit -r api/requirements.txt
 
 audit-node: ## Run npm audit against UI lockfiles
-	cd ui && npm audit --package-lock-only
+	$(MAKE) local-ui-audit
 
 .PHONY: mypy
 mypy: ## Run static type checks with mypy
@@ -213,9 +211,8 @@ else
 endif
 
 .PHONY: lint
-lint: ## Run UI lint and format
-	cd ui && npm run lint
-	cd ui && npm run format
+lint: ## Run UI lint and format checks through the containerized UI toolchain
+	$(MAKE) local-ui-lint
 
 .PHONY: build
 build: ## Build services with compose
@@ -404,16 +401,80 @@ local-api-down: ## Stop local uvicorn using PID file
 	PID_FILE="$(API_PID_FILE)" $(STOP_API_CMD)
 
 .PHONY: local-npm
-local-npm: ## Install UI dependencies in ./ui
-	cd ui && npm install
+local-npm: ## Refresh UI dependencies in the container-managed node_modules volume
+	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
+	UI_NODE_IMAGE=$(UI_NODE_IMAGE) \
+	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
+	bash scripts/local-ui-container.sh run install
 
 .PHONY: local-ui-up
-local-ui-up: | ensure-pid-dir ## Start UI locally (vite dev)
-	$(LOCAL_UI_CMD)
+local-ui-up: | ensure-pid-dir ## Start the persistent containerized UI dev server
+	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
+	UI_CONTAINER_NAME=$(UI_CONTAINER_NAME) \
+	UI_NODE_IMAGE=$(UI_NODE_IMAGE) \
+	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
+	UI_PORT=$(UI_PORT) \
+	UI_HOST=$(UI_HOST) \
+	VITE_API_BASE_URL=$(VITE_API_BASE_URL) \
+	VITE_AUTH_START_URL=$(VITE_AUTH_START_URL) \
+	bash scripts/local-ui-container.sh up
 
 .PHONY: local-ui-down
-local-ui-down: ## Stop local UI dev server using PID file
-	$(STOP_UI_CMD)
+local-ui-down: ## Stop and remove the persistent containerized UI dev server
+	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
+	UI_CONTAINER_NAME=$(UI_CONTAINER_NAME) \
+	bash scripts/local-ui-container.sh down
+
+.PHONY: local-ui-test
+local-ui-test: ## Run UI unit tests in a short-lived container
+	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
+	UI_NODE_IMAGE=$(UI_NODE_IMAGE) \
+	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
+	bash scripts/local-ui-container.sh run test
+
+.PHONY: local-ui-lint
+local-ui-lint: ## Run UI lint and format checks in a short-lived container
+	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
+	UI_NODE_IMAGE=$(UI_NODE_IMAGE) \
+	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
+	bash scripts/local-ui-container.sh run lint
+
+.PHONY: local-ui-build
+local-ui-build: ## Run the UI production build in a short-lived container
+	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
+	UI_NODE_IMAGE=$(UI_NODE_IMAGE) \
+	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
+	VITE_API_BASE_URL=$(VITE_API_BASE_URL) \
+	VITE_AUTH_START_URL=$(VITE_AUTH_START_URL) \
+	bash scripts/local-ui-container.sh run build
+
+.PHONY: local-ui-audit
+local-ui-audit: ## Run npm audit in a short-lived container
+	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
+	UI_NODE_IMAGE=$(UI_NODE_IMAGE) \
+	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
+	bash scripts/local-ui-container.sh run audit
+
+.PHONY: local-ui-reset
+local-ui-reset: ## Recreate the UI container and dependency volume from scratch
+	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
+	UI_CONTAINER_NAME=$(UI_CONTAINER_NAME) \
+	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
+	bash scripts/local-ui-container.sh reset
+
+.PHONY: local-ui-hard-reset
+local-ui-hard-reset: ## Recreate UI runtime state and remove the pinned Node image
+	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
+	UI_CONTAINER_NAME=$(UI_CONTAINER_NAME) \
+	UI_NODE_IMAGE=$(UI_NODE_IMAGE) \
+	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
+	bash scripts/local-ui-container.sh hard-reset
+
+.PHONY: local-ui-logs
+local-ui-logs: ## Tail logs from the persistent containerized UI dev server
+	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
+	UI_CONTAINER_NAME=$(UI_CONTAINER_NAME) \
+	bash scripts/local-ui-container.sh logs
 
 .PHONY: local-up
 local-up: local-postgres-up local-minio-up ## Start local Postgres, MinIO, API, and UI

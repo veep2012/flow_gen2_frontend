@@ -5,10 +5,11 @@
 - Owner: Engineering Team
 - Reviewers: Repository maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-04
-- Version: v1.3
+- Last Updated: 2026-03-07
+- Version: v1.4
 
 ## Change Log
+- 2026-03-07 | v1.4 | Switched the default local UI workflow to containerized `local-ui-*` commands and added reset/troubleshooting guidance.
 - 2026-03-04 | v1.3 | Removed deprecated `ui_alt` local setup references.
 - 2026-02-21 | v1.2 | Documented `PYTHON_BIN`-based pytest execution in `make test` and aligned commit-message example format.
 - 2026-02-20 | v1.1 | Added Change Log section for standards compliance
@@ -85,16 +86,31 @@ flowchart TD
 - Create a Python venv and install dev dependencies:
   ```bash
   make local-venv
-  pip install -r requirements-dev.txt
   ```
-- Install frontend deps:
+- Local UI development must use the containerized toolchain by default:
   ```bash
-  npm --prefix ui install
+  make local-ui-up
+  ```
+- The UI dev server runs in a persistent `node:22.14.0-alpine` container with the repository bind-mounted from the host and `ui/node_modules` stored in the named volume `flow_gen2_ui_node_modules`.
+- The toolchain must refresh UI dependencies with `npm ci` when `ui/package-lock.json` changes. Normal source edits must not trigger dependency reinstall or image rebuild.
+- Use short-lived containers for UI verification commands:
+  ```bash
+  make local-ui-test
+  make local-ui-lint
+  make local-ui-build
+  make local-ui-audit
+  ```
+- Use reset targets for frontend runtime recovery:
+  ```bash
+  make local-ui-reset
+  make local-ui-hard-reset
   ```
 - Run tests:
   ```bash
   make test
   ```
+- `make local-up` must reuse `make local-ui-up`, and `make local-down` must reuse `make local-ui-down`.
+- `make lint` must reuse `make local-ui-lint` for the UI check path, and `make audit` must reuse `make local-ui-audit` for the UI audit path.
 - Python test runner note:
   - `make test` runs pytest through the configured interpreter: `$(PYTHON_BIN) -m pytest`.
   - If `.venv` exists, `PYTHON_BIN` resolves to `.venv/bin/python` (or Windows equivalent).
@@ -164,6 +180,9 @@ git push --force-with-lease
 ## Edge Cases
 - Local branch diverges significantly from `dev` and requires conflict resolution.
 - Missing local env variables cause backend startup or test failures.
+- The UI dependency volume can fall out of sync with local expectations after interrupted installs; `make local-ui-reset` must be used instead of host-side `npm install`.
+- File-watch or hot-reload behavior can vary by container runtime; use `make local-ui-logs` to confirm the persistent UI container is healthy before deeper debugging.
+- `make local-ui-hard-reset` may be required when the pinned Node image is missing or corrupted locally.
 - Force-push is required after rebase and must use `--force-with-lease`.
 
 ## References
