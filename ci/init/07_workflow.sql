@@ -991,7 +991,7 @@ CREATE OR REPLACE FUNCTION workflow.sync_user_roles_from_external_names(
     p_external_names TEXT[]
 ) RETURNS INTEGER
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = ref, workflow, pg_temp
 AS $$
 DECLARE
