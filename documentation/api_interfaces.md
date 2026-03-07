@@ -5,10 +5,13 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-06
-- Version: v3.0
+- Last Updated: 2026-03-07
+- Version: v3.3
 
 ## Change Log
+- 2026-03-07 | v3.3 | Aligned local compose JWT audience defaults to `flow-ui` and documented that the bundled local Keycloak realm adds `aud=flow-ui` for direct-access bearer-token testing.
+- 2026-03-07 | v3.2 | Documented nginx bearer-token passthrough for `/api` requests that carry `Authorization: Bearer ...` and clarified that browser/cookie traffic still uses oauth2-proxy trusted-header flow.
+- 2026-03-07 | v3.1 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT auth configuration/observability, and updated current-user contract examples accordingly.
 - 2026-03-06 | v3.0 | Updated auth identity resolution order so trusted header (`X-Auth-User`, configurable via `TRUSTED_IDENTITY_HEADER`) takes precedence over `X-User-Id`, documented fail-closed behavior when trusted identity is invalid, and synchronized the request-header startup banner wording.
 - 2026-03-04 | v2.9 | Added `/metrics` system endpoint for in-process auth observability counters; documented auth metrics for current-user resolution failures, observable RLS denials by endpoint, and identity header parse failures; and documented structured auth-event logs with correlation IDs and auth mode.
 - 2026-02-26 | v2.4 | Documented Phase 1 read authorization effects on lookup reads: `GET /lookups/projects` is scope-filtered by role project scope; `areas` and `units` remain unfiltered in this phase.
@@ -109,23 +112,34 @@ Audit fields (created_by / updated_by):
 - This transaction-local re-application is required because many endpoints issue mid-request `COMMIT` / `ROLLBACK`; after each new transaction begins, identity is pushed again before business queries run.
 - When effective identity is absent, the API still writes both keys as empty strings at transaction scope so reused pooled connections cannot inherit a previous request's session-level residue.
 - User resolution order:
+  - verified bearer JWT from `Authorization: Bearer <token>` when present
   - trusted identity header (`X-Auth-User` by default; configurable via `TRUSTED_IDENTITY_HEADER`) when present and non-empty
   - `X-User-Id` header only when trusted identity header is absent or empty
   - `APP_USER` environment fallback when both request headers are absent
+- Bearer JWT verification contract:
+  - API validates signature, issuer, audience, expiry, and configured algorithms before resolving internal identity.
+  - JWT identity claim search order is configurable through `AUTH_JWT_IDENTITY_CLAIMS` and defaults to `acronym,preferred_username,sub`.
+  - JWT verification requires `AUTH_JWT_ISSUER_URL` and `AUTH_JWT_AUDIENCE`, plus either `AUTH_JWT_SHARED_SECRET` or JWKS discovery/override via `AUTH_JWT_JWKS_URL`.
+  - Local compose defaults expect `aud=flow-ui`; the bundled local Keycloak realm is configured to emit that audience for `flow-ui` direct-access tokens.
 - Request-header identity values must be existing `user_acronym`; API resolves them to internal `user_id` before setting DB session context.
+- If bearer-token validation fails, the API returns `401 Unauthorized` and does not fall back to trusted-header or `X-User-Id` identity sources for that request.
 - When both trusted and less-trusted headers are present, the trusted header is authoritative.
 - If the trusted identity header is present but unresolved, the API fails closed with `401 Unauthorized` instead of falling back to `X-User-Id`.
 - `APP_USER` is guarded: it must be used only in non-production environments (`local/dev/test/ci/ci_test`), and startup validation must confirm that configured value resolves to a row in `workflow.v_users`.
 - `APP_USER` format is validated at startup with a strict uppercase acronym regex: `^[A-Z]{2,12}$`.
 - `APP_ENV=production` (or other blocked/unknown non-allowed envs) plus `APP_USER` causes startup failure before the API begins serving requests.
 - Startup logs emit a clear identity banner:
-  - `startup_identity_mode=request_header_only ... identity_source=X-Auth-User>X-User-Id` when only request-header identity is active.
+  - `startup_identity_mode=request_header_only ... identity_source=Authorization>X-Auth-User>X-User-Id` when request/header identity resolution is active.
   - `startup_identity_mode=app_user_bootstrap ...` when `APP_USER` bootstrap mode is active.
-- Auth-sensitive routers fail closed with `401 Unauthorized` when both `X-User-Id` and effective session identity are absent. The API logs a security event with `X-Request-Id`, HTTP method, and path only.
+- Auth-sensitive routers fail closed with `401 Unauthorized` when no supported identity source resolves to an effective session identity. The API logs a security event with `X-Request-Id`, HTTP method, and path only.
+- Local nginx ingress behavior:
+  - `/api` requests with `Authorization: Bearer ...` are passed directly to the API so bearer-token validation can occur in FastAPI.
+  - `/api` requests without bearer tokens continue through `oauth2-proxy` and use trusted `X-Auth-User` forwarding.
 - Auth observability counters are exposed at `GET /metrics` in Prometheus text format:
   - `flow_auth_current_user_resolution_failures_total{reason=...}`
   - `flow_auth_denied_by_rls_total{endpoint=...,status_code=...,auth_mode=...}`
   - `flow_auth_identity_header_parse_failures_total{auth_mode=...}`
+  - `flow_auth_jwt_validation_failures_total{reason=...}`
 - Auth-event logs are structured as key-value fields and include:
   - `event`
   - `request_id`
@@ -166,6 +180,9 @@ curl -sS -H "Accept: text/plain" $API_BASE/metrics
 # HELP flow_auth_current_user_resolution_failures_total Current-user resolution failures by reason.
 # TYPE flow_auth_current_user_resolution_failures_total counter
 flow_auth_current_user_resolution_failures_total{reason="missing_identity"} 3
+# HELP flow_auth_jwt_validation_failures_total JWT validation failures by reason.
+# TYPE flow_auth_jwt_validation_failures_total counter
+flow_auth_jwt_validation_failures_total{reason="invalid_token"} 1
 ```
 
 ## Lookups
@@ -773,10 +790,16 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/people/users
 - `404 Not Found` when a session identity exists but the current-user read model cannot resolve it.
   - Includes users filtered/hidden from the visible read model.
   - Includes inactive/disabled/deprovisioned users that no longer resolve in the active user dataset.
-- Headers: `Accept: application/json`, optional `X-User-Id: <user_acronym>`
+- Headers:
+  - `Accept: application/json`
+  - optional `Authorization: Bearer <jwt>`
+  - optional `X-Auth-User: <user_acronym>`
+  - optional `X-User-Id: <user_acronym>`
+- Identity precedence for this endpoint follows the shared auth convention above: bearer JWT, then trusted header, then `X-User-Id`, then local `APP_USER`.
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" -H "X-User-Id: FDQC" $API_BASE/api/v1/people/users/current_user
+curl -sS -H "Accept: application/json" -H "Authorization: Bearer $ACCESS_TOKEN" \
+  $API_BASE/api/v1/people/users/current_user
 ```
 - Example response:
 ```json

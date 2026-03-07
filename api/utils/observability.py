@@ -13,6 +13,7 @@ _METRIC_DEFINITIONS: dict[str, str] = {
     "flow_auth_identity_header_parse_failures_total": (
         "Identity header parse failures by auth mode."
     ),
+    "flow_auth_jwt_validation_failures_total": ("JWT validation failures by reason."),
 }
 
 _metrics_lock = Lock()

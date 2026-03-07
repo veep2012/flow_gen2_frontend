@@ -52,6 +52,10 @@ UI_LOG_FILE := $(PID_DIR)/vite.log
 PYTHON_BIN ?= /opt/homebrew/opt/python@3.11/bin/python3.11
 LOCAL_API_PORT ?= 5556
 API_WAIT_TIMEOUT ?= 30
+TEST_AUTH_JWT_ISSUER_URL ?= https://flow-ci.invalid/issuer
+TEST_AUTH_JWT_AUDIENCE ?= flow-api
+TEST_AUTH_JWT_SHARED_SECRET ?= ci-test-jwt-secret-at-least-32-bytes
+TEST_AUTH_JWT_ALLOWED_ALGORITHMS ?= HS256
 
 OS := $(shell uname -s 2>/dev/null || echo Windows_NT)
 ifeq ($(OS),Windows_NT)
@@ -105,6 +109,10 @@ test: | ensure-pid-dir ## Run unit tests
 			MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
 			MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
 			MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
+			AUTH_JWT_ISSUER_URL=$(TEST_AUTH_JWT_ISSUER_URL) \
+			AUTH_JWT_AUDIENCE=$(TEST_AUTH_JWT_AUDIENCE) \
+			AUTH_JWT_SHARED_SECRET=$(TEST_AUTH_JWT_SHARED_SECRET) \
+			AUTH_JWT_ALLOWED_ALGORITHMS=$(TEST_AUTH_JWT_ALLOWED_ALGORITHMS) \
 			ENV=ci_test \
 			API_PORT=$(TEST_API_PORT) \
 			PID_FILE="$(PID_DIR)/uvicorn-test.pid" \
@@ -112,10 +120,19 @@ test: | ensure-pid-dir ## Run unit tests
 			$(LOCAL_API_CMD); \
 	done; \
 	if [ -z "$$ready" ]; then echo "API not ready; log: $(PID_DIR)/uvicorn-test.log"; exit 1; fi
+	AUTH_JWT_ISSUER_URL=$(TEST_AUTH_JWT_ISSUER_URL) \
+	AUTH_JWT_AUDIENCE=$(TEST_AUTH_JWT_AUDIENCE) \
+	AUTH_JWT_SHARED_SECRET=$(TEST_AUTH_JWT_SHARED_SECRET) \
+	AUTH_JWT_ALLOWED_ALGORITHMS=$(TEST_AUTH_JWT_ALLOWED_ALGORITHMS) \
 	$(PYTHON_BIN) -m pytest -m "not api_smoke"; \
 	status=$$?; \
 	if [ $$status -eq 0 ]; then \
-		API_BASE=http://localhost:$(TEST_API_PORT) API_PREFIX=/api/v1 $(PYTHON_BIN) -m pytest -m api_smoke; \
+		API_BASE=http://localhost:$(TEST_API_PORT) API_PREFIX=/api/v1 \
+		AUTH_JWT_ISSUER_URL=$(TEST_AUTH_JWT_ISSUER_URL) \
+		AUTH_JWT_AUDIENCE=$(TEST_AUTH_JWT_AUDIENCE) \
+		AUTH_JWT_SHARED_SECRET=$(TEST_AUTH_JWT_SHARED_SECRET) \
+		AUTH_JWT_ALLOWED_ALGORITHMS=$(TEST_AUTH_JWT_ALLOWED_ALGORITHMS) \
+		$(PYTHON_BIN) -m pytest -m api_smoke; \
 		status=$$?; \
 	fi; \
 	if [ $$status -eq 0 ]; then \
@@ -146,6 +163,10 @@ test-up: | ensure-pid-dir ## Start test DB, MinIO, and API
 		MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
 		MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
 		MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
+		AUTH_JWT_ISSUER_URL=$(TEST_AUTH_JWT_ISSUER_URL) \
+		AUTH_JWT_AUDIENCE=$(TEST_AUTH_JWT_AUDIENCE) \
+		AUTH_JWT_SHARED_SECRET=$(TEST_AUTH_JWT_SHARED_SECRET) \
+		AUTH_JWT_ALLOWED_ALGORITHMS=$(TEST_AUTH_JWT_ALLOWED_ALGORITHMS) \
 		ENV=ci_test \
 		API_PORT=$(TEST_API_PORT) \
 		PID_FILE="$(PID_DIR)/uvicorn-test.pid" \

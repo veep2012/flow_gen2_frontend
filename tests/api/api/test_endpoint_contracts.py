@@ -1,8 +1,10 @@
 import os
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import httpx
+import jwt
 import pytest
 
 from api.schemas.distribution_lists import DistributionListOut
@@ -12,6 +14,11 @@ from api.schemas.notifications import NotificationOut
 from api.schemas.people import UserOut
 
 _DEFAULT_TEST_USER_ACRONYM = os.getenv("TEST_USER_ACRONYM", "FDQC")
+_TEST_JWT_ISSUER = os.getenv("AUTH_JWT_ISSUER_URL", "https://flow-ci.invalid/issuer")
+_TEST_JWT_AUDIENCE = os.getenv("AUTH_JWT_AUDIENCE", "flow-api")
+_TEST_JWT_SHARED_SECRET = os.getenv(
+    "AUTH_JWT_SHARED_SECRET", "ci-test-jwt-secret-at-least-32-bytes"
+)
 
 
 def _build_base_url() -> str:
@@ -38,6 +45,38 @@ def _request(client: httpx.Client, method: str, path: str, **kwargs) -> dict:
     if response.content and "application/json" in response.headers.get("content-type", ""):
         payload = response.json()
     return {"status": response.status_code, "payload": payload}
+
+
+def _jwt_auth_headers(user_acronym: str) -> dict[str, str]:
+    now = datetime.now(timezone.utc)
+    token = jwt.encode(
+        {
+            "iss": _TEST_JWT_ISSUER,
+            "aud": _TEST_JWT_AUDIENCE,
+            "exp": now + timedelta(minutes=5),
+            "iat": now,
+            "acronym": user_acronym,
+        },
+        _TEST_JWT_SHARED_SECRET,
+        algorithm="HS256",
+    )
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _invalid_jwt_auth_headers(user_acronym: str) -> dict[str, str]:
+    now = datetime.now(timezone.utc)
+    token = jwt.encode(
+        {
+            "iss": _TEST_JWT_ISSUER,
+            "aud": _TEST_JWT_AUDIENCE,
+            "exp": now + timedelta(minutes=5),
+            "iat": now,
+            "acronym": user_acronym,
+        },
+        "wrong-secret-at-least-32-bytes-long",
+        algorithm="HS256",
+    )
+    return {"Authorization": f"Bearer {token}"}
 
 
 def _expected_keys(model) -> set[str]:
@@ -243,6 +282,54 @@ def test_current_user_invalid_trusted_header_fails_closed_even_with_valid_x_user
                 "X-User-Id": less_trusted_user,
                 "X-Auth-User": "NOTREAL",
             },
+        )
+
+        assert response["status"] == 401
+        assert response["payload"] == {"detail": "Authentication required"}
+
+
+@pytest.mark.api_smoke
+def test_current_user_valid_bearer_jwt_resolves_identity():
+    """Scenario IDs: TS-CTR-005."""
+    with httpx.Client(timeout=10) as client:
+        first_user_id, _second_user_id, user_map = _resolve_test_users(client)
+        user_acronym = user_map.get(first_user_id)
+        if not user_acronym:
+            pytest.skip("Need a user acronym for bearer JWT contract test")
+
+        response = _request(
+            client,
+            "GET",
+            "/people/users/current_user",
+            auth=False,
+            headers=_jwt_auth_headers(user_acronym),
+        )
+
+        assert response["status"] == 200
+        _assert_contract(response["payload"], UserOut)
+        assert response["payload"]["user_id"] == first_user_id
+        assert response["payload"]["user_acronym"] == user_acronym
+
+
+@pytest.mark.api_smoke
+def test_current_user_invalid_bearer_jwt_fails_closed_even_with_trusted_header():
+    """Scenario IDs: TS-CTR-006."""
+    with httpx.Client(timeout=10) as client:
+        first_user_id, second_user_id, user_map = _resolve_test_users(client)
+        jwt_user = user_map.get(first_user_id)
+        trusted_user = user_map.get(second_user_id)
+        if not jwt_user or not trusted_user:
+            pytest.skip("Need user acronyms for bearer JWT fail-closed test")
+
+        headers = _invalid_jwt_auth_headers(jwt_user)
+        headers["X-Auth-User"] = trusted_user
+
+        response = _request(
+            client,
+            "GET",
+            "/people/users/current_user",
+            auth=False,
+            headers=headers,
         )
 
         assert response["status"] == 401

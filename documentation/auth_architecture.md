@@ -5,10 +5,14 @@
 - Owner: Platform and Backend Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-06
-- Version: v1.6
+- Last Updated: 2026-03-07
+- Version: v2.0
 
 ## Change Log
+- 2026-03-07 | v2.0 | Added local `flow-ui` audience mapper guidance and aligned compose JWT audience defaults so direct-access Keycloak tokens satisfy API audience validation.
+- 2026-03-07 | v1.9 | Added nginx API bearer-token passthrough behavior for `/api` requests carrying `Authorization: Bearer ...` while preserving oauth2-proxy cookie flow for browser requests.
+- 2026-03-07 | v1.8 | Added local compose defaults for API JWT verification against the bundled Keycloak realm so direct bearer-token testing works without extra environment wiring.
+- 2026-03-07 | v1.7 | Documented API-verified bearer JWT as a supported identity ingress path alongside trusted edge headers for backend authentication.
 - 2026-03-06 | v1.6 | Updated the target edge-to-API header contract to use trusted `X-Auth-User` forwarding for API requests while retaining `X-User-Id` compatibility expectations only where explicitly needed outside the API hop.
 - 2026-02-26 | v1.5 | Clarified document positioning as target architecture and linked current implemented state to `authentication_rls_matrix_as_is.md`.
 - 2026-02-20 | v1.4 | Added Change Log section for standards compliance
@@ -39,6 +43,17 @@ Flow Gen2 employs a **layered authentication architecture** that separates conce
 - **Separation of Concerns:** Authentication (who you are) is handled at infrastructure layer; Authorization (what you can do) is managed by application
 - **Minimal Application Burden:** API and UI remain lightweight by delegating authentication to reverse proxy layer
 - **Future-Ready:** Architecture supports migration from local database authentication to enterprise identity providers (AD, LDAP, SSO)
+
+Supported identity ingress paths for the API:
+- Trusted edge-header mode: edge components authenticate the user and forward canonical `X-Auth-User` to the API.
+- Direct bearer-token mode: the API verifies `Authorization: Bearer <jwt>` and resolves internal user identity from verified claims.
+
+Local compose defaults:
+- The compose `api` service defaults `AUTH_JWT_ISSUER_URL` to the public local Keycloak issuer (`http://localhost:8081/realms/flow-local`) and `AUTH_JWT_JWKS_URL` to the internal compose JWKS endpoint (`http://keycloak:8080/realms/flow-local/protocol/openid-connect/certs`).
+- The local default JWT audience is `flow-ui`.
+- The bundled local Keycloak realm adds an audience mapper for the `flow-ui` client so direct-access tokens used in curl/manual testing include `aud=flow-ui`.
+- The local nginx config forwards `/api` requests with `Authorization: Bearer ...` directly to the API and skips `oauth2-proxy` for that request path.
+- `/api` requests without bearer tokens continue to use the `oauth2-proxy` cookie/session flow and trusted `X-Auth-User` forwarding.
 
 ---
 
@@ -313,7 +328,7 @@ Flow Gen2 already has a robust authorization schema:
 ```python
 # API validates permissions before data access
 # Example: GET /api/v1/documents?project_id=3
-# 1. Extract user from trusted X-Auth-User header
+# 1. Extract user from verified bearer JWT or trusted X-Auth-User header
 # 2. Query: SELECT * FROM permissions WHERE user_id=? AND project_id=3
 # 3. If no matching permission → 403 Forbidden
 # 4. If permission exists → filter results to allowed disciplines

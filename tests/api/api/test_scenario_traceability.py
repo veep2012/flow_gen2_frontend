@@ -290,6 +290,14 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/endpoint_contract_api_test_scenarios.md",
         ["TS-CTR-004"],
     ),
+    "test_current_user_valid_bearer_jwt_resolves_identity": (
+        "documentation/test_scenarios/endpoint_contract_api_test_scenarios.md",
+        ["TS-CTR-005"],
+    ),
+    "test_current_user_invalid_bearer_jwt_fails_closed_even_with_trusted_header": (
+        "documentation/test_scenarios/endpoint_contract_api_test_scenarios.md",
+        ["TS-CTR-006"],
+    ),
     "test_notifications_create_list_mark_read_flow": (
         "documentation/test_scenarios/notifications_api_test_plan.md",
         ["TS-NTF-001"],

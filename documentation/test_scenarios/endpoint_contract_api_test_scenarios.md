@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-03-04
-- Last Updated: 2026-03-06
-- Version: v0.2
+- Last Updated: 2026-03-07
+- Version: v0.3
 
 ## Change Log
+- 2026-03-07 | v0.3 | Added bearer JWT current-user success and fail-closed scenarios for API-verified identity resolution coverage.
 - 2026-03-06 | v0.2 | Added current-user trusted-header precedence and fail-closed trusted-header scenarios for end-to-end auth contract coverage.
 - 2026-03-04 | v0.1 | Initial contract/snapshot scenarios for critical list and detail endpoints.
 
@@ -19,6 +20,7 @@ Define runtime contract checks that compare live API payloads with the response-
 - In scope:
   - critical list endpoint payload keys
   - current-user detail payload keys
+  - bearer JWT verification contract for current-user resolution
   - trusted-header precedence for current-user resolution
   - seeded-environment contract checks against response models
 - Out of scope:
@@ -33,6 +35,8 @@ The contract gate uses seeded smoke requests and compares live JSON object keys 
 - `TS-CTR-002`: current-user detail returns a shape matching the `UserOut` response model.
 - `TS-CTR-003`: current-user resolution prefers trusted identity header over `X-User-Id` when both are present.
 - `TS-CTR-004`: invalid trusted identity header fails closed even when `X-User-Id` is otherwise valid.
+- `TS-CTR-005`: verified bearer JWT resolves current-user identity without relying on trusted headers.
+- `TS-CTR-006`: invalid bearer JWT fails closed even when a trusted header would otherwise resolve.
 
 ## Scenario Details
 
@@ -97,11 +101,46 @@ The contract gate uses seeded smoke requests and compares live JSON object keys 
 - Cleanup:
   - None.
 
+### TS-CTR-005 Valid Bearer JWT Resolves Identity
+- Intent: Prove that the API can verify a bearer JWT and resolve current-user identity from verified claims.
+- Setup/Preconditions:
+  - Seeded API test stack is running.
+  - JWT verification settings are configured for the API test environment.
+  - A resolvable user acronym exists in the seeded test stack.
+- Request/Action:
+  - Call `GET /api/v1/people/users/current_user` with:
+    - `Authorization: Bearer <valid signed token>`
+- Expected:
+  - Response returns `200`.
+  - Response object has exactly the same keys as `UserOut`.
+  - Returned user matches the identity claim carried by the verified JWT.
+- Cleanup:
+  - None.
+
+### TS-CTR-006 Invalid Bearer JWT Fails Closed
+- Intent: Prove that bearer-token verification is authoritative and does not fall back to lower-priority identity sources.
+- Setup/Preconditions:
+  - Seeded API test stack is running.
+  - JWT verification settings are configured for the API test environment.
+  - A resolvable user acronym exists for a trusted header fallback candidate.
+- Request/Action:
+  - Call `GET /api/v1/people/users/current_user` with both:
+    - `Authorization: Bearer <invalid signed token>`
+    - `X-Auth-User: <valid user acronym>`
+- Expected:
+  - Response returns `401`.
+  - Body is `{ "detail": "Authentication required" }`.
+  - The API does not fall back to `X-Auth-User` after bearer-token validation fails.
+- Cleanup:
+  - None.
+
 ## Automated Test Mapping
 - `tests/api/api/test_endpoint_contracts.py::test_critical_list_endpoints_match_response_models` -> `TS-CTR-001`
 - `tests/api/api/test_endpoint_contracts.py::test_current_user_detail_matches_response_model` -> `TS-CTR-002`
 - `tests/api/api/test_endpoint_contracts.py::test_current_user_trusted_header_takes_precedence_over_x_user_id` -> `TS-CTR-003`
 - `tests/api/api/test_endpoint_contracts.py::test_current_user_invalid_trusted_header_fails_closed_even_with_valid_x_user_id` -> `TS-CTR-004`
+- `tests/api/api/test_endpoint_contracts.py::test_current_user_valid_bearer_jwt_resolves_identity` -> `TS-CTR-005`
+- `tests/api/api/test_endpoint_contracts.py::test_current_user_invalid_bearer_jwt_fails_closed_even_with_trusted_header` -> `TS-CTR-006`
 
 ## References
 - `tests/api/api/test_endpoint_contracts.py`

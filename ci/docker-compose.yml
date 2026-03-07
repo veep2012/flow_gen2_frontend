@@ -89,6 +89,14 @@ services:
       APP_DB_USER: ${APP_DB_USER:-app_user}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:-app_pass}
       APP_ENV: ${APP_ENV:-production}
+      # Local compose defaults point to the bundled Keycloak realm for direct bearer-token testing.
+      # Issuer must match the token claim exactly; local Keycloak tokens use the public localhost issuer.
+      AUTH_JWT_ISSUER_URL: ${AUTH_JWT_ISSUER_URL:-http://localhost:8081/realms/flow-local}
+      AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE:-flow-ui}
+      AUTH_JWT_JWKS_URL: ${AUTH_JWT_JWKS_URL:-http://keycloak:8080/realms/flow-local/protocol/openid-connect/certs}
+      AUTH_JWT_SHARED_SECRET: ${AUTH_JWT_SHARED_SECRET:-}
+      AUTH_JWT_ALLOWED_ALGORITHMS: ${AUTH_JWT_ALLOWED_ALGORITHMS:-RS256}
+      AUTH_JWT_IDENTITY_CLAIMS: ${AUTH_JWT_IDENTITY_CLAIMS:-acronym,preferred_username,sub}
     expose:
       - "5556"
     depends_on:

@@ -31,6 +31,19 @@
       ],
       "webOrigins": [
         "http://localhost"
+      ],
+      "protocolMappers": [
+        {
+          "name": "audience flow-ui",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "flow-ui",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
       ]
     },
     {

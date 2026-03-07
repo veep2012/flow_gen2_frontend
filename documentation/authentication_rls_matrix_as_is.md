@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-25
-- Last Updated: 2026-03-06
-- Version: v1.3
+- Last Updated: 2026-03-07
+- Version: v1.4
 
 ## Change Log
+- 2026-03-07 | v1.4 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT verification inputs and failure telemetry, and synchronized the startup identity banner.
 - 2026-03-06 | v1.3 | Made trusted identity header resolution authoritative over `X-User-Id`, documented fail-closed behavior when the trusted header is unresolved, and synchronized compose/nginx trusted-header forwarding expectations.
 - 2026-03-05 | v1.2 | Implemented trusted identity header mode (`X-Auth-User`) with fail-closed unknown-identity behavior, clarified that `ref.roles.external_name` is reference-only for a dedicated identity-sync module rather than a request-path/workflow authorization input, and documented current identity-header precedence limitation (`X-User-Id` evaluated before trusted header) with required proxy stripping/rewriting controls in non-local environments.
 - 2026-02-27 | v0.5 | Corrected `ref.sync_user_primary_role()` behavior so mirror inserts from `ref.users.role_id` are non-destructive and preserve existing secondary `ref.user_roles` assignments, added one `EXPLAIN (ANALYZE, BUFFERS)` read-path baseline for `workflow.v_documents` with the RLS predicate active, and documented that revision mutation endpoints (`status transition`, `cancel`) now build response payloads from workflow function return rows (plus lookup enrichments) instead of re-reading through scope-filtered revision views, preventing false `Revision not found` after successful writes.
@@ -36,9 +37,17 @@ Current implementation is a hybrid state: role-model foundations are active, and
 
 ### Session user context (implemented)
 - API resolves acting user in this order:
+  - Verified bearer JWT from `Authorization: Bearer <token>`.
   - Trusted identity header (`X-Auth-User`, configurable via `TRUSTED_IDENTITY_HEADER`).
   - `X-User-Id` request header only when the trusted header is absent or empty.
   - `APP_USER` environment variable.
+- Bearer JWT verification:
+  - API validates signature, issuer, audience, expiry, and configured algorithms before resolving internal identity.
+  - Verification uses either `AUTH_JWT_SHARED_SECRET` or JWKS discovery/override via `AUTH_JWT_JWKS_URL`.
+  - Identity claim lookup is configurable through `AUTH_JWT_IDENTITY_CLAIMS` and defaults to `acronym`, `preferred_username`, then `sub`.
+- Bearer-token precedence:
+  - When `Authorization: Bearer ...` is present, bearer-token validation is authoritative.
+  - If bearer-token validation fails, the request fails closed with `401 Unauthorized` and does not fall back to trusted-header or `X-User-Id`.
 - Trusted-header precedence:
   - When both headers are present, trusted identity header resolution is authoritative.
   - If the trusted identity header is present but unresolved, the request fails closed with `401 Unauthorized` and does not fall back to `X-User-Id`.
@@ -64,7 +73,7 @@ Current implementation is a hybrid state: role-model foundations are active, and
   - `APP_USER` must match `^[A-Z]{2,12}$`.
   - Startup validates that `APP_USER` resolves to a row in `workflow.v_users`.
 - Startup emits a banner describing active identity mode:
-  - `startup_identity_mode=request_header_only identity_source=X-Auth-User>X-User-Id` when `APP_USER` is not configured.
+  - `startup_identity_mode=request_header_only identity_source=Authorization>X-Auth-User>X-User-Id` when `APP_USER` is not configured.
   - `startup_identity_mode=app_user_bootstrap` when `APP_USER` bootstrap is active.
 - API-layer fail-closed guard is active for auth-sensitive routers:
   - `documents`
@@ -97,6 +106,7 @@ Current implementation is a hybrid state: role-model foundations are active, and
   - `flow_auth_current_user_resolution_failures_total{reason=missing_identity|unresolved_read_model}`
   - `flow_auth_denied_by_rls_total{endpoint=...,status_code=...,auth_mode=...}`
   - `flow_auth_identity_header_parse_failures_total{auth_mode=...}`
+  - `flow_auth_jwt_validation_failures_total{reason=...}`
 - `flow_auth_denied_by_rls_total` counts observable API-layer auth denials:
   - explicit `403` responses on auth-sensitive endpoints
   - `404` on `GET /api/v1/people/users/current_user` when an authenticated identity is filtered/unresolved

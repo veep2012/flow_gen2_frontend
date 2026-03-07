@@ -6,10 +6,10 @@
 - Reviewers: Security and API maintainers
 - Created: 2026-02-21
 - Last Updated: 2026-03-07
-- Version: v1.3
+- Version: v1.4
 
 ## Change Log
-- 2026-03-07 | v1.3 | Expanded Phase 3 target scope to include full JWT token verification in the API while keeping external role mapping and identity-sync work out of scope.
+- 2026-03-07 | v1.4 | Expanded Phase 3 target scope to include full JWT token verification in the API and aligned implementation reality with bearer-JWT verification while keeping external role mapping and identity-sync work out of scope.
 - 2026-03-07 | v1.2 | Re-scoped Phase 3 to trusted identity integration only, clarified that external role mapping is out of current phase scope, and moved identity-sync/reconciliation work into a separate future phase.
 - 2026-03-05 | v1.1 | Implemented Phase 3 trusted identity resolver path and clarified architecture boundary: `ref.roles.external_name` remains reference-only for a dedicated identity-sync module and is not evaluated in request/workflow authorization execution.
 - 2026-02-26 | v0.7 | Updated implementation reality through Phase 1: read-path predicate/RLS and project-scoped lookup filtering are now implemented and test-covered.
@@ -384,13 +384,13 @@ Exit criteria:
 - API can validate JWT signature and required claims before resolving internal user identity.
 - Unknown trusted identity inputs fail closed with traceable auth evidence.
 
-Implementation reality (as of v1.3):
+Implementation reality (as of v1.4):
 - Implemented:
+  - Full JWT token verification pipeline in API for identity resolution with signature/claim validation before internal user lookup.
   - Trusted identity resolver path through configurable header (`TRUSTED_IDENTITY_HEADER`, default `X-Auth-User`) with `trusted_identity_header` auth mode.
+  - Request identity precedence of verified bearer JWT, then trusted header, then `X-User-Id`, then local `APP_USER`.
   - Fail-closed identity behavior for unknown trusted identities (`401`).
-  - Structured auth events and existing auth counters remain active for deny/parse visibility.
-- Not yet implemented in Phase 3:
-  - Full JWT token verification pipeline in API (signature verification, claim validation, key rotation handling).
+  - Structured auth events and auth counters remain active for deny/parse/JWT validation visibility.
 - Explicitly out of Phase 3 scope:
   - Runtime external-role mapping via `ref.roles.external_name` in request/workflow paths.
   - Dedicated identity-sync module that owns LDAP/IdP role reconciliation into `ref.user_roles`.

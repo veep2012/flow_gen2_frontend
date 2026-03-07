@@ -19,12 +19,16 @@ class _DummySession:
         return False
 
 
-def _make_request(*, header_value: str | None = None) -> SimpleNamespace:
-    headers = {}
+def _make_request(
+    *,
+    header_value: str | None = None,
+    headers: dict[str, str] | None = None,
+) -> SimpleNamespace:
+    request_headers = dict(headers or {})
     if header_value is not None:
-        headers["X-User-Id"] = header_value
+        request_headers["X-User-Id"] = header_value
     return SimpleNamespace(
-        headers=headers,
+        headers=request_headers,
         state=SimpleNamespace(request_id="req-123"),
         method="GET",
         url=SimpleNamespace(path="/api/v1/people/users/current_user"),
@@ -53,6 +57,42 @@ def test_identity_header_parse_failure_increments_metric_and_logs(monkeypatch, c
         "event=identity_header_parse_failure request_id=req-123 auth_mode=x_user_id_header "
         "method=GET path=/api/v1/people/users/current_user header_name=X-User-Id" in caplog.text
     )
+
+
+def test_malformed_authorization_header_increments_metric_and_logs(caplog) -> None:
+    reset_metrics()
+    request = _make_request(headers={"Authorization": "Token not-a-bearer"})
+    db = _DummySession()
+    caplog.set_level(logging.WARNING)
+
+    with pytest.raises(HTTPException, match="Authentication required"):
+        database._set_app_user(db, request)
+
+    metrics = render_prometheus_text()
+    assert (
+        'flow_auth_jwt_validation_failures_total{reason="malformed_authorization_header"} 1'
+        in metrics
+    )
+    assert (
+        "event=jwt_validation_failure request_id=req-123 auth_mode=jwt_bearer "
+        "method=GET path=/api/v1/people/users/current_user reason=malformed_authorization_header"
+        in caplog.text
+    )
+
+
+def test_valid_bearer_token_sets_effective_identity(monkeypatch) -> None:
+    request = _make_request(headers={"Authorization": "Bearer token"})
+    db = _DummySession()
+    monkeypatch.setattr(database, "_decode_bearer_token", lambda _token: {"acronym": "FDQC"})
+    monkeypatch.setattr(
+        database, "_resolve_user_id", lambda _db, raw_value: "7" if raw_value == "FDQC" else None
+    )
+
+    database._set_app_user(db, request)
+
+    assert request.state.auth_mode == "jwt_bearer"
+    assert request.state.auth_identity_present is True
+    assert db.info["effective_user_id"] == "7"
 
 
 def test_current_user_resolution_failures_increment_metrics_and_logs(caplog) -> None:
@@ -106,3 +146,24 @@ def test_trusted_identity_header_unresolved_fails_closed(monkeypatch) -> None:
         database._set_app_user(db, request)
 
     assert exc.value.status_code == 401
+
+
+def test_unknown_internal_user_from_jwt_fails_closed(monkeypatch, caplog) -> None:
+    reset_metrics()
+    request = _make_request(headers={"Authorization": "Bearer token"})
+    db = _DummySession()
+    caplog.set_level(logging.WARNING)
+    monkeypatch.setattr(database, "_decode_bearer_token", lambda _token: {"acronym": "NOTREAL"})
+    monkeypatch.setattr(database, "_resolve_user_id", lambda _db, _raw_value: None)
+
+    with pytest.raises(HTTPException, match="Authentication required") as exc:
+        database._set_app_user(db, request)
+
+    assert exc.value.status_code == 401
+    metrics = render_prometheus_text()
+    assert 'flow_auth_jwt_validation_failures_total{reason="unknown_internal_user"} 1' in metrics
+    assert (
+        "event=jwt_validation_failure request_id=req-123 auth_mode=jwt_bearer "
+        "method=GET path=/api/v1/people/users/current_user reason=unknown_internal_user"
+        in caplog.text
+    )
