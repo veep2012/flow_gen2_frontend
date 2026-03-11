@@ -3,7 +3,7 @@
 ## Oracle Linux 9.4 setup
 
 ### Install system packages
-```bash
+mmake ```bash
 sudo dnf install -y git podman python3.11 openssh-clients
 ```
 
