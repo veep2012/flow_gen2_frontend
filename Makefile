@@ -97,7 +97,7 @@ ensure-keycloak-log-dir:
 .PHONY: help
 help: | ensure-pid-dir ## Show available targets
 	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
-	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-up test-down test-ui-unit test-ui-e2e test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-test local-ui-lint local-ui-build local-ui-audit local-ui-reset local-ui-hard-reset local-ui-logs db-up db-down minio-up minio-down up up-no-keycloak down build rebuild completely-rebuild logs help test audit mypy lint; do \
+	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-up test-down test-compose test-ui-unit test-ui-e2e test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-test local-ui-lint local-ui-build local-ui-audit local-ui-reset local-ui-hard-reset local-ui-logs db-up db-down minio-up minio-down up up-no-keycloak down build rebuild completely-rebuild logs help test audit mypy lint; do \
 		grep -E "^$${target} " .local/.make-help.tmp || true; \
 	done
 	@rm -f .local/.make-help.tmp
@@ -183,6 +183,10 @@ test-down: ## Stop test API, MinIO, and DB
 	API_PORT=$(TEST_API_PORT) PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true
 	$(MAKE) test-db-down
 	$(MAKE) test-minio-down
+
+.PHONY: test-compose
+test-compose: ## Smoke-check the already running compose auth/ingress stack from `make up`
+	PYTHON_BIN=$(PYTHON_BIN) bash scripts/test-compose.sh
 
 .PHONY: test-ui-unit
 test-ui-unit: ## Run UI unit tests through the containerized UI toolchain

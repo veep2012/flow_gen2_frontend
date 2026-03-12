@@ -94,6 +94,11 @@ Fast startup without auth stack (no Keycloak/oauth2-proxy/nginx):
 ```bash
 make up-no-keycloak
 ```
+Once the full compose stack is already running via `make up`, run:
+```bash
+make test-compose
+```
+`make test-compose` only checks the auth/ingress behavior that the normal `make test` path cannot cover without Keycloak, oauth2-proxy, and nginx.
 Defaults:
 - Keycloak: `http://localhost:8081` (realm `flow-local`)
 - Test user: `testuser` / `TestUser!2345`
