@@ -12,6 +12,10 @@ log_step() {
   echo "[test-compose] $1"
 }
 
+log_data() {
+  echo "[test-compose]   $1"
+}
+
 wait_for_url() {
   local url="$1"
   local label="$2"
@@ -50,6 +54,9 @@ if ! grep -Eqi '^location: .*/protocol/openid-connect/auth' "$redirect_headers";
   echo "Expected unauthenticated API ingress to redirect into the Keycloak auth flow" >&2
   exit 1
 fi
+redirect_location="$(awk 'BEGIN{IGNORECASE=1} /^Location:/ {sub(/\r$/, "", $2); print $2}' "$redirect_headers")"
+log_data "GET $NGINX_BASE_URL/api/v1/people/users/current_user"
+log_data "302 Location: $redirect_location"
 log_step "Unauthenticated ingress redirect check passed"
 
 log_step "Requesting Keycloak access token for test user '$COMPOSE_TEST_USERNAME'"
@@ -62,6 +69,9 @@ access_token="$(
     --data "password=$COMPOSE_TEST_PASSWORD" |
     "$PYTHON_BIN" -c 'import json,sys; print(json.load(sys.stdin)["access_token"])'
 )"
+token_preview="$(printf '%s' "$access_token" | cut -c1-24)"
+log_data "POST $KEYCLOAK_BASE_URL/realms/flow-local/protocol/openid-connect/token"
+log_data "access_token preview: ${token_preview}..."
 log_step "Access token acquired"
 
 log_step "Checking bearer-token passthrough through nginx"
@@ -72,6 +82,11 @@ bearer_payload="$(
 COMPOSE_TEST_EXPECTED_ACRONYM="$COMPOSE_TEST_EXPECTED_ACRONYM" \
 "$PYTHON_BIN" -c 'import json, os, sys; assert json.load(sys.stdin)["user_acronym"] == os.environ["COMPOSE_TEST_EXPECTED_ACRONYM"]' \
   <<<"$bearer_payload"
+bearer_summary="$(
+  printf '%s' "$bearer_payload" | "$PYTHON_BIN" -c 'import json,sys; data=json.load(sys.stdin); print("user_id={} user_acronym={}".format(data.get("user_id"), data.get("user_acronym")))'
+)"
+log_data "GET $NGINX_BASE_URL/api/v1/people/users/current_user with Authorization: Bearer <token>"
+log_data "$bearer_summary"
 log_step "Bearer-token passthrough check passed"
 
 log_step "Checking invalid bearer token fails closed"
@@ -84,6 +99,7 @@ if [[ "$invalid_status" != "401" ]]; then
   echo "Expected invalid bearer token to return 401, got $invalid_status" >&2
   exit 1
 fi
+log_data "GET $NGINX_BASE_URL/api/v1/people/users/current_user with invalid bearer token -> HTTP $invalid_status"
 log_step "Invalid bearer token check passed"
 
 log_step "Checking cookie-based login flow through oauth2-proxy and Keycloak"
