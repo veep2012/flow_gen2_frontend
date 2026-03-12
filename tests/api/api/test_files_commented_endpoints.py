@@ -59,7 +59,7 @@ def test_files_commented_insert_and_download():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
-        user_id, _ = _get_test_user(client)
+        user_id, user_acronym = _get_test_user(client)
         base_file = _upload_base_file(client, rev_id, suffix, "pdf", "application/pdf")
 
         commented_content = f"commented-{suffix}".encode()
@@ -74,7 +74,8 @@ def test_files_commented_insert_and_download():
                     "application/pdf",
                 )
             },
-            data={"file_id": str(base_file["id"]), "user_id": str(user_id)},
+            data={"file_id": str(base_file["id"])},
+            headers={"X-User-Id": user_acronym},
         )
         assert insert["status"] == 201
         commented_id = insert["payload"]["id"]
@@ -112,14 +113,15 @@ def test_files_commented_insert_without_file_copies_source():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
-        user_id, _ = _get_test_user(client)
+        user_id, user_acronym = _get_test_user(client)
         base_file = _upload_base_file(client, rev_id, suffix, "pdf", "application/pdf")
 
         insert = _request(
             client,
             "POST",
             "/files/commented/",
-            data={"file_id": str(base_file["id"]), "user_id": str(user_id)},
+            data={"file_id": str(base_file["id"])},
+            headers={"X-User-Id": user_acronym},
         )
         assert insert["status"] == 201
         commented_id = insert["payload"]["id"]
@@ -147,7 +149,7 @@ def test_files_commented_insert_duplicate():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
-        user_id, _ = _get_test_user(client)
+        user_id, user_acronym = _get_test_user(client)
         base_file = _upload_base_file(client, rev_id, suffix, "pdf", "application/pdf")
 
         first = _request(
@@ -161,7 +163,8 @@ def test_files_commented_insert_duplicate():
                     "application/pdf",
                 )
             },
-            data={"file_id": str(base_file["id"]), "user_id": str(user_id)},
+            data={"file_id": str(base_file["id"])},
+            headers={"X-User-Id": user_acronym},
         )
         assert first["status"] == 201
         duplicate = _request(
@@ -175,7 +178,8 @@ def test_files_commented_insert_duplicate():
                     "application/pdf",
                 )
             },
-            data={"file_id": str(base_file["id"]), "user_id": str(user_id)},
+            data={"file_id": str(base_file["id"])},
+            headers={"X-User-Id": user_acronym},
         )
         assert duplicate["status"] == 400
         assert "already exists" in duplicate["payload"]["detail"].lower()
@@ -212,36 +216,19 @@ def test_files_commented_insert_missing_fields():
             "POST",
             "/files/commented/",
             files={"file": ("missing.pdf", b"content", "application/pdf")},
-            data={"user_id": "1"},
-        )
-        assert result["status"] == 422
-        result = _request(
-            client,
-            "POST",
-            "/files/commented/",
-            files={"file": ("missing.pdf", b"content", "application/pdf")},
-            data={"file_id": "1"},
         )
         assert result["status"] == 422
 
 
 @pytest.mark.api_smoke
-def test_files_commented_insert_nonexistent_file_or_user():
+def test_files_commented_insert_nonexistent_file():
     with httpx.Client(timeout=10) as client:
         result = _request(
             client,
             "POST",
             "/files/commented/",
             files={"file": ("missing.pdf", b"content", "application/pdf")},
-            data={"file_id": "999999", "user_id": "1"},
-        )
-        assert result["status"] == 404
-        result = _request(
-            client,
-            "POST",
-            "/files/commented/",
-            files={"file": ("missing.pdf", b"content", "application/pdf")},
-            data={"file_id": "1", "user_id": "999999"},
+            data={"file_id": "999999"},
         )
         assert result["status"] == 404
 
@@ -251,7 +238,7 @@ def test_files_commented_insert_mimetype_mismatch():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
-        user_id, _ = _get_test_user(client)
+        _, user_acronym = _get_test_user(client)
         base_file = _upload_base_file(client, rev_id, suffix, "pdf", "application/pdf")
 
         mismatch = _request(
@@ -265,7 +252,8 @@ def test_files_commented_insert_mimetype_mismatch():
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 )
             },
-            data={"file_id": str(base_file["id"]), "user_id": str(user_id)},
+            data={"file_id": str(base_file["id"])},
+            headers={"X-User-Id": user_acronym},
         )
         assert mismatch["status"] in [400, 415]
 

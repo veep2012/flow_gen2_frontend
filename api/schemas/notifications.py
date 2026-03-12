@@ -9,12 +9,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class NotificationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    sender_user_id: int | None = Field(
-        None,
-        description="Sender user ID. If omitted, uses X-User-Id.",
-        examples=[1],
-        gt=0,
-    )
     title: str = Field(
         ...,
         description="Notification title.",

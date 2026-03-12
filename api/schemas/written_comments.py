@@ -8,7 +8,6 @@ from pydantic import BaseModel, ConfigDict, Field
 class WrittenCommentCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    user_id: int = Field(..., description="User ID.", examples=[1], gt=0)
     comment_text: str = Field(
         ...,
         description="Short written comment text.",

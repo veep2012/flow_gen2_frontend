@@ -18,7 +18,12 @@ from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
 from api.schemas.files import FileCommentedOut
-from api.utils.database import get_db, require_effective_identity
+from api.utils.database import (
+    MISSING_IDENTITY_DETAIL,
+    get_db,
+    get_effective_user_id,
+    require_effective_identity,
+)
 from api.utils.helpers import (
     _build_default_filename_from_instance_parameter,
     _handle_integrity_error,
@@ -256,7 +261,6 @@ def list_commented_files_for_file(
 def insert_commented_file(
     request: Request,
     file_id: int = Form(..., description="File ID to attach the commented file to", examples=[1]),
-    user_id: int = Form(..., description="User ID uploading the commented file", examples=[1]),
     file: UploadFile | None = UploadFileField(
         None,
         description=(
@@ -272,7 +276,6 @@ def insert_commented_file(
     Args:
         request: Incoming request used for logging the client host.
         file_id: The file ID to attach the commented file to.
-        user_id: The user ID uploading the commented file.
         file: Optional uploaded file (multipart form data).
 
     Returns:
@@ -283,6 +286,10 @@ def insert_commented_file(
         HTTPException: 404 if file or user not found.
         HTTPException: 413 if file exceeds size limit.
     """
+    user_id = get_effective_user_id(db)
+    if user_id is None:
+        raise HTTPException(status_code=401, detail=MISSING_IDENTITY_DETAIL)
+
     try:
         file_row = (
             db.execute(
@@ -643,11 +650,10 @@ _REST_RESPONSES: dict[int | str, dict[str, Any]] = {
 def insert_commented_file_rest(
     request: Request,
     file_id: int = Form(..., description="File ID to attach the commented file to", examples=[1]),
-    user_id: int = Form(..., description="User ID uploading the commented file", examples=[1]),
     file: UploadFile | None = UploadFileField(None),
     db: Session = Depends(get_db),
 ) -> FileCommentedOut:
-    return insert_commented_file(request, file_id, user_id, file, db)
+    return insert_commented_file(request, file_id, file, db)
 
 
 @router.delete(

@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-07
-- Version: v3.5
+- Last Updated: 2026-03-12
+- Version: v3.6
 
 ## Change Log
+- 2026-03-12 | v3.6 | Removed redundant create-time actor fields from commented-files, written-comments, and notifications APIs; create authorship/sender now always resolves from effective session identity while recipient targeting remains explicit.
 - 2026-03-07 | v3.5 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT auth configuration, observability, and nginx bearer-token passthrough for `/api` requests, aligned local compose/Keycloak defaults so direct-access bearer-token testing uses `aud=flow-ui`, clarified that JWKS retrieval/client failures fail closed as `401 Unauthorized` with `flow_auth_jwt_validation_failures_total{reason="jwks_fetch_failed"}`, and restricted raw `X-User-Id` fallback to non-production environments only so production-capable modes accept bearer JWT, then trusted header, then optional local `APP_USER`.
 - 2026-03-06 | v3.0 | Updated auth identity resolution order so trusted header (`X-Auth-User`, configurable via `TRUSTED_IDENTITY_HEADER`) takes precedence over `X-User-Id`, documented fail-closed behavior when trusted identity is invalid, and synchronized the request-header startup banner wording.
 - 2026-03-04 | v2.9 | Added `/metrics` system endpoint for in-process auth observability counters; documented auth metrics for current-user resolution failures, observable RLS denials by endpoint, and identity header parse failures; and documented structured auth-event logs with correlation IDs and auth mode.
@@ -582,11 +583,12 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/files/commented/list?fil
 ```bash
 curl -sS -H "Accept: application/json" \
   -F "file_id=12" \
-  -F "user_id=1" \
+  -H "X-User-Id: FDQC" \
   -F "file=@commented.pdf;type=application/pdf" \
   $API_BASE/api/v1/files/commented/
 ```
-- Form fields: `file_id` (int), `user_id` (int), `file` (binary, optional).
+- Form fields: `file_id` (int), `file` (binary, optional).
+- Authorship: uploader `user_id` is derived from effective session identity (`X-User-Id` / trusted auth context), not from form data.
 - If `file` is omitted, API copies source file bytes from `file_id` into a new commented file object.
 - If `file` is provided, API validates mimetype against the original file.
 - Commented-file object naming uses `workflow.v_instance_parameters.parameter='file_name_com_conv'` (`<BODY>_commented_<UACR>_<TIMEST>.<EXT>`), where `<BODY>` is taken from the source file linked by `file_id` (applies both when uploading manually and when copying without `file`), with the same fallback behavior (original name unchanged when template resolution fails).
@@ -662,15 +664,15 @@ curl -sS -H "Accept: application/json" \
 ```
 
 #### Create
-- `POST /api/v1/documents/revisions/45/comments` — 201; creates written comment for revision/user.
+- `POST /api/v1/documents/revisions/45/comments` — 201; creates written comment for revision by the effective session user.
 - Headers: `Accept: application/json`, `Content-Type: application/json`
 - Example request:
 ```bash
-curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
-  -d '{"user_id":1,"comment_text":"Please verify section B-B."}' \
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" -H "X-User-Id: FDQC" \
+  -d '{"comment_text":"Please verify section B-B."}' \
   "$API_BASE/api/v1/documents/revisions/45/comments"
 ```
-- Validation: blank text is rejected (`400`), missing fields rejected (`422`).
+- Validation: blank text is rejected (`400`), missing fields rejected (`422`), extra `user_id` field rejected (`422`).
 
 #### Delete
 - `DELETE /api/v1/documents/revisions/comments/{id}` — 204.
@@ -1408,14 +1410,13 @@ Backend implementation:
 ### Create
 - `POST /api/v1/notifications` — 201; creates notification, resolves recipients, stores unread delivery rows.
 - Headers: `Accept: application/json`, `Content-Type: application/json`
-- Optional header/body sender resolution:
-  - `sender_user_id` may be provided in body.
-  - If omitted, API uses `X-User-Id` session user.
-  - If neither is available, returns `400`.
+- Sender resolution:
+  - sender always resolves from effective session identity (`X-User-Id` / trusted auth context).
+  - request-body `sender_user_id` is not accepted.
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
-  -H "X-User-Id: 1" \
+  -H "X-User-Id: FDQC" \
   -d '{
     "title": "Review update",
     "body": "Please review revision 51",

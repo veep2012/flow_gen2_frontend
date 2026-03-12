@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-02-20
-- Version: v1.3
+- Last Updated: 2026-03-12
+- Version: v1.4
 
 ## Change Log
+- 2026-03-12 | v1.4 | Removed obsolete commented-file create `user_id` form field from audit validation steps so actor attribution comes only from session identity.
 - 2026-02-20 | v1.3 | Added Change Log section for standards compliance and added full core-schema audit metadata contract scenario with automated mapping (`TS-AUD-003`)
 
 ## Purpose
@@ -110,7 +111,6 @@ Upload commented file as user `2`:
 curl -s -X POST "$API_BASE$API_PREFIX/files/commented/" \
   -H "X-User-Id: 2" \
   -F "file_id=$FILE_ID" \
-  -F "user_id=1" \
   -F "file=@/etc/hosts;type=application/pdf;filename=commented-$TS.pdf" | jq '{id,file_id,user_id,created_by,updated_by,created_at,updated_at}'
 ```
 

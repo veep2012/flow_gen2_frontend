@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-03-04
-- Version: v1.7
+- Last Updated: 2026-03-12
+- Version: v1.8
 
 ## Change Log
+- 2026-03-12 | v1.8 | Removed create-time `user_id` form field from commented-file scenarios and bound create authorship to effective session identity.
 - 2026-03-04 | v1.7 | Added fail-closed session-identity scenario for commented-files router access.
 - 2026-02-21 | v1.6 | Added written comments scenarios and mappings, added update scenarios, moved automated mapping to dedicated test module/router references, and split written-comments scenarios into dedicated `written_comments_api_test_scenarios.md`
 - 2026-02-20 | v1.5 | Updated commented download examples to use query parameter `id`.
@@ -43,13 +44,14 @@ PROJECT_ID=$(curl -s "$API_BASE$API_PREFIX/lookups/projects" | jq -r '.[0].proje
 DOC_ID=$(curl -s "$API_BASE$API_PREFIX/documents?project_id=$PROJECT_ID" | jq -r '.[0].doc_id')
 REV_ID=$(curl -s "$API_BASE$API_PREFIX/documents/$DOC_ID/revisions" | jq -r '.[0].rev_id')
 USER_ID=$(curl -s "$API_BASE$API_PREFIX/people/users" | jq -r '.[0].user_id')
+USER_ACRONYM=$(curl -s "$API_BASE$API_PREFIX/people/users" | jq -r '.[0].user_acronym')
 TS=$(date +%s)
 
 BASE_FILE=$(curl -s -X POST "$API_BASE$API_PREFIX/files/" \
   -F "rev_id=$REV_ID" \
   -F "file=@/etc/hosts;type=application/pdf;filename=base-$TS.pdf")
 FILE_ID=$(echo "$BASE_FILE" | jq -r '.id')
-echo "FILE_ID=$FILE_ID USER_ID=$USER_ID"
+echo "FILE_ID=$FILE_ID USER_ID=$USER_ID USER_ACRONYM=$USER_ACRONYM"
 ```
 
 ## 3. TS-FC-001..003 List Endpoints
@@ -69,8 +71,8 @@ curl -i "$API_BASE$API_PREFIX/files/commented/list"
 
 ```bash
 COMMENTED=$(curl -s -X POST "$API_BASE$API_PREFIX/files/commented/" \
+  -H "X-User-Id: $USER_ACRONYM" \
   -F "file_id=$FILE_ID" \
-  -F "user_id=$USER_ID" \
   -F "file=@/etc/hosts;type=application/pdf;filename=commented-$TS.pdf")
 echo "$COMMENTED" | jq
 COMMENTED_ID=$(echo "$COMMENTED" | jq -r '.id')
@@ -84,8 +86,8 @@ curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COMMENTED_ID"
 ```bash
 # TS-FC-005 duplicate insert
 curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" \
+  -H "X-User-Id: $USER_ACRONYM" \
   -F "file_id=$FILE_ID" \
-  -F "user_id=$USER_ID" \
   -F "file=@/etc/hosts;type=application/pdf;filename=dup-$TS.pdf"
 
 # TS-FC-006 delete missing
@@ -95,17 +97,15 @@ curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/999999"
 curl -i "$API_BASE$API_PREFIX/files/commented/download?id=999999"
 
 # TS-FC-008 missing fields
-curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" -F "file=@/etc/hosts;type=application/pdf;filename=missing.pdf" -F "user_id=$USER_ID"
-curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" -F "file=@/etc/hosts;type=application/pdf;filename=missing.pdf" -F "file_id=$FILE_ID"
+curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" -H "X-User-Id: $USER_ACRONYM" -F "file=@/etc/hosts;type=application/pdf;filename=missing.pdf"
 
 # TS-FC-009 nonexistent references
-curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" -F "file=@/etc/hosts;type=application/pdf;filename=missing.pdf" -F "file_id=999999" -F "user_id=$USER_ID"
-curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" -F "file=@/etc/hosts;type=application/pdf;filename=missing.pdf" -F "file_id=$FILE_ID" -F "user_id=999999"
+curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" -H "X-User-Id: $USER_ACRONYM" -F "file=@/etc/hosts;type=application/pdf;filename=missing.pdf" -F "file_id=999999"
 
 # TS-FC-010 mimetype mismatch
 curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" \
+  -H "X-User-Id: $USER_ACRONYM" \
   -F "file_id=$FILE_ID" \
-  -F "user_id=$USER_ID" \
   -F "file=@/etc/hosts;type=application/vnd.openxmlformats-officedocument.wordprocessingml.document;filename=commented-$TS.docx"
 ```
 
@@ -113,8 +113,8 @@ curl -i -X POST "$API_BASE$API_PREFIX/files/commented/" \
 
 ```bash
 COPIED=$(curl -s -X POST "$API_BASE$API_PREFIX/files/commented/" \
-  -F "file_id=$FILE_ID" \
-  -F "user_id=$USER_ID")
+  -H "X-User-Id: $USER_ACRONYM" \
+  -F "file_id=$FILE_ID")
 echo "$COPIED" | jq
 COPIED_ID=$(echo "$COPIED" | jq -r '.id')
 
@@ -135,7 +135,7 @@ curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COPIED_ID"
 - `TS-FC-006` delete missing commented file returns `404`.
 - `TS-FC-007` download missing commented file returns `404`.
 - `TS-FC-008` missing insert fields are rejected (`422`).
-- `TS-FC-009` missing file/user references return `404`.
+- `TS-FC-009` missing file reference returns `404`.
 - `TS-FC-010` mimetype mismatch rejected (`400`/`415`).
 - `TS-FC-011` insert without multipart `file` copies source file bytes from `file_id`.
 - `TS-FC-012` commented-files router denies requests when effective session identity is missing.
@@ -149,7 +149,7 @@ curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COPIED_ID"
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_delete_nonexistent` -> `TS-FC-006`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_download_nonexistent` -> `TS-FC-007`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_missing_fields` -> `TS-FC-008`
-- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_nonexistent_file_or_user` -> `TS-FC-009`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_nonexistent_file` -> `TS-FC-009`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_mimetype_mismatch` -> `TS-FC-010`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_without_file_copies_source` -> `TS-FC-011`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_require_session_identity` -> `TS-FC-012`

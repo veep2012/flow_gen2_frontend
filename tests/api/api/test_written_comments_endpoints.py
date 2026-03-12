@@ -19,10 +19,8 @@ def test_written_comments_crud():
             client,
             "POST",
             f"/documents/revisions/{rev_id}/comments",
-            json={
-                "user_id": user_id,
-                "comment_text": "Please verify section B-B.",
-            },
+            json={"comment_text": "Please verify section B-B."},
+            headers={"X-User-Id": user_acronym},
         )
         assert created["status"] == 201
         comment_id = created["payload"]["id"]
@@ -52,13 +50,12 @@ def test_written_comments_crud():
 def test_written_comments_validation():
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
-        user_id, _ = _get_test_user(client)
 
         missing_text = _request(
             client,
             "POST",
             f"/documents/revisions/{rev_id}/comments",
-            json={"user_id": user_id},
+            json={},
         )
         assert missing_text["status"] == 422
 
@@ -66,7 +63,7 @@ def test_written_comments_validation():
             client,
             "POST",
             f"/documents/revisions/{rev_id}/comments",
-            json={"user_id": user_id, "comment_text": "   "},
+            json={"comment_text": "   "},
         )
         assert blank_text["status"] == 400
 
@@ -87,26 +84,34 @@ def test_written_comments_require_session_identity():
 
 
 @pytest.mark.api_smoke
-def test_written_comments_missing_references():
+def test_written_comments_missing_revision():
     with httpx.Client(timeout=10) as client:
-        user_id, _ = _get_test_user(client)
-        rev_id = _get_test_revision_id(client)
+        _, user_acronym = _get_test_user(client)
 
         missing_rev = _request(
             client,
             "POST",
             "/documents/revisions/999999/comments",
-            json={"user_id": user_id, "comment_text": "missing revision"},
+            json={"comment_text": "missing revision"},
+            headers={"X-User-Id": user_acronym},
         )
         assert missing_rev["status"] == 404
 
-        missing_user = _request(
+
+@pytest.mark.api_smoke
+def test_written_comments_create_rejects_user_id_field():
+    with httpx.Client(timeout=10) as client:
+        rev_id = _get_test_revision_id(client)
+        user_id, user_acronym = _get_test_user(client)
+
+        rejected = _request(
             client,
             "POST",
             f"/documents/revisions/{rev_id}/comments",
-            json={"user_id": 999999, "comment_text": "missing user"},
+            json={"user_id": user_id, "comment_text": "should fail"},
+            headers={"X-User-Id": user_acronym},
         )
-        assert missing_user["status"] == 404
+        assert rejected["status"] == 422
 
 
 @pytest.mark.api_smoke
@@ -117,16 +122,14 @@ def test_written_comments_delete_forbidden_non_author():
         other_user = _get_second_test_user(client, author_user_id)
         if other_user is None:
             pytest.skip("Need two users for forbidden written comment delete check")
-        other_user_id, other_acronym = other_user
+        _, other_acronym = other_user
 
         created = _request(
             client,
             "POST",
             f"/documents/revisions/{rev_id}/comments",
-            json={
-                "user_id": author_user_id,
-                "comment_text": "author-only delete check",
-            },
+            json={"comment_text": "author-only delete check"},
+            headers={"X-User-Id": author_acronym},
         )
         assert created["status"] == 201
         comment_id = created["payload"]["id"]
@@ -157,7 +160,8 @@ def test_written_comments_update():
             client,
             "POST",
             f"/documents/revisions/{rev_id}/comments",
-            json={"user_id": user_id, "comment_text": "initial text"},
+            json={"comment_text": "initial text"},
+            headers={"X-User-Id": user_acronym},
         )
         assert created["status"] == 201
         comment_id = created["payload"]["id"]
@@ -189,13 +193,14 @@ def test_written_comments_update_forbidden_non_author():
         other_user = _get_second_test_user(client, author_user_id)
         if other_user is None:
             pytest.skip("Need two non-superuser users for forbidden update check")
-        other_user_id, other_acronym = other_user
+        _, other_acronym = other_user
 
         created = _request(
             client,
             "POST",
             f"/documents/revisions/{rev_id}/comments",
-            json={"user_id": author_user_id, "comment_text": "initial text"},
+            json={"comment_text": "initial text"},
+            headers={"X-User-Id": author_acronym},
         )
         assert created["status"] == 201
         comment_id = created["payload"]["id"]

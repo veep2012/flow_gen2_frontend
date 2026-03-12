@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-21
-- Version: v1.4
+- Last Updated: 2026-03-12
+- Version: v1.5
 
 ## Change Log
+- 2026-03-12 | v1.5 | Removed request-body `sender_user_id` override from notification create; sender is now always the effective session user.
 - 2026-02-21 | v1.4 | Added optional `distribution_list.doc_id` linkage to `core.doc`, synchronized DL API contract notes, documented auto-creation of doc-linked DLs when `instance_parameters.dl_for_each_doc=true`, and documented DL list filtering by `doc_id`.
 - 2026-02-20 | v1.3 | Added Change Log section for standards compliance
 
@@ -83,7 +84,8 @@ Router: `api/routers/notifications.py` (`/api/v1/notifications`)
 ## Authorization and Actor Rules
 - `replace` and `delete` require current actor (`X-User-Id`) and allow only sender or superuser.
 - `read` uses current actor (`X-User-Id`) as recipient identity.
-- `create` and `list` can resolve actor from body/query or fallback to current actor header.
+- `create` always uses effective session identity as sender.
+- `list` may use explicit `recipient_user_id` query or fallback to current actor header.
 
 ## Data and Event Model
 - Event types:

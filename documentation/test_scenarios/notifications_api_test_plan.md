@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-04
-- Version: v1.7
+- Last Updated: 2026-03-12
+- Version: v1.8
 
 ## Change Log
+- 2026-03-12 | v1.8 | Removed create-time `sender_user_id` override from notifications API and replaced on-behalf coverage with request-field rejection coverage.
 - 2026-03-04 | v1.7 | Added fail-closed session-identity scenarios for distribution-lists and notifications routers.
 - 2026-02-21 | v1.6 | Added DL `doc_id` scenario expectations for nullable create/list and document-linked create; added list filtering check via `GET /distribution-lists?doc_id=...`.
 - 2026-02-20 | v1.5 | Added Change Log section for standards compliance
@@ -32,7 +33,7 @@ Assumption: DB is already up and API is reachable on port `4175`.
 - `TS-NTF-002` Notification replace/delete chain must set dropped/superseded fields correctly.
 - `TS-NTF-003` Replace by non-sender/non-superuser must be forbidden (`403`).
 - `TS-NTF-004` Mark-read payload must reject `recipient_user_id` field (`422`).
-- `TS-NTF-005` Superuser on-behalf create must persist `sender_user_id`.
+- `TS-NTF-005` Notification create must reject request-body `sender_user_id` (`422`).
 - `TS-NTF-006` Notification create must reject empty `recipient_user_ids` and `recipient_dist_ids`.
 - `TS-NTF-007` Notifications router must return `401` when effective session identity is missing.
 
@@ -57,7 +58,11 @@ echo "$USERS_JSON" | jq
 USER_A=$(echo "$USERS_JSON" | jq -r '.[0].user_id')
 USER_B=$(echo "$USERS_JSON" | jq -r '.[1].user_id')
 USER_C=$(echo "$USERS_JSON" | jq -r '.[2].user_id')
+USER_A_ACRONYM=$(echo "$USERS_JSON" | jq -r '.[0].user_acronym')
+USER_B_ACRONYM=$(echo "$USERS_JSON" | jq -r '.[1].user_acronym')
+USER_C_ACRONYM=$(echo "$USERS_JSON" | jq -r '.[2].user_acronym')
 SUPERUSER_ID=2
+SUPERUSER_ACRONYM=$(echo "$USERS_JSON" | jq -r '.[] | select(.user_id == 2) | .user_acronym')
 
 for pid in $(seq 1 20); do
   DOCS=$(curl -s "$API_BASE$API_PREFIX/documents?project_id=$pid")
@@ -129,7 +134,7 @@ curl -s -X DELETE "$API_BASE$API_PREFIX/distribution-lists/$FIRST_ID" | jq
 ```bash
 CREATE_RESP=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $SUPERUSER_ID" \
+  -H "X-User-Id: $SUPERUSER_ACRONYM" \
   -d "{
     \"title\": \"API test notification\",
     \"body\": \"Please review revision $REV_ID\",
@@ -146,7 +151,7 @@ curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$USER_A&unread_onl
 
 curl -s -X POST "$API_BASE$API_PREFIX/notifications/$CREATED_ID/read" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $USER_A" \
+  -H "X-User-Id: $USER_A_ACRONYM" \
   -d '{}' | jq
 ```
 
@@ -155,7 +160,7 @@ curl -s -X POST "$API_BASE$API_PREFIX/notifications/$CREATED_ID/read" \
 ```bash
 ORIG=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $SUPERUSER_ID" \
+  -H "X-User-Id: $SUPERUSER_ACRONYM" \
   -d "{
     \"title\": \"Chain original\",
     \"body\": \"Original body\",
@@ -167,7 +172,7 @@ ORIG_ID=$(echo "$ORIG" | jq -r '.notification_id')
 
 REPLACE_RESP=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications/$ORIG_ID/replace" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $SUPERUSER_ID" \
+  -H "X-User-Id: $SUPERUSER_ACRONYM" \
   -d '{"title":"Chain changed","body":"Changed body","remark":"changed"}')
 CHANGED_ID=$(echo "$REPLACE_RESP" | jq -r '.notification_id')
 
@@ -175,7 +180,7 @@ echo "$REPLACE_RESP" | jq
 
 DELETE_RESP=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications/$CHANGED_ID/delete" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $SUPERUSER_ID" \
+  -H "X-User-Id: $SUPERUSER_ACRONYM" \
   -d '{"remark":"dropped"}')
 DROPPED_NOTICE_ID=$(echo "$DELETE_RESP" | jq -r '.notification_id')
 
@@ -191,7 +196,7 @@ curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$USER_A" | jq \
 ```bash
 SRC=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $USER_A" \
+  -H "X-User-Id: $USER_A_ACRONYM" \
   -d "{
     \"title\": \"Forbidden replace source\",
     \"body\": \"Sender is USER_A\",
@@ -204,7 +209,7 @@ SRC_ID=$(echo "$SRC" | jq -r '.notification_id')
 # USER_C tries to replace USER_A notification: expect 403
 curl -i -X POST "$API_BASE$API_PREFIX/notifications/$SRC_ID/replace" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $USER_C" \
+  -H "X-User-Id: $USER_C_ACRONYM" \
   -d '{"title":"Nope","body":"Nope"}'
 ```
 
@@ -213,7 +218,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/notifications/$SRC_ID/replace" \
 ```bash
 SRC2=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $SUPERUSER_ID" \
+  -H "X-User-Id: $SUPERUSER_ACRONYM" \
   -d "{
     \"title\": \"Read validation\",
     \"body\": \"Read validation body\",
@@ -225,29 +230,24 @@ SRC2_ID=$(echo "$SRC2" | jq -r '.notification_id')
 
 curl -i -X POST "$API_BASE$API_PREFIX/notifications/$SRC2_ID/read" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $USER_A" \
+  -H "X-User-Id: $USER_A_ACRONYM" \
   -d "{\"recipient_user_id\":$USER_A}"
 ```
 
-## 9. TS-NTF-005 Superuser On-Behalf Sender
+## 9. TS-NTF-005 Reject sender_user_id on Create
 
 ```bash
-ON_BEHALF=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications" \
+curl -i -X POST "$API_BASE$API_PREFIX/notifications" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $SUPERUSER_ID" \
+  -H "X-User-Id: $SUPERUSER_ACRONYM" \
   -d "{
     \"sender_user_id\": $USER_A,
-    \"title\": \"On behalf create\",
-    \"body\": \"Created by superuser for sender USER_A\",
+    \"title\": \"Rejected sender field\",
+    \"body\": \"sender_user_id must not be accepted\",
     \"rev_id\": $REV_ID,
-    \"recipient_user_ids\": [$USER_C],
+    \"recipient_user_ids\": [$USER_A],
     \"recipient_dist_ids\": []
-  }")
-ON_BEHALF_ID=$(echo "$ON_BEHALF" | jq -r '.notification_id')
-echo "$ON_BEHALF" | jq
-
-curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$USER_C" | jq \
-  --argjson id "$ON_BEHALF_ID" '.[] | select(.notification_id==$id) | {notification_id,sender_user_id,recipient_user_id,event_type}'
+  }"
 ```
 
 ## 10. TS-NTF-006 Create Rejects Empty Recipient Targets
@@ -255,7 +255,7 @@ curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$USER_C" | jq \
 ```bash
 curl -i -X POST "$API_BASE$API_PREFIX/notifications" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $SUPERUSER_ID" \
+  -H "X-User-Id: $SUPERUSER_ACRONYM" \
   -d "{
     \"title\": \"No recipients\",
     \"body\": \"No recipients body\",
@@ -285,7 +285,7 @@ curl -s -X POST "$API_BASE$API_PREFIX/distribution-lists/$DIST_IN_USE_ID/members
 
 curl -s -X POST "$API_BASE$API_PREFIX/notifications" \
   -H "Content-Type: application/json" \
-  -H "X-User-Id: $SUPERUSER_ID" \
+  -H "X-User-Id: $SUPERUSER_ACRONYM" \
   -d "{
     \"title\": \"DL in use check\",
     \"body\": \"Use DL in notification\",
@@ -351,7 +351,7 @@ Expected result:
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_replace_delete_chain` -> `TS-NTF-002`
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_replace_forbidden_for_non_sender_non_superuser` -> `TS-NTF-003`
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_mark_read_rejects_payload_user_field` -> `TS-NTF-004`
-- `tests/api/api/test_notifications_endpoints.py::test_notifications_create_on_behalf_sender` -> `TS-NTF-005`
+- `tests/api/api/test_notifications_endpoints.py::test_notifications_create_rejects_sender_user_id_field` -> `TS-NTF-005`
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_create_requires_at_least_one_recipient_target` -> `TS-NTF-006`
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_require_session_identity` -> `TS-NTF-007`
 

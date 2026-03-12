@@ -186,7 +186,7 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/files_commented_api_test_scenarios.md",
         ["TS-FC-008"],
     ),
-    "test_files_commented_insert_nonexistent_file_or_user": (
+    "test_files_commented_insert_nonexistent_file": (
         "documentation/test_scenarios/files_commented_api_test_scenarios.md",
         ["TS-FC-009"],
     ),
@@ -210,25 +210,29 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/written_comments_api_test_scenarios.md",
         ["TS-WC-002"],
     ),
-    "test_written_comments_missing_references": (
+    "test_written_comments_missing_revision": (
         "documentation/test_scenarios/written_comments_api_test_scenarios.md",
         ["TS-WC-003"],
     ),
-    "test_written_comments_delete_forbidden_non_author": (
+    "test_written_comments_create_rejects_user_id_field": (
         "documentation/test_scenarios/written_comments_api_test_scenarios.md",
         ["TS-WC-004"],
     ),
-    "test_written_comments_update": (
+    "test_written_comments_delete_forbidden_non_author": (
         "documentation/test_scenarios/written_comments_api_test_scenarios.md",
         ["TS-WC-005"],
     ),
-    "test_written_comments_update_forbidden_non_author": (
+    "test_written_comments_update": (
         "documentation/test_scenarios/written_comments_api_test_scenarios.md",
         ["TS-WC-006"],
     ),
-    "test_written_comments_require_session_identity": (
+    "test_written_comments_update_forbidden_non_author": (
         "documentation/test_scenarios/written_comments_api_test_scenarios.md",
         ["TS-WC-007"],
+    ),
+    "test_written_comments_require_session_identity": (
+        "documentation/test_scenarios/written_comments_api_test_scenarios.md",
+        ["TS-WC-008"],
     ),
     "test_files_crud_and_download": (
         "documentation/test_scenarios/files_api_test_scenarios.md",
@@ -314,7 +318,7 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/notifications_api_test_plan.md",
         ["TS-NTF-004"],
     ),
-    "test_notifications_create_on_behalf_sender": (
+    "test_notifications_create_rejects_sender_user_id_field": (
         "documentation/test_scenarios/notifications_api_test_plan.md",
         ["TS-NTF-005"],
     ),

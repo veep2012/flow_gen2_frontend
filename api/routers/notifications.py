@@ -89,14 +89,10 @@ _COMMON_RESPONSES: dict[int | str, dict[str, Any]] = {
 }
 
 
-def _resolve_user_or_fail(db: Session, explicit_user_id: int | None, *, field_name: str) -> int:
-    user_id = explicit_user_id or get_effective_user_id(db)
-    if not user_id:
-        raise HTTPException(
-            status_code=400,
-            detail=f"{field_name} is required (body or X-User-Id header)",
-        )
-    return user_id
+def _resolve_recipient_user_id(db: Session, explicit_user_id: int | None) -> int:
+    if explicit_user_id is not None:
+        return explicit_user_id
+    return _require_current_user(db)
 
 
 def _require_current_user(db: Session) -> int:
@@ -127,11 +123,7 @@ def create_notification(
 
     Creates a regular notification and resolves recipients from direct users and distribution lists.
     """
-    sender_user_id = _resolve_user_or_fail(
-        db,
-        payload.sender_user_id,
-        field_name="sender_user_id",
-    )
+    sender_user_id = _require_current_user(db)
     try:
         row = (
             db.execute(
@@ -202,9 +194,7 @@ def list_notifications_for_recipient(
 
     Returns recipient inbox rows from workflow view with optional sender/date/unread filters.
     """
-    resolved_recipient_user_id = _resolve_user_or_fail(
-        db, recipient_user_id, field_name="recipient_user_id"
-    )
+    resolved_recipient_user_id = _resolve_recipient_user_id(db, recipient_user_id)
     dt_from = _normalize_dt(date_from)
     dt_to = _normalize_dt(date_to)
     if dt_from and dt_to and dt_from > dt_to:

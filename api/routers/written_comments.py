@@ -118,7 +118,9 @@ def list_written_comments_for_revision(
 @router.post(
     "/{rev_id}/comments",
     summary="Create written comment.",
-    description="Creates a short written comment linked to revision and user.",
+    description=(
+        "Creates a short written comment linked to revision for the effective session user."
+    ),
     operation_id="create_written_comment",
     tags=["comments"],
     response_model=WrittenCommentOut,
@@ -159,17 +161,14 @@ def create_written_comment(
     Create written comment.
 
     Args:
-        payload: Written comment payload with revision, user, and comment text.
+        payload: Written comment payload with comment text.
 
     Returns:
         Newly created written comment.
     """
-    user_exists = db.execute(
-        text("SELECT user_id FROM workflow.v_users WHERE user_id = :user_id"),
-        {"user_id": payload.user_id},
-    ).scalar_one_or_none()
-    if not user_exists:
-        raise HTTPException(status_code=404, detail="User not found")
+    actor_user_id = get_effective_user_id(db)
+    if not actor_user_id:
+        raise HTTPException(status_code=401, detail=MISSING_IDENTITY_DETAIL)
 
     try:
         row = (
@@ -194,7 +193,7 @@ def create_written_comment(
                 ),
                 {
                     "rev_id": rev_id,
-                    "user_id": payload.user_id,
+                    "user_id": actor_user_id,
                     "comment_text": payload.comment_text,
                 },
             )

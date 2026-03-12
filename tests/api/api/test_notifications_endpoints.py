@@ -342,42 +342,30 @@ def test_notifications_mark_read_rejects_payload_user_field():
 
 
 @pytest.mark.api_smoke
-def test_notifications_create_on_behalf_sender():
+def test_notifications_create_rejects_sender_user_id_field():
     with httpx.Client(timeout=10) as client:
-        user_a, _, user_c, superuser_id = _resolve_test_users(client)
+        user_a, _, _, superuser_id = _resolve_test_users(client)
         users = _request(client, "GET", "/people/users")
         user_map = _user_acronym_map(users["payload"])
         rev_id = _get_first_revision_id(client)
         if rev_id is None:
-            pytest.skip("No revision available for on-behalf create test")
+            pytest.skip("No revision available for sender-field validation test")
 
-        created = _request(
+        rejected = _request(
             client,
             "POST",
             "/notifications",
             headers={"X-User-Id": user_map[superuser_id]},
             json={
                 "sender_user_id": user_a,
-                "title": "On behalf create",
-                "body": "Created by superuser for sender=1",
+                "title": "Rejected sender field",
+                "body": "sender_user_id must not be accepted",
                 "rev_id": rev_id,
-                "recipient_user_ids": [user_c],
+                "recipient_user_ids": [user_a],
                 "recipient_dist_ids": [],
             },
         )
-        assert created["status"] == 201
-        notification_id = created["payload"]["notification_id"]
-
-        recipient_inbox = _request(
-            client,
-            "GET",
-            "/notifications",
-            params={"recipient_user_id": user_c},
-        )
-        assert 200 <= recipient_inbox["status"] < 300
-        row = _find_notification(recipient_inbox["payload"], notification_id)
-        assert row is not None
-        assert row["sender_user_id"] == user_a
+        assert rejected["status"] == 422
 
 
 @pytest.mark.api_smoke
