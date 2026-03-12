@@ -99,6 +99,47 @@ Once the full compose stack is already running via `make up`, run:
 make test-compose
 ```
 `make test-compose` only checks the auth/ingress behavior that the normal `make test` path cannot cover without Keycloak, oauth2-proxy, and nginx.
+
+#### `make test-compose` scope and usage
+Preconditions:
+- `make up` is already running and healthy.
+- The local compose realm import from `ci/keycloak/flow-local-realm.json` is active.
+- The default local ingress and IdP ports are available:
+  - nginx: `http://localhost`
+  - Keycloak: `http://localhost:8081`
+
+What it validates:
+- Keycloak discovery endpoint is reachable.
+- nginx ingress is reachable.
+- Unauthenticated `GET /api/v1/people/users/current_user` redirects into the Keycloak auth flow.
+- A valid bearer token issued by the seeded `flow-ui` Keycloak client resolves the expected current user through nginx.
+- An invalid bearer token fails closed with `401 Unauthorized`.
+- A cookie-based login through oauth2-proxy + Keycloak resolves the expected current user through nginx.
+
+Seeded test identity:
+- Username: `fdqc`
+- Password: `fdqc`
+- Expected acronym: `FDQC`
+
+Optional overrides:
+- `NGINX_BASE_URL`
+- `KEYCLOAK_BASE_URL`
+- `COMPOSE_TEST_USERNAME`
+- `COMPOSE_TEST_PASSWORD`
+- `COMPOSE_TEST_EXPECTED_ACRONYM`
+
+Example:
+```bash
+NGINX_BASE_URL=http://localhost \
+KEYCLOAK_BASE_URL=http://localhost:8081 \
+make test-compose
+```
+
+Failure guidance:
+- If the readiness checks fail, run `make logs` and verify `keycloak`, `oauth2_proxy`, `nginx`, `api`, and `ui`.
+- If the bearer-token check fails, verify the `flow-ui` client and seeded users from `ci/keycloak/flow-local-realm.json`.
+- If the cookie-login flow fails, verify the oauth2-proxy client secret and redirect URI settings in `.env.compose`.
+- Scenario contract for this flow lives in `documentation/test_scenarios/compose_auth_smoke_test_scenarios.md`.
 Defaults:
 - Keycloak: `http://localhost:8081` (realm `flow-local`)
 - Test user: `testuser` / `TestUser!2345`

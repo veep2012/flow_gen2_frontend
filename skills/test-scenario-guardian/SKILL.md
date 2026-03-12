@@ -1,17 +1,17 @@
 ---
 name: test-scenario-guardian
-description: Enforce scenario-first API test development with strict bidirectional traceability between documentation/test_scenarios/*.md and tests/api/**/*.py. Use for API test creation, updates, and reviews.
+description: Enforce scenario-first API verification development with strict bidirectional traceability between documentation/test_scenarios/*.md and automated verification artifacts such as tests/api/**/*.py or scripts/*.sh. Use for API test creation, updates, and reviews.
 ---
 
 # Test Scenario Guardian
 
 ## Overview
 
-Use this skill to keep API test scenarios and automated API tests tightly synchronized.
+Use this skill to keep API test scenarios and automated API verification tightly synchronized.
 
 Core rule:
 1. Define or update scenarios first in `documentation/test_scenarios/`.
-2. Implement or update API tests in `tests/api/`.
+2. Implement or update automated API verification in the appropriate executable artifact.
 3. Ensure bidirectional links so changing one requires updating the other.
 4. Treat scenario documentation as the single source of truth for expected behavior.
 
@@ -20,6 +20,7 @@ Core rule:
 Use for any of the following:
 - New API endpoint tests
 - Updates to existing API tests
+- New or updated shell-based API smoke/integration checks
 - Test reviews where behavior/coverage changes
 - Scenario document changes that affect test behavior
 
@@ -37,22 +38,24 @@ Use for any of the following:
   - expected response/assertions
   - cleanup (if required)
 
-### Step 2: Implement API tests from scenario IDs
-- Add/update tests under `tests/api/`.
-- Each test must reference scenario IDs in code (constant, docstring, or comment).
+### Step 2: Implement automated verification from scenario IDs
+- Add/update the executable verification artifact in the appropriate location.
+- Prefer `tests/api/` for pytest-based API checks.
+- Allow shell-based or other executable smoke checks (for example `scripts/*.sh`) when the behavior depends on external runtime topology and is not practical to validate in pure pytest alone.
+- Each automated verification artifact must reference scenario IDs in code, comments, docstrings, or adjacent metadata.
 - Keep assertions aligned to scenario acceptance criteria.
-- When behavior differs between docs and tests, update tests to match docs unless the user explicitly asks to revise docs first.
+- When behavior differs between docs and verification artifacts, update verification to match docs unless the user explicitly asks to revise docs first.
 
 ### Step 3: Enforce bidirectional traceability
-- In scenario docs, add an **Automated Test Mapping** section with test function names.
-- In tests, add a mapping to scenario IDs and scenario doc path.
-- Add/maintain a lightweight check test that fails when:
+- In scenario docs, add an **Automated Test Mapping** section with the concrete executable artifact names and entrypoints.
+- In automated verification artifacts, add a mapping to scenario IDs and scenario doc path where practical.
+- Add/maintain a lightweight traceability check when feasible that fails when:
   - a mapped scenario ID is missing from the scenario doc
-  - a mapped test function is missing from the scenario doc mapping section
+  - a mapped automated verification entry is missing from the scenario doc mapping section
 
 ### Step 4: Validate and tighten
-- If tests changed, update scenario docs in the same change.
-- If scenario docs changed, update tests in the same change.
+- If automated verification changed, update scenario docs in the same change.
+- If scenario docs changed, update automated verification in the same change.
 - Reject partial updates that only modify one side when linkage is affected.
 - Resolve ambiguity by tightening the scenario doc first, then update tests accordingly in the same change.
 - Verify `documentation/` has no uppercase markdown filenames before finalizing:
@@ -62,6 +65,6 @@ Use for any of the following:
 
 Always report:
 - Scenario file(s) updated
-- Test file(s) updated
+- Verification artifact(s) updated
 - Traceability checks added/updated
 - Any intentional gaps (manual-only scenarios vs automated coverage)

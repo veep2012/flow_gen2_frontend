@@ -37,6 +37,7 @@ log_step "Starting compose auth smoke"
 log_step "Using nginx base URL: $NGINX_BASE_URL"
 log_step "Using Keycloak base URL: $KEYCLOAK_BASE_URL"
 
+# Scenario IDs: TS-CAS-001
 wait_for_url "$KEYCLOAK_BASE_URL/realms/flow-local/.well-known/openid-configuration" "Keycloak"
 wait_for_url "$NGINX_BASE_URL/favicon.svg" "Nginx"
 
@@ -47,6 +48,7 @@ cleanup() {
 trap cleanup EXIT
 
 log_step "Checking unauthenticated API ingress redirects into the auth flow"
+# Scenario IDs: TS-CAS-002
 curl -sS -D "$redirect_headers" -o /dev/null \
   "$NGINX_BASE_URL/api/v1/people/users/current_user"
 
@@ -75,6 +77,7 @@ log_data "access_token preview: ${token_preview}..."
 log_step "Access token acquired"
 
 log_step "Checking bearer-token passthrough through nginx"
+# Scenario IDs: TS-CAS-003
 bearer_payload="$(
   curl -fsS -H "Authorization: Bearer $access_token" \
     "$NGINX_BASE_URL/api/v1/people/users/current_user"
@@ -90,6 +93,7 @@ log_data "$bearer_summary"
 log_step "Bearer-token passthrough check passed"
 
 log_step "Checking invalid bearer token fails closed"
+# Scenario IDs: TS-CAS-004
 invalid_status="$(
   curl -sS -o /dev/null -w "%{http_code}" \
     -H "Authorization: Bearer invalid-token" \
@@ -103,6 +107,7 @@ log_data "GET $NGINX_BASE_URL/api/v1/people/users/current_user with invalid bear
 log_step "Invalid bearer token check passed"
 
 log_step "Checking cookie-based login flow through oauth2-proxy and Keycloak"
+# Scenario IDs: TS-CAS-005
 NGINX_BASE_URL="$NGINX_BASE_URL" \
 COMPOSE_TEST_USERNAME="$COMPOSE_TEST_USERNAME" \
 COMPOSE_TEST_PASSWORD="$COMPOSE_TEST_PASSWORD" \
