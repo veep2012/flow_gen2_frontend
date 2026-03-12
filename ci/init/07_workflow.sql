@@ -709,6 +709,34 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION workflow.replace_file_commented(
+    p_id INTEGER,
+    p_s3_uid TEXT,
+    p_mimetype VARCHAR
+) RETURNS core.files_commented
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_row core.files_commented%ROWTYPE;
+BEGIN
+    PERFORM 1 FROM core.files_commented WHERE id = p_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Commented file not found';
+    END IF;
+
+    UPDATE core.files_commented
+    SET
+        s3_uid = p_s3_uid,
+        mimetype = p_mimetype
+    WHERE id = p_id
+    RETURNING * INTO v_row;
+
+    RETURN v_row;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION workflow.create_written_comment(
     p_rev_id INTEGER,
     p_user_id SMALLINT,

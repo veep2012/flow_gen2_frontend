@@ -6,9 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-07
 - Last Updated: 2026-03-12
-- Version: v1.8
+- Version: v1.9
 
 ## Change Log
+- 2026-03-12 | v1.9 | Added commented-file replace endpoint scenario and automated coverage mapping.
 - 2026-03-12 | v1.8 | Removed create-time `user_id` form field from commented-file scenarios and bound create authorship to effective session identity.
 - 2026-03-04 | v1.7 | Added fail-closed session-identity scenario for commented-files router access.
 - 2026-02-21 | v1.6 | Added written comments scenarios and mappings, added update scenarios, moved automated mapping to dedicated test module/router references, and split written-comments scenarios into dedicated `written_comments_api_test_scenarios.md`
@@ -21,7 +22,7 @@ Provide repeatable curl-based validation for commented-file endpoints.
 ## Scope
 - In scope:
   - list/filter behavior
-  - commented file insert/download/delete
+  - commented file insert/replace/download/delete
   - duplicate and validation checks
 - Out of scope:
   - base files API full validation
@@ -122,6 +123,32 @@ curl -i "$API_BASE$API_PREFIX/files/commented/download?id=$COPIED_ID"
 curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COPIED_ID"
 ```
 
+## 7. TS-FC-012 Replace Existing Commented File
+
+```bash
+REPLACE_SRC=$(curl -s -X POST "$API_BASE$API_PREFIX/files/commented/" \
+  -H "X-User-Id: $USER_ACRONYM" \
+  -F "file_id=$FILE_ID" \
+  -F "file=@/etc/hosts;type=application/pdf;filename=replace-src-$TS.pdf")
+echo "$REPLACE_SRC" | jq
+REPLACE_ID=$(echo "$REPLACE_SRC" | jq -r '.id')
+
+curl -s -X POST "$API_BASE$API_PREFIX/files/commented/$REPLACE_ID/replace" \
+  -H "X-User-Id: $USER_ACRONYM" \
+  -F "file=@/etc/services;type=application/pdf;filename=replace-new-$TS.pdf" | jq
+
+curl -i "$API_BASE$API_PREFIX/files/commented/download?id=$REPLACE_ID"
+curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$REPLACE_ID"
+```
+
+## 8. TS-FC-013 Replace Missing Commented File
+
+```bash
+curl -i -X POST "$API_BASE$API_PREFIX/files/commented/999999/replace" \
+  -H "X-User-Id: $USER_ACRONYM" \
+  -F "file=@/etc/services;type=application/pdf;filename=replace-missing-$TS.pdf"
+```
+
 ## Edge Cases
 - Some environments may return `400` or `415` for mimetype mismatch.
 - If base file creation fails, remaining commented-file checks are blocked.
@@ -138,7 +165,9 @@ curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COPIED_ID"
 - `TS-FC-009` missing file reference returns `404`.
 - `TS-FC-010` mimetype mismatch rejected (`400`/`415`).
 - `TS-FC-011` insert without multipart `file` copies source file bytes from `file_id`.
-- `TS-FC-012` commented-files router denies requests when effective session identity is missing.
+- `TS-FC-012` replace existing commented file succeeds and preserves the same commented-file id.
+- `TS-FC-013` replace missing commented file returns `404`.
+- `TS-FC-014` commented-files router denies requests when effective session identity is missing.
 
 ## Automated Test Mapping
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_list` -> `TS-FC-001`
@@ -152,7 +181,9 @@ curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COPIED_ID"
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_nonexistent_file` -> `TS-FC-009`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_mimetype_mismatch` -> `TS-FC-010`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_without_file_copies_source` -> `TS-FC-011`
-- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_require_session_identity` -> `TS-FC-012`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_replace` -> `TS-FC-012`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_replace_nonexistent` -> `TS-FC-013`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_require_session_identity` -> `TS-FC-014`
 
 ## References
 - `tests/api/api/test_files_commented_endpoints.py`

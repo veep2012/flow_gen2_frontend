@@ -145,6 +145,63 @@ def test_files_commented_insert_without_file_copies_source():
 
 
 @pytest.mark.api_smoke
+def test_files_commented_replace():
+    suffix = uuid.uuid4().hex[:6]
+    with httpx.Client(timeout=10) as client:
+        rev_id = _get_test_revision_id(client)
+        user_id, user_acronym = _get_test_user(client)
+        base_file = _upload_base_file(client, rev_id, suffix, "pdf", "application/pdf")
+
+        created = _request(
+            client,
+            "POST",
+            "/files/commented/",
+            files={
+                "file": (
+                    f"commented-{suffix}.pdf",
+                    f"commented-original-{suffix}".encode(),
+                    "application/pdf",
+                )
+            },
+            data={"file_id": str(base_file["id"])},
+            headers={"X-User-Id": user_acronym},
+        )
+        assert created["status"] == 201
+        commented_id = created["payload"]["id"]
+        old_s3_uid = created["payload"]["s3_uid"]
+
+        replacement_content = f"commented-replaced-{suffix}".encode()
+        replaced = _request(
+            client,
+            "POST",
+            f"/files/commented/{commented_id}/replace",
+            files={
+                "file": (
+                    f"commented-replaced-{suffix}.pdf",
+                    replacement_content,
+                    "application/pdf",
+                )
+            },
+            headers={"X-User-Id": user_acronym},
+        )
+        assert replaced["status"] == 200
+        assert replaced["payload"]["id"] == commented_id
+        assert replaced["payload"]["file_id"] == base_file["id"]
+        assert replaced["payload"]["user_id"] == user_id
+        assert replaced["payload"]["s3_uid"] != old_s3_uid
+        assert replaced["payload"]["mimetype"] == base_file["mimetype"]
+
+        downloaded = _request(
+            client, "GET", "/files/commented/download", params={"id": commented_id}
+        )
+        assert 200 <= downloaded["status"] < 300
+        assert downloaded["content"] == replacement_content
+
+        _request(client, "DELETE", f"/files/commented/{commented_id}")
+        _request(client, "DELETE", f"/files/{base_file['id']}")
+
+
+@pytest.mark.api_smoke
 def test_files_commented_insert_duplicate():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
@@ -258,3 +315,15 @@ def test_files_commented_insert_mimetype_mismatch():
         assert mismatch["status"] in [400, 415]
 
         _request(client, "DELETE", f"/files/{base_file['id']}")
+
+
+@pytest.mark.api_smoke
+def test_files_commented_replace_nonexistent():
+    with httpx.Client(timeout=10) as client:
+        result = _request(
+            client,
+            "POST",
+            "/files/commented/999999/replace",
+            files={"file": ("replace.pdf", b"content", "application/pdf")},
+        )
+        assert result["status"] == 404

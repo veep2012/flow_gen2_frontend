@@ -611,6 +611,36 @@ curl -sS -H "Accept: application/json" \
 }
 ```
 
+### Replace (multipart)
+- `POST /api/v1/files/commented/{id}/replace` — 200; replaces the stored commented-file object while preserving the same commented-file record.
+- Headers: `Accept: application/json`, `Content-Type: multipart/form-data`
+- Form fields: `file` (binary, required).
+- Authorship: actor is derived from effective session identity for audit metadata; existing commented file `user_id` is preserved.
+- Validation: filename is required, file must be non-empty, accepted file type/mimetype must match the original source file.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" \
+  -H "X-User-Id: FDQC" \
+  -F "file=@commented-revised.pdf;type=application/pdf" \
+  "$API_BASE/api/v1/files/commented/3/replace"
+```
+- Example response:
+```json
+{
+  "id": 3,
+  "file_id": 12,
+  "user_id": 1,
+  "s3_uid": "Project/Doc/IFC/uuid_report_replaced.pdf",
+  "filename": "report_replaced.pdf",
+  "mimetype": "application/pdf",
+  "rev_id": 45,
+  "created_at": "2026-01-23T17:45:08.294332Z",
+  "updated_at": "2026-01-23T18:10:00.000000Z",
+  "created_by": 1,
+  "updated_by": 1
+}
+```
+
 ### Delete
 - `DELETE /api/v1/files/commented/{id}` — 204; deletes MinIO object and DB row; 404 if not found.
 - Headers: `Accept: application/json`

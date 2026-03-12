@@ -51,6 +51,7 @@ _ACCEPTED_TYPES_CACHE_AT = 0.0
 _COMMENTED_FILE_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("file not found", 404, "File not found"),
     ("user not found", 404, "User not found"),
+    ("commented file not found", 404, "Commented file not found"),
 )
 
 
@@ -155,6 +156,151 @@ def _handle_commented_file_integrity_error(err: IntegrityError) -> None:
             detail="Commented file already exists for this file and user.",
         )
     _handle_integrity_error("Failed to create commented file record", err, "insert_commented_file")
+
+
+def _load_source_file_row(db: Session, *, file_id: int) -> dict[str, Any] | None:
+    try:
+        file_row = (
+            db.execute(
+                text(
+                    """
+                    SELECT
+                        f.id,
+                        f.filename,
+                        f.s3_uid,
+                        f.mimetype,
+                        f.rev_id,
+                        r.transmital_current_revision,
+                        d.doc_name_unique,
+                        d.voided,
+                        p.project_name
+                    FROM workflow.v_files AS f
+                    JOIN workflow.v_document_revisions AS r ON r.rev_id = f.rev_id
+                    JOIN workflow.v_documents AS d ON d.doc_id = r.doc_id
+                    LEFT JOIN workflow.v_projects AS p ON p.project_id = d.project_id
+                    WHERE f.id = :file_id
+                    """
+                ),
+                {"file_id": file_id},
+            )
+            .mappings()
+            .one_or_none()
+        )
+    except DataError:
+        db.rollback()
+        return None
+    return dict(file_row) if file_row else None
+
+
+def _prepare_uploaded_commented_file(
+    db: Session,
+    *,
+    file_row: dict[str, Any],
+    file: UploadFile,
+) -> tuple[BinaryIO, str, int | None]:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+
+    filename = os.path.basename(file.filename)
+    if len(filename) > 90:
+        raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
+
+    file_extension = _extract_file_extension(filename)
+    if not file_extension:
+        raise HTTPException(
+            status_code=400,
+            detail="File must have an extension. Allowed types: Word, Excel, PDF, AutoCAD.",
+        )
+
+    content_type = file.content_type or "application/octet-stream"
+    accepted_types = _get_cached_accepted_types(db)
+    accepted_mimetype = accepted_types.get(file_extension)
+    if not accepted_mimetype:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, "
+                "PDF, AutoCAD."
+            ),
+        )
+    _validate_mimetype(file_extension, content_type, accepted_mimetype)
+    if content_type.lower() != file_row["mimetype"].lower():
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                "Commented file content type does not match original file. "
+                f"Expected '{file_row['mimetype']}'."
+            ),
+        )
+
+    stream = cast(BinaryIO, file.file)
+    size = None
+    if hasattr(stream, "seekable") and stream.seekable():
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(0)
+        if size <= 0:
+            raise HTTPException(status_code=400, detail="File is empty")
+        max_size_mb = int(os.getenv("MAX_UPLOAD_SIZE_MB", "128"))
+        max_size_bytes = max_size_mb * 1024 * 1024
+        if max_size_mb > 0 and size > max_size_bytes:
+            raise HTTPException(status_code=413, detail="File exceeds upload size limit")
+    else:
+        peek = stream.read(1)
+        if not peek:
+            raise HTTPException(status_code=400, detail="File is empty")
+        stream = cast(BinaryIO, _PrefixedStream(peek, stream))
+    return stream, content_type, size
+
+
+def _build_commented_object_key(db: Session, *, file_row: dict[str, Any]) -> str:
+    filename_for_object_key = _build_default_filename_from_instance_parameter(
+        db,
+        parameter_name="file_name_com_conv",
+        fallback_filename=file_row["filename"],
+        document_name=file_row["doc_name_unique"],
+    )
+    return _build_file_object_key(
+        project_name=file_row["project_name"],
+        doc_name_unique=file_row["doc_name_unique"] or "doc_unknown",
+        transmital_current_revision=file_row["transmital_current_revision"],
+        unique_id=uuid.uuid4().hex,
+        filename=filename_for_object_key,
+    )
+
+
+def _store_uploaded_object(
+    *,
+    client,
+    bucket: str,
+    endpoint: str,
+    object_key: str,
+    stream: BinaryIO,
+    size: int | None,
+    content_type: str,
+) -> None:
+    if size is None:
+        _minio_with_retry(
+            "put_object",
+            endpoint,
+            lambda: client.put_object(
+                bucket,
+                object_key,
+                stream,
+                length=-1,
+                part_size=10 * 1024 * 1024,
+                content_type=content_type,
+            ),
+        )
+        return
+
+    _minio_with_retry(
+        "put_object",
+        endpoint,
+        lambda: client.put_object(
+            bucket, object_key, stream, length=size, content_type=content_type
+        ),
+    )
 
 
 @router.get(
@@ -290,36 +436,7 @@ def insert_commented_file(
     if user_id is None:
         raise HTTPException(status_code=401, detail=MISSING_IDENTITY_DETAIL)
 
-    try:
-        file_row = (
-            db.execute(
-                text(
-                    """
-                    SELECT
-                        f.id,
-                        f.filename,
-                        f.s3_uid,
-                        f.mimetype,
-                        f.rev_id,
-                        r.transmital_current_revision,
-                        d.doc_name_unique,
-                        d.voided,
-                        p.project_name
-                    FROM workflow.v_files AS f
-                    JOIN workflow.v_document_revisions AS r ON r.rev_id = f.rev_id
-                    JOIN workflow.v_documents AS d ON d.doc_id = r.doc_id
-                    LEFT JOIN workflow.v_projects AS p ON p.project_id = d.project_id
-                    WHERE f.id = :file_id
-                    """
-                ),
-                {"file_id": file_id},
-            )
-            .mappings()
-            .one_or_none()
-        )
-    except DataError:
-        db.rollback()
-        file_row = None
+    file_row = _load_source_file_row(db, file_id=file_id)
     if not file_row or file_row["voided"]:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -331,80 +448,16 @@ def insert_commented_file(
         raise HTTPException(status_code=404, detail="User not found")
 
     content_type = file_row["mimetype"]
-    filename = file_row["filename"]
     stream: BinaryIO | None = None
     size = None
     copy_from_source = file is None
 
     if file is not None:
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="Filename is required")
+        stream, content_type, size = _prepare_uploaded_commented_file(
+            db, file_row=file_row, file=file
+        )
 
-        filename = os.path.basename(file.filename)
-        if len(filename) > 90:
-            raise HTTPException(status_code=400, detail="Filename too long (max 90 chars)")
-
-        file_extension = _extract_file_extension(filename)
-        if not file_extension:
-            raise HTTPException(
-                status_code=400,
-                detail="File must have an extension. Allowed types: Word, Excel, PDF, AutoCAD.",
-            )
-
-        content_type = file.content_type or "application/octet-stream"
-        accepted_types = _get_cached_accepted_types(db)
-        accepted_mimetype = accepted_types.get(file_extension)
-        if not accepted_mimetype:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"File type '.{file_extension}' is not accepted. Allowed types: Word, Excel, "
-                    "PDF, AutoCAD."
-                ),
-            )
-        _validate_mimetype(file_extension, content_type, accepted_mimetype)
-        if content_type.lower() != file_row["mimetype"].lower():
-            raise HTTPException(
-                status_code=415,
-                detail=(
-                    "Commented file content type does not match original file. "
-                    f"Expected '{file_row['mimetype']}'."
-                ),
-            )
-
-        stream = cast(BinaryIO, file.file)
-        if hasattr(stream, "seekable") and stream.seekable():
-            stream.seek(0, os.SEEK_END)
-            size = stream.tell()
-            stream.seek(0)
-            if size <= 0:
-                raise HTTPException(status_code=400, detail="File is empty")
-            max_size_mb = int(os.getenv("MAX_UPLOAD_SIZE_MB", "128"))
-            max_size_bytes = max_size_mb * 1024 * 1024
-            if max_size_mb > 0 and size > max_size_bytes:
-                raise HTTPException(status_code=413, detail="File exceeds upload size limit")
-        else:
-            peek = stream.read(1)
-            if not peek:
-                raise HTTPException(status_code=400, detail="File is empty")
-            stream = cast(BinaryIO, _PrefixedStream(peek, stream))
-
-    project_name = file_row["project_name"]
-    doc_name = file_row["doc_name_unique"]
-    transmital_current_revision = file_row["transmital_current_revision"]
-    filename_for_object_key = _build_default_filename_from_instance_parameter(
-        db,
-        parameter_name="file_name_com_conv",
-        fallback_filename=file_row["filename"],
-        document_name=file_row["doc_name_unique"],
-    )
-    object_key = _build_file_object_key(
-        project_name=project_name,
-        doc_name_unique=doc_name or "doc_unknown",
-        transmital_current_revision=transmital_current_revision,
-        unique_id=uuid.uuid4().hex,
-        filename=filename_for_object_key,
-    )
+    object_key = _build_commented_object_key(db, file_row=file_row)
 
     client, bucket = _build_minio_client()
     endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
@@ -432,27 +485,15 @@ def insert_commented_file(
         else:
             if stream is None:
                 raise HTTPException(status_code=500, detail="Internal Server Error")
-            if size is None:
-                _minio_with_retry(
-                    "put_object",
-                    endpoint,
-                    lambda: client.put_object(
-                        bucket,
-                        object_key,
-                        stream,
-                        length=-1,
-                        part_size=10 * 1024 * 1024,
-                        content_type=content_type,
-                    ),
-                )
-            else:
-                _minio_with_retry(
-                    "put_object",
-                    endpoint,
-                    lambda: client.put_object(
-                        bucket, object_key, stream, length=size, content_type=content_type
-                    ),
-                )
+            _store_uploaded_object(
+                client=client,
+                bucket=bucket,
+                endpoint=endpoint,
+                object_key=object_key,
+                stream=stream,
+                size=size,
+                content_type=content_type,
+            )
     except HTTPException:
         logger.exception("MinIO create/copy failed for commented file key %s", object_key)
         raise
@@ -519,7 +560,7 @@ def insert_commented_file(
         "file_id": file_id,
         "user_id": user_id,
         "s3_uid": new_file["s3_uid"],
-        "filename": filename_for_object_key,
+        "filename": _commented_filename_from_s3_uid(new_file["s3_uid"]),
         "mimetype": new_file["mimetype"],
         "rev_id": file_row["rev_id"],
         "created_at": new_file["created_at"],
@@ -654,6 +695,169 @@ def insert_commented_file_rest(
     db: Session = Depends(get_db),
 ) -> FileCommentedOut:
     return insert_commented_file(request, file_id, file, db)
+
+
+@router.post(
+    "/{id}/replace",
+    summary="Replace a commented file.",
+    description=(
+        "Uploads a new payload and replaces the object behind an existing commented file record "
+        "while preserving the same commented-file id."
+    ),
+    operation_id="replace_commented_file",
+    tags=["comments"],
+    response_model=FileCommentedOut,
+    responses=_REST_RESPONSES,
+)
+def replace_commented_file(
+    id: int,
+    request: Request,
+    file: UploadFile = UploadFileField(
+        ...,
+        description="Replacement commented file payload.",
+    ),
+    db: Session = Depends(get_db),
+) -> FileCommentedOut:
+    actor_user_id = get_effective_user_id(db)
+    if actor_user_id is None:
+        raise HTTPException(status_code=401, detail=MISSING_IDENTITY_DETAIL)
+
+    existing_row = (
+        db.execute(
+            text(
+                """
+                SELECT
+                    fc.id,
+                    fc.file_id,
+                    fc.user_id,
+                    fc.s3_uid,
+                    fc.mimetype,
+                    fc.created_at,
+                    fc.updated_at,
+                    fc.created_by,
+                    fc.updated_by,
+                    f.rev_id
+                FROM workflow.v_files_commented AS fc
+                JOIN workflow.v_files AS f ON f.id = fc.file_id
+                WHERE fc.id = :id
+                """
+            ),
+            {"id": id},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if not existing_row:
+        raise HTTPException(status_code=404, detail="Commented file not found")
+
+    file_row = _load_source_file_row(db, file_id=existing_row["file_id"])
+    if not file_row or file_row["voided"]:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    stream, content_type, size = _prepare_uploaded_commented_file(db, file_row=file_row, file=file)
+    object_key = _build_commented_object_key(db, file_row=file_row)
+
+    client, bucket = _build_minio_client()
+    endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
+    if not _minio_with_retry("bucket_exists", endpoint, lambda: client.bucket_exists(bucket)):
+        _minio_with_retry("make_bucket", endpoint, lambda: client.make_bucket(bucket))
+
+    try:
+        _store_uploaded_object(
+            client=client,
+            bucket=bucket,
+            endpoint=endpoint,
+            object_key=object_key,
+            stream=stream,
+            size=size,
+            content_type=content_type,
+        )
+    except HTTPException:
+        logger.exception("MinIO replace upload failed for commented file key %s", object_key)
+        raise
+
+    try:
+        updated_row = (
+            db.execute(
+                text(
+                    """
+                    SELECT
+                        id,
+                        file_id,
+                        user_id,
+                        s3_uid,
+                        mimetype,
+                        created_at,
+                        updated_at,
+                        created_by,
+                        updated_by
+                    FROM workflow.replace_file_commented(
+                        :id,
+                        :s3_uid,
+                        :mimetype
+                    )
+                    """
+                ),
+                {
+                    "id": id,
+                    "s3_uid": object_key,
+                    "mimetype": content_type,
+                },
+            )
+            .mappings()
+            .one()
+        )
+        db.commit()
+    except DBAPIError as err:
+        db.rollback()
+        try:
+            _minio_with_retry(
+                "remove_object",
+                endpoint,
+                lambda: client.remove_object(bucket, object_key),
+            )
+        except HTTPException:
+            logger.exception("Failed to cleanup replacement object after DB error: %s", object_key)
+        _raise_for_dbapi_error(err, _COMMENTED_FILE_DB_ERROR_MAP)
+
+    old_object_key = existing_row["s3_uid"]
+    if old_object_key != updated_row["s3_uid"]:
+        try:
+            _minio_with_retry(
+                "remove_object",
+                endpoint,
+                lambda: client.remove_object(bucket, old_object_key),
+            )
+        except HTTPException:
+            logger.exception(
+                "Failed to cleanup superseded commented object id=%s old_s3_uid=%s new_s3_uid=%s",
+                id,
+                old_object_key,
+                updated_row["s3_uid"],
+            )
+
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(
+        "Commented file replaced id=%s file_id=%s user_id=%s client=%s",
+        updated_row["id"],
+        updated_row["file_id"],
+        updated_row["user_id"],
+        client_host,
+    )
+    response_payload = {
+        "id": updated_row["id"],
+        "file_id": updated_row["file_id"],
+        "user_id": updated_row["user_id"],
+        "s3_uid": updated_row["s3_uid"],
+        "filename": _commented_filename_from_s3_uid(updated_row["s3_uid"]),
+        "mimetype": updated_row["mimetype"],
+        "rev_id": file_row["rev_id"],
+        "created_at": updated_row["created_at"],
+        "updated_at": updated_row["updated_at"],
+        "created_by": updated_row["created_by"],
+        "updated_by": updated_row["updated_by"],
+    }
+    return _model_out(FileCommentedOut, response_payload)
 
 
 @router.delete(
