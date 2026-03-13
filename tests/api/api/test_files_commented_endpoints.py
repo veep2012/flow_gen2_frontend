@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from tests.api.api.comments_test_helpers import (
+    _get_second_test_user,
     _get_test_revision_id,
     _get_test_user,
     _request,
@@ -199,6 +200,73 @@ def test_files_commented_replace():
 
         _request(client, "DELETE", f"/files/commented/{commented_id}")
         _request(client, "DELETE", f"/files/{base_file['id']}")
+
+
+@pytest.mark.api_smoke
+def test_files_commented_replace_forbidden_for_non_owner():
+    suffix = uuid.uuid4().hex[:6]
+    with httpx.Client(timeout=10) as client:
+        rev_id = _get_test_revision_id(client)
+        owner_user_id, owner_acronym = _get_test_user(client)
+        other_user = _get_second_test_user(client, owner_user_id)
+        if other_user is None:
+            pytest.skip("Need two non-superuser users for forbidden replace check")
+        _, other_acronym = other_user
+        base_file = _upload_base_file(client, rev_id, suffix, "pdf", "application/pdf")
+
+        created = _request(
+            client,
+            "POST",
+            "/files/commented/",
+            files={
+                "file": (
+                    f"commented-{suffix}.pdf",
+                    f"commented-original-{suffix}".encode(),
+                    "application/pdf",
+                )
+            },
+            data={"file_id": str(base_file["id"])},
+            headers={"X-User-Id": owner_acronym},
+        )
+        assert created["status"] == 201
+        commented_id = created["payload"]["id"]
+        old_s3_uid = created["payload"]["s3_uid"]
+
+        forbidden = _request(
+            client,
+            "POST",
+            f"/files/commented/{commented_id}/replace",
+            files={
+                "file": (
+                    f"commented-forbidden-{suffix}.pdf",
+                    f"commented-forbidden-{suffix}".encode(),
+                    "application/pdf",
+                )
+            },
+            headers={"X-User-Id": other_acronym},
+        )
+        assert forbidden["status"] in {403, 404}
+
+        listed = _request(
+            client,
+            "GET",
+            "/files/commented/list",
+            params={"file_id": base_file["id"], "user_id": owner_user_id},
+            headers={"X-User-Id": owner_acronym},
+        )
+        assert listed["status"] == 200
+        row = next(item for item in listed["payload"] if item["id"] == commented_id)
+        assert row["s3_uid"] == old_s3_uid
+
+        _request(
+            client,
+            "DELETE",
+            f"/files/commented/{commented_id}",
+            headers={"X-User-Id": owner_acronym},
+        )
+        _request(
+            client, "DELETE", f"/files/{base_file['id']}", headers={"X-User-Id": owner_acronym}
+        )
 
 
 @pytest.mark.api_smoke

@@ -52,6 +52,11 @@ _COMMENTED_FILE_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("file not found", 404, "File not found"),
     ("user not found", 404, "User not found"),
     ("commented file not found", 404, "Commented file not found"),
+    (
+        "only commented file owner or superuser can replace commented file",
+        403,
+        "Only commented file owner or superuser can replace commented file",
+    ),
 )
 
 
@@ -656,6 +661,10 @@ _REST_RESPONSES: dict[int | str, dict[str, Any]] = {
         "description": "Not Found",
         "content": {"application/json": {"example": {"detail": "Not Found"}}},
     },
+    403: {
+        "description": "Forbidden",
+        "content": {"application/json": {"example": {"detail": "Forbidden"}}},
+    },
     422: {
         "description": "Validation Error",
         "content": {
@@ -793,6 +802,7 @@ def replace_commented_file(
                         updated_by
                     FROM workflow.replace_file_commented(
                         :id,
+                        :actor_user_id,
                         :s3_uid,
                         :mimetype
                     )
@@ -800,6 +810,7 @@ def replace_commented_file(
                 ),
                 {
                     "id": id,
+                    "actor_user_id": actor_user_id,
                     "s3_uid": object_key,
                     "mimetype": content_type,
                 },

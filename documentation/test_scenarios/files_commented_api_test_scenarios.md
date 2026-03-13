@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-03-12
-- Version: v1.9
+- Last Updated: 2026-03-13
+- Version: v1.10
 
 ## Change Log
+- 2026-03-13 | v1.10 | Added owner-or-superuser authorization scenario for commented-file replace, documenting fail-closed `403`/`404` behavior and shifted scenario/test mappings.
 - 2026-03-12 | v1.9 | Added commented-file replace endpoint scenario and automated coverage mapping.
 - 2026-03-12 | v1.8 | Removed create-time `user_id` form field from commented-file scenarios and bound create authorship to effective session identity.
 - 2026-03-04 | v1.7 | Added fail-closed session-identity scenario for commented-files router access.
@@ -141,7 +142,17 @@ curl -i "$API_BASE$API_PREFIX/files/commented/download?id=$REPLACE_ID"
 curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$REPLACE_ID"
 ```
 
-## 8. TS-FC-013 Replace Missing Commented File
+## 8. TS-FC-013 Replace Forbidden For Non-Owner
+
+```bash
+OTHER_USER_ACRONYM=$(curl -s "$API_BASE$API_PREFIX/people/users" | jq -r --arg SELF "$USER_ACRONYM" '.[] | select(.user_acronym != $SELF and ((.role_name // "") | ascii_downcase) != "superuser" and ((.role_name // "") | ascii_downcase) != "admin") | .user_acronym' | head -n 1)
+
+curl -i -X POST "$API_BASE$API_PREFIX/files/commented/$REPLACE_ID/replace" \
+  -H "X-User-Id: $OTHER_USER_ACRONYM" \
+  -F "file=@/etc/services;type=application/pdf;filename=replace-forbidden-$TS.pdf"
+```
+
+## 9. TS-FC-014 Replace Missing Commented File
 
 ```bash
 curl -i -X POST "$API_BASE$API_PREFIX/files/commented/999999/replace" \
@@ -166,8 +177,9 @@ curl -i -X POST "$API_BASE$API_PREFIX/files/commented/999999/replace" \
 - `TS-FC-010` mimetype mismatch rejected (`400`/`415`).
 - `TS-FC-011` insert without multipart `file` copies source file bytes from `file_id`.
 - `TS-FC-012` replace existing commented file succeeds and preserves the same commented-file id.
-- `TS-FC-013` replace missing commented file returns `404`.
-- `TS-FC-014` commented-files router denies requests when effective session identity is missing.
+- `TS-FC-013` replace is rejected for a non-owner non-superuser actor; response may be `403` or fail-closed `404` when read-side RLS hides the row.
+- `TS-FC-014` replace missing commented file returns `404`.
+- `TS-FC-015` commented-files router denies requests when effective session identity is missing.
 
 ## Automated Test Mapping
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_list` -> `TS-FC-001`
@@ -182,8 +194,9 @@ curl -i -X POST "$API_BASE$API_PREFIX/files/commented/999999/replace" \
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_mimetype_mismatch` -> `TS-FC-010`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_insert_without_file_copies_source` -> `TS-FC-011`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_replace` -> `TS-FC-012`
-- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_replace_nonexistent` -> `TS-FC-013`
-- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_require_session_identity` -> `TS-FC-014`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_replace_forbidden_for_non_owner` -> `TS-FC-013`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_replace_nonexistent` -> `TS-FC-014`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_require_session_identity` -> `TS-FC-015`
 
 ## References
 - `tests/api/api/test_files_commented_endpoints.py`

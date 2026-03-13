@@ -202,13 +202,17 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/files_commented_api_test_scenarios.md",
         ["TS-FC-012"],
     ),
-    "test_files_commented_replace_nonexistent": (
+    "test_files_commented_replace_forbidden_for_non_owner": (
         "documentation/test_scenarios/files_commented_api_test_scenarios.md",
         ["TS-FC-013"],
     ),
-    "test_files_commented_require_session_identity": (
+    "test_files_commented_replace_nonexistent": (
         "documentation/test_scenarios/files_commented_api_test_scenarios.md",
         ["TS-FC-014"],
+    ),
+    "test_files_commented_require_session_identity": (
+        "documentation/test_scenarios/files_commented_api_test_scenarios.md",
+        ["TS-FC-015"],
     ),
     "test_written_comments_crud": (
         "documentation/test_scenarios/written_comments_api_test_scenarios.md",

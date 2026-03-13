@@ -615,8 +615,9 @@ curl -sS -H "Accept: application/json" \
 - `POST /api/v1/files/commented/{id}/replace` — 200; replaces the stored commented-file object while preserving the same commented-file record.
 - Headers: `Accept: application/json`, `Content-Type: multipart/form-data`
 - Form fields: `file` (binary, required).
-- Authorship: actor is derived from effective session identity for audit metadata; existing commented file `user_id` is preserved.
+- Authorization: allowed only for the commented-file owner or a superuser. Actor is derived from effective session identity for audit metadata; existing commented file `user_id` is preserved.
 - Validation: filename is required, file must be non-empty, accepted file type/mimetype must match the original source file.
+- Errors: unauthorized actors do not succeed; they may receive `403` when the commented file is visible to them, or fail-closed `404` when read-side RLS hides the row.
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" \
