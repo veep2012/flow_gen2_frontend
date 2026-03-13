@@ -140,7 +140,8 @@ Failure guidance:
 - If the bearer-token check fails, verify the `flow-ui` client and seeded users from `ci/keycloak/flow-local-realm.json`.
 - If the cookie-login flow fails, verify the oauth2-proxy client secret and redirect URI settings in `.env.compose`.
 - Scenario contract for this flow lives in `documentation/test_scenarios/compose_auth_smoke_test_scenarios.md`.
-Defaults:
+
+#### Local authentication defaults
 - Keycloak: `http://localhost:8081` (realm `flow-local`)
 - Test user: `testuser` / `TestUser!2345`
 - oauth2-proxy callback: `http://localhost/oauth2/callback`
