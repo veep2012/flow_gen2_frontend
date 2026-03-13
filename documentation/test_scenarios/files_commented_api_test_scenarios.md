@@ -10,8 +10,7 @@
 
 ## Change Log
 - 2026-03-13 | v1.10 | Added owner-or-superuser authorization scenario for commented-file replace, documenting fail-closed `403`/`404` behavior and shifted scenario/test mappings.
-- 2026-03-12 | v1.9 | Added commented-file replace endpoint scenario and automated coverage mapping.
-- 2026-03-12 | v1.8 | Removed create-time `user_id` form field from commented-file scenarios and bound create authorship to effective session identity.
+- 2026-03-12 | v1.9 | Added commented-file replace endpoint scenario and automated coverage mapping, removed create-time `user_id` form field from commented-file scenarios, and bound create authorship to effective session identity.
 - 2026-03-04 | v1.7 | Added fail-closed session-identity scenario for commented-files router access.
 - 2026-02-21 | v1.6 | Added written comments scenarios and mappings, added update scenarios, moved automated mapping to dedicated test module/router references, and split written-comments scenarios into dedicated `written_comments_api_test_scenarios.md`
 - 2026-02-20 | v1.5 | Updated commented download examples to use query parameter `id`.
