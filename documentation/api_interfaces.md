@@ -1467,8 +1467,9 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - `GET /api/v1/notifications` — 200; returns recipient inbox rows ordered by `delivered_at DESC, notification_id DESC`.
 - Recipient resolution:
   - Query `recipient_user_id` is optional.
-  - If omitted, API uses `X-User-Id`.
-  - If neither is available, returns `400`.
+  - If omitted, API uses effective session identity (`X-User-Id` / trusted auth context).
+  - Explicit `recipient_user_id` override is currently accepted and takes precedence over current-user fallback.
+  - Router authentication still requires an effective identity for the request; missing identity returns `401`.
 - Query params:
   - `recipient_user_id` (int, optional)
   - `unread_only` (bool, optional)
@@ -1479,6 +1480,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" \
+  -H "X-User-Id: FDQC" \
   "$API_BASE/api/v1/notifications?recipient_user_id=2&unread_only=true"
 ```
 - Example response:

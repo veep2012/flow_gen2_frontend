@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-12
-- Version: v1.5
+- Last Updated: 2026-03-13
+- Version: v1.6
 
 ## Change Log
+- 2026-03-13 | v1.6 | Clarified inbox-listing identity requirements and documented that explicit `recipient_user_id` override currently takes precedence over current-user fallback.
 - 2026-03-12 | v1.5 | Removed request-body `sender_user_id` override from notification create; sender is now always the effective session user.
 - 2026-02-21 | v1.4 | Added optional `distribution_list.doc_id` linkage to `core.doc`, synchronized DL API contract notes, documented auto-creation of doc-linked DLs when `instance_parameters.dl_for_each_doc=true`, and documented DL list filtering by `doc_id`.
 - 2026-02-20 | v1.3 | Added Change Log section for standards compliance
@@ -82,10 +83,12 @@ Router: `api/routers/notifications.py` (`/api/v1/notifications`)
 - If no valid recipient can be resolved, API returns `400`.
 
 ## Authorization and Actor Rules
+- All notification routes require effective session identity.
 - `replace` and `delete` require current actor (`X-User-Id`) and allow only sender or superuser.
 - `read` uses current actor (`X-User-Id`) as recipient identity.
 - `create` always uses effective session identity as sender.
-- `list` may use explicit `recipient_user_id` query or fallback to current actor header.
+- `list` uses explicit `recipient_user_id` query when provided; otherwise it falls back to current actor identity.
+- `list` still requires effective session identity even when `recipient_user_id` is provided; missing identity returns `401`.
 
 ## Data and Event Model
 - Event types:
