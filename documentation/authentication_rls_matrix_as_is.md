@@ -9,7 +9,7 @@
 - Version: v1.7
 
 ## Change Log
-- 2026-03-18 | v1.7 | Linked the current implemented auth/RLS snapshot to `application_authorization_policy.md` so implementation reviews can compare current enforcement with the authoritative business policy.
+- 2026-03-18 | v1.7 | Clarified that this document is the current implementation snapshot used to compare live auth/RLS enforcement against the application-level authorization policy.
 - 2026-03-07 | v1.6 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT verification inputs and failure telemetry, clarified that JWKS client/fetch failures fail closed as `401` with `jwks_fetch_failed` observability, and restricted raw `X-User-Id` fallback to non-production environments while updating the startup identity banner accordingly.
 - 2026-03-06 | v1.3 | Made trusted identity header resolution authoritative over `X-User-Id`, documented fail-closed behavior when the trusted header is unresolved, and synchronized compose/nginx trusted-header forwarding expectations.
 - 2026-03-05 | v1.2 | Implemented trusted identity header mode (`X-Auth-User`) with fail-closed unknown-identity behavior, clarified that `ref.roles.external_name` is reference-only for a dedicated identity-sync module rather than a request-path/workflow authorization input, and documented current identity-header precedence limitation (`X-User-Id` evaluated before trusted header) with required proxy stripping/rewriting controls in non-local environments.
