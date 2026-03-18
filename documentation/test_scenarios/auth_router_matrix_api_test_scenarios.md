@@ -89,7 +89,7 @@ Each changed auth-sensitive router must have at least one representative endpoin
 - Setup/Preconditions:
   - Override DB dependency so effective identity resolves to `NULL`.
 - Request/Action:
-  - Call `GET /api/v1/notifications?recipient_user_id=1`.
+  - Call `GET /api/v1/notifications`.
 - Expected:
   - Response status is `401`.
   - Response body is `{"detail": "Authentication required"}`.

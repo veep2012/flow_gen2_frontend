@@ -89,12 +89,6 @@ _COMMON_RESPONSES: dict[int | str, dict[str, Any]] = {
 }
 
 
-def _resolve_recipient_user_id(db: Session, explicit_user_id: int | None) -> int:
-    if explicit_user_id is not None:
-        return explicit_user_id
-    return _require_current_user(db)
-
-
 def _require_current_user(db: Session) -> int:
     user_id = get_effective_user_id(db)
     if not user_id:
@@ -178,11 +172,6 @@ def create_notification(
     responses=_COMMON_RESPONSES,
 )
 def list_notifications_for_recipient(
-    recipient_user_id: int | None = Query(
-        None,
-        description="Recipient user ID. If omitted, uses X-User-Id.",
-        gt=0,
-    ),
     unread_only: bool = Query(False, description="When true, returns unread notifications only."),
     sender_user_id: int | None = Query(None, description="Filter by sender user ID.", gt=0),
     date_from: datetime | None = Query(None, description="Filter delivered_at >= this timestamp."),
@@ -192,9 +181,9 @@ def list_notifications_for_recipient(
     """
     List notifications for recipient.
 
-    Returns recipient inbox rows from workflow view with optional sender/date/unread filters.
+    Returns current-user inbox rows from workflow view with optional sender/date/unread filters.
     """
-    resolved_recipient_user_id = _resolve_recipient_user_id(db, recipient_user_id)
+    resolved_recipient_user_id = _require_current_user(db)
     dt_from = _normalize_dt(date_from)
     dt_to = _normalize_dt(date_to)
     if dt_from and dt_to and dt_from > dt_to:

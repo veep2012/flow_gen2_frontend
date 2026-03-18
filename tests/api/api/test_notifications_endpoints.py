@@ -129,7 +129,8 @@ def test_notifications_create_list_mark_read_flow():
             client,
             "GET",
             "/notifications",
-            params={"recipient_user_id": user_a, "unread_only": True},
+            headers={"X-User-Id": user_map[user_a]},
+            params={"unread_only": True},
         )
         assert 200 <= inbox["status"] < 300
         created_row = _find_notification(inbox["payload"], created_id)
@@ -159,7 +160,6 @@ def test_notifications_require_session_identity():
             client,
             "GET",
             "/notifications",
-            params={"recipient_user_id": user_a},
             headers={"X-User-Id": ""},
             auth=False,
         )
@@ -208,7 +208,7 @@ def test_notifications_replace_delete_chain():
             client,
             "GET",
             "/notifications",
-            params={"recipient_user_id": user_a},
+            headers={"X-User-Id": user_map[user_a]},
         )
         assert 200 <= inbox_after_replace["status"] < 300
         old_row = _find_notification(inbox_after_replace["payload"], original_id)
@@ -235,7 +235,7 @@ def test_notifications_replace_delete_chain():
             client,
             "GET",
             "/notifications",
-            params={"recipient_user_id": user_a},
+            headers={"X-User-Id": user_map[user_a]},
         )
         assert 200 <= inbox_after_delete["status"] < 300
         changed_row = _find_notification(inbox_after_delete["payload"], changed_id)
@@ -339,6 +339,43 @@ def test_notifications_mark_read_rejects_payload_user_field():
             json={"recipient_user_id": user_a},
         )
         assert bad_payload["status"] == 422
+
+
+@pytest.mark.api_smoke
+def test_notifications_list_ignores_recipient_override_and_uses_current_user():
+    with httpx.Client(timeout=10) as client:
+        user_a, user_b, _, superuser_id = _resolve_test_users(client)
+        users = _request(client, "GET", "/people/users")
+        user_map = _user_acronym_map(users["payload"])
+        rev_id = _get_first_revision_id(client)
+        if rev_id is None:
+            pytest.skip("No revision available for notifications recipient test")
+
+        created = _request(
+            client,
+            "POST",
+            "/notifications",
+            headers={"X-User-Id": user_map[superuser_id]},
+            json={
+                "title": "Current user inbox only",
+                "body": "Recipient override must be ignored",
+                "rev_id": rev_id,
+                "recipient_user_ids": [user_a],
+                "recipient_dist_ids": [],
+            },
+        )
+        assert created["status"] == 201
+        notification_id = created["payload"]["notification_id"]
+
+        inbox = _request(
+            client,
+            "GET",
+            "/notifications",
+            headers={"X-User-Id": user_map[user_b]},
+            params={"recipient_user_id": user_a},
+        )
+        assert 200 <= inbox["status"] < 300
+        assert _find_notification(inbox["payload"], notification_id) is None
 
 
 @pytest.mark.api_smoke
