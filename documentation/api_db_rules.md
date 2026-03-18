@@ -10,7 +10,7 @@
 - Version: v1.4
 
 ## Change Log
-- 2026-03-18 | v1.4 | Added `application_authorization_policy.md` as the business-policy source of truth above the backend/database enforcement contract.
+- 2026-03-18 | v1.4 | Clarified this document's scope as the backend/database enforcement contract beneath the new application-level authorization policy.
 - 2026-03-04 | v1.3 | Clarified that API read SQL must target `workflow.v_*` views only and documented the repository static guard for this contract.
 - 2026-02-20 | v1.2 | Added mandatory core-table audit metadata requirement, synchronized skill fallback reference, and added missing `core.written_comments` to authoritative `core` table inventory
 - 2026-02-06 | v1.1 | Established initial approved backend-database contract baseline

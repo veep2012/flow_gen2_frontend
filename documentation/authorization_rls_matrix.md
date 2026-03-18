@@ -9,7 +9,7 @@
 - Version: v1.5
 
 ## Change Log
-- 2026-03-18 | v1.5 | Added an explicit reference to `application_authorization_policy.md` as the business-policy source of truth above the target RLS and workflow enforcement model.
+- 2026-03-18 | v1.5 | Clarified that this document defines the target authorization/RLS enforcement model that should implement the application-level authorization policy.
 - 2026-03-07 | v1.4 | Re-scoped Phase 3 around trusted identity integration, expanded it to include full JWT token verification in the API, aligned implementation reality with bearer-JWT verification, and kept external role mapping and identity-sync work out of scope.
 - 2026-03-05 | v1.1 | Implemented Phase 3 trusted identity resolver path and clarified architecture boundary: `ref.roles.external_name` remains reference-only for a dedicated identity-sync module and is not evaluated in request/workflow authorization execution.
 - 2026-02-26 | v0.7 | Updated implementation reality through Phase 1: read-path predicate/RLS and project-scoped lookup filtering are now implemented and test-covered.
