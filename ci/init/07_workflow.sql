@@ -693,19 +693,36 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION workflow.delete_file_commented(
-    p_id INTEGER
-) RETURNS VOID
+    p_id INTEGER,
+    p_actor_user_id SMALLINT
+) RETURNS core.files_commented
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = core, ref, workflow, audit, pg_temp
 AS $$
+DECLARE
+    v_row core.files_commented%ROWTYPE;
+    v_is_superuser BOOLEAN;
 BEGIN
-    PERFORM 1 FROM core.files_commented WHERE id = p_id;
+    SELECT * INTO v_row
+    FROM core.files_commented
+    WHERE id = p_id
+    FOR UPDATE;
+
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Commented file not found';
     END IF;
 
-    DELETE FROM core.files_commented WHERE id = p_id;
+    SELECT workflow.is_superuser(p_actor_user_id) INTO v_is_superuser;
+    IF p_actor_user_id <> v_row.user_id AND NOT COALESCE(v_is_superuser, FALSE) THEN
+        RAISE EXCEPTION 'Only commented file owner or superuser can delete commented file';
+    END IF;
+
+    DELETE FROM core.files_commented
+    WHERE id = p_id
+    RETURNING * INTO v_row;
+
+    RETURN v_row;
 END;
 $$;
 

@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-12
-- Version: v3.6
+- Last Updated: 2026-03-18
+- Version: v3.7
 
 ## Change Log
+- 2026-03-18 | v3.7 | Documented owner-or-superuser authorization for `DELETE /api/v1/files/commented/{id}`, including the `403`/fail-closed `404` behavior and authenticated request example.
 - 2026-03-12 | v3.6 | Removed redundant create-time actor fields from commented-files, written-comments, and notifications APIs; create authorship/sender now always resolves from effective session identity while recipient targeting remains explicit.
 - 2026-03-07 | v3.5 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT auth configuration, observability, and nginx bearer-token passthrough for `/api` requests, aligned local compose/Keycloak defaults so direct-access bearer-token testing uses `aud=flow-ui`, clarified that JWKS retrieval/client failures fail closed as `401 Unauthorized` with `flow_auth_jwt_validation_failures_total{reason="jwks_fetch_failed"}`, and restricted raw `X-User-Id` fallback to non-production environments only so production-capable modes accept bearer JWT, then trusted header, then optional local `APP_USER`.
 - 2026-03-06 | v3.0 | Updated auth identity resolution order so trusted header (`X-Auth-User`, configurable via `TRUSTED_IDENTITY_HEADER`) takes precedence over `X-User-Id`, documented fail-closed behavior when trusted identity is invalid, and synchronized the request-header startup banner wording.
@@ -673,11 +674,11 @@ curl -sS -H "Accept: application/json" \
 ```
 
 ### Delete
-- `DELETE /api/v1/files/commented/{id}` — 204; deletes MinIO object and DB row; 404 if not found.
+- `DELETE /api/v1/files/commented/{id}` — 204; owner or superuser only; deletes MinIO object and DB row; `403` for a visible but unauthorized actor, fail-closed `404` if not found or hidden by RLS.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
-curl -i -H "Accept: application/json" -X DELETE $API_BASE/api/v1/files/commented/{id}
+curl -i -H "Accept: application/json" -H "X-User-Id: FDQC" -X DELETE $API_BASE/api/v1/files/commented/{id}
 ```
 - Example response: (empty)
 
