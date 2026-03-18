@@ -859,6 +859,28 @@ _DELETE_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("no start status configured", 400, "No start status configured"),
 )
 
+_REVISION_OVERVIEW_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    (
+        "cycle detected in revision_overview",
+        400,
+        "Revision overview lifecycle cannot contain cycles",
+    ),
+    ("chk_revision_overview_no_self_ref", 400, "Revision overview step cannot point to itself"),
+    ("chk_revision_overview_final_flags", 400, "Final revision overview step must be locked"),
+    (
+        "chk_revision_overview_final_next_eq",
+        400,
+        "Final revision overview step configuration is inconsistent",
+    ),
+    ("ux_revision_overview_single_start", 400, "Only one revision overview start step is allowed"),
+    ("ux_revision_overview_single_final", 400, "Only one revision overview final step is allowed"),
+    (
+        "ux_revision_overview_single_predecessor",
+        400,
+        "Revision overview lifecycle must remain a single ordered path",
+    ),
+)
+
 
 def create_revision_status_transition(
     rev_id: int,
@@ -1284,7 +1306,9 @@ def delete_doc_rev_milestone(milestone_id: int, db: Session = Depends(get_db)) -
 @router.get(
     "/revision_overview",
     summary="List all revision overview entries.",
-    description="Returns a list of all revision overview entries sorted by revision code name.",
+    description=(
+        "Returns revision overview lifecycle steps ordered from the start step to the final step."
+    ),
     operation_id="list_revision_overview",
     tags=["documents"],
     response_model=list[RevisionOverviewOut],
@@ -1333,23 +1357,60 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     """
     List all revision overview entries.
 
-    Returns a list of all revision overview entries sorted by revision code name.
+    Returns revision overview lifecycle steps ordered from the start step to the final step.
 
     Returns:
-        List of revision codes with id, name, acronym, description, and percentage.
+        List of revision codes with lifecycle fields and percentage.
     """
     rows = (
         db.execute(
             text(
                 """
+                WITH RECURSIVE revision_flow AS (
+                    SELECT
+                        rev_code_id,
+                        rev_code_name,
+                        rev_code_acronym,
+                        rev_description,
+                        next_rev_code_id,
+                        revertible,
+                        editable,
+                        final,
+                        start,
+                        percentage,
+                        1 AS step_order
+                    FROM workflow.v_revision_overview
+                    WHERE start IS TRUE
+                    UNION ALL
+                    SELECT
+                        child.rev_code_id,
+                        child.rev_code_name,
+                        child.rev_code_acronym,
+                        child.rev_description,
+                        child.next_rev_code_id,
+                        child.revertible,
+                        child.editable,
+                        child.final,
+                        child.start,
+                        child.percentage,
+                        parent.step_order + 1 AS step_order
+                    FROM workflow.v_revision_overview AS child
+                    JOIN revision_flow AS parent
+                        ON child.rev_code_id = parent.next_rev_code_id
+                )
                 SELECT
                     rev_code_id,
                     rev_code_name,
                     rev_code_acronym,
                     rev_description,
+                    next_rev_code_id,
+                    revertible,
+                    editable,
+                    final,
+                    start,
                     percentage
-                FROM workflow.v_revision_overview
-                ORDER BY rev_code_name
+                FROM revision_flow
+                ORDER BY step_order
                 """
             )
         )
@@ -1387,6 +1448,11 @@ def update_revision_overview(
         "rev_code_name",
         "rev_code_acronym",
         "rev_description",
+        "next_rev_code_id",
+        "revertible",
+        "editable",
+        "final",
+        "start",
         "percentage",
     }.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -1405,6 +1471,16 @@ def update_revision_overview(
         revision.rev_code_acronym = payload.rev_code_acronym
     if payload.rev_description is not None:
         revision.rev_description = payload.rev_description
+    if "next_rev_code_id" in payload.model_fields_set:
+        revision.next_rev_code_id = payload.next_rev_code_id
+    if payload.revertible is not None:
+        revision.revertible = payload.revertible
+    if payload.editable is not None:
+        revision.editable = payload.editable
+    if payload.final is not None:
+        revision.final = payload.final
+    if payload.start is not None:
+        revision.start = payload.start
     if payload.percentage is not None:
         revision.percentage = payload.percentage
 
@@ -1412,8 +1488,19 @@ def update_revision_overview(
         db.commit()
     except IntegrityError as err:
         db.rollback()
-        _handle_integrity_error(
-            "Revision overview entry already exists", err, "update_revision_overview"
+        _raise_for_dbapi_error(
+            err,
+            _REVISION_OVERVIEW_DB_ERROR_MAP,
+            default_status=400,
+            default_detail="Revision overview entry already exists",
+        )
+    except DBAPIError as err:
+        db.rollback()
+        _raise_for_dbapi_error(
+            err,
+            _REVISION_OVERVIEW_DB_ERROR_MAP,
+            default_status=400,
+            default_detail="Invalid revision overview lifecycle",
         )
 
     db.refresh(revision)
@@ -1446,6 +1533,11 @@ def insert_revision_overview(
         rev_code_name=payload.rev_code_name,
         rev_code_acronym=payload.rev_code_acronym,
         rev_description=payload.rev_description,
+        next_rev_code_id=payload.next_rev_code_id,
+        revertible=payload.revertible,
+        editable=payload.editable,
+        final=payload.final,
+        start=payload.start,
         percentage=payload.percentage,
     )
     db.add(revision)
@@ -1453,8 +1545,19 @@ def insert_revision_overview(
         db.commit()
     except IntegrityError as err:
         db.rollback()
-        _handle_integrity_error(
-            "Revision overview entry already exists", err, "insert_revision_overview"
+        _raise_for_dbapi_error(
+            err,
+            _REVISION_OVERVIEW_DB_ERROR_MAP,
+            default_status=400,
+            default_detail="Revision overview entry already exists",
+        )
+    except DBAPIError as err:
+        db.rollback()
+        _raise_for_dbapi_error(
+            err,
+            _REVISION_OVERVIEW_DB_ERROR_MAP,
+            default_status=400,
+            default_detail="Invalid revision overview lifecycle",
         )
     db.refresh(revision)
     return _model_out(RevisionOverviewOut, revision)

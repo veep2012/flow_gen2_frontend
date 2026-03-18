@@ -366,6 +366,13 @@ class RevisionOverviewOut(BaseModel):
     rev_description: str = Field(
         ..., description="Revision description.", examples=["Initial issue."], min_length=1
     )
+    next_rev_code_id: int | None = Field(
+        None, description="Next revision code ID.", examples=[2], gt=0
+    )
+    revertible: bool = Field(..., description="Whether the step can revert.", examples=[True])
+    editable: bool = Field(..., description="Whether the step is editable.", examples=[True])
+    final: bool = Field(..., description="Whether the step is final.", examples=[False])
+    start: bool = Field(..., description="Whether the step is the start.", examples=[False])
     percentage: int | None = Field(
         None, description="Completion percentage.", examples=[50], ge=0, le=100
     )
@@ -382,6 +389,17 @@ class RevisionOverviewUpdate(BaseModel):
     rev_description: str | None = Field(
         None, description="Revision description.", examples=["Initial issue."], min_length=1
     )
+    next_rev_code_id: int | None = Field(
+        None, description="Next revision code ID.", examples=[2], gt=0
+    )
+    revertible: bool | None = Field(
+        None, description="Whether the step can revert.", examples=[True]
+    )
+    editable: bool | None = Field(
+        None, description="Whether the step is editable.", examples=[True]
+    )
+    final: bool | None = Field(None, description="Whether the step is final.", examples=[False])
+    start: bool | None = Field(None, description="Whether the step is the start.", examples=[False])
     percentage: int | None = Field(
         None, description="Completion percentage.", examples=[50], ge=0, le=100
     )
@@ -397,6 +415,13 @@ class RevisionOverviewCreate(BaseModel):
     rev_description: str = Field(
         ..., description="Revision description.", examples=["Initial issue."], min_length=1
     )
+    next_rev_code_id: int | None = Field(
+        ..., description="Next revision code ID.", examples=[2], gt=0
+    )
+    revertible: bool = Field(..., description="Whether the step can revert.", examples=[True])
+    editable: bool = Field(..., description="Whether the step is editable.", examples=[True])
+    final: bool = Field(..., description="Whether the step is final.", examples=[False])
+    start: bool = Field(..., description="Whether the step is the start.", examples=[False])
     percentage: int | None = Field(
         None, description="Completion percentage.", examples=[50], ge=0, le=100
     )

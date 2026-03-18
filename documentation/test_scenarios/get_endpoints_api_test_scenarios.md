@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-03-04
-- Version: v1.3
+- Last Updated: 2026-03-18
+- Version: v1.4
 
 ## Change Log
+- 2026-03-18 | v1.4 | Added revision overview lifecycle ordering and invariant checks for the redesigned lifecycle response.
 - 2026-03-04 | v1.3 | Added `/metrics` to the baseline GET smoke sweep and documented the observability endpoint contract.
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
 
@@ -65,16 +66,36 @@ PROJECT_ID=$(curl -s "$API_BASE$API_PREFIX/lookups/projects" | jq -r '.[0].proje
 curl -i "$API_BASE$API_PREFIX/documents?project_id=$PROJECT_ID"
 ```
 
+## 3. TS-GET-002 Validate revision overview lifecycle order
+
+```bash
+curl -s "$API_BASE$API_PREFIX/documents/revision_overview" | jq '
+  {
+    step_count: length,
+    start_count: map(select(.start == true)) | length,
+    final_count: map(select(.final == true)) | length,
+    first_is_start: (.[0].start == true),
+    last_is_final: (.[-1].final == true),
+    chain_ok: (
+      [range(0; length - 1) | . as $i | .[$i].next_rev_code_id == .[$i + 1].rev_code_id]
+      | all
+    )
+  }'
+```
+
 ## Edge Cases
 - If no project exists, `/documents?project_id=...` cannot be validated.
 - In empty seeds, some endpoints may return `404`; treat as environment limitation.
 - `/metrics` may return zero-valued or sparse counters before auth-related failures are exercised; the endpoint must still return `200`.
+- The lifecycle assertion depends on a configured `start=true` row in `revision_overview`.
 
 ## Scenario Catalog
 - `TS-GET-001`: baseline GET endpoint set responds with success codes.
+- `TS-GET-002`: revision overview returns a single ordered lifecycle from `start=true` to `final=true`.
 
 ## Automated Test Mapping
 - `tests/api/api/test_get_endpoints.py::test_all_get_endpoints` -> `TS-GET-001`
+- `tests/api/api/test_get_endpoints.py::test_revision_overview_represents_single_lifecycle_path` -> `TS-GET-002`
 
 ## References
 - `tests/api/api/test_get_endpoints.py`

@@ -105,6 +105,13 @@ class RevisionOverview(Base):
     rev_code_name: Mapped[str] = mapped_column(String(15), unique=True, nullable=False)
     rev_code_acronym: Mapped[str] = mapped_column(String(5), nullable=False)
     rev_description: Mapped[str] = mapped_column(String(45), unique=True, nullable=False)
+    next_rev_code_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("revision_overview.rev_code_id")
+    )
+    revertible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    editable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    final: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    start: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     percentage: Mapped[Optional[int]] = mapped_column(SmallInteger)
 
     revisions: Mapped[list["DocRevision"]] = relationship(back_populates="revision_overview")

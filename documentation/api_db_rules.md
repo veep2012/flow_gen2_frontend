@@ -252,6 +252,27 @@ There may be multiple intermediate states.
 
 ---
 
+### Revision code lifecycle
+
+Revision-code behavior is defined in `ref.revision_overview`.
+
+Required lifecycle attributes:
+- `start`
+- `final`
+- `next_rev_code_id`
+- `revertible`
+- `editable`
+
+The database enforces:
+- no self-reference
+- no cycles
+- only one `start = true` step
+- only one terminal/final step
+- final steps must have `next_rev_code_id IS NULL`
+- non-final steps must have a single successor and at most one predecessor
+
+---
+
 ### Transition Rules
 
 The database enforces:

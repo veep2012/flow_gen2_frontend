@@ -231,6 +231,11 @@ erDiagram
         string rev_code_name 
         string rev_code_acronym
         string rev_description
+        smallint next_rev_code_id FK
+        boolean revertible
+        boolean editable
+        boolean final
+        boolean start
         smallint percentage
     }
     

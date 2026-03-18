@@ -310,17 +310,22 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents/doc_rev_milest
 Shape (single item):
 ```json
 {
-  "rev_code_id": 5,
-  "rev_code_name": "IFC",
-  "rev_code_acronym": "E",
-  "rev_description": "Issued for Construction",
-  "percentage": 90
+  "rev_code_id": 6,
+  "rev_code_name": "INDESIGN",
+  "rev_code_acronym": "A",
+  "rev_description": "In-design",
+  "next_rev_code_id": 1,
+  "revertible": false,
+  "editable": true,
+  "final": false,
+  "start": true,
+  "percentage": 10
 }
 ```
 Schema references:
 - Response: `api/schemas/documents.py` `RevisionOverviewOut`
 ### List
-- `GET /api/v1/documents/revision_overview` — 200 sorted by `rev_code_name`; empty list if none.
+- `GET /api/v1/documents/revision_overview` — 200 ordered from the single `start=true` step to the single `final=true` step; empty list if no start step is configured.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
@@ -328,7 +333,32 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents/revision_overv
 ```
 - Example response:
 ```json
-[ { "rev_code_id": 5, "rev_code_name": "IFC", "rev_code_acronym": "E", "rev_description": "Issued for Construction", "percentage": 90 } ]
+[
+  {
+    "rev_code_id": 6,
+    "rev_code_name": "INDESIGN",
+    "rev_code_acronym": "A",
+    "rev_description": "In-design",
+    "next_rev_code_id": 1,
+    "revertible": false,
+    "editable": true,
+    "final": false,
+    "start": true,
+    "percentage": 10
+  },
+  {
+    "rev_code_id": 1,
+    "rev_code_name": "IDC",
+    "rev_code_acronym": "B",
+    "rev_description": "Interdiscipline check",
+    "next_rev_code_id": 2,
+    "revertible": true,
+    "editable": true,
+    "final": false,
+    "start": false,
+    "percentage": 30
+  }
+]
 ```
 ## Doc revision status UI behaviors
 Shape (single item):

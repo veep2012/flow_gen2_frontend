@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-21
-- Version: v1.4
+- Last Updated: 2026-03-18
+- Version: v1.5
 
 ## Change Log
+- 2026-03-18 | v1.5 | Redesigned `revision_overview` as a lifecycle table with start/final markers, explicit next-step links, edit/revert flags, and start-to-finish flow ordering.
 - 2026-02-21 | v1.4 | Corrected core-vs-dictionary table classification and added implemented collaboration entities (`written_comments`, `notifications`, `notification_targets`, `notification_recipients`) to the workflow inventory.
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
 
@@ -63,6 +64,41 @@ Schema ownership (implementation contract):
 | Draft | Initially created document: a new revision is created automatically with status where `start=TRUE` in `doc_rev_statuses`. `rev_current_id` is filled. Document has no files initially; files can be added to the draft revision. Originator and modifier are the users who create the document. | Document is created and initial revision is auto-created. | Revision is transferred by a user to the Intermediate state. | Files are optional in Draft. Only one revision per document can be in Draft or Intermediate at a time. |
 | Intermediate | Other users can add comments to the revision and to files (a copy of files is created). | Review/commenting is enabled for the revision. | Commenting completes or the revision proceeds to the next state. | Files must be attached before entering Intermediate. Only one revision per document can be in Draft or Intermediate at a time. |
 | Final | Revision becomes “actual”; `rev_actual_id = rev_current_id`. Status is the one where `final=TRUE` in `doc_rev_statuses`. | Revision is approved for finalization. | Revision is superseded by a new revision coming from the Intermediate state. | Only one revision per document can be Final (not superseded). |
+
+## Revision code lifecycle (`revision_overview`)
+
+`revision_overview` is no longer a flat legend. It is a lifecycle table that mirrors the same data-driven pattern used by `doc_rev_statuses`:
+
+- exactly one step has `start = TRUE`
+- exactly one step has `final = TRUE`
+- each non-final step points to `next_rev_code_id`
+- backward movement is allowed only when `revertible = TRUE`
+- editing is allowed only when `editable = TRUE`
+
+```mermaid
+flowchart LR
+    indesign["INDESIGN\nstart=true\neditable=true"]
+    idc["IDC\nrevertible=true\neditable=true"]
+    ifrc["IFRC\nrevertible=true\neditable=true"]
+    afd["AFD\nrevertible=true\neditable=false"]
+    afc["AFC\nrevertible=true\neditable=false"]
+    asbuilt["AS-BUILT\nfinal=true\neditable=false"]
+
+    indesign --> idc --> ifrc --> afd --> afc --> asbuilt
+    idc -. revert .-> indesign
+    ifrc -. revert .-> idc
+    afd -. revert .-> ifrc
+    afc -. revert .-> afd
+```
+
+| Step | Acronym | Next Step | Revertible | Editable | Start | Final |
+| --- | --- | --- | --- | --- | --- | --- |
+| INDESIGN | A | IDC | No | Yes | Yes | No |
+| IDC | B | IFRC | Yes | Yes | No | No |
+| IFRC | C | AFD | Yes | Yes | No | No |
+| AFD | D | AFC | Yes | No | No | No |
+| AFC | E | AS-BUILT | Yes | No | No | No |
+| AS-BUILT | Z | — | No | No | No | Yes |
 
 ## Transitions
 
