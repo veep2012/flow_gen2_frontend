@@ -6,6 +6,7 @@
 - Track ownership/status quickly using each document's `Document Control` section.
 
 ## Core Architecture
+- `application_authorization_policy.md` - Authoritative business-level authorization rules for core resources and actor categories.
 - `api_db_rules.md` - Backend/database contract for workflow invariants.
 - `api_interfaces.md` - Current API surface and endpoint behavior.
 - `auth_architecture.md` - Authentication and authorization architecture.
