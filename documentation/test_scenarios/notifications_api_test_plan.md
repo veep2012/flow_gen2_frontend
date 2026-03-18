@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-12
-- Version: v1.8
+- Last Updated: 2026-03-18
+- Version: v1.9
 
 ## Change Log
+- 2026-03-18 | v1.9 | Removed cross-user `recipient_user_id` inbox override coverage from notification list scenarios; inbox listing now always uses the effective current user and manual examples were updated accordingly.
 - 2026-03-12 | v1.8 | Removed create-time `sender_user_id` override from notifications API and replaced on-behalf coverage with request-field rejection coverage.
 - 2026-03-04 | v1.7 | Added fail-closed session-identity scenarios for distribution-lists and notifications routers.
 - 2026-02-21 | v1.6 | Added DL `doc_id` scenario expectations for nullable create/list and document-linked create; added list filtering check via `GET /distribution-lists?doc_id=...`.
@@ -36,6 +37,7 @@ Assumption: DB is already up and API is reachable on port `4175`.
 - `TS-NTF-005` Notification create must reject request-body `sender_user_id` (`422`).
 - `TS-NTF-006` Notification create must reject empty `recipient_user_ids` and `recipient_dist_ids`.
 - `TS-NTF-007` Notifications router must return `401` when effective session identity is missing.
+- `TS-NTF-008` Notification list must ignore `recipient_user_id` query override and return only the effective current user's inbox.
 
 Any change to these acceptance criteria must be reflected in:
 - this scenario document
@@ -146,7 +148,8 @@ CREATE_RESP=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications" \
 echo "$CREATE_RESP" | jq
 CREATED_ID=$(echo "$CREATE_RESP" | jq -r '.notification_id')
 
-curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$USER_A&unread_only=true" | jq \
+curl -s "$API_BASE$API_PREFIX/notifications?unread_only=true" \
+  -H "X-User-Id: $USER_A_ACRONYM" | jq \
   --argjson id "$CREATED_ID" '.[] | select(.notification_id==$id) | {notification_id,event_type,read_at,sender_user_id}'
 
 curl -s -X POST "$API_BASE$API_PREFIX/notifications/$CREATED_ID/read" \
@@ -154,6 +157,30 @@ curl -s -X POST "$API_BASE$API_PREFIX/notifications/$CREATED_ID/read" \
   -H "X-User-Id: $USER_A_ACRONYM" \
   -d '{}' | jq
 ```
+
+## 5A. TS-NTF-008 List Ignores recipient_user_id Override
+
+```bash
+OVERRIDE_TEST=$(curl -s -X POST "$API_BASE$API_PREFIX/notifications" \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: $SUPERUSER_ACRONYM" \
+  -d "{
+    \"title\": \"Current user inbox only\",
+    \"body\": \"Recipient override must be ignored\",
+    \"rev_id\": $REV_ID,
+    \"recipient_user_ids\": [$USER_A],
+    \"recipient_dist_ids\": []
+  }")
+OVERRIDE_TEST_ID=$(echo "$OVERRIDE_TEST" | jq -r '.notification_id')
+
+curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$USER_A" \
+  -H "X-User-Id: $USER_B_ACRONYM" | jq \
+  --argjson id "$OVERRIDE_TEST_ID" '.[] | select(.notification_id==$id)'
+```
+
+Expected result:
+- request returns `200`
+- response does not include the notification created for `USER_A`
 
 ## 6. TS-NTF-002 Replace/Delete Chain Integrity
 
@@ -186,7 +213,8 @@ DROPPED_NOTICE_ID=$(echo "$DELETE_RESP" | jq -r '.notification_id')
 
 echo "$DELETE_RESP" | jq
 
-curl -s "$API_BASE$API_PREFIX/notifications?recipient_user_id=$USER_A" | jq \
+curl -s "$API_BASE$API_PREFIX/notifications" \
+  -H "X-User-Id: $USER_A_ACRONYM" | jq \
   --argjson a "$ORIG_ID" --argjson b "$CHANGED_ID" --argjson c "$DROPPED_NOTICE_ID" \
   '[.[] | select(.notification_id==$a or .notification_id==$b or .notification_id==$c) | {notification_id,event_type,read_at,dropped_at,superseded_by_notification_id}]'
 ```
@@ -333,7 +361,7 @@ Expected result:
 ## 15. TS-NTF-007 Notifications Require Session Identity
 
 ```bash
-curl -i "$API_BASE$API_PREFIX/notifications?recipient_user_id=$USER_A"
+curl -i "$API_BASE$API_PREFIX/notifications"
 ```
 
 Expected result:
@@ -354,6 +382,7 @@ Expected result:
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_create_rejects_sender_user_id_field` -> `TS-NTF-005`
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_create_requires_at_least_one_recipient_target` -> `TS-NTF-006`
 - `tests/api/api/test_notifications_endpoints.py::test_notifications_require_session_identity` -> `TS-NTF-007`
+- `tests/api/api/test_notifications_endpoints.py::test_notifications_list_ignores_recipient_override_and_uses_current_user` -> `TS-NTF-008`
 
 ## References
 - `api/routers/notifications.py`

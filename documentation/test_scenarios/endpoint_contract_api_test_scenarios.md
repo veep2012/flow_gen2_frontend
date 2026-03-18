@@ -50,7 +50,7 @@ The contract gate uses seeded smoke requests and compares live JSON object keys 
     - `GET /api/v1/documents?project_id=...`
     - `GET /api/v1/documents/{doc_id}/revisions`
     - `GET /api/v1/files?rev_id=...`
-    - `GET /api/v1/notifications?recipient_user_id=...`
+    - `GET /api/v1/notifications`
     - `GET /api/v1/distribution-lists`
 - Expected:
   - Each response returns `200`.

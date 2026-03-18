@@ -202,7 +202,7 @@ def test_critical_list_endpoints_match_response_models():
             client,
             "GET",
             "/notifications",
-            params={"recipient_user_id": recipient_user_id},
+            headers={"X-User-Id": user_map[recipient_user_id]},
         )
         assert notifications["status"] == 200
         tracked_notification = next(

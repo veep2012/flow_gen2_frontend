@@ -346,6 +346,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/notifications_api_test_plan.md",
         ["TS-NTF-007"],
     ),
+    "test_notifications_list_ignores_recipient_override_and_uses_current_user": (
+        "documentation/test_scenarios/notifications_api_test_plan.md",
+        ["TS-NTF-008"],
+    ),
 }
 
 TEST_FILES = [

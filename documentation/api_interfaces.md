@@ -6,9 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-18
-- Version: v3.7
+- Version: v3.8
 
 ## Change Log
+- 2026-03-18 | v3.8 | Removed `recipient_user_id` override from `GET /api/v1/notifications`; inbox listing now always resolves to the effective current user, and examples/contracts were updated accordingly.
 - 2026-03-18 | v3.7 | Documented owner-or-superuser authorization for `DELETE /api/v1/files/commented/{id}`, including the `403`/fail-closed `404` behavior and authenticated request example.
 - 2026-03-12 | v3.6 | Removed redundant create-time actor fields from commented-files, written-comments, and notifications APIs; create authorship/sender now always resolves from effective session identity while recipient targeting remains explicit.
 - 2026-03-07 | v3.5 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT auth configuration, observability, and nginx bearer-token passthrough for `/api` requests, aligned local compose/Keycloak defaults so direct-access bearer-token testing uses `aud=flow-ui`, clarified that JWKS retrieval/client failures fail closed as `401 Unauthorized` with `flow_auth_jwt_validation_failures_total{reason="jwks_fetch_failed"}`, and restricted raw `X-User-Id` fallback to non-production environments only so production-capable modes accept bearer JWT, then trusted header, then optional local `APP_USER`.
@@ -1467,12 +1468,10 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 ### List (recipient inbox)
 - `GET /api/v1/notifications` — 200; returns recipient inbox rows ordered by `delivered_at DESC, notification_id DESC`.
 - Recipient resolution:
-  - Query `recipient_user_id` is optional.
-  - If omitted, API uses effective session identity (`X-User-Id` / trusted auth context).
-  - Explicit `recipient_user_id` override is currently accepted and takes precedence over current-user fallback.
+  - Inbox rows are always resolved from the effective session identity (`Authorization` / trusted auth context / allowed `X-User-Id` fallback).
+  - Cross-user recipient override is not supported on this endpoint.
   - Router authentication still requires an effective identity for the request; missing identity returns `401`.
 - Query params:
-  - `recipient_user_id` (int, optional)
   - `unread_only` (bool, optional)
   - `sender_user_id` (int, optional)
   - `date_from` / `date_to` (ISO datetime, optional)
@@ -1482,7 +1481,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 ```bash
 curl -sS -H "Accept: application/json" \
   -H "X-User-Id: FDQC" \
-  "$API_BASE/api/v1/notifications?recipient_user_id=2&unread_only=true"
+  "$API_BASE/api/v1/notifications?unread_only=true"
 ```
 - Example response:
 ```json
