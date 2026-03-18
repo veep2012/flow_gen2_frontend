@@ -77,7 +77,8 @@ curl -s "$API_BASE$API_PREFIX/documents/revision_overview" | jq '
     first_is_start: (.[0].start == true),
     last_is_final: (.[-1].final == true),
     chain_ok: (
-      [range(0; length - 1) | . as $i | .[$i].next_rev_code_id == .[$i + 1].rev_code_id]
+      . as $steps
+      | [range(0; ($steps | length) - 1) | $steps[.].next_rev_code_id == $steps[. + 1].rev_code_id]
       | all
     )
   }'

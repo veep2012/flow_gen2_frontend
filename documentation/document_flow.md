@@ -91,7 +91,7 @@ flowchart LR
     afc -. revert .-> afd
 ```
 
-| Step | Acronym | Next Step | Revertible | Editable | Start | Final |
+| Step | Acronym | Next Step | Can revert to previous | Editable | Start | Final |
 | --- | --- | --- | --- | --- | --- | --- |
 | INDESIGN | A | IDC | No | Yes | Yes | No |
 | IDC | B | IFRC | Yes | Yes | No | No |

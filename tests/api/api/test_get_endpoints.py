@@ -4,6 +4,8 @@ import time
 import httpx
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL
+from sqlalchemy.exc import DBAPIError
 
 _DEFAULT_TEST_USER_ACRONYM = os.getenv("TEST_USER_ACRONYM", "FDQC")
 
@@ -56,6 +58,13 @@ def _extract_id(item: dict, keys: list[str]) -> int | None:
 
 
 def _build_admin_database_url() -> str:
+    """Build the admin database URL for direct test-only constraint checks.
+
+    Prefers TEST_DB_ADMIN_URL when provided. Otherwise it assembles a URL from
+    TEST_DB_ADMIN_USER, TEST_DB_ADMIN_PASSWORD, POSTGRES_HOST, POSTGRES_PORT,
+    and TEST_DB_NAME/POSTGRES_DB so the smoke tests can connect to the seeded
+    database with admin privileges.
+    """
     explicit_admin = os.getenv("TEST_DB_ADMIN_URL")
     if explicit_admin:
         return explicit_admin
@@ -65,7 +74,16 @@ def _build_admin_database_url() -> str:
     host = os.getenv("POSTGRES_HOST", "localhost")
     port = os.getenv("POSTGRES_PORT", "5433")
     db_name = os.getenv("TEST_DB_NAME", os.getenv("POSTGRES_DB", "flow_db_test"))
-    return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{db_name}"
+    return str(
+        URL.create(
+            "postgresql+psycopg",
+            username=user,
+            password=password,
+            host=host,
+            port=int(port),
+            database=db_name,
+        )
+    )
 
 
 @pytest.mark.api_smoke
@@ -234,6 +252,6 @@ def test_revision_overview_constraints_reject_invalid_lifecycle_updates():
         )
 
         for statement, params in invalid_statements:
-            with pytest.raises(Exception):
+            with pytest.raises(DBAPIError):
                 with conn.begin_nested():
                     conn.execute(statement, params)
