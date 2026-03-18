@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-03-13
-- Version: v1.10
+- Last Updated: 2026-03-18
+- Version: v1.11
 
 ## Change Log
+- 2026-03-18 | v1.11 | Added owner-or-superuser authorization scenario for commented-file delete, documented fail-closed `403`/`404` behavior, and synchronized delete smoke coverage to use the effective owner identity.
 - 2026-03-13 | v1.10 | Added owner-or-superuser authorization scenario for commented-file replace, documenting fail-closed `403`/`404` behavior and shifted scenario/test mappings.
 - 2026-03-12 | v1.9 | Added commented-file replace endpoint scenario and automated coverage mapping, removed create-time `user_id` form field from commented-file scenarios, and bound create authorship to effective session identity.
 - 2026-03-04 | v1.7 | Added fail-closed session-identity scenario for commented-files router access.
@@ -79,7 +80,7 @@ echo "$COMMENTED" | jq
 COMMENTED_ID=$(echo "$COMMENTED" | jq -r '.id')
 
 curl -i "$API_BASE$API_PREFIX/files/commented/download?id=$COMMENTED_ID"
-curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COMMENTED_ID"
+curl -i -X DELETE -H "X-User-Id: $USER_ACRONYM" "$API_BASE$API_PREFIX/files/commented/$COMMENTED_ID"
 ```
 
 ## 5. TS-FC-005..010 Negative Checks
@@ -120,7 +121,7 @@ echo "$COPIED" | jq
 COPIED_ID=$(echo "$COPIED" | jq -r '.id')
 
 curl -i "$API_BASE$API_PREFIX/files/commented/download?id=$COPIED_ID"
-curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$COPIED_ID"
+curl -i -X DELETE -H "X-User-Id: $USER_ACRONYM" "$API_BASE$API_PREFIX/files/commented/$COPIED_ID"
 ```
 
 ## 7. TS-FC-012 Replace Existing Commented File
@@ -138,7 +139,7 @@ curl -s -X POST "$API_BASE$API_PREFIX/files/commented/$REPLACE_ID/replace" \
   -F "file=@/etc/services;type=application/pdf;filename=replace-new-$TS.pdf" | jq
 
 curl -i "$API_BASE$API_PREFIX/files/commented/download?id=$REPLACE_ID"
-curl -i -X DELETE "$API_BASE$API_PREFIX/files/commented/$REPLACE_ID"
+curl -i -X DELETE -H "X-User-Id: $USER_ACRONYM" "$API_BASE$API_PREFIX/files/commented/$REPLACE_ID"
 ```
 
 ## 8. TS-FC-013 Replace Forbidden For Non-Owner
@@ -157,6 +158,26 @@ curl -i -X POST "$API_BASE$API_PREFIX/files/commented/$REPLACE_ID/replace" \
 curl -i -X POST "$API_BASE$API_PREFIX/files/commented/999999/replace" \
   -H "X-User-Id: $USER_ACRONYM" \
   -F "file=@/etc/services;type=application/pdf;filename=replace-missing-$TS.pdf"
+```
+
+## 10. TS-FC-016 Delete Forbidden For Non-Owner
+
+```bash
+DELETE_SRC=$(curl -s -X POST "$API_BASE$API_PREFIX/files/commented/" \
+  -H "X-User-Id: $USER_ACRONYM" \
+  -F "file_id=$FILE_ID" \
+  -F "file=@/etc/hosts;type=application/pdf;filename=delete-src-$TS.pdf")
+echo "$DELETE_SRC" | jq
+DELETE_ID=$(echo "$DELETE_SRC" | jq -r '.id')
+
+OTHER_USER_ACRONYM=$(curl -s "$API_BASE$API_PREFIX/people/users" | jq -r --arg SELF "$USER_ACRONYM" '.[] | select(.user_acronym != $SELF and ((.role_name // "") | ascii_downcase) != "superuser" and ((.role_name // "") | ascii_downcase) != "admin") | .user_acronym' | head -n 1)
+
+curl -i -X DELETE \
+  -H "X-User-Id: $OTHER_USER_ACRONYM" \
+  "$API_BASE$API_PREFIX/files/commented/$DELETE_ID"
+
+curl -i "$API_BASE$API_PREFIX/files/commented/download?id=$DELETE_ID"
+curl -i -X DELETE -H "X-User-Id: $USER_ACRONYM" "$API_BASE$API_PREFIX/files/commented/$DELETE_ID"
 ```
 
 ## Edge Cases
@@ -179,6 +200,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/files/commented/999999/replace" \
 - `TS-FC-013` replace is rejected for a non-owner non-superuser actor; response may be `403` or fail-closed `404` when read-side RLS hides the row.
 - `TS-FC-014` replace missing commented file returns `404`.
 - `TS-FC-015` commented-files router denies requests when effective session identity is missing.
+- `TS-FC-016` delete is rejected for a non-owner non-superuser actor; response may be `403` or fail-closed `404` when read-side RLS hides the row, and the owner can still download/delete the object afterward.
 
 ## Automated Test Mapping
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_list` -> `TS-FC-001`
@@ -196,6 +218,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/files/commented/999999/replace" \
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_replace_forbidden_for_non_owner` -> `TS-FC-013`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_replace_nonexistent` -> `TS-FC-014`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_require_session_identity` -> `TS-FC-015`
+- `tests/api/api/test_files_commented_endpoints.py::test_files_commented_delete_forbidden_for_non_owner` -> `TS-FC-016`
 
 ## References
 - `tests/api/api/test_files_commented_endpoints.py`

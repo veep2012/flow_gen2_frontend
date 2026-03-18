@@ -57,6 +57,7 @@ def test_files_commented_require_session_identity():
 
 @pytest.mark.api_smoke
 def test_files_commented_insert_and_download():
+    """Scenario IDs: TS-FC-004."""
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
@@ -104,13 +105,19 @@ def test_files_commented_insert_and_download():
         content_disposition = downloaded["headers"].get("content-disposition", "")
         assert insert["payload"]["filename"] in content_disposition
 
-        deleted = _request(client, "DELETE", f"/files/commented/{commented_id}")
+        deleted = _request(
+            client,
+            "DELETE",
+            f"/files/commented/{commented_id}",
+            headers={"X-User-Id": user_acronym},
+        )
         assert deleted["status"] == 204
         _request(client, "DELETE", f"/files/{base_file['id']}")
 
 
 @pytest.mark.api_smoke
 def test_files_commented_insert_without_file_copies_source():
+    """Scenario IDs: TS-FC-011."""
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
@@ -141,12 +148,18 @@ def test_files_commented_insert_without_file_copies_source():
         content_disposition = downloaded["headers"].get("content-disposition", "")
         assert insert["payload"]["filename"] in content_disposition
 
-        _request(client, "DELETE", f"/files/commented/{commented_id}")
+        _request(
+            client,
+            "DELETE",
+            f"/files/commented/{commented_id}",
+            headers={"X-User-Id": user_acronym},
+        )
         _request(client, "DELETE", f"/files/{base_file['id']}")
 
 
 @pytest.mark.api_smoke
 def test_files_commented_replace():
+    """Scenario IDs: TS-FC-012."""
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
@@ -198,12 +211,18 @@ def test_files_commented_replace():
         assert 200 <= downloaded["status"] < 300
         assert downloaded["content"] == replacement_content
 
-        _request(client, "DELETE", f"/files/commented/{commented_id}")
+        _request(
+            client,
+            "DELETE",
+            f"/files/commented/{commented_id}",
+            headers={"X-User-Id": user_acronym},
+        )
         _request(client, "DELETE", f"/files/{base_file['id']}")
 
 
 @pytest.mark.api_smoke
 def test_files_commented_replace_forbidden_for_non_owner():
+    """Scenario IDs: TS-FC-013."""
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
         rev_id = _get_test_revision_id(client)
@@ -270,6 +289,64 @@ def test_files_commented_replace_forbidden_for_non_owner():
 
 
 @pytest.mark.api_smoke
+def test_files_commented_delete_forbidden_for_non_owner():
+    """Scenario IDs: TS-FC-016."""
+    suffix = uuid.uuid4().hex[:6]
+    with httpx.Client(timeout=10) as client:
+        rev_id = _get_test_revision_id(client)
+        owner_user_id, owner_acronym = _get_test_user(client)
+        other_user = _get_second_test_user(client, owner_user_id)
+        if other_user is None:
+            pytest.skip("Need two non-superuser users for forbidden delete check")
+        _, other_acronym = other_user
+        base_file = _upload_base_file(client, rev_id, suffix, "pdf", "application/pdf")
+
+        created = _request(
+            client,
+            "POST",
+            "/files/commented/",
+            files={
+                "file": (
+                    f"commented-delete-{suffix}.pdf",
+                    f"commented-delete-{suffix}".encode(),
+                    "application/pdf",
+                )
+            },
+            data={"file_id": str(base_file["id"])},
+            headers={"X-User-Id": owner_acronym},
+        )
+        assert created["status"] == 201
+        commented_id = created["payload"]["id"]
+
+        forbidden = _request(
+            client,
+            "DELETE",
+            f"/files/commented/{commented_id}",
+            headers={"X-User-Id": other_acronym},
+        )
+        assert forbidden["status"] in {403, 404}
+
+        downloaded = _request(
+            client,
+            "GET",
+            "/files/commented/download",
+            params={"id": commented_id},
+            headers={"X-User-Id": owner_acronym},
+        )
+        assert downloaded["status"] == 200
+
+        _request(
+            client,
+            "DELETE",
+            f"/files/commented/{commented_id}",
+            headers={"X-User-Id": owner_acronym},
+        )
+        _request(
+            client, "DELETE", f"/files/{base_file['id']}", headers={"X-User-Id": owner_acronym}
+        )
+
+
+@pytest.mark.api_smoke
 def test_files_commented_insert_duplicate():
     suffix = uuid.uuid4().hex[:6]
     with httpx.Client(timeout=10) as client:
@@ -309,7 +386,12 @@ def test_files_commented_insert_duplicate():
         assert duplicate["status"] == 400
         assert "already exists" in duplicate["payload"]["detail"].lower()
 
-        _request(client, "DELETE", f"/files/commented/{first['payload']['id']}")
+        _request(
+            client,
+            "DELETE",
+            f"/files/commented/{first['payload']['id']}",
+            headers={"X-User-Id": user_acronym},
+        )
         _request(client, "DELETE", f"/files/{base_file['id']}")
 
 
