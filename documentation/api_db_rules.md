@@ -6,16 +6,21 @@
 - Owner: Backend and Database Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-04
-- Version: v1.3
+- Last Updated: 2026-03-18
+- Version: v1.4
 
 ## Change Log
+- 2026-03-18 | v1.4 | Added `application_authorization_policy.md` as the business-policy source of truth above the backend/database enforcement contract.
 - 2026-03-04 | v1.3 | Clarified that API read SQL must target `workflow.v_*` views only and documented the repository static guard for this contract.
 - 2026-02-20 | v1.2 | Added mandatory core-table audit metadata requirement, synchronized skill fallback reference, and added missing `core.written_comments` to authoritative `core` table inventory
 - 2026-02-06 | v1.1 | Established initial approved backend-database contract baseline
 
 ## Purpose
 Define the enforced backend-database contract for document and revision lifecycle behavior.
+
+Business-policy source of truth:
+- `documentation/application_authorization_policy.md` defines who is allowed to perform business actions.
+- This document defines how API and database layers must enforce those policy decisions.
 
 ## Scope
 - In scope:

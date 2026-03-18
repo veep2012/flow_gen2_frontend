@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-21
-- Last Updated: 2026-03-07
-- Version: v1.4
+- Last Updated: 2026-03-18
+- Version: v1.5
 
 ## Change Log
+- 2026-03-18 | v1.5 | Added an explicit reference to `application_authorization_policy.md` as the business-policy source of truth above the target RLS and workflow enforcement model.
 - 2026-03-07 | v1.4 | Re-scoped Phase 3 around trusted identity integration, expanded it to include full JWT token verification in the API, aligned implementation reality with bearer-JWT verification, and kept external role mapping and identity-sync work out of scope.
 - 2026-03-05 | v1.1 | Implemented Phase 3 trusted identity resolver path and clarified architecture boundary: `ref.roles.external_name` remains reference-only for a dedicated identity-sync module and is not evaluated in request/workflow authorization execution.
 - 2026-02-26 | v0.7 | Updated implementation reality through Phase 1: read-path predicate/RLS and project-scoped lookup filtering are now implemented and test-covered.
@@ -17,6 +18,10 @@
 
 ## Purpose
 Define the future-state role-based authorization and row-level security (RLS) model for Flow.
+
+Business-policy source of truth:
+- `documentation/application_authorization_policy.md` defines who is allowed to perform which business actions.
+- This document defines how that policy should be enforced through role/scope predicates, workflow checks, and RLS.
 
 ## Scope
 - In scope:
@@ -464,6 +469,7 @@ Exit criteria:
 - What SLO must be enforced for `workflow.check_user_permission(...)` at p95/p99?
 
 ## References
+- `documentation/application_authorization_policy.md`
 - `documentation/auth_architecture.md`
 - `documentation/api_db_rules.md`
 - `documentation/er_diagram.md`

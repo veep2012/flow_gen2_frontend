@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: Security and API maintainers
 - Created: 2026-02-25
-- Last Updated: 2026-03-07
-- Version: v1.6
+- Last Updated: 2026-03-18
+- Version: v1.7
 
 ## Change Log
+- 2026-03-18 | v1.7 | Linked the current implemented auth/RLS snapshot to `application_authorization_policy.md` so implementation reviews can compare current enforcement with the authoritative business policy.
 - 2026-03-07 | v1.6 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT verification inputs and failure telemetry, clarified that JWKS client/fetch failures fail closed as `401` with `jwks_fetch_failed` observability, and restricted raw `X-User-Id` fallback to non-production environments while updating the startup identity banner accordingly.
 - 2026-03-06 | v1.3 | Made trusted identity header resolution authoritative over `X-User-Id`, documented fail-closed behavior when the trusted header is unresolved, and synchronized compose/nginx trusted-header forwarding expectations.
 - 2026-03-05 | v1.2 | Implemented trusted identity header mode (`X-Auth-User`) with fail-closed unknown-identity behavior, clarified that `ref.roles.external_name` is reference-only for a dedicated identity-sync module rather than a request-path/workflow authorization input, and documented current identity-header precedence limitation (`X-User-Id` evaluated before trusted header) with required proxy stripping/rewriting controls in non-local environments.
@@ -18,6 +19,10 @@
 
 ## Purpose
 Describe the currently implemented authentication/authorization-related behavior through Phase 1 read-path enforcement, including what is active now and what is still pending.
+
+Comparison rule:
+- `documentation/application_authorization_policy.md` is the business-policy source of truth.
+- This document records the currently implemented authentication and authorization enforcement state, including temporary gaps or partial rollout phases.
 
 ## Scope
 - In scope:
@@ -241,6 +246,7 @@ Current implementation is a hybrid state: role-model foundations are active, and
   - `workflow.is_superuser(...)` accepts both `is_super=true` and legacy role-name matching.
 
 ## References
+- `documentation/application_authorization_policy.md`
 - `documentation/authorization_rls_matrix.md`
 - `documentation/auth_architecture.md`
 - `documentation/api_interfaces.md`
