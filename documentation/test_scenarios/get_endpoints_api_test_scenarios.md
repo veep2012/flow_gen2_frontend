@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-07
 - Last Updated: 2026-03-19
-- Version: v1.5
+- Version: v1.6
 
 ## Change Log
-- 2026-03-19 | v1.5 | Added explicit traceability for revision overview lifecycle-path and invalid-update constraint checks, and tightened the lifecycle-order scenario so it proves path-based ordering rather than name or ID sorting.
+- 2026-03-19 | v1.6 | Added transactional revision overview reconfiguration coverage and documented immediate insert guards for start/final/predecessor invariants.
 - 2026-03-18 | v1.4 | Added revision overview lifecycle ordering and invariant checks for the redesigned lifecycle response.
 - 2026-03-04 | v1.3 | Added `/metrics` to the baseline GET smoke sweep and documented the observability endpoint contract.
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
@@ -118,6 +118,7 @@ curl -s "$API_BASE$API_PREFIX/documents/revision_overview" | jq '
   - at least one intermediate lifecycle row exists
 - Request/action:
   - attempt to update an intermediate row so `next_rev_code_id = rev_code_id`
+  - attempt to update a row so it points back to the start step and forms a non-self cycle
   - attempt to mark a second row as `start=true`
   - attempt to make the final row both `final=true` and point to a next step
   - attempt to make the final row non-final while still pointing to a next step
@@ -127,21 +128,48 @@ curl -s "$API_BASE$API_PREFIX/documents/revision_overview" | jq '
 - Cleanup:
   - no cleanup required because the verification runs inside rolled-back nested transactions
 
+## 5. TS-GET-004 Validate transactional lifecycle reconfiguration and immediate insert guards
+
+- Intent: prove valid ordered multi-row reconfiguration can succeed transactionally while extra start/final/predecessor inserts fail immediately under the current constraint model.
+- Setup/preconditions:
+  - a seeded `ref.revision_overview` table exists
+  - the configured `start=true` row currently has no predecessor
+  - the test can run privileged SQL inside a rolled-back nested transaction
+- Request/action:
+  - insert a new predecessor lifecycle row whose `next_rev_code_id` points to the current start row
+  - update the old start row to `start=false`
+  - update the new predecessor row to `start=true`
+  - verify the path remains valid inside the transaction, then roll it back
+  - separately attempt to insert:
+    - a second `start=true` row
+    - a second terminal/final row
+    - a new row pointing to a successor that already has a predecessor
+- Expected response/assertions:
+  - the ordered multi-row reconfiguration succeeds when the old start row is cleared before the new predecessor is promoted to `start=true`
+  - the temporary transactional path grows by one valid leading row and still terminates at the same final row
+  - rollback restores the original row count and original path
+  - extra start/final/predecessor inserts fail immediately with database errors under the current non-deferred constraint model
+- Cleanup:
+  - no cleanup required because successful validation happens inside a rolled-back nested transaction
+
 ## Edge Cases
 - If no project exists, `/documents?project_id=...` cannot be validated.
 - In empty seeds, some endpoints may return `404`; treat as environment limitation.
 - `/metrics` may return zero-valued or sparse counters before auth-related failures are exercised; the endpoint must still return `200`.
 - The lifecycle assertion depends on a configured `start=true` row in `revision_overview`.
+- The current schema enforces start/final/predecessor uniqueness immediately rather than as deferred end-of-transaction checks.
 
 ## Scenario Catalog
 - `TS-GET-001`: baseline GET endpoint set responds with success codes.
 - `TS-GET-002`: revision overview returns a single ordered lifecycle from `start=true` to `final=true`.
 - `TS-GET-003`: revision overview lifecycle constraints reject invalid state mutations that would break the single ordered path.
+- `TS-GET-004`: revision overview allows ordered transactional chain extension but rejects extra start/final/predecessor inserts immediately.
 
 ## Automated Test Mapping
 - `tests/api/api/test_get_endpoints.py::test_all_get_endpoints` -> `TS-GET-001`
 - `tests/api/api/test_get_endpoints.py::test_revision_overview_represents_single_lifecycle_path` -> `TS-GET-002`
 - `tests/api/api/test_get_endpoints.py::test_revision_overview_constraints_reject_invalid_lifecycle_updates` -> `TS-GET-003`
+- `tests/api/api/test_get_endpoints.py::test_revision_overview_transactional_reconfiguration_and_insert_guards` -> `TS-GET-004`
 
 ## References
 - `tests/api/api/test_get_endpoints.py`

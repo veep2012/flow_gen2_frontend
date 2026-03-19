@@ -1,5 +1,6 @@
 import os
 import time
+import uuid
 
 import httpx
 import pytest
@@ -257,6 +258,16 @@ def test_revision_overview_constraints_reject_invalid_lifecycle_updates():
             ),
             {"start_id": start_id, "final_id": final_id},
         ).scalar_one()
+        predecessor_of_final_id = conn.execute(
+            text(
+                """
+                SELECT rev_code_id
+                FROM ref.revision_overview
+                WHERE next_rev_code_id = :final_id
+                """
+            ),
+            {"final_id": final_id},
+        ).scalar_one()
 
         invalid_statements = (
             (
@@ -268,6 +279,16 @@ def test_revision_overview_constraints_reject_invalid_lifecycle_updates():
                     """
                 ),
                 {"rev_code_id": other_id},
+            ),
+            (
+                text(
+                    """
+                    UPDATE ref.revision_overview
+                    SET next_rev_code_id = :start_id
+                    WHERE rev_code_id = :rev_code_id
+                    """
+                ),
+                {"start_id": start_id, "rev_code_id": predecessor_of_final_id},
             ),
             (
                 text(
@@ -304,6 +325,293 @@ def test_revision_overview_constraints_reject_invalid_lifecycle_updates():
         )
 
         for statement, params in invalid_statements:
+            with pytest.raises(DBAPIError):
+                with conn.begin_nested():
+                    conn.execute(statement, params)
+
+
+@pytest.mark.api_smoke
+def test_revision_overview_transactional_reconfiguration_and_insert_guards():
+    """
+    TS-GET-004: transactional chain extension must succeed while insert guardrails stay immediate.
+    """
+    engine = create_engine(_build_admin_database_url())
+    token = uuid.uuid4().hex[:6].upper()
+    with engine.begin() as conn:
+        final_id = conn.execute(
+            text(
+                """
+                SELECT rev_code_id
+                FROM ref.revision_overview
+                WHERE final IS TRUE
+                """
+            )
+        ).scalar_one()
+        start_id = conn.execute(
+            text(
+                """
+                SELECT rev_code_id
+                FROM ref.revision_overview
+                WHERE start IS TRUE
+                """
+            )
+        ).scalar_one()
+        start_predecessor_count = conn.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM ref.revision_overview
+                WHERE next_rev_code_id = :start_id
+                """
+            ),
+            {"start_id": start_id},
+        ).scalar_one()
+        original_count = conn.execute(
+            text("SELECT COUNT(*) FROM ref.revision_overview")
+        ).scalar_one()
+        original_path_ids = list(
+            conn.execute(
+                text(
+                    """
+                    WITH RECURSIVE revision_flow AS (
+                        SELECT rev_code_id, next_rev_code_id, 1 AS step_order
+                        FROM ref.revision_overview
+                        WHERE start IS TRUE
+                        UNION ALL
+                        SELECT child.rev_code_id, child.next_rev_code_id, parent.step_order + 1
+                        FROM ref.revision_overview AS child
+                        JOIN revision_flow AS parent
+                          ON child.rev_code_id = parent.next_rev_code_id
+                    )
+                    SELECT rev_code_id
+                    FROM revision_flow
+                    ORDER BY step_order
+                    """
+                )
+            ).scalars()
+        )
+        assert start_predecessor_count == 0
+
+        nested = conn.begin_nested()
+        try:
+            inserted_id = conn.execute(
+                text(
+                    """
+                    INSERT INTO ref.revision_overview (
+                        rev_code_name,
+                        rev_code_acronym,
+                        rev_description,
+                        next_rev_code_id,
+                        revertible,
+                        editable,
+                        final,
+                        start,
+                        percentage
+                    ) VALUES (
+                        :rev_code_name,
+                        :rev_code_acronym,
+                        :rev_description,
+                        :next_rev_code_id,
+                        TRUE,
+                        FALSE,
+                        FALSE,
+                        FALSE,
+                        95
+                    )
+                    RETURNING rev_code_id
+                    """
+                ),
+                {
+                    "rev_code_name": f"QA{token}",
+                    "rev_code_acronym": token[:5],
+                    "rev_description": f"QA TRANSITION {token}",
+                    "next_rev_code_id": start_id,
+                },
+            ).scalar_one()
+
+            conn.execute(
+                text(
+                    """
+                    UPDATE ref.revision_overview
+                    SET start = FALSE
+                    WHERE rev_code_id = :start_id
+                    """
+                ),
+                {"start_id": start_id},
+            )
+            conn.execute(
+                text(
+                    """
+                    UPDATE ref.revision_overview
+                    SET start = TRUE
+                    WHERE rev_code_id = :inserted_id
+                    """
+                ),
+                {"inserted_id": inserted_id},
+            )
+
+            path_ids = list(
+                conn.execute(
+                    text(
+                        """
+                        WITH RECURSIVE revision_flow AS (
+                            SELECT rev_code_id, next_rev_code_id, 1 AS step_order
+                            FROM ref.revision_overview
+                            WHERE start IS TRUE
+                            UNION ALL
+                            SELECT child.rev_code_id, child.next_rev_code_id, parent.step_order + 1
+                            FROM ref.revision_overview AS child
+                            JOIN revision_flow AS parent
+                              ON child.rev_code_id = parent.next_rev_code_id
+                        )
+                        SELECT rev_code_id
+                        FROM revision_flow
+                        ORDER BY step_order
+                        """
+                    )
+                ).scalars()
+            )
+            assert len(path_ids) == original_count + 1
+            assert path_ids[0] == inserted_id
+            assert path_ids[1] == start_id
+            assert path_ids[-1] == final_id
+            assert conn.execute(
+                text("SELECT COUNT(*) FROM ref.revision_overview")
+            ).scalar_one() == (original_count + 1)
+        finally:
+            nested.rollback()
+
+        assert (
+            conn.execute(text("SELECT COUNT(*) FROM ref.revision_overview")).scalar_one()
+            == original_count
+        )
+        assert (
+            list(
+                conn.execute(
+                    text(
+                        """
+                    WITH RECURSIVE revision_flow AS (
+                        SELECT rev_code_id, next_rev_code_id, 1 AS step_order
+                        FROM ref.revision_overview
+                        WHERE start IS TRUE
+                        UNION ALL
+                        SELECT child.rev_code_id, child.next_rev_code_id, parent.step_order + 1
+                        FROM ref.revision_overview AS child
+                        JOIN revision_flow AS parent
+                          ON child.rev_code_id = parent.next_rev_code_id
+                    )
+                    SELECT rev_code_id
+                    FROM revision_flow
+                    ORDER BY step_order
+                    """
+                    )
+                ).scalars()
+            )
+            == original_path_ids
+        )
+
+        invalid_inserts = (
+            (
+                text(
+                    """
+                    INSERT INTO ref.revision_overview (
+                        rev_code_name,
+                        rev_code_acronym,
+                        rev_description,
+                        next_rev_code_id,
+                        revertible,
+                        editable,
+                        final,
+                        start,
+                        percentage
+                    ) VALUES (
+                        :rev_code_name,
+                        :rev_code_acronym,
+                        :rev_description,
+                        :next_rev_code_id,
+                        FALSE,
+                        TRUE,
+                        FALSE,
+                        TRUE,
+                        5
+                    )
+                    """
+                ),
+                {
+                    "rev_code_name": f"QS{token}",
+                    "rev_code_acronym": f"S{token[:4]}",
+                    "rev_description": f"QA START {token}",
+                    "next_rev_code_id": start_id,
+                },
+            ),
+            (
+                text(
+                    """
+                    INSERT INTO ref.revision_overview (
+                        rev_code_name,
+                        rev_code_acronym,
+                        rev_description,
+                        next_rev_code_id,
+                        revertible,
+                        editable,
+                        final,
+                        start,
+                        percentage
+                    ) VALUES (
+                        :rev_code_name,
+                        :rev_code_acronym,
+                        :rev_description,
+                        NULL,
+                        FALSE,
+                        FALSE,
+                        TRUE,
+                        FALSE,
+                        100
+                    )
+                    """
+                ),
+                {
+                    "rev_code_name": f"QF{token}",
+                    "rev_code_acronym": f"F{token[:4]}",
+                    "rev_description": f"QA FINAL {token}",
+                },
+            ),
+            (
+                text(
+                    """
+                    INSERT INTO ref.revision_overview (
+                        rev_code_name,
+                        rev_code_acronym,
+                        rev_description,
+                        next_rev_code_id,
+                        revertible,
+                        editable,
+                        final,
+                        start,
+                        percentage
+                    ) VALUES (
+                        :rev_code_name,
+                        :rev_code_acronym,
+                        :rev_description,
+                        :next_rev_code_id,
+                        TRUE,
+                        FALSE,
+                        FALSE,
+                        FALSE,
+                        85
+                    )
+                    """
+                ),
+                {
+                    "rev_code_name": f"QP{token}",
+                    "rev_code_acronym": f"P{token[:4]}",
+                    "rev_description": f"QA PRED {token}",
+                    "next_rev_code_id": final_id,
+                },
+            ),
+        )
+
+        for statement, params in invalid_inserts:
             with pytest.raises(DBAPIError):
                 with conn.begin_nested():
                     conn.execute(statement, params)

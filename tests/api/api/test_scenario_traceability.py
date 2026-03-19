@@ -302,6 +302,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/get_endpoints_api_test_scenarios.md",
         ["TS-GET-003"],
     ),
+    "test_revision_overview_transactional_reconfiguration_and_insert_guards": (
+        "documentation/test_scenarios/get_endpoints_api_test_scenarios.md",
+        ["TS-GET-004"],
+    ),
     "test_critical_list_endpoints_match_response_models": (
         "documentation/test_scenarios/endpoint_contract_api_test_scenarios.md",
         ["TS-CTR-001"],
