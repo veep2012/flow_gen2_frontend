@@ -1357,7 +1357,9 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     """
     List all revision overview entries.
 
-    Returns revision overview lifecycle steps ordered from the start step to the final step.
+    Returns revision overview lifecycle steps ordered from the configured start step and
+    walking `next_rev_code_id` until the terminal step. The response order is path-derived,
+    not name, ID, or percentage sorted.
 
     Returns:
         List of revision codes with lifecycle fields and percentage.

@@ -140,6 +140,7 @@ def test_all_get_endpoints():
 
 @pytest.mark.api_smoke
 def test_revision_overview_represents_single_lifecycle_path():
+    """TS-GET-002: revision overview ordering must follow the configured lifecycle path."""
     with httpx.Client(timeout=10) as client:
         result = _request(client, f"{_build_base_url()}/documents/revision_overview")
         assert result["status"] == 200
@@ -147,8 +148,8 @@ def test_revision_overview_represents_single_lifecycle_path():
         assert result["payload"], "Expected seeded revision overview steps"
 
         steps = result["payload"]
-        step_ids = [step["rev_code_id"] for step in steps]
-        assert len(step_ids) == len(set(step_ids))
+        returned_ids = [step["rev_code_id"] for step in steps]
+        assert len(returned_ids) == len(set(returned_ids))
 
         starts = [step for step in steps if step.get("start") is True]
         finals = [step for step in steps if step.get("final") is True]
@@ -156,6 +157,56 @@ def test_revision_overview_represents_single_lifecycle_path():
         assert len(finals) == 1
         assert steps[0]["start"] is True
         assert steps[-1]["final"] is True
+
+        engine = create_engine(_build_admin_database_url())
+        with engine.begin() as conn:
+            path_ids = list(
+                conn.execute(
+                    text(
+                        """
+                        WITH RECURSIVE revision_flow AS (
+                            SELECT rev_code_id, next_rev_code_id, 1 AS step_order
+                            FROM ref.revision_overview
+                            WHERE start IS TRUE
+                            UNION ALL
+                            SELECT child.rev_code_id, child.next_rev_code_id, parent.step_order + 1
+                            FROM ref.revision_overview AS child
+                            JOIN revision_flow AS parent
+                              ON child.rev_code_id = parent.next_rev_code_id
+                        )
+                        SELECT rev_code_id
+                        FROM revision_flow
+                        ORDER BY step_order
+                        """
+                    )
+                ).scalars()
+            )
+            id_sorted_ids = list(
+                conn.execute(
+                    text(
+                        """
+                        SELECT rev_code_id
+                        FROM ref.revision_overview
+                        ORDER BY rev_code_id
+                        """
+                    )
+                ).scalars()
+            )
+            name_sorted_ids = list(
+                conn.execute(
+                    text(
+                        """
+                        SELECT rev_code_id
+                        FROM ref.revision_overview
+                        ORDER BY rev_code_name
+                        """
+                    )
+                ).scalars()
+            )
+
+        assert returned_ids == path_ids
+        assert path_ids != id_sorted_ids
+        assert path_ids != name_sorted_ids
 
         for index, step in enumerate(steps):
             assert "next_rev_code_id" in step
@@ -166,6 +217,7 @@ def test_revision_overview_represents_single_lifecycle_path():
             if index < len(steps) - 1:
                 assert step["next_rev_code_id"] == steps[index + 1]["rev_code_id"]
                 assert step["final"] is False
+                assert step["next_rev_code_id"] is not None
             else:
                 assert step["next_rev_code_id"] is None
                 assert step["final"] is True

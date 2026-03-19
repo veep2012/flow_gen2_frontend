@@ -367,14 +367,44 @@ class RevisionOverviewOut(BaseModel):
         ..., description="Revision description.", examples=["Initial issue."], min_length=1
     )
     next_rev_code_id: int | None = Field(
-        None, description="Next revision code ID.", examples=[2], gt=0
+        None,
+        description=(
+            "Immediate successor revision code ID; null only for the terminal " "lifecycle step."
+        ),
+        examples=[2],
+        gt=0,
     )
-    revertible: bool = Field(..., description="Whether the step can revert.", examples=[True])
-    editable: bool = Field(..., description="Whether the step is editable.", examples=[True])
-    final: bool = Field(..., description="Whether the step is final.", examples=[False])
-    start: bool = Field(..., description="Whether the step is the start.", examples=[False])
+    revertible: bool = Field(
+        ...,
+        description=(
+            "Lifecycle metadata flag indicating whether the configured step "
+            "allows backward movement to its predecessor."
+        ),
+        examples=[True],
+    )
+    editable: bool = Field(
+        ...,
+        description=(
+            "Lifecycle metadata flag exposed to clients to indicate whether "
+            "the step is intended to allow edits."
+        ),
+        examples=[True],
+    )
+    final: bool = Field(
+        ..., description="Whether the step is the terminal lifecycle step.", examples=[False]
+    )
+    start: bool = Field(
+        ..., description="Whether the step is the lifecycle entry step.", examples=[False]
+    )
     percentage: int | None = Field(
-        None, description="Completion percentage.", examples=[50], ge=0, le=100
+        None,
+        description=(
+            "Optional descriptive progress percentage; the API does not use "
+            "it to order lifecycle steps."
+        ),
+        examples=[50],
+        ge=0,
+        le=100,
     )
 
 
@@ -390,18 +420,44 @@ class RevisionOverviewUpdate(BaseModel):
         None, description="Revision description.", examples=["Initial issue."], min_length=1
     )
     next_rev_code_id: int | None = Field(
-        None, description="Next revision code ID.", examples=[2], gt=0
+        None,
+        description=(
+            "Immediate successor revision code ID; null only for the terminal " "lifecycle step."
+        ),
+        examples=[2],
+        gt=0,
     )
     revertible: bool | None = Field(
-        None, description="Whether the step can revert.", examples=[True]
+        None,
+        description=(
+            "Lifecycle metadata flag indicating whether the configured step "
+            "allows backward movement to its predecessor."
+        ),
+        examples=[True],
     )
     editable: bool | None = Field(
-        None, description="Whether the step is editable.", examples=[True]
+        None,
+        description=(
+            "Lifecycle metadata flag exposed to clients to indicate whether "
+            "the step is intended to allow edits."
+        ),
+        examples=[True],
     )
-    final: bool | None = Field(None, description="Whether the step is final.", examples=[False])
-    start: bool | None = Field(None, description="Whether the step is the start.", examples=[False])
+    final: bool | None = Field(
+        None, description="Whether the step is the terminal lifecycle step.", examples=[False]
+    )
+    start: bool | None = Field(
+        None, description="Whether the step is the lifecycle entry step.", examples=[False]
+    )
     percentage: int | None = Field(
-        None, description="Completion percentage.", examples=[50], ge=0, le=100
+        None,
+        description=(
+            "Optional descriptive progress percentage; the API does not use "
+            "it to order lifecycle steps."
+        ),
+        examples=[50],
+        ge=0,
+        le=100,
     )
 
 
@@ -416,14 +472,44 @@ class RevisionOverviewCreate(BaseModel):
         ..., description="Revision description.", examples=["Initial issue."], min_length=1
     )
     next_rev_code_id: int | None = Field(
-        ..., description="Next revision code ID.", examples=[2], gt=0
+        ...,
+        description=(
+            "Immediate successor revision code ID; null only for the terminal " "lifecycle step."
+        ),
+        examples=[2],
+        gt=0,
     )
-    revertible: bool = Field(..., description="Whether the step can revert.", examples=[True])
-    editable: bool = Field(..., description="Whether the step is editable.", examples=[True])
-    final: bool = Field(..., description="Whether the step is final.", examples=[False])
-    start: bool = Field(..., description="Whether the step is the start.", examples=[False])
+    revertible: bool = Field(
+        ...,
+        description=(
+            "Lifecycle metadata flag indicating whether the configured step "
+            "allows backward movement to its predecessor."
+        ),
+        examples=[True],
+    )
+    editable: bool = Field(
+        ...,
+        description=(
+            "Lifecycle metadata flag exposed to clients to indicate whether "
+            "the step is intended to allow edits."
+        ),
+        examples=[True],
+    )
+    final: bool = Field(
+        ..., description="Whether the step is the terminal lifecycle step.", examples=[False]
+    )
+    start: bool = Field(
+        ..., description="Whether the step is the lifecycle entry step.", examples=[False]
+    )
     percentage: int | None = Field(
-        None, description="Completion percentage.", examples=[50], ge=0, le=100
+        None,
+        description=(
+            "Optional descriptive progress percentage; the API does not use "
+            "it to order lifecycle steps."
+        ),
+        examples=[50],
+        ge=0,
+        le=100,
     )
 
 

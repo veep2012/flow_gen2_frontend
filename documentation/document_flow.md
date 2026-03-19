@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-18
-- Version: v1.5
+- Last Updated: 2026-03-19
+- Version: v1.6
 
 ## Change Log
+- 2026-03-19 | v1.6 | Clarified `revision_overview` path semantics, including path-derived ordering, successor nullability, and the metadata role of `revertible`, `editable`, and `percentage`.
 - 2026-03-18 | v1.5 | Redesigned `revision_overview` as a lifecycle table with start/final markers, explicit next-step links, edit/revert flags, and start-to-finish flow ordering.
 - 2026-02-21 | v1.4 | Corrected core-vs-dictionary table classification and added implemented collaboration entities (`written_comments`, `notifications`, `notification_targets`, `notification_recipients`) to the workflow inventory.
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
@@ -71,9 +72,11 @@ Schema ownership (implementation contract):
 
 - exactly one step has `start = TRUE`
 - exactly one step has `final = TRUE`
-- each non-final step points to `next_rev_code_id`
-- backward movement is allowed only when `revertible = TRUE`
-- editing is allowed only when `editable = TRUE`
+- each non-final step points to its immediate successor through `next_rev_code_id`
+- the lifecycle path exposed by `GET /api/v1/documents/revision_overview` starts at `start = TRUE` and follows `next_rev_code_id` until the single terminal step; the API does not sort this list by name, ID, or percentage
+- `revertible` is lifecycle metadata indicating that the modeled step allows backward movement to its predecessor in the configured chain
+- `editable` is lifecycle metadata exposed to clients to indicate that the step is intended to allow edits; it is not, by itself, an API authorization decision
+- `percentage` is descriptive progress metadata and is not used to compute lifecycle ordering
 
 ```mermaid
 flowchart LR

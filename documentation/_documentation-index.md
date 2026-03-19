@@ -20,6 +20,7 @@
 - `development_workflow.md` - Branching, setup, and development process.
 
 ## Feature and Domain Docs
+- `current_user_photo_story.md` - Draft story for `GET /api/v1/people/users/current_user/photo` and unified MinIO-backed download handling.
 - `notifications_and_dls.md` - Unified Notifications + Distribution Lists module (active source of truth).
 - `distribution_list_feature.md` - Deprecated pointer; merged into `notifications_and_dls.md`.
 - `distribution_list_implementation.md` - Deprecated pointer; merged into `notifications_and_dls.md`.

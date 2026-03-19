@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-18
-- Version: v3.8
+- Last Updated: 2026-03-19
+- Version: v3.9
 
 ## Change Log
+- 2026-03-19 | v3.9 | Clarified the `GET /api/v1/documents/revision_overview` contract: path-derived ordering, `next_rev_code_id` terminal nullability, unique start/final semantics, descriptive `percentage`, and the metadata role of `revertible`/`editable`.
 - 2026-03-18 | v3.8 | Removed `recipient_user_id` override from `GET /api/v1/notifications`; inbox listing now always resolves to the effective current user, and examples/contracts were updated accordingly.
 - 2026-03-18 | v3.7 | Documented owner-or-superuser authorization for `DELETE /api/v1/files/commented/{id}`, including the `403`/fail-closed `404` behavior and authenticated request example.
 - 2026-03-12 | v3.6 | Removed redundant create-time actor fields from commented-files, written-comments, and notifications APIs; create authorship/sender now always resolves from effective session identity while recipient targeting remains explicit.
@@ -328,6 +329,14 @@ Schema references:
 - Response: `api/schemas/documents.py` `RevisionOverviewOut`
 ### List
 - `GET /api/v1/documents/revision_overview` — 200 ordered from the single `start=true` step to the single `final=true` step; empty list if no start step is configured.
+- Contract notes:
+  - Response order is guaranteed to follow the lifecycle path starting at the single reachable `start=true` row and recursively following `next_rev_code_id` until the terminal row.
+  - The endpoint does not sort by `rev_code_name`, `rev_code_id`, or `percentage`.
+  - In a valid lifecycle configuration, exactly one returned item has `start=true` and exactly one returned item has `final=true`.
+  - `next_rev_code_id` is null only for the terminal row returned by this endpoint; non-terminal rows expose the immediate successor ID.
+  - `revertible` is lifecycle metadata that indicates whether the configured step allows backward movement to its predecessor in the modeled chain.
+  - `editable` is lifecycle metadata exposed to clients; this endpoint does not itself enforce write authorization rules based on `editable`.
+  - `percentage` is descriptive progress metadata only. Clients must not infer response order from it or assume monotonicity as an API guarantee.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash

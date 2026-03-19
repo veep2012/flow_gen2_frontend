@@ -9,7 +9,7 @@
 - Version: v1.5
 
 ## Change Log
-- 2026-03-19 | v1.5 | Added explicit traceability for revision overview lifecycle-path and invalid-update constraint checks.
+- 2026-03-19 | v1.5 | Added explicit traceability for revision overview lifecycle-path and invalid-update constraint checks, and tightened the lifecycle-order scenario so it proves path-based ordering rather than name or ID sorting.
 - 2026-03-18 | v1.4 | Added revision overview lifecycle ordering and invariant checks for the redesigned lifecycle response.
 - 2026-03-04 | v1.3 | Added `/metrics` to the baseline GET smoke sweep and documented the observability endpoint contract.
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
@@ -81,9 +81,32 @@ curl -s "$API_BASE$API_PREFIX/documents/revision_overview" | jq '
       . as $steps
       | [range(0; ($steps | length) - 1) | $steps[.].next_rev_code_id == $steps[. + 1].rev_code_id]
       | all
-    )
+    ),
+    next_id_null_only_on_last: (
+      . as $steps
+      | [range(0; ($steps | length) - 1) | $steps[.].next_rev_code_id != null]
+      | all
+    ),
+    percentage_is_descriptive_only: "order is derived from next_rev_code_id, not percentage"
   }'
 ```
+
+- Intent: prove the endpoint returns the configured lifecycle path, not incidental lexical or numeric ordering.
+- Setup/preconditions:
+  - a seeded `ref.revision_overview` table exists
+  - exactly one `start=true` row exists
+  - exactly one `final=true` row exists
+  - the seeded lifecycle order differs from both `ORDER BY rev_code_id` and `ORDER BY rev_code_name`
+- Request/action:
+  - call `GET /api/v1/documents/revision_overview`
+- Expected response/assertions:
+  - response begins at the `start=true` row
+  - response ends at the `final=true` row
+  - each intermediate row points to the next returned row via `next_rev_code_id`
+  - only the last returned row has `next_rev_code_id = null`
+  - response order is not derived from `rev_code_id` sort or `rev_code_name` sort
+- Cleanup:
+  - no cleanup required
 
 ## 4. TS-GET-003 Reject invalid revision overview lifecycle updates
 
