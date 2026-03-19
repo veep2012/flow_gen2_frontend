@@ -596,7 +596,10 @@ def delete_commented_file(
         request: Incoming request used for logging the client host.
 
     Raises:
-        HTTPException: 404 if commented file not found.
+        HTTPException: 401 if no effective user identity is available.
+        HTTPException: 403 if the caller is not the commented file owner or a superuser.
+        HTTPException: 404 if the commented file is not found.
+        HTTPException: 500 if an internal error occurs while finalizing deletion.
     """
     actor_user_id = get_effective_user_id(db)
     if not actor_user_id:
