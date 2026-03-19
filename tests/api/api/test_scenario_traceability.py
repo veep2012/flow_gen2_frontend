@@ -294,6 +294,14 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/get_endpoints_api_test_scenarios.md",
         ["TS-GET-001"],
     ),
+    "test_revision_overview_represents_single_lifecycle_path": (
+        "documentation/test_scenarios/get_endpoints_api_test_scenarios.md",
+        ["TS-GET-002"],
+    ),
+    "test_revision_overview_constraints_reject_invalid_lifecycle_updates": (
+        "documentation/test_scenarios/get_endpoints_api_test_scenarios.md",
+        ["TS-GET-003"],
+    ),
     "test_critical_list_endpoints_match_response_models": (
         "documentation/test_scenarios/endpoint_contract_api_test_scenarios.md",
         ["TS-CTR-001"],

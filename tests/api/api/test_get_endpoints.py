@@ -82,7 +82,7 @@ def _build_admin_database_url() -> str:
             host=host,
             port=int(port),
             database=db_name,
-        )
+        ).render_as_string(hide_password=False)
     )
 
 

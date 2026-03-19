@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-03-18
-- Version: v1.4
+- Last Updated: 2026-03-19
+- Version: v1.5
 
 ## Change Log
+- 2026-03-19 | v1.5 | Added explicit traceability for revision overview lifecycle-path and invalid-update constraint checks.
 - 2026-03-18 | v1.4 | Added revision overview lifecycle ordering and invariant checks for the redesigned lifecycle response.
 - 2026-03-04 | v1.3 | Added `/metrics` to the baseline GET smoke sweep and documented the observability endpoint contract.
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
@@ -84,6 +85,25 @@ curl -s "$API_BASE$API_PREFIX/documents/revision_overview" | jq '
   }'
 ```
 
+## 4. TS-GET-003 Reject invalid revision overview lifecycle updates
+
+- Intent: database constraints must reject invalid lifecycle mutations that would break the ordered revision path.
+- Setup/preconditions:
+  - a seeded `ref.revision_overview` table exists
+  - exactly one `start=true` row exists
+  - exactly one `final=true` row exists
+  - at least one intermediate lifecycle row exists
+- Request/action:
+  - attempt to update an intermediate row so `next_rev_code_id = rev_code_id`
+  - attempt to mark a second row as `start=true`
+  - attempt to make the final row both `final=true` and point to a next step
+  - attempt to make the final row non-final while still pointing to a next step
+- Expected response/assertions:
+  - each invalid update must fail with a database error
+  - the transaction must roll back without persisting the invalid state
+- Cleanup:
+  - no cleanup required because the verification runs inside rolled-back nested transactions
+
 ## Edge Cases
 - If no project exists, `/documents?project_id=...` cannot be validated.
 - In empty seeds, some endpoints may return `404`; treat as environment limitation.
@@ -93,10 +113,12 @@ curl -s "$API_BASE$API_PREFIX/documents/revision_overview" | jq '
 ## Scenario Catalog
 - `TS-GET-001`: baseline GET endpoint set responds with success codes.
 - `TS-GET-002`: revision overview returns a single ordered lifecycle from `start=true` to `final=true`.
+- `TS-GET-003`: revision overview lifecycle constraints reject invalid state mutations that would break the single ordered path.
 
 ## Automated Test Mapping
 - `tests/api/api/test_get_endpoints.py::test_all_get_endpoints` -> `TS-GET-001`
 - `tests/api/api/test_get_endpoints.py::test_revision_overview_represents_single_lifecycle_path` -> `TS-GET-002`
+- `tests/api/api/test_get_endpoints.py::test_revision_overview_constraints_reject_invalid_lifecycle_updates` -> `TS-GET-003`
 
 ## References
 - `tests/api/api/test_get_endpoints.py`
