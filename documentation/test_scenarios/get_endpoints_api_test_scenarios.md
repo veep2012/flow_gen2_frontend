@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-03-19
-- Version: v1.6
+- Last Updated: 2026-03-20
+- Version: v1.7
 
 ## Change Log
+- 2026-03-20 | v1.7 | Made the revision-overview connectivity invariant explicit and added scenario coverage for rejecting disconnected predecessors and unreachable lifecycle islands.
 - 2026-03-19 | v1.6 | Added transactional revision overview reconfiguration coverage and documented immediate insert guards for start/final/predecessor invariants.
 - 2026-03-18 | v1.4 | Added revision overview lifecycle ordering and invariant checks for the redesigned lifecycle response.
 - 2026-03-04 | v1.3 | Added `/metrics` to the baseline GET smoke sweep and documented the observability endpoint contract.
@@ -122,6 +123,7 @@ curl -s "$API_BASE$API_PREFIX/documents/revision_overview" | jq '
   - attempt to mark a second row as `start=true`
   - attempt to make the final row both `final=true` and point to a next step
   - attempt to make the final row non-final while still pointing to a next step
+  - attempt to commit a disconnected predecessor row that points to the current start row while leaving the original row marked `start=true`
 - Expected response/assertions:
   - each invalid update must fail with a database error
   - the transaction must roll back without persisting the invalid state
@@ -130,7 +132,7 @@ curl -s "$API_BASE$API_PREFIX/documents/revision_overview" | jq '
 
 ## 5. TS-GET-004 Validate transactional lifecycle reconfiguration and immediate insert guards
 
-- Intent: prove valid ordered multi-row reconfiguration can succeed transactionally while extra start/final/predecessor inserts fail immediately under the current constraint model.
+- Intent: prove valid ordered multi-row reconfiguration can succeed transactionally only when the final transaction state remains one connected start-to-final path.
 - Setup/preconditions:
   - a seeded `ref.revision_overview` table exists
   - the configured `start=true` row currently has no predecessor
@@ -139,16 +141,18 @@ curl -s "$API_BASE$API_PREFIX/documents/revision_overview" | jq '
   - insert a new predecessor lifecycle row whose `next_rev_code_id` points to the current start row
   - update the old start row to `start=false`
   - update the new predecessor row to `start=true`
-  - verify the path remains valid inside the transaction, then roll it back
+  - force deferred constraint validation after the reconfiguration, then roll it back
   - separately attempt to insert:
     - a second `start=true` row
     - a second terminal/final row
     - a new row pointing to a successor that already has a predecessor
+    - a hidden predecessor row that would leave an unreachable lifecycle step outside the configured `start=true` chain
 - Expected response/assertions:
   - the ordered multi-row reconfiguration succeeds when the old start row is cleared before the new predecessor is promoted to `start=true`
   - the temporary transactional path grows by one valid leading row and still terminates at the same final row
   - rollback restores the original row count and original path
-  - extra start/final/predecessor inserts fail immediately with database errors under the current non-deferred constraint model
+  - extra start/final/predecessor inserts fail with database errors
+  - disconnected predecessors, unreachable rows, and hidden acyclic islands are forbidden because every row must belong to the single connected start-to-final path
 - Cleanup:
   - no cleanup required because successful validation happens inside a rolled-back nested transaction
 
@@ -157,13 +161,13 @@ curl -s "$API_BASE$API_PREFIX/documents/revision_overview" | jq '
 - In empty seeds, some endpoints may return `404`; treat as environment limitation.
 - `/metrics` may return zero-valued or sparse counters before auth-related failures are exercised; the endpoint must still return `200`.
 - The lifecycle assertion depends on a configured `start=true` row in `revision_overview`.
-- The current schema enforces start/final/predecessor uniqueness immediately rather than as deferred end-of-transaction checks.
+- Start/final/predecessor uniqueness is structural, while full connectivity is validated as a deferred transaction-end invariant.
 
 ## Scenario Catalog
 - `TS-GET-001`: baseline GET endpoint set responds with success codes.
 - `TS-GET-002`: revision overview returns a single ordered lifecycle from `start=true` to `final=true`.
 - `TS-GET-003`: revision overview lifecycle constraints reject invalid state mutations that would break the single ordered path.
-- `TS-GET-004`: revision overview allows ordered transactional chain extension but rejects extra start/final/predecessor inserts immediately.
+- `TS-GET-004`: revision overview allows ordered transactional chain extension only when the final transaction state remains one connected start-to-final path.
 
 ## Automated Test Mapping
 - `tests/api/api/test_get_endpoints.py::test_all_get_endpoints` -> `TS-GET-001`

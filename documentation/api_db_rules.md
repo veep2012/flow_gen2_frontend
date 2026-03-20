@@ -7,9 +7,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-20
-- Version: v1.5
+- Version: v1.6
 
 ## Change Log
+- 2026-03-20 | v1.6 | Made `revision_overview` connectivity explicit: every row must belong to the single connected path reachable from the unique `start=true` row to the unique terminal/final row, with deferred transaction-end validation for multi-step reconfiguration.
 - 2026-03-20 | v1.5 | Synchronized workflow lifecycle invariants with the current SQL schema: documented exact `revision_overview` and `doc_rev_statuses` constraints for terminal nullability, final-step locking, cycle/self-reference prevention, single start/final semantics, and the descriptive-only role of `percentage`.
 - 2026-03-18 | v1.4 | Clarified this document's scope as the backend/database enforcement contract beneath the new application-level authorization policy.
 - 2026-03-04 | v1.3 | Clarified that API read SQL must target `workflow.v_*` views only and documented the repository static guard for this contract.
@@ -286,6 +287,10 @@ The database enforces:
 - final steps must have `next_rev_code_id IS NULL`
 - final steps must not be editable or revertible
 - non-final steps must have a single successor and at most one predecessor
+- every row must belong to the single connected chain reachable from the unique `start = true` step
+- disconnected rows, hidden predecessors, unreachable islands, and separate acyclic chains are forbidden
+
+Connectivity is validated as a deferred transaction-end invariant so valid multi-row reconfiguration can occur within a transaction as long as the committed final state is one connected start-to-final path.
 
 `percentage` is descriptive metadata only. It does not define lifecycle ordering.
 

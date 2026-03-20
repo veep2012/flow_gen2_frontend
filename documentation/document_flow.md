@@ -6,9 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-20
-- Version: v1.7
+- Version: v1.8
 
 ## Change Log
+- 2026-03-20 | v1.8 | Clarified that every `revision_overview` row must remain on the single connected lifecycle path from the unique start step to the unique final step, while allowing valid transactional reconfiguration before commit.
 - 2026-03-20 | v1.7 | Tightened `revision_overview` lifecycle documentation to match the current SQL constraints: final-step locking, cycle/self-reference prevention, and the single-predecessor rule.
 - 2026-03-19 | v1.6 | Clarified `revision_overview` path semantics, including path-derived ordering, successor nullability, and the metadata role of `revertible`, `editable`, and `percentage`.
 - 2026-03-18 | v1.5 | Redesigned `revision_overview` as a lifecycle table with start/final markers, explicit next-step links, edit/revert flags, and start-to-finish flow ordering.
@@ -76,11 +77,13 @@ Schema ownership (implementation contract):
 - each non-final step points to its immediate successor through `next_rev_code_id`
 - each non-terminal step can have at most one predecessor; the lifecycle is a single chain rather than a branching graph
 - the lifecycle path exposed by `GET /api/v1/documents/revision_overview` starts at `start = TRUE` and follows `next_rev_code_id` until the single terminal step; the API does not sort this list by name, ID, or percentage
+- every stored row must be reachable from that unique `start = TRUE` path; disconnected predecessors, unreachable nodes, and separate acyclic islands are invalid
 - `revertible` is lifecycle metadata indicating that the modeled step allows backward movement to its predecessor in the configured chain
 - `editable` is lifecycle metadata exposed to clients to indicate that the step is intended to allow edits; it is not, by itself, an API authorization decision
 - `percentage` is descriptive progress metadata and is not used to compute lifecycle ordering
 - database constraints reject self-reference and cycles in the configured chain
 - final steps are locked by definition: when `final = TRUE`, `editable = FALSE`, `revertible = FALSE`, and `next_rev_code_id IS NULL`
+- connectivity is checked at transaction end so multi-step reconfiguration may be staged within one transaction, but the committed end state must still be one connected start-to-final path
 
 ```mermaid
 flowchart LR

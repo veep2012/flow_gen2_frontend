@@ -879,6 +879,16 @@ _REVISION_OVERVIEW_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
         400,
         "Revision overview lifecycle must remain a single ordered path",
     ),
+    (
+        "revision overview lifecycle must remain a single connected start-to-final path",
+        400,
+        "Revision overview lifecycle must remain a single connected start-to-final path",
+    ),
+    (
+        "revision overview lifecycle must contain exactly one connected start-to-final path",
+        400,
+        "Revision overview lifecycle must contain exactly one connected start-to-final path",
+    ),
 )
 
 

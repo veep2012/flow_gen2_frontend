@@ -329,6 +329,38 @@ def test_revision_overview_constraints_reject_invalid_lifecycle_updates():
                 with conn.begin_nested():
                     conn.execute(statement, params)
 
+        with pytest.raises(DBAPIError):
+            with conn.begin_nested():
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO ref.revision_overview (
+                            rev_code_name,
+                            rev_code_acronym,
+                            rev_description,
+                            next_rev_code_id,
+                            revertible,
+                            editable,
+                            final,
+                            start,
+                            percentage
+                        ) VALUES (
+                            'QDISC-CONNECT',
+                            'QDCON',
+                            'DISCONNECTED CONNECTIVITY CHECK',
+                            :start_id,
+                            TRUE,
+                            FALSE,
+                            FALSE,
+                            FALSE,
+                            15
+                        )
+                        """
+                    ),
+                    {"start_id": start_id},
+                )
+                conn.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
+
 
 @pytest.mark.api_smoke
 def test_revision_overview_transactional_reconfiguration_and_insert_guards():
@@ -449,6 +481,7 @@ def test_revision_overview_transactional_reconfiguration_and_insert_guards():
                 ),
                 {"inserted_id": inserted_id},
             )
+            conn.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
 
             path_ids = list(
                 conn.execute(
@@ -609,9 +642,43 @@ def test_revision_overview_transactional_reconfiguration_and_insert_guards():
                     "next_rev_code_id": final_id,
                 },
             ),
+            (
+                text(
+                    """
+                    INSERT INTO ref.revision_overview (
+                        rev_code_name,
+                        rev_code_acronym,
+                        rev_description,
+                        next_rev_code_id,
+                        revertible,
+                        editable,
+                        final,
+                        start,
+                        percentage
+                    ) VALUES (
+                        :rev_code_name,
+                        :rev_code_acronym,
+                        :rev_description,
+                        :next_rev_code_id,
+                        TRUE,
+                        FALSE,
+                        FALSE,
+                        FALSE,
+                        15
+                    )
+                    """
+                ),
+                {
+                    "rev_code_name": f"QC{token}",
+                    "rev_code_acronym": f"C{token[:4]}",
+                    "rev_description": f"QA CONNECT {token}",
+                    "next_rev_code_id": start_id,
+                },
+            ),
         )
 
         for statement, params in invalid_inserts:
             with pytest.raises(DBAPIError):
                 with conn.begin_nested():
                     conn.execute(statement, params)
+                    conn.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
