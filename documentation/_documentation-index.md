@@ -42,6 +42,7 @@
 - `test_scenarios/compose_auth_smoke_test_scenarios.md` - Shell-based compose auth and ingress smoke scenarios for `make test-compose`.
 - `test_scenarios/jwt_auth_validation_api_test_scenarios.md` - Fail-closed JWT/JWKS validation matrix and automated test coverage mapping.
 - `test_scenarios/read_sql_guard_api_test_scenarios.md` - Static guard contract for API SQL reads using `workflow.v_*` views only.
+- `test_scenarios/revision_code_seed_contract_api_test_scenarios.md` - Bootstrap and seed identity-preservation contract for revision codes and downstream references.
 
 ## Standards and Templates
 - `_documentation_standards.md` - Required structure and writing rules.

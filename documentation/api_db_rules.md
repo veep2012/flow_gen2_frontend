@@ -7,9 +7,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-20
-- Version: v1.7
+- Version: v1.8
 
 ## Change Log
+- 2026-03-20 | v1.8 | Added explicit revision-code bootstrap and migration guarantees: stable seeded `rev_code_id` values, sequence reset behavior, supported repeatable init+seed flow, downstream FK expectations, and the requirement that any future in-place migration preserve published `rev_code_id` identity semantics.
 - 2026-03-20 | v1.7 | Defined `doc_rev_statuses.revertible` precisely: back transitions target the unique immediate predecessor discovered by reverse `next_rev_status_id`, and the status graph now forbids ambiguous predecessor configurations.
 - 2026-03-20 | v1.6 | Made `revision_overview` connectivity explicit: every row must belong to the single connected path reachable from the unique `start=true` row to the unique terminal/final row, with deferred transaction-end validation for multi-step reconfiguration.
 - 2026-03-20 | v1.5 | Synchronized workflow lifecycle invariants with the current SQL schema: documented exact `revision_overview` and `doc_rev_statuses` constraints for terminal nullability, final-step locking, cycle/self-reference prevention, single start/final semantics, and the descriptive-only role of `percentage`.
@@ -302,6 +303,32 @@ The database enforces:
 Connectivity is validated as a deferred transaction-end invariant so valid multi-row reconfiguration can occur within a transaction as long as the committed final state is one connected start-to-final path.
 
 `percentage` is descriptive metadata only. It does not define lifecycle ordering.
+
+---
+
+### Revision code bootstrap and migration guarantees
+
+Repository-supported bootstrap path:
+- The repository currently ships schema initialization plus seed scripts under `ci/init/`; it does not ship a standalone in-place migration directory for revision codes.
+- The supported repeatable setup flow is `flow_init.psql` followed by `flow_seed.sql`.
+- `flow_init.psql` is intentionally re-runnable because it recreates the managed schemas before reinstalling objects.
+- `flow_seed.sql` is not a standalone idempotent migration script; it assumes a freshly initialized schema set.
+
+Identity and foreign-key guarantees:
+- `flow_seed.sql` inserts explicit `rev_code_id` values for the seeded revision-code lifecycle. Those IDs are part of the repository bootstrap contract.
+- The seed currently guarantees this stable mapping:
+  - `1 = IDC`
+  - `2 = IFRC`
+  - `3 = AFD`
+  - `4 = AFC`
+  - `5 = AS-BUILT`
+  - `6 = INDESIGN`
+- After explicit ID inserts, the seed resets the identity sequence to `MAX(rev_code_id)` so subsequent generated IDs do not collide or remap seeded values.
+- `core.doc_revision.rev_code_id` is protected by a foreign key to `ref.revision_overview(rev_code_id)`, so downstream revision rows cannot point to missing revision codes.
+- Workflow write paths must preserve that FK validity for both insert and update operations.
+
+Migration requirement for future changes:
+- Any future in-place migration that changes revision-code rows must preserve the published `rev_code_id` mapping above or provide an explicit data migration that updates every dependent reference safely in the same change.
 
 ---
 

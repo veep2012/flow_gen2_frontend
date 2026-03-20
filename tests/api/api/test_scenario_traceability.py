@@ -370,6 +370,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/notifications_api_test_plan.md",
         ["TS-NTF-008"],
     ),
+    "test_revision_code_seed_bootstrap_is_repeatable_and_preserves_identity": (
+        "documentation/test_scenarios/revision_code_seed_contract_api_test_scenarios.md",
+        ["TS-RCS-001"],
+    ),
 }
 
 TEST_FILES = [
@@ -383,6 +387,7 @@ TEST_FILES = [
     "tests/api/api/test_endpoint_contracts.py",
     "tests/api/api/test_get_endpoints.py",
     "tests/api/api/test_notifications_endpoints.py",
+    "tests/api/api/test_revision_code_seed_contract.py",
     "tests/api/api/test_written_comments_endpoints.py",
 ]
 
