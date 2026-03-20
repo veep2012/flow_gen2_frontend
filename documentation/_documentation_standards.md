@@ -57,6 +57,8 @@ Use `documentation/_documentation_template.md` as the starting point.
 - Add a new entry for each new document version.
 - Record version/date and concise summary of what changed.
 - Keep the newest entry first.
+- Keep at most one `Change Log` entry per calendar date in each document.
+- If multiple updates happen on the same date, merge them into the existing entry for that date instead of adding another row.
 - Keep historical decisions in document history or linked ADRs.
 
 ## 8. Migration of Existing Docs

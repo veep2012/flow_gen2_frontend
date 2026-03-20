@@ -9,10 +9,7 @@
 - Version: v2.1
 
 ## Change Log
-- 2026-03-20 | v2.1 | Clarified the current repository policy for revision-code changes: environments are recreated from `ci/init/` rather than migrated in place, and the documented safety guarantees apply to bootstrap/reseed identity preservation only.
-- 2026-03-20 | v1.9 | Defined revision-status `revertible` precisely as immediate-predecessor rollback via reverse `next_rev_status_id`, and documented the single-predecessor status-graph invariant that keeps backward transitions unambiguous.
-- 2026-03-20 | v1.8 | Clarified that every `revision_overview` row must remain on the single connected lifecycle path from the unique start step to the unique final step, while allowing valid transactional reconfiguration before commit.
-- 2026-03-20 | v1.7 | Tightened `revision_overview` lifecycle documentation to match the current SQL constraints: final-step locking, cycle/self-reference prevention, and the single-predecessor rule.
+- 2026-03-20 | v2.1 | Clarified the current repository policy for revision-code changes: environments are recreated from `ci/init/` rather than migrated in place, and the documented safety guarantees apply to bootstrap/reseed identity preservation only; defined revision-status `revertible` as immediate-predecessor rollback via reverse `next_rev_status_id`; clarified that every `revision_overview` row must remain on the single connected lifecycle path from the unique start step to the unique final step while allowing valid transactional reconfiguration before commit; and tightened lifecycle documentation to match the current SQL constraints for final-step locking, cycle/self-reference prevention, and the single-predecessor rule.
 - 2026-03-19 | v1.6 | Clarified `revision_overview` path semantics, including path-derived ordering, successor nullability, and the metadata role of `revertible`, `editable`, and `percentage`.
 - 2026-03-18 | v1.5 | Redesigned `revision_overview` as a lifecycle table with start/final markers, explicit next-step links, edit/revert flags, and start-to-finish flow ordering.
 - 2026-02-21 | v1.4 | Corrected core-vs-dictionary table classification and added implemented collaboration entities (`written_comments`, `notifications`, `notification_targets`, `notification_recipients`) to the workflow inventory.
