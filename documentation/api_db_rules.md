@@ -6,10 +6,11 @@
 - Owner: Backend and Database Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-18
-- Version: v1.4
+- Last Updated: 2026-03-20
+- Version: v1.5
 
 ## Change Log
+- 2026-03-20 | v1.5 | Synchronized workflow lifecycle invariants with the current SQL schema: documented exact `revision_overview` and `doc_rev_statuses` constraints for terminal nullability, final-step locking, cycle/self-reference prevention, single start/final semantics, and the descriptive-only role of `percentage`.
 - 2026-03-18 | v1.4 | Clarified this document's scope as the backend/database enforcement contract beneath the new application-level authorization policy.
 - 2026-03-04 | v1.3 | Clarified that API read SQL must target `workflow.v_*` views only and documented the repository static guard for this contract.
 - 2026-02-20 | v1.2 | Added mandatory core-table audit metadata requirement, synchronized skill fallback reference, and added missing `core.written_comments` to authoritative `core` table inventory
@@ -253,6 +254,14 @@ Key attributes:
 - `revertible`
 - `editable`
 
+The database enforces:
+- no self-reference
+- no cycles
+- only one `start = true` status
+- only one terminal/final status
+- final statuses must have `next_rev_status_id IS NULL`
+- final statuses must not be editable or revertible
+
 There may be multiple intermediate states.
 
 ---
@@ -267,6 +276,7 @@ Required lifecycle attributes:
 - `next_rev_code_id`
 - `revertible`
 - `editable`
+- `percentage`
 
 The database enforces:
 - no self-reference
@@ -274,7 +284,10 @@ The database enforces:
 - only one `start = true` step
 - only one terminal/final step
 - final steps must have `next_rev_code_id IS NULL`
+- final steps must not be editable or revertible
 - non-final steps must have a single successor and at most one predecessor
+
+`percentage` is descriptive metadata only. It does not define lifecycle ordering.
 
 ---
 
