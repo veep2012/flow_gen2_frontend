@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-20
-- Version: v2.0
+- Version: v2.1
 
 ## Change Log
-- 2026-03-20 | v2.0 | Added revision-code bootstrap notes covering stable seeded `rev_code_id` values, repeatable `flow_init.psql` + `flow_seed.sql` behavior, and the expectation that future migrations preserve downstream references.
+- 2026-03-20 | v2.1 | Clarified the current repository policy for revision-code changes: environments are recreated from `ci/init/` rather than migrated in place, and the documented safety guarantees apply to bootstrap/reseed identity preservation only.
 - 2026-03-20 | v1.9 | Defined revision-status `revertible` precisely as immediate-predecessor rollback via reverse `next_rev_status_id`, and documented the single-predecessor status-graph invariant that keeps backward transitions unambiguous.
 - 2026-03-20 | v1.8 | Clarified that every `revision_overview` row must remain on the single connected lifecycle path from the unique start step to the unique final step, while allowing valid transactional reconfiguration before commit.
 - 2026-03-20 | v1.7 | Tightened `revision_overview` lifecycle documentation to match the current SQL constraints: final-step locking, cycle/self-reference prevention, and the single-predecessor rule.
@@ -95,6 +95,7 @@ Revision-status rollback semantics:
 
 Bootstrap and migration notes:
 - Repository bootstrap currently relies on `ci/init/flow_init.psql` followed by `ci/init/flow_seed.sql`.
+- For now, database changes are applied by dropping and recreating the database from `ci/init/`; the repository does not ship in-place revision-code migration scripts.
 - The seeded lifecycle intentionally uses stable explicit IDs so downstream references remain predictable:
   - `1 = IDC`
   - `2 = IFRC`
@@ -103,7 +104,7 @@ Bootstrap and migration notes:
   - `5 = AS-BUILT`
   - `6 = INDESIGN`
 - `flow_seed.sql` resets the `rev_code_id` identity sequence after inserting those explicit rows so new generated IDs continue above the seeded range.
-- Future in-place migrations must preserve those IDs or update all dependent references in the same migration.
+- If a future migration framework is introduced, any in-place migration must preserve those IDs or update all dependent references in the same migration.
 
 ```mermaid
 flowchart LR

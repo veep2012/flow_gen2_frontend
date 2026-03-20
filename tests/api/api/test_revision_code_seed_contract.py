@@ -85,7 +85,7 @@ def _drop_database(db_name: str) -> None:
         admin_engine.dispose()
 
 
-def _assert_seed_contract(engine) -> None:
+def _assert_revision_overview_shape_and_fk(engine) -> None:
     with engine.begin() as conn:
         rows = conn.execute(
             text(
@@ -126,6 +126,9 @@ def _assert_seed_contract(engine) -> None:
         ).scalar_one()
         assert missing_fk_refs == 0
 
+
+def _assert_revision_overview_write_paths(engine) -> None:
+    with engine.begin() as conn:
         conn.execute(text("SELECT set_config('app.user', '1', true)"))
         created = (
             conn.execute(
@@ -192,6 +195,11 @@ def _assert_seed_contract(engine) -> None:
             {"rev_id": created["rev_id"]},
         ).scalar_one()
         assert updated_rev_code_id == 1
+
+
+def _assert_seed_contract(engine) -> None:
+    _assert_revision_overview_shape_and_fk(engine)
+    _assert_revision_overview_write_paths(engine)
 
 
 def test_revision_code_seed_bootstrap_is_repeatable_and_preserves_identity():

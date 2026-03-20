@@ -6,13 +6,13 @@
 - Reviewers: API maintainers
 - Created: 2026-03-20
 - Last Updated: 2026-03-20
-- Version: v0.1
+- Version: v0.2
 
 ## Change Log
-- 2026-03-20 | v0.1 | Initial scenario contract for revision-code bootstrap, seed identity preservation, and downstream foreign-key safety validation.
+- 2026-03-20 | v0.2 | Narrowed the contract to the current repository policy: revision-code safety is guaranteed through clean bootstrap and reseed only; in-place migration is explicitly out of scope until a future migration framework exists.
 
 ## Purpose
-Define the automated verification contract for revision-code bootstrap and seed behavior so seeded `rev_code_id` identities remain stable and safe for downstream references.
+Define the automated verification contract for revision-code bootstrap and reseed behavior so published `rev_code_id` identities remain stable and safe for downstream references.
 
 ## Scope
 - In scope:
@@ -22,11 +22,11 @@ Define the automated verification contract for revision-code bootstrap and seed 
   - foreign-key safety for `core.doc_revision.rev_code_id`
   - post-seed sequence advancement above explicit seeded IDs
 - Out of scope:
-  - in-place production migration tooling outside the repository bootstrap flow
+  - in-place migration tooling or upgrade validation for existing deployed databases
   - endpoint-specific response payload validation
 
 ## Design / Behavior
-The repository bootstrap contract must recreate the database cleanly, reseed `ref.revision_overview` with the documented fixed IDs, preserve referential integrity for downstream revision rows, and leave the identity sequence positioned above the seeded range.
+The repository contract supports clean bootstrap and reseed only. For now, revision-code safety means a recreated database must install the canonical `revision_overview` rows with stable `rev_code_id` identities, preserve downstream references created after bootstrap, and leave the identity sequence above the seeded range.
 
 ## Scenario Catalog
 - `TS-RCS-001`: revision-code bootstrap is repeatable and preserves seeded identity plus downstream foreign-key validity.
