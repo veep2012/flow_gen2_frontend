@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-20
-- Version: v4.0
+- Version: v4.1
 
 ## Change Log
-- 2026-03-20 | v4.0 | Defined revision back-transition semantics explicitly: `direction="back"` moves only to the unique immediate predecessor status resolved by reverse `next_rev_status_id`, and the status graph forbids ambiguous predecessor configurations.
+- 2026-03-20 | v4.1 | Clarified that there is currently no dedicated overview-transition endpoint: `ref.revision_overview` remains reference configuration, while `PUT /api/v1/documents/revisions/{rev_id}` may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)`; also defined revision back-transition semantics explicitly so `direction="back"` moves only to the unique immediate predecessor status resolved by reverse `next_rev_status_id`, and the status graph forbids ambiguous predecessor configurations.
 - 2026-03-19 | v3.9 | Clarified the `GET /api/v1/documents/revision_overview` contract: path-derived ordering, `next_rev_code_id` terminal nullability, unique start/final semantics, descriptive `percentage`, and the metadata role of `revertible`/`editable`.
 - 2026-03-18 | v3.8 | Removed `recipient_user_id` override from `GET /api/v1/notifications` so inbox listing always resolves to the effective current user, updated examples/contracts accordingly, and documented owner-or-superuser authorization for `DELETE /api/v1/files/commented/{id}`, including the `403`/fail-closed `404` behavior and authenticated request example.
 - 2026-03-12 | v3.6 | Removed redundant create-time actor fields from commented-files, written-comments, and notifications APIs; create authorship/sender now always resolves from effective session identity while recipient targeting remains explicit.
@@ -1161,11 +1161,12 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 ### Revision update
 - `PUT /api/v1/documents/revisions/{rev_id}` — 200; 400 if no fields; 404 if revision not found.
 - Note: `rev_status_id` is not supported by this endpoint. Use the status transition endpoint below.
+- Note: there is currently no dedicated revision-overview transition endpoint. When provided, `rev_code_id` is updated on `core.doc_revision` through `workflow.update_revision(...)`; this does not mutate rows in `ref.revision_overview`.
 - Headers: `Accept: application/json`, `Content-Type: application/json`
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
-  -d '{ "transmital_current_revision": "TR-UPDATED-001" }' \
+  -d '{ "transmital_current_revision": "TR-UPDATED-001", "rev_code_id": 1 }' \
   $API_BASE/api/v1/documents/revisions/1
 ```
 - Example response:
@@ -1174,10 +1175,10 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "rev_id": 1,
   "doc_id": 11,
   "seq_num": 1,
-  "rev_code_id": 6,
-  "rev_code_name": "INDESIGN",
-  "rev_code_acronym": "A",
-  "rev_description": "IN-DESIGN",
+  "rev_code_id": 1,
+  "rev_code_name": "IDC",
+  "rev_code_acronym": "B",
+  "rev_description": "INTERDISCIPLINE CHECK",
   "rev_author_id": 1,
   "rev_originator_id": 1,
   "rev_modifier_id": 1,

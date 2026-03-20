@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-20
-- Version: v2.1
+- Version: v2.2
 
 ## Change Log
-- 2026-03-20 | v2.1 | Clarified the current repository policy for revision-code changes: environments are recreated from `ci/init/` rather than migrated in place, and the documented safety guarantees apply to bootstrap/reseed identity preservation only; defined revision-status `revertible` as immediate-predecessor rollback via reverse `next_rev_status_id`; clarified that every `revision_overview` row must remain on the single connected lifecycle path from the unique start step to the unique final step while allowing valid transactional reconfiguration before commit; and tightened lifecycle documentation to match the current SQL constraints for final-step locking, cycle/self-reference prevention, and the single-predecessor rule.
+- 2026-03-20 | v2.2 | Clarified the current revision-code mutation contract: `ref.revision_overview` stays reference configuration, there is no dedicated overview-transition endpoint, and the generic revision update workflow may still change `core.doc_revision.rev_code_id`; also clarified that environments are recreated from `ci/init/` rather than migrated in place, that documented revision-code safety guarantees apply to bootstrap/reseed identity preservation only, that revision-status `revertible` means immediate-predecessor rollback via reverse `next_rev_status_id`, and that every `revision_overview` row must remain on the single connected lifecycle path from the unique start step to the unique final step while matching the current SQL constraints for final-step locking, cycle/self-reference prevention, and the single-predecessor rule.
 - 2026-03-19 | v1.6 | Clarified `revision_overview` path semantics, including path-derived ordering, successor nullability, and the metadata role of `revertible`, `editable`, and `percentage`.
 - 2026-03-18 | v1.5 | Redesigned `revision_overview` as a lifecycle table with start/final markers, explicit next-step links, edit/revert flags, and start-to-finish flow ordering.
 - 2026-02-21 | v1.4 | Corrected core-vs-dictionary table classification and added implemented collaboration entities (`written_comments`, `notifications`, `notification_targets`, `notification_recipients`) to the workflow inventory.
@@ -89,6 +89,7 @@ Revision-status rollback semantics:
 - database constraints reject self-reference and cycles in the configured chain
 - final steps are locked by definition: when `final = TRUE`, `editable = FALSE`, `revertible = FALSE`, and `next_rev_code_id IS NULL`
 - connectivity is checked at transaction end so multi-step reconfiguration may be staged within one transaction, but the committed end state must still be one connected start-to-final path
+- current repository behavior does not expose a dedicated overview-transition API; normal API callers still change a revision row's `rev_code_id` through the generic revision update workflow, while `ref.revision_overview` itself remains reference data
 
 Bootstrap and migration notes:
 - Repository bootstrap currently relies on `ci/init/flow_init.psql` followed by `ci/init/flow_seed.sql`.
@@ -136,6 +137,11 @@ flowchart LR
 | Intermediate | Draft | Revision is reverted back to Draft. | Author or system. | `/api/v1/documents/revisions/{rev_id}/status-transitions` | Update revision status; keep doc pointers unchanged. | Used when commenting/review is stopped or needs rework. |
 | Intermediate | Final | Commenting completes and revision is approved for finalization. | Reviewer/approver. | `/api/v1/documents/revisions/{rev_id}/status-transitions` | Update revision status; set `rev_actual_id=rev_current_id` to this revision. | Final makes the revision “actual/current”. |
 | Final | Intermediate | A new revision is created and moved into Intermediate, superseding the final revision. | Author or system. | `/api/v1/documents/revisions/{rev_id}/status-transitions` | Insert new revision; mark prior as superseded; update pointers when new final is set. | Superseded. |
+
+Revision-code change behavior:
+- There is currently no dedicated `/overview-transition` endpoint.
+- `core.doc_revision.rev_code_id` may still be changed through the generic revision update workflow (`PUT /api/v1/documents/revisions/{rev_id}` / `workflow.update_revision(...)`).
+- That operation updates the revision row only; it does not alter `ref.revision_overview`.
 
 ## Other Actions
 

@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-07
 - Last Updated: 2026-03-20
-- Version: v1.4
+- Version: v1.5
 
 ## Change Log
-- 2026-03-20 | v1.4 | Defined `back` transition semantics explicitly as immediate-predecessor rollback via the unique status whose `next_rev_status_id` points to the current status, and added invariant coverage for ambiguous predecessor rejection.
+- 2026-03-20 | v1.5 | Clarified current revision-code update behavior: there is no dedicated overview-transition endpoint, and the generic revision update workflow may still mutate `doc_revision.rev_code_id` while `ref.revision_overview` remains reference data; also defined `back` transition semantics explicitly as immediate-predecessor rollback via the unique status whose `next_rev_status_id` points to the current status, and added invariant coverage for ambiguous predecessor rejection.
 - 2026-03-04 | v1.3 | Added fail-closed session-identity scenario for revisions router reads.
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
 
@@ -26,6 +26,8 @@ Provide repeatable curl-based validation for revisions list/update/create and st
 
 ## Design / Behavior
 Revision APIs must enforce required fields, status immutability on update, and workflow transition constraints.
+- There is currently no dedicated revision-overview transition endpoint.
+- The generic revision update workflow may still change `doc_revision.rev_code_id`; doing so updates the revision row only and does not mutate `ref.revision_overview`.
 
 Backward transition contract:
 - `direction="back"` means move the revision to the immediate predecessor status only.
@@ -64,7 +66,7 @@ curl -i "$API_BASE$API_PREFIX/documents/999999/revisions"
 # TS-REV-003
 curl -i -X PUT "$API_BASE$API_PREFIX/documents/revisions/$REV_ID" \
   -H "Content-Type: application/json" \
-  -d "{\"transmital_current_revision\":\"TR-TEST-$TS\"}"
+  -d "{\"transmital_current_revision\":\"TR-TEST-$TS\",\"rev_code_id\":1}"
 
 # TS-REV-004
 curl -i -X PUT "$API_BASE$API_PREFIX/documents/revisions/$REV_ID" -H "Content-Type: application/json" -d "{}"
@@ -146,7 +148,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents/revisions/$REV_ID/status-transit
 ## Scenario Catalog
 - `TS-REV-001` list revisions for existing document.
 - `TS-REV-002` list revisions for missing document returns `404`.
-- `TS-REV-003` update non-final revision metadata succeeds.
+- `TS-REV-003` update non-final revision fields succeeds, including `rev_code_id` under the current generic update contract.
 - `TS-REV-004` empty update payload returns `400`.
 - `TS-REV-005` update missing revision returns `404`.
 - `TS-REV-006` update with `rev_status_id` is rejected (`422`).
@@ -186,4 +188,4 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents/revisions/$REV_ID/status-transit
 
 ## References
 - `tests/api/api/test_documents_revisions_endpoints.py`
-- `api/routers/documents_revisions.py`
+- `api/routers/documents.py`

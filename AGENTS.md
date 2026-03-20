@@ -18,6 +18,6 @@ For any explicit user request to create a commit, always apply the **commiter** 
 - backend-doc-sync: Require documentation updates whenever backend Python code changes. (file: skills/backend-doc-sync/SKILL.md)
 - test-scenario-guardian: Enforce scenario-first API test development and keep test scenarios synchronized with API tests. (file: skills/test-scenario-guardian/SKILL.md)
 - docs-guardian: Keep documentation aligned with repository template and standards. (file: skills/docs-guardian/SKILL.md)
-- monthly-doc-actualizer: Run daily due checks and trigger full documentation actualization after cadence threshold. (file: skills/monthly-doc-actualizer/SKILL.md)
+- monthly-doc-actualizer: Run daily due checks and trigger full code-first documentation actualization against the current implementation after cadence threshold. (file: skills/monthly-doc-actualizer/SKILL.md)
 - tech-debt: Capture deferred technical debt items into dated markdown files under `tech-debt/`. (file: skills/tech-debt/SKILL.md)
 - commiter: Create commit/push flow with standardized commit message format on explicit commit requests. (file: skills/commiter.md)

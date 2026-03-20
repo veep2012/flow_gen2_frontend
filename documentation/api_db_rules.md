@@ -10,7 +10,7 @@
 - Version: v1.9
 
 ## Change Log
-- 2026-03-20 | v1.9 | Clarified the current repository policy for revision-code changes: supported safety guarantees apply to clean bootstrap and reseed only, the database is recreated from `ci/init/` instead of migrated in place, and published `rev_code_id` identities must remain stable across that bootstrap flow; defined `doc_rev_statuses.revertible` precisely as unique immediate-predecessor rollback via reverse `next_rev_status_id`; made `revision_overview` connectivity explicit as one connected `start=true` to final path; and synchronized lifecycle invariants with the current SQL schema for terminal nullability, final-step locking, cycle/self-reference prevention, single start/final semantics, and the descriptive-only role of `percentage`.
+- 2026-03-20 | v1.9 | Clarified the current repository policy for revision-code changes: supported safety guarantees apply to clean bootstrap and reseed only, the database is recreated from `ci/init/` instead of migrated in place, published `rev_code_id` identities must remain stable across that bootstrap flow, `ref.revision_overview` remains reference configuration, and normal revision updates may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)` without a dedicated overview-transition API; also defined `doc_rev_statuses.revertible` precisely as unique immediate-predecessor rollback via reverse `next_rev_status_id`, made `revision_overview` connectivity explicit as one connected `start=true` to final path, and synchronized lifecycle invariants with the current SQL schema for terminal nullability, final-step locking, cycle/self-reference prevention, single start/final semantics, and the descriptive-only role of `percentage`.
 - 2026-03-18 | v1.4 | Clarified this document's scope as the backend/database enforcement contract beneath the new application-level authorization policy.
 - 2026-03-04 | v1.3 | Clarified that API read SQL must target `workflow.v_*` views only and documented the repository static guard for this contract.
 - 2026-02-20 | v1.2 | Added mandatory core-table audit metadata requirement, synchronized skill fallback reference, and added missing `core.written_comments` to authoritative `core` table inventory
@@ -300,6 +300,11 @@ The database enforces:
 Connectivity is validated as a deferred transaction-end invariant so valid multi-row reconfiguration can occur within a transaction as long as the committed final state is one connected start-to-final path.
 
 `percentage` is descriptive metadata only. It does not define lifecycle ordering.
+
+Current application contract:
+- `ref.revision_overview` is reference/lifecycle configuration data.
+- The repository does not currently ship a dedicated overview-transition workflow function or API endpoint for `doc_revision`.
+- Normal revision updates still run through `workflow.update_revision(...)`, which may change `core.doc_revision.rev_code_id` while leaving `ref.revision_overview` unchanged.
 
 ---
 
