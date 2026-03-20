@@ -150,6 +150,14 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-015"],
     ),
+    "test_documents_revisions_status_graph_rejects_ambiguous_predecessor": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-017"],
+    ),
+    "test_documents_revisions_status_transition_already_start": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-018"],
+    ),
     "test_documents_revisions_require_session_identity": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-016"],

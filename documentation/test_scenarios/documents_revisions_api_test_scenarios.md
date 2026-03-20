@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-03-04
-- Version: v1.3
+- Last Updated: 2026-03-20
+- Version: v1.4
 
 ## Change Log
+- 2026-03-20 | v1.4 | Defined `back` transition semantics explicitly as immediate-predecessor rollback via the unique status whose `next_rev_status_id` points to the current status, and added invariant coverage for ambiguous predecessor rejection.
 - 2026-03-04 | v1.3 | Added fail-closed session-identity scenario for revisions router reads.
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
 
@@ -25,6 +26,14 @@ Provide repeatable curl-based validation for revisions list/update/create and st
 
 ## Design / Behavior
 Revision APIs must enforce required fields, status immutability on update, and workflow transition constraints.
+
+Backward transition contract:
+- `direction="back"` means move the revision to the immediate predecessor status only.
+- The predecessor is discovered by reverse lookup on `ref.doc_rev_statuses.next_rev_status_id`.
+- The predecessor must be unique; ambiguous predecessor graphs are invalid repository state.
+- The start status cannot transition back.
+- A non-start status can transition back only when its current status has `revertible=true`.
+- If no predecessor exists for a non-start revertible status, the transition must fail.
 
 ## 1. Set Env Vars
 
@@ -105,7 +114,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents/999999/revisions" -H "Content-Ty
 curl -i -X POST "$API_BASE$API_PREFIX/documents/1/revisions" -H "Content-Type: application/json" -d "{}"
 ```
 
-## 5. TS-REV-011..015 Status Transition Checks
+## 5. TS-REV-011..018 Status Transition Checks
 
 ```bash
 # TS-REV-011 forward transition (requires eligible revision)
@@ -126,6 +135,10 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents/revisions/$REV_ID/status-transit
 
 `TS-REV-014` and `TS-REV-015` require selecting revisions currently in final or non-revertible statuses.
 
+`TS-REV-017` is a privileged invariant test rather than a public HTTP scenario: attempt to create an ambiguous predecessor configuration in `ref.doc_rev_statuses` where two rows point to the same successor. The database must reject that state.
+
+`TS-REV-018` requires selecting a revision currently in the unique `start=true` status.
+
 ## Edge Cases
 - Transition checks are data-dependent; pick suitable revisions from current seed state.
 - Forward transition may require a file attachment on revision depending on status rules.
@@ -143,9 +156,12 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents/revisions/$REV_ID/status-transit
 - `TS-REV-010` create revision missing required fields returns `422`.
 - `TS-REV-011` forward status transition succeeds when eligible.
 - `TS-REV-012` back status transition succeeds when eligible.
+  - The target status is the unique immediate predecessor whose `next_rev_status_id` points to the current status.
 - `TS-REV-013` invalid direction returns `422`.
 - `TS-REV-014` forward transition from final state returns `409`.
 - `TS-REV-015` back transition from non-revertible state returns `409`.
+- `TS-REV-017` ambiguous predecessor status graphs are rejected by database constraints.
+- `TS-REV-018` back transition from the start status returns `409`.
 - `TS-REV-016` revisions router denies requests when effective session identity is missing.
 
 ## Automated Test Mapping
@@ -164,6 +180,8 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents/revisions/$REV_ID/status-transit
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_invalid_direction` -> `TS-REV-013`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_already_final` -> `TS-REV-014`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_not_revertible` -> `TS-REV-015`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_graph_rejects_ambiguous_predecessor` -> `TS-REV-017`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_already_start` -> `TS-REV-018`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_require_session_identity` -> `TS-REV-016`
 
 ## References

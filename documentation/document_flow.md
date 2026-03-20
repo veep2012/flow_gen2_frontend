@@ -6,9 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-20
-- Version: v1.8
+- Version: v1.9
 
 ## Change Log
+- 2026-03-20 | v1.9 | Defined revision-status `revertible` precisely as immediate-predecessor rollback via reverse `next_rev_status_id`, and documented the single-predecessor status-graph invariant that keeps backward transitions unambiguous.
 - 2026-03-20 | v1.8 | Clarified that every `revision_overview` row must remain on the single connected lifecycle path from the unique start step to the unique final step, while allowing valid transactional reconfiguration before commit.
 - 2026-03-20 | v1.7 | Tightened `revision_overview` lifecycle documentation to match the current SQL constraints: final-step locking, cycle/self-reference prevention, and the single-predecessor rule.
 - 2026-03-19 | v1.6 | Clarified `revision_overview` path semantics, including path-derived ordering, successor nullability, and the metadata role of `revertible`, `editable`, and `percentage`.
@@ -61,6 +62,12 @@ Schema ownership (implementation contract):
 | Dictionary (Lookup) | Reference/lookup tables are owned by `ref` and exposed via `workflow` views. Current lookup inventory: `areas`, `disciplines`, `projects`, `units`, `jobpacks`, `roles`, `doc_rev_milestones`, `revision_overview`, `doc_rev_status_ui_behaviors`, `doc_rev_statuses`, `files_accepted`, `leased_doc_nums`, `instance_parameters`, `person_duty`, `person`, `users`, `doc_types`, `permissions`, `doc_cache`. | Lookup IDs and reference data fields per table (e.g., project_id, type_id, etc.). |
 
 ## States
+
+Revision-status rollback semantics:
+- `revertible` on `doc_rev_statuses` controls only backward status transitions.
+- A backward transition moves to the unique immediate predecessor status whose `next_rev_status_id` points to the current status.
+- The start status has no predecessor and cannot move backward.
+- The status graph allows at most one predecessor per status, so backward transitions are never ambiguous.
 
 | State | Description | Entry Criteria | Exit Criteria | Guards |
 | --- | --- | --- | --- | --- |

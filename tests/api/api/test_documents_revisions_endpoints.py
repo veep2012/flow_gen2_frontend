@@ -4,6 +4,8 @@ import uuid
 
 import httpx
 import pytest
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import DBAPIError
 
 _DEFAULT_TEST_USER_ACRONYM = os.getenv("TEST_USER_ACRONYM", "FDQC")
 
@@ -14,6 +16,19 @@ def _build_base_url() -> str:
     if prefix and not prefix.startswith("/"):
         prefix = f"/{prefix}"
     return f"{base}{prefix}"
+
+
+def _build_admin_database_url() -> str:
+    explicit_admin = os.getenv("TEST_DB_ADMIN_URL")
+    if explicit_admin:
+        return explicit_admin
+
+    user = os.getenv("TEST_DB_ADMIN_USER", "postgres")
+    password = os.getenv("TEST_DB_ADMIN_PASSWORD", "postgres")
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = os.getenv("POSTGRES_PORT", "5433")
+    db_name = os.getenv("TEST_DB_NAME", os.getenv("POSTGRES_DB", "flow_db_test"))
+    return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{db_name}"
 
 
 def _merge_default_auth(kwargs: dict) -> dict:
@@ -381,10 +396,17 @@ def test_documents_revisions_status_transition_back():
                 continue
             if rev.get("superseded"):
                 continue
+            predecessor_count = sum(
+                1
+                for candidate_status in statuses
+                if candidate_status.get("next_rev_status_id") == status.get("rev_status_id")
+            )
             prev_id = prev_map.get(status.get("rev_status_id"))
             if status.get("start") or not status.get("revertible"):
                 continue
             if prev_id is None:
+                continue
+            if predecessor_count != 1:
                 continue
             candidate = (rev, prev_id)
             break
@@ -498,3 +520,102 @@ def test_documents_revisions_status_transition_not_revertible():
             json={"direction": "back"},
         )
         assert result["status"] == 409
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_status_transition_already_start():
+    with httpx.Client(timeout=10) as client:
+        doc_id = _get_doc_id(client)
+        if doc_id is None:
+            pytest.skip("No document available for start status test")
+        revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        if not (200 <= revisions["status"] < 300) or not revisions["payload"]:
+            pytest.skip("No revisions available for start status test")
+        statuses = _get_statuses(client)
+        if not statuses:
+            pytest.skip("No statuses available for start status test")
+        start_status_ids = {
+            status["rev_status_id"]
+            for status in statuses
+            if status.get("start") is True and "rev_status_id" in status
+        }
+        candidate = next(
+            (
+                rev
+                for rev in revisions["payload"]
+                if rev.get("rev_status_id") in start_status_ids and not rev.get("superseded")
+            ),
+            None,
+        )
+        if candidate is None:
+            pytest.skip("No start-status revision available for start status test")
+        rev_id = candidate.get("rev_id")
+        if rev_id is None:
+            pytest.skip("No rev_id available for start status test")
+        result = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{rev_id}/status-transitions",
+            json={"direction": "back"},
+        )
+        assert result["status"] == 409
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_status_graph_rejects_ambiguous_predecessor():
+    engine = create_engine(_build_admin_database_url())
+    token = uuid.uuid4().hex[:6].upper()
+    with engine.begin() as conn:
+        target_status_id = conn.execute(
+            text(
+                """
+                SELECT rev_status_id
+                FROM ref.doc_rev_statuses
+                WHERE start IS NOT TRUE
+                  AND final IS NOT TRUE
+                ORDER BY rev_status_id
+                LIMIT 1
+                """
+            )
+        ).scalar_one()
+        ui_behavior_id = conn.execute(
+            text(
+                """
+                SELECT ui_behavior_id
+                FROM ref.doc_rev_status_ui_behaviors
+                ORDER BY ui_behavior_id
+                LIMIT 1
+                """
+            )
+        ).scalar_one()
+
+        with pytest.raises(DBAPIError):
+            with conn.begin_nested():
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO ref.doc_rev_statuses (
+                            rev_status_name,
+                            ui_behavior_id,
+                            next_rev_status_id,
+                            revertible,
+                            editable,
+                            final,
+                            start
+                        ) VALUES (
+                            :rev_status_name,
+                            :ui_behavior_id,
+                            :next_rev_status_id,
+                            TRUE,
+                            TRUE,
+                            FALSE,
+                            FALSE
+                        )
+                        """
+                    ),
+                    {
+                        "rev_status_name": f"QA-AMB-{token}",
+                        "ui_behavior_id": ui_behavior_id,
+                        "next_rev_status_id": target_status_id,
+                    },
+                )

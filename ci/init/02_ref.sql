@@ -204,6 +204,10 @@ CREATE UNIQUE INDEX ux_doc_rev_statuses_single_start
     ON ref.doc_rev_statuses (start)
     WHERE start = TRUE;
 
+CREATE UNIQUE INDEX ux_doc_rev_statuses_single_predecessor
+    ON ref.doc_rev_statuses (next_rev_status_id)
+    WHERE next_rev_status_id IS NOT NULL;
+
 CREATE OR REPLACE FUNCTION ref.doc_rev_statuses_prevent_cycle()
 RETURNS trigger
 LANGUAGE plpgsql

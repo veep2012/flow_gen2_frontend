@@ -227,6 +227,7 @@ BEGIN
         IF NOT v_status.revertible THEN
             RAISE EXCEPTION 'Revision status not revertible';
         END IF;
+        -- Backward movement is limited to the unique immediate predecessor status.
         SELECT rev_status_id INTO v_next_status_id
         FROM ref.doc_rev_statuses
         WHERE next_rev_status_id = v_status.rev_status_id;

@@ -316,7 +316,12 @@ class DocRevisionStatusTransition(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     direction: Literal["forward", "back"] = Field(
-        ..., description="Status transition direction.", examples=["forward"]
+        ...,
+        description=(
+            "Status transition direction. `forward` follows `next_rev_status_id`; "
+            "`back` moves only to the unique immediate predecessor status."
+        ),
+        examples=["forward"],
     )
 
 
@@ -526,9 +531,20 @@ class DocRevStatusOut(BaseModel):
     )
     ui_behavior_id: int = Field(..., description="UI behavior ID.", examples=[1], gt=0)
     next_rev_status_id: int | None = Field(
-        None, description="Next revision status ID.", examples=[2], gt=0
+        None,
+        description=(
+            "Immediate forward successor status ID; null only for the terminal final status."
+        ),
+        examples=[2],
+        gt=0,
     )
-    revertible: bool = Field(..., description="Whether status is revertible.", examples=[True])
+    revertible: bool = Field(
+        ...,
+        description=(
+            "Whether the status may move back to its unique immediate predecessor status."
+        ),
+        examples=[True],
+    )
     editable: bool = Field(..., description="Whether status is editable.", examples=[True])
     final: bool = Field(
         ...,
@@ -549,10 +565,19 @@ class DocRevStatusUpdate(BaseModel):
     )
     ui_behavior_id: int | None = Field(None, description="UI behavior ID.", examples=[1], gt=0)
     next_rev_status_id: int | None = Field(
-        None, description="Next revision status ID.", examples=[2], gt=0
+        None,
+        description=(
+            "Immediate forward successor status ID; null only for the terminal final status."
+        ),
+        examples=[2],
+        gt=0,
     )
     revertible: bool | None = Field(
-        None, description="Whether status is revertible.", examples=[True]
+        None,
+        description=(
+            "Whether the status may move back to its unique immediate predecessor status."
+        ),
+        examples=[True],
     )
     editable: bool | None = Field(None, description="Whether status is editable.", examples=[True])
     final: bool | None = Field(
@@ -573,10 +598,19 @@ class DocRevStatusCreate(BaseModel):
     )
     ui_behavior_id: int = Field(..., description="UI behavior ID.", examples=[1], gt=0)
     next_rev_status_id: int | None = Field(
-        None, description="Next revision status ID.", examples=[2], gt=0
+        None,
+        description=(
+            "Immediate forward successor status ID; null only for the terminal final status."
+        ),
+        examples=[2],
+        gt=0,
     )
     revertible: bool | None = Field(
-        None, description="Whether status is revertible.", examples=[True]
+        None,
+        description=(
+            "Whether the status may move back to its unique immediate predecessor status."
+        ),
+        examples=[True],
     )
     editable: bool | None = Field(None, description="Whether status is editable.", examples=[True])
     final: bool = Field(

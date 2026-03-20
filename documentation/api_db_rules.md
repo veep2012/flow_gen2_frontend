@@ -7,9 +7,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-20
-- Version: v1.6
+- Version: v1.7
 
 ## Change Log
+- 2026-03-20 | v1.7 | Defined `doc_rev_statuses.revertible` precisely: back transitions target the unique immediate predecessor discovered by reverse `next_rev_status_id`, and the status graph now forbids ambiguous predecessor configurations.
 - 2026-03-20 | v1.6 | Made `revision_overview` connectivity explicit: every row must belong to the single connected path reachable from the unique `start=true` row to the unique terminal/final row, with deferred transaction-end validation for multi-step reconfiguration.
 - 2026-03-20 | v1.5 | Synchronized workflow lifecycle invariants with the current SQL schema: documented exact `revision_overview` and `doc_rev_statuses` constraints for terminal nullability, final-step locking, cycle/self-reference prevention, single start/final semantics, and the descriptive-only role of `percentage`.
 - 2026-03-18 | v1.4 | Clarified this document's scope as the backend/database enforcement contract beneath the new application-level authorization policy.
@@ -262,6 +263,14 @@ The database enforces:
 - only one terminal/final status
 - final statuses must have `next_rev_status_id IS NULL`
 - final statuses must not be editable or revertible
+- each non-start status has at most one immediate predecessor
+
+Backward-transition semantics:
+- `revertible = true` allows movement only to the unique immediate predecessor status
+- that predecessor is the unique row where `next_rev_status_id = current rev_status_id`
+- `start = true` statuses cannot move backward
+- if a non-start revertible status has no predecessor, the transition fails
+- ambiguous predecessor graphs are forbidden structurally
 
 There may be multiple intermediate states.
 
@@ -301,6 +310,7 @@ Connectivity is validated as a deferred transaction-end invariant so valid multi
 The database enforces:
 - forward transitions only via `next_rev_status_id`
 - backward transitions only when `revertible = true`
+- backward transitions target only the unique immediate predecessor resolved by reverse `next_rev_status_id`
 - no transitions on superseded revisions
 - final revisions are immutable (except override)
 

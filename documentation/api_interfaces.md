@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-19
-- Version: v3.9
+- Last Updated: 2026-03-20
+- Version: v4.0
 
 ## Change Log
+- 2026-03-20 | v4.0 | Defined revision back-transition semantics explicitly: `direction="back"` moves only to the unique immediate predecessor status resolved by reverse `next_rev_status_id`, and the status graph forbids ambiguous predecessor configurations.
 - 2026-03-19 | v3.9 | Clarified the `GET /api/v1/documents/revision_overview` contract: path-derived ordering, `next_rev_code_id` terminal nullability, unique start/final semantics, descriptive `percentage`, and the metadata role of `revertible`/`editable`.
 - 2026-03-18 | v3.8 | Removed `recipient_user_id` override from `GET /api/v1/notifications`; inbox listing now always resolves to the effective current user, and examples/contracts were updated accordingly.
 - 2026-03-18 | v3.7 | Documented owner-or-superuser authorization for `DELETE /api/v1/files/commented/{id}`, including the `403`/fail-closed `404` behavior and authenticated request example.
@@ -407,6 +408,10 @@ Schema references:
 - Response: `api/schemas/documents.py` `DocRevStatusOut`
 ### List
 - `GET /api/v1/lookups/doc_rev_statuses` — 200 sorted by `rev_status_name`; empty list if none.
+- Contract notes:
+  - `next_rev_status_id` identifies the immediate forward successor status; `null` is allowed only on the unique terminal/final status.
+  - The status graph allows at most one immediate predecessor for any status, so reverse traversal is unambiguous.
+  - `revertible` means the current status may move back only to that unique immediate predecessor; it does not permit arbitrary jumps to older statuses.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
@@ -1194,6 +1199,12 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 ```
 ### Revision status transition
 - `POST /api/v1/documents/revisions/{rev_id}/status-transitions` — 200; 422 for invalid direction/validation errors; 404 if revision/document not found; 409 if start/final/revertible rules block the transition.
+- Contract notes:
+  - `direction="forward"` moves only to the current status row's `next_rev_status_id`.
+  - `direction="back"` moves only to the unique immediate predecessor status whose `next_rev_status_id` equals the current status.
+  - `direction="back"` is rejected when the current status is `start=true`.
+  - `direction="back"` is rejected when the current status has `revertible=false`.
+  - The status graph forbids ambiguous predecessor configurations; if a predecessor were absent for a non-start revertible status, the transition would fail.
 - Headers: `Accept: application/json`, `Content-Type: application/json`
 - Example request:
 ```bash
