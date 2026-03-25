@@ -20,6 +20,7 @@ from api.schemas.documents import (
     DocCreate,
     DocOut,
     DocRevisionCreate,
+    DocRevisionOverviewTransition,
     DocRevisionOut,
     DocRevisionStatusTransition,
     DocRevisionUpdate,
@@ -619,7 +620,6 @@ def update_document_revision(
         payload,
         (
             "seq_num",
-            "rev_code_id",
             "rev_author_id",
             "rev_originator_id",
             "rev_modifier_id",
@@ -668,6 +668,51 @@ def update_document_revision(
         _raise_for_dbapi_error(err, _UPDATE_REVISION_DB_ERROR_MAP)
 
     return _build_doc_revision_out(db, rev_id)
+
+
+def create_revision_overview_transition(
+    rev_id: int,
+    payload: DocRevisionOverviewTransition = Body(
+        ..., openapi_examples=_example_for(DocRevisionOverviewTransition)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevisionOut:
+    del payload
+    doc_row = (
+        db.execute(
+            text(
+                """
+                SELECT d.doc_id, d.voided
+                FROM workflow.v_documents AS d
+                JOIN workflow.v_document_revisions AS r ON r.doc_id = d.doc_id
+                WHERE r.rev_id = :rev_id
+                """
+            ),
+            {"rev_id": rev_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if not doc_row:
+        raise HTTPException(status_code=404, detail="Revision not found")
+    if doc_row["voided"]:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    try:
+        rev_row = (
+            db.execute(
+                text("SELECT r.* FROM workflow.create_overview_transition_revision(:rev_id) AS r"),
+                {"rev_id": rev_id},
+            )
+            .mappings()
+            .one()
+        )
+        db.commit()
+    except DBAPIError as err:
+        db.rollback()
+        _raise_for_dbapi_error(err, _OVERVIEW_TRANSITION_DB_ERROR_MAP)
+
+    return _build_doc_revision_out_from_core_row(db, dict(rev_row))
 
 
 def _build_doc_revision_out(db: Session, rev_id: int) -> DocRevisionOut:
@@ -813,6 +858,11 @@ _UPDATE_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("revision not found", 404, "Revision not found"),
     ("no fields to update", 400, "No fields provided for update"),
     ("final revision is immutable", 409, "Final revision is immutable"),
+    (
+        "revision code is immutable after creation",
+        409,
+        "Revision code cannot be changed after creation",
+    ),
 )
 
 _INSERT_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
@@ -828,6 +878,16 @@ _INSERT_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
         409,
         "Only one active (non-final, non-canceled) revision allowed per document",
     ),
+    (
+        "only one non-canceled revision per document may use a revision code",
+        409,
+        "Another active revision already uses the requested revision code",
+    ),
+    (
+        "final revision progression requires overview transition",
+        409,
+        "Use overview transition to create the next revision from a final revision",
+    ),
 )
 
 _UPDATE_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
@@ -837,6 +897,7 @@ _UPDATE_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
 
 _INSERT_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("no start status configured", 400, "No start status configured"),
+    ("no start revision code configured", 400, "No start revision code configured"),
     ("project not found", 404, "Project not found"),
     ("jobpack not found", 404, "Jobpack not found"),
     ("doc type not found", 404, "Doc type not found"),
@@ -852,6 +913,32 @@ _INSERT_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
 _CANCEL_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("revision not found", 404, "Revision not found"),
     ("final revision cannot be canceled", 409, "Final revision cannot be canceled"),
+)
+
+_OVERVIEW_TRANSITION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("revision not found", 404, "Revision not found"),
+    ("source revision is not current", 409, "Only the current revision can transition"),
+    (
+        "source revision is not in final status",
+        409,
+        "Source revision is not in a final status",
+    ),
+    ("no allowed next revision code", 409, "No allowed next revision code could be resolved"),
+    (
+        "active revision with target revision code already exists",
+        409,
+        "Another active revision already uses the target revision code",
+    ),
+    (
+        "only one non-canceled revision per document may use a revision code",
+        409,
+        "Another active revision already uses the target revision code",
+    ),
+    (
+        "ux_doc_revision_active_code_per_doc",
+        409,
+        "Another active revision already uses the target revision code",
+    ),
 )
 
 _DELETE_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
@@ -1678,6 +1765,27 @@ def create_revision_status_transition_rest(
     db: Session = Depends(get_db),
 ) -> DocRevisionOut:
     return create_revision_status_transition(rev_id, payload, db)
+
+
+@router.post(
+    "/revisions/{rev_id}/overview-transition",
+    summary="Create the next revision from a final revision (REST).",
+    description=(
+        "Creates a new revision row from the current final revision using the next allowed "
+        "revision-overview step resolved by backend workflow rules."
+    ),
+    response_model=DocRevisionOut,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def create_revision_overview_transition_rest(
+    rev_id: int,
+    payload: DocRevisionOverviewTransition = Body(
+        ..., openapi_examples=_example_for(DocRevisionOverviewTransition)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevisionOut:
+    return create_revision_overview_transition(rev_id, payload, db)
 
 
 @router.post(

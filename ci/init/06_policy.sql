@@ -34,6 +34,20 @@ BEGIN
         END IF;
     END IF;
 
+    IF NEW.canceled_date IS NULL THEN
+        SELECT EXISTS (
+            SELECT 1
+            FROM core.doc_revision r
+            WHERE r.doc_id = NEW.doc_id
+              AND r.rev_id <> COALESCE(NEW.rev_id, 0)
+              AND r.rev_code_id = NEW.rev_code_id
+              AND r.canceled_date IS NULL
+        ) INTO v_has_other;
+        IF v_has_other THEN
+            RAISE EXCEPTION 'Only one non-canceled revision per document may use a revision code';
+        END IF;
+    END IF;
+
     -- Rule 3: Only one active (non-final, non-canceled) revision per document
     IF NEW.canceled_date IS NULL AND NOT v_new_status.final THEN
         SELECT EXISTS (

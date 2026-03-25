@@ -158,7 +158,15 @@ class DocCreate(BaseModel):
     type_id: int = Field(..., description="Type ID.", examples=[1], gt=0)
     area_id: int = Field(..., description="Area ID.", examples=[1], gt=0)
     unit_id: int = Field(..., description="Unit ID.", examples=[1], gt=0)
-    rev_code_id: int = Field(..., description="Revision code ID.", examples=[1], gt=0)
+    rev_code_id: int | None = Field(
+        None,
+        description=(
+            "Initial revision code ID. When omitted, the backend uses the revision overview "
+            "step where start=true."
+        ),
+        examples=[1],
+        gt=0,
+    )
     rev_author_id: int = Field(..., description="Revision author person ID.", examples=[1], gt=0)
     rev_originator_id: int = Field(
         ..., description="Revision originator person ID.", examples=[1], gt=0
@@ -280,7 +288,6 @@ class DocRevisionUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     seq_num: int | None = Field(None, description="Revision sequence number.", examples=[1], gt=0)
-    rev_code_id: int | None = Field(None, description="Revision code ID.", examples=[1], gt=0)
     rev_author_id: int | None = Field(
         None, description="Revision author person ID.", examples=[1], gt=0
     )
@@ -323,6 +330,10 @@ class DocRevisionStatusTransition(BaseModel):
         ),
         examples=["forward"],
     )
+
+
+class DocRevisionOverviewTransition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
 
 class DocRevisionCreate(BaseModel):

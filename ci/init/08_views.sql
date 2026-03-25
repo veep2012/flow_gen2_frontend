@@ -157,7 +157,8 @@ SELECT
     r.*, s.rev_status_name
 FROM core.doc_revision r
 JOIN ref.doc_rev_statuses s ON s.rev_status_id = r.rev_status_id
-WHERE workflow.check_user_permission(
+WHERE r.canceled_date IS NULL
+  AND workflow.check_user_permission(
     NULLIF(current_setting('app.user_id', true), '')::BIGINT,
     'doc_revision',
     'read-only',
