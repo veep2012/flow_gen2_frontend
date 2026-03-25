@@ -19,7 +19,6 @@ from api.schemas.documents import (
     DeleteResult,
     DocCreate,
     DocOut,
-    DocRevisionCreate,
     DocRevisionOut,
     DocRevisionOverviewTransition,
     DocRevisionStatusTransition,
@@ -865,31 +864,6 @@ _UPDATE_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ),
 )
 
-_INSERT_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
-    ("document not found", 404, "Document not found"),
-    ("revision code not found", 404, "Revision code not found"),
-    ("milestone not found", 404, "Milestone not found"),
-    ("revision author not found", 404, "Revision author not found"),
-    ("revision originator not found", 404, "Revision originator not found"),
-    ("revision modifier not found", 404, "Revision modifier not found"),
-    ("no start status configured", 400, "No start status configured"),
-    (
-        "only one active (non-final, non-canceled) revision allowed per document",
-        409,
-        "Only one active (non-final, non-canceled) revision allowed per document",
-    ),
-    (
-        "only one non-canceled revision per document may use a revision code",
-        409,
-        "Another active revision already uses the requested revision code",
-    ),
-    (
-        "final revision progression requires overview transition",
-        409,
-        "Use overview transition to create the next revision from a final revision",
-    ),
-)
-
 _UPDATE_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("document not found", 404, "Document not found"),
     ("no fields to update", 400, "No fields provided for update"),
@@ -1023,89 +997,6 @@ def create_revision_status_transition(
         _raise_for_status_transition_db_error(err)
 
     return _build_doc_revision_out_from_core_row(db, dict(rev_row))
-
-
-def insert_document_revision(
-    doc_id: int,
-    payload: DocRevisionCreate = Body(..., openapi_examples=_example_for(DocRevisionCreate)),
-    db: Session = Depends(get_db),
-) -> DocRevisionOut:
-    """
-    Create a new document revision.
-
-    Creates a revision for the specified document. The sequence number is auto-assigned as
-    max(seq_num)+1 for the document.
-
-    Args:
-        doc_id: Document ID to attach the revision to.
-        payload: Revision creation data.
-
-    Returns:
-        Newly created document revision with metadata.
-
-    Raises:
-        HTTPException: 404 if document or referenced entities not found.
-    """
-    doc_row = (
-        db.execute(
-            text("SELECT doc_id, voided FROM workflow.v_documents WHERE doc_id = :doc_id"),
-            {"doc_id": doc_id},
-        )
-        .mappings()
-        .one_or_none()
-    )
-    if not doc_row or doc_row["voided"]:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    try:
-        rev_id = db.execute(
-            text(
-                """
-                SELECT workflow.create_revision(
-                    :doc_id,
-                    :rev_code_id,
-                    :rev_author_id,
-                    :rev_originator_id,
-                    :rev_modifier_id,
-                    :transmital_current_revision,
-                    :milestone_id,
-                    :planned_start_date,
-                    :planned_finish_date,
-                    :actual_start_date,
-                    :actual_finish_date,
-                    :modified_doc_date,
-                    :as_built
-                )
-                """
-            ),
-            {
-                "doc_id": doc_id,
-                "rev_code_id": payload.rev_code_id,
-                "rev_author_id": payload.rev_author_id,
-                "rev_originator_id": payload.rev_originator_id,
-                "rev_modifier_id": payload.rev_modifier_id,
-                "transmital_current_revision": payload.transmital_current_revision,
-                "milestone_id": payload.milestone_id,
-                "planned_start_date": _normalize_dt(payload.planned_start_date),
-                "planned_finish_date": _normalize_dt(payload.planned_finish_date),
-                "actual_start_date": _normalize_dt(payload.actual_start_date),
-                "actual_finish_date": _normalize_dt(payload.actual_finish_date),
-                "modified_doc_date": _normalize_dt(payload.modified_doc_date),
-                "as_built": payload.as_built,
-            },
-        ).scalar_one()
-        db.commit()
-    except IntegrityError as err:
-        db.rollback()
-        _handle_integrity_error("Failed to create revision", err, "insert_document_revision")
-    except DBAPIError as err:
-        db.rollback()
-        _raise_for_dbapi_error(err, _INSERT_REVISION_DB_ERROR_MAP)
-    except Exception as err:
-        db.rollback()
-        logger.exception("Failed to create revision doc_id=%s", doc_id)
-        raise HTTPException(status_code=500, detail="Internal Server Error") from err
-    return _build_doc_revision_out(db, rev_id)
 
 
 def update_document(
@@ -1803,23 +1694,6 @@ def create_revision_overview_transition_rest(
     db: Session = Depends(get_db),
 ) -> DocRevisionOut:
     return create_revision_overview_transition(rev_id, payload, db)
-
-
-@router.post(
-    "/{doc_id}/revisions",
-    summary="Create a document revision (REST).",
-    description="Creates a revision for the specified document.",
-    response_model=DocRevisionOut,
-    status_code=201,
-    tags=["documents"],
-    responses=_REST_RESPONSES,
-)
-def create_document_revision_rest(
-    doc_id: int,
-    payload: DocRevisionCreate = Body(..., openapi_examples=_example_for(DocRevisionCreate)),
-    db: Session = Depends(get_db),
-) -> DocRevisionOut:
-    return insert_document_revision(doc_id, payload, db)
 
 
 @router.post(

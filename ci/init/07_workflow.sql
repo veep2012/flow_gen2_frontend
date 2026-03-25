@@ -136,6 +136,7 @@ SET search_path = core, ref, workflow, audit, pg_temp
 AS $$
 DECLARE
     v_start_status SMALLINT;
+    v_existing_revision_count INTEGER := 0;
     v_current_is_final BOOLEAN := FALSE;
     v_seq SMALLINT;
     v_rev_id INTEGER;
@@ -155,38 +156,25 @@ BEGIN
         RAISE EXCEPTION 'Document not found';
     END IF;
 
-    SELECT COALESCE(s.final, FALSE) INTO v_current_is_final
-    FROM core.doc AS d
-    LEFT JOIN core.doc_revision AS r
-        ON r.rev_id = d.rev_current_id
-    LEFT JOIN ref.doc_rev_statuses AS s
-        ON s.rev_status_id = r.rev_status_id
-    WHERE d.doc_id = p_doc_id;
+    SELECT COUNT(*) INTO v_existing_revision_count
+    FROM core.doc_revision
+    WHERE doc_id = p_doc_id;
 
-    IF v_current_is_final THEN
-        RAISE EXCEPTION 'Final revision progression requires overview transition';
+    IF v_existing_revision_count > 0 THEN
+        SELECT COALESCE(s.final, FALSE) INTO v_current_is_final
+        FROM core.doc AS d
+        LEFT JOIN core.doc_revision AS r
+            ON r.rev_id = d.rev_current_id
+        LEFT JOIN ref.doc_rev_statuses AS s
+            ON s.rev_status_id = r.rev_status_id
+        WHERE d.doc_id = p_doc_id;
+
+        IF v_current_is_final THEN
+            RAISE EXCEPTION 'Final revision progression requires overview transition';
+        END IF;
+
+        RAISE EXCEPTION 'Existing current revision must be progressed by supersede';
     END IF;
-
-    UPDATE core.doc_revision
-    SET superseded = TRUE
-    WHERE doc_id = p_doc_id
-      AND canceled_date IS NULL
-      AND COALESCE(superseded, false) = FALSE
-      AND rev_id <> COALESCE((
-            SELECT rev_current_id
-            FROM core.doc
-            WHERE doc_id = p_doc_id
-        ), 0);
-
-    UPDATE core.doc_revision
-    SET superseded = TRUE
-    WHERE rev_id = (
-            SELECT rev_current_id
-            FROM core.doc
-            WHERE doc_id = p_doc_id
-        )
-      AND canceled_date IS NULL
-      AND COALESCE(superseded, false) = FALSE;
 
     SELECT COALESCE(MAX(seq_num), 0) + 1 INTO v_seq
     FROM core.doc_revision WHERE doc_id = p_doc_id;

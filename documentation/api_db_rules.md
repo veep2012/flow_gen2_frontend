@@ -7,10 +7,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-25
-- Version: v2.2
+- Version: v2.4
 
 ## Change Log
-- 2026-03-25 | v2.2 | Added database-backed overview-transition creation from a current final revision, made `rev_code_id` immutable after revision creation, defaulted initial document revisions to the `revision_overview.start` step when omitted, clarified that generic revision creation supersedes the previous in-progress revision, updated revision-code uniqueness so superseded revisions behave like canceled revisions for code reuse and active-conflict checks, and added a dedicated supersede workflow that replaces the current non-final revision with a new row carrying the same `rev_code_id`.
+- 2026-03-25 | v2.4 | Added database-backed overview-transition creation from a current final revision, made `rev_code_id` immutable after revision creation, defaulted initial document revisions to the `revision_overview.start` step when omitted, updated revision-code uniqueness so superseded revisions behave like canceled revisions for code reuse and active-conflict checks, added a dedicated supersede workflow that replaces the current non-final revision with a new row carrying the same `rev_code_id` and the workflow start status, removed the public generic revision-create API path, and revoked `app_user` access to generic revision creation so callers must use supersede or overview transition.
 - 2026-03-20 | v1.9 | Clarified the current repository policy for revision-code changes: supported safety guarantees apply to clean bootstrap and reseed only, the database is recreated from `ci/init/` instead of migrated in place, published `rev_code_id` identities must remain stable across that bootstrap flow, `ref.revision_overview` remains reference configuration, and normal revision updates may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)` without a dedicated overview-transition API; also defined `doc_rev_statuses.revertible` precisely as unique immediate-predecessor rollback via reverse `next_rev_status_id`, made `revision_overview` connectivity explicit as one connected `start=true` to final path, and synchronized lifecycle invariants with the current SQL schema for terminal nullability, final-step locking, cycle/self-reference prevention, single start/final semantics, and the descriptive-only role of `percentage`.
 - 2026-03-18 | v1.4 | Clarified this document's scope as the backend/database enforcement contract beneath the new application-level authorization policy.
 - 2026-03-04 | v1.3 | Clarified that API read SQL must target `workflow.v_*` views only and documented the repository static guard for this contract.
@@ -305,7 +305,8 @@ Connectivity is validated as a deferred transaction-end invariant so valid multi
 Current application contract:
 - `ref.revision_overview` is reference/lifecycle configuration data.
 - The repository ships `workflow.create_overview_transition_revision(...)` and `POST /api/v1/documents/revisions/{rev_id}/overview-transition` for creating the next revision from a current final revision.
-- The repository ships `workflow.supersede_revision(...)` and `POST /api/v1/documents/revisions/{rev_id}/supersede` for replacing the current non-final revision with a fresh row that keeps the same `rev_code_id`.
+- The repository ships `workflow.supersede_revision(...)` and `POST /api/v1/documents/revisions/{rev_id}/supersede` for replacing the current non-final revision with a fresh row that keeps the same `rev_code_id` and resets `rev_status_id` to the workflow start status.
+- The repository does not expose a public generic revision-create endpoint for existing documents; app clients must use supersede for current non-final revisions and overview transition for current final revisions.
 - Normal revision updates still run through `workflow.update_revision(...)`, but they must not change `core.doc_revision.rev_code_id`.
 - `workflow.create_document(...)` resolves the initial `rev_code_id` from the `revision_overview.start` row when the caller omits it.
 

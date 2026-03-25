@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-07
 - Last Updated: 2026-03-25
-- Version: v2.0
+- Version: v2.2
 
 ## Change Log
-- 2026-03-25 | v2.0 | Clarified that generic revision creation supersedes the previous in-progress revision and that superseded revisions behave like canceled revisions for `rev_code_id` reuse, added a dedicated supersede endpoint for replacing the current non-final revision with the same `rev_code_id`, and synchronized scenario coverage for the new success and final-source rejection paths.
+- 2026-03-25 | v2.2 | Removed the redundant public generic revision-create endpoint from the scenario contract, clarified that supersede replaces the current non-final revision with the same `rev_code_id` while restarting at the workflow start status, and synchronized automated coverage with the supported progression paths.
 - 2026-03-25 | v1.7 | Added the missing automated mapping for the final-current-revision create rejection scenario and aligned the scenario catalog numbering with the current revisions test suite.
 - 2026-03-25 | v1.6 | Added dedicated overview-transition scenarios for current final revisions, changed generic revision-update scenarios so `rev_code_id` is rejected after creation, added document-create default/explicit initial revision-code scenarios, and clarified that canceled revisions disappear from standard revision lists.
 - 2026-03-20 | v1.5 | Clarified current revision-code update behavior: there is no dedicated overview-transition endpoint, and the generic revision update workflow may still mutate `doc_revision.rev_code_id` while `ref.revision_overview` remains reference data; also defined `back` transition semantics explicitly as immediate-predecessor rollback via the unique status whose `next_rev_status_id` points to the current status, and added invariant coverage for ambiguous predecessor rejection.
@@ -17,12 +17,13 @@
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
 
 ## Purpose
-Provide repeatable curl-based validation for revisions list/update/create, overview transitions, and status transitions.
+Provide repeatable curl-based validation for revisions list/update, supersede, overview transitions, and status transitions.
 
 ## Scope
 - In scope:
   - list and missing-document behavior
-  - create/update validations
+  - update validations
+  - supersede behavior
   - dedicated overview-transition behavior
   - status transition forward/back paths
 - Out of scope:
@@ -31,9 +32,9 @@ Provide repeatable curl-based validation for revisions list/update/create, overv
 ## Design / Behavior
 Revision APIs must enforce required fields, status immutability on update, and workflow transition constraints.
 - `POST /api/v1/documents/revisions/{rev_id}/overview-transition` creates the next revision from a current final revision.
-- `POST /api/v1/documents/revisions/{rev_id}/supersede` creates a replacement revision with the same `rev_code_id` for the current non-final revision.
+- `POST /api/v1/documents/revisions/{rev_id}/supersede` creates a replacement revision with the same `rev_code_id` for the current non-final revision and restarts that replacement at the workflow start status.
 - The generic revision update workflow must reject `rev_code_id` changes after revision creation.
-- Generic revision creation from a non-final current revision must supersede the previous in-progress revision.
+- There is no public generic revision-create endpoint for follow-up document revisions.
 - A superseded revision must no longer block reuse of its `rev_code_id`.
 - Document creation defaults the initial `rev_code_id` to the unique `revision_overview.start=true` step when omitted.
 
@@ -97,40 +98,7 @@ curl -i -X PUT "$API_BASE$API_PREFIX/documents/revisions/$REV_ID" \
   -d "{\"rev_code_id\":$REV_CODE_ID}"
 ```
 
-## 4. TS-REV-007..010 Create Checks
-
-```bash
-BASE_REV=$(curl -s "$API_BASE$API_PREFIX/documents/$DOC_ID/revisions" | jq -r '.[0]')
-
-CREATE_PAYLOAD=$(cat <<JSON
-{
-  "rev_code_id": $(echo "$BASE_REV" | jq -r '.rev_code_id'),
-  "rev_author_id": $(echo "$BASE_REV" | jq -r '.rev_author_id'),
-  "rev_originator_id": $(echo "$BASE_REV" | jq -r '.rev_originator_id'),
-  "rev_modifier_id": $(echo "$BASE_REV" | jq -r '.rev_modifier_id'),
-  "transmital_current_revision": "TR-NEW-$TS",
-  "planned_start_date": "$(echo "$BASE_REV" | jq -r '.planned_start_date')",
-  "planned_finish_date": "$(echo "$BASE_REV" | jq -r '.planned_finish_date')"
-}
-JSON
-)
-
-# TS-REV-007
-curl -i -X POST "$API_BASE$API_PREFIX/documents/$DOC_ID/revisions" -H "Content-Type: application/json" -d "$CREATE_PAYLOAD"
-
-# TS-REV-008
-curl -i -X POST "$API_BASE$API_PREFIX/documents/$DOC_ID/revisions" \
-  -H "Content-Type: application/json" \
-  -d "$(echo "$CREATE_PAYLOAD" | jq '. + {rev_status_id: 1}')"
-
-# TS-REV-009
-curl -i -X POST "$API_BASE$API_PREFIX/documents/999999/revisions" -H "Content-Type: application/json" -d "$CREATE_PAYLOAD"
-
-# TS-REV-010
-curl -i -X POST "$API_BASE$API_PREFIX/documents/1/revisions" -H "Content-Type: application/json" -d "{}"
-```
-
-## 5. TS-REV-011..018 Status Transition Checks
+## 4. TS-REV-011..018 Status Transition Checks
 
 ```bash
 # TS-REV-011 forward transition (requires eligible revision)
@@ -155,7 +123,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents/revisions/$REV_ID/status-transit
 
 `TS-REV-018` requires selecting a revision currently in the unique `start=true` status.
 
-## 6. TS-REV-020..027 Overview Transition and Document Create Checks
+## 5. TS-REV-020..027 Overview Transition, Supersede, and Document Create Checks
 
 ```bash
 # TS-REV-020 overview transition from current final revision
@@ -178,9 +146,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 
 `TS-REV-024` requires canceling a non-final revision and confirming it no longer appears in standard revision-list responses.
 
-`TS-REV-025` requires attempting to create a follow-up revision when the document's current revision is already in the final status.
-
-`TS-REV-026` requires superseding the current non-final revision through the dedicated supersede endpoint and verifying the replacement revision keeps the same `rev_code_id`.
+`TS-REV-026` requires superseding the current non-final revision through the dedicated supersede endpoint and verifying the replacement revision keeps the same `rev_code_id` while restarting at the workflow start status.
 
 `TS-REV-027` requires attempting to supersede a current final revision and confirming the API rejects it in favor of the overview-transition workflow.
 
@@ -196,12 +162,6 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `TS-REV-005` update missing revision returns `404`.
 - `TS-REV-006` update with `rev_status_id` is rejected (`422`).
 - `TS-REV-019` update with `rev_code_id` is rejected (`422`).
-- `TS-REV-007` create revision succeeds.
-  - The previous non-final current revision becomes `superseded=true`.
-  - The new revision may reuse the same `rev_code_id` because superseded revisions no longer reserve revision codes.
-- `TS-REV-008` create revision with explicit status is rejected (`422`).
-- `TS-REV-009` create revision for missing doc returns `404`.
-- `TS-REV-010` create revision missing required fields returns `422`.
 - `TS-REV-011` forward status transition succeeds when eligible.
 - `TS-REV-012` back status transition succeeds when eligible.
   - The target status is the unique immediate predecessor whose `next_rev_status_id` points to the current status.
@@ -216,8 +176,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `TS-REV-022` document create without `rev_code_id` defaults to the `revision_overview.start` step.
 - `TS-REV-023` document create with an explicit allowed non-start `rev_code_id` succeeds.
 - `TS-REV-024` canceled revisions are excluded from standard revision-list responses.
-- `TS-REV-025` create revision when the current revision is final returns `409`.
-- `TS-REV-026` supersede revision creates a replacement row with the same `rev_code_id` and marks the source revision as `superseded=true`.
+- `TS-REV-026` supersede revision creates a replacement row with the same `rev_code_id`, resets it to the workflow start status, and marks the source revision as `superseded=true`.
 - `TS-REV-027` supersede revision from a final source returns `409`.
 
 ## Automated Test Mapping
@@ -228,10 +187,6 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_update_missing_revision` -> `TS-REV-005`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_update_rejects_status_change` -> `TS-REV-006`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_update_rejects_rev_code_change` -> `TS-REV-019`
-- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_create` -> `TS-REV-007`
-- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_create_rejects_rev_status_id` -> `TS-REV-008`
-- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_create_missing_doc` -> `TS-REV-009`
-- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_create_missing_required_fields` -> `TS-REV-010`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_forward` -> `TS-REV-011`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_back` -> `TS-REV-012`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_invalid_direction` -> `TS-REV-013`
@@ -245,7 +200,6 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_from_non_start_code` -> `TS-REV-023`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_rejects_non_final_source` -> `TS-REV-021`
 - `tests/api/api/test_cancel_delete_endpoints.py::test_cancel_revision` -> `TS-REV-024`
-- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_create_rejects_when_current_revision_is_final` -> `TS-REV-025`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_supersede` -> `TS-REV-026`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_supersede_rejects_final_source` -> `TS-REV-027`
 

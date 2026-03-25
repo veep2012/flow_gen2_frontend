@@ -336,39 +336,6 @@ class DocRevisionOverviewTransition(BaseModel):
     model_config = ConfigDict(extra="forbid", json_schema_extra={"example": {}})
 
 
-class DocRevisionCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    rev_code_id: int = Field(..., description="Revision code ID.", examples=[1], gt=0)
-    rev_author_id: int = Field(..., description="Revision author person ID.", examples=[1], gt=0)
-    rev_originator_id: int = Field(
-        ..., description="Revision originator person ID.", examples=[1], gt=0
-    )
-    rev_modifier_id: int = Field(
-        ..., description="Revision modifier person ID.", examples=[1], gt=0
-    )
-    transmital_current_revision: str = Field(
-        ..., description="Transmittal current revision.", examples=["TR-001"], min_length=1
-    )
-    milestone_id: int | None = Field(None, description="Milestone ID.", examples=[1], gt=0)
-    planned_start_date: datetime = Field(
-        ..., description="Planned start date.", examples=["2024-01-02T12:00:00Z"]
-    )
-    planned_finish_date: datetime = Field(
-        ..., description="Planned finish date.", examples=["2024-01-05T12:00:00Z"]
-    )
-    actual_start_date: datetime | None = Field(
-        None, description="Actual start date.", examples=["2024-01-03T12:00:00Z"]
-    )
-    actual_finish_date: datetime | None = Field(
-        None, description="Actual finish date.", examples=["2024-01-06T12:00:00Z"]
-    )
-    as_built: bool = Field(False, description="As-built flag.", examples=[False])
-    modified_doc_date: datetime | None = Field(
-        None, description="Modified document date.", examples=["2024-01-05T12:00:00Z"]
-    )
-
-
 class DocRevisionSupersede(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

@@ -391,102 +391,48 @@ def test_documents_create_defaults_initial_revision_code_to_start():
 
 
 @pytest.mark.api_smoke
-def test_documents_revisions_create():
-    with httpx.Client(timeout=10) as client:
-        doc_id, base_revision = _create_document_with_revision(client, prefix="DOC-REV-CREATE")
-        payload = {
-            "rev_code_id": base_revision["rev_code_id"],
-            "rev_author_id": base_revision["rev_author_id"],
-            "rev_originator_id": base_revision["rev_originator_id"],
-            "rev_modifier_id": base_revision["rev_modifier_id"],
-            "transmital_current_revision": f"TR-NEW-{doc_id}",
-            "planned_start_date": base_revision["planned_start_date"],
-            "planned_finish_date": base_revision["planned_finish_date"],
-        }
-        created = _request(client, "POST", f"/documents/{doc_id}/revisions", json=payload)
-        assert created["status"] == 201
-        assert created["payload"]["doc_id"] == doc_id
-        assert created["payload"]["seq_num"] == base_revision["seq_num"] + 1
-        assert created["payload"]["rev_code_id"] == base_revision["rev_code_id"]
-        start_status_id = _get_start_status_id(client)
-        if start_status_id is not None:
-            assert created["payload"]["rev_status_id"] == start_status_id
-        revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
-        assert revisions["status"] == 200
-        prior_revision = next(
-            (rev for rev in revisions["payload"] if rev.get("rev_id") == base_revision["rev_id"]),
-            None,
-        )
-        assert prior_revision is not None
-        assert prior_revision["superseded"] is True
-        assert prior_revision["rev_code_id"] == created["payload"]["rev_code_id"]
-
-
-@pytest.mark.api_smoke
-def test_documents_revisions_create_rejects_rev_status_id():
-    with httpx.Client(timeout=10) as client:
-        doc_id, base_revision = _create_document_with_revision(
-            client, prefix="DOC-REV-CREATE-STATUS"
-        )
-        payload = {
-            "rev_code_id": base_revision["rev_code_id"],
-            "rev_author_id": base_revision["rev_author_id"],
-            "rev_originator_id": base_revision["rev_originator_id"],
-            "rev_modifier_id": base_revision["rev_modifier_id"],
-            "transmital_current_revision": f"TR-NEW-{doc_id}-STATUS",
-            "planned_start_date": base_revision["planned_start_date"],
-            "planned_finish_date": base_revision["planned_finish_date"],
-            "rev_status_id": base_revision["rev_status_id"],
-        }
-        created = _request(client, "POST", f"/documents/{doc_id}/revisions", json=payload)
-        assert created["status"] == 422
-
-
-@pytest.mark.api_smoke
-def test_documents_revisions_create_rejects_when_current_revision_is_final():
-    with httpx.Client(timeout=10) as client:
-        final_status_id = _get_final_status_id(client)
-        if final_status_id is None:
-            pytest.skip("No final status configured")
-        doc_id, base_revision = _create_document_with_revision(
-            client, prefix="DOC-REV-CREATE-FINAL"
-        )
-        _mark_revision_final_and_sync_doc(doc_id, base_revision["rev_id"], final_status_id)
-        payload = {
-            "rev_code_id": base_revision["rev_code_id"],
-            "rev_author_id": base_revision["rev_author_id"],
-            "rev_originator_id": base_revision["rev_originator_id"],
-            "rev_modifier_id": base_revision["rev_modifier_id"],
-            "transmital_current_revision": f"TR-FINAL-{doc_id}",
-            "planned_start_date": base_revision["planned_start_date"],
-            "planned_finish_date": base_revision["planned_finish_date"],
-        }
-        created = _request(client, "POST", f"/documents/{doc_id}/revisions", json=payload)
-        assert created["status"] == 409
-
-
-@pytest.mark.api_smoke
 def test_documents_revisions_supersede():
     with httpx.Client(timeout=10) as client:
         doc_id, base_revision = _create_document_with_revision(client, prefix="DOC-REV-SUPERSEDE")
+        statuses = _get_statuses(client)
+        if not statuses:
+            pytest.skip("No statuses available for supersede test")
+        status_map = {
+            status["rev_status_id"]: status for status in statuses if "rev_status_id" in status
+        }
+        current_status = status_map.get(base_revision["rev_status_id"])
+        if current_status is None or current_status.get("next_rev_status_id") is None:
+            pytest.skip("No non-final successor status available for supersede test")
+        _ensure_file_for_revision(client, base_revision["rev_id"])
+        advanced = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{base_revision['rev_id']}/status-transitions",
+            json={"direction": "forward"},
+        )
+        assert advanced["status"] == 200
+        advanced_payload = advanced["payload"]
+        advanced_status = status_map.get(advanced_payload["rev_status_id"])
+        if advanced_status is None or advanced_status.get("final"):
+            pytest.skip("Need a non-final non-start source revision for supersede test")
         payload = {
-            "rev_author_id": base_revision["rev_author_id"],
-            "rev_originator_id": base_revision["rev_originator_id"],
-            "rev_modifier_id": base_revision["rev_modifier_id"],
+            "rev_author_id": advanced_payload["rev_author_id"],
+            "rev_originator_id": advanced_payload["rev_originator_id"],
+            "rev_modifier_id": advanced_payload["rev_modifier_id"],
             "transmital_current_revision": f"TR-SUP-{doc_id}",
-            "planned_start_date": base_revision["planned_start_date"],
-            "planned_finish_date": base_revision["planned_finish_date"],
+            "planned_start_date": advanced_payload["planned_start_date"],
+            "planned_finish_date": advanced_payload["planned_finish_date"],
         }
         created = _request(
             client,
             "POST",
-            f"/documents/revisions/{base_revision['rev_id']}/supersede",
+            f"/documents/revisions/{advanced_payload['rev_id']}/supersede",
             json=payload,
         )
         assert created["status"] == 200
         assert created["payload"]["doc_id"] == doc_id
-        assert created["payload"]["seq_num"] == base_revision["seq_num"] + 1
-        assert created["payload"]["rev_code_id"] == base_revision["rev_code_id"]
+        assert created["payload"]["seq_num"] == advanced_payload["seq_num"] + 1
+        assert created["payload"]["rev_code_id"] == advanced_payload["rev_code_id"]
         start_status_id = _get_start_status_id(client)
         if start_status_id is not None:
             assert created["payload"]["rev_status_id"] == start_status_id
@@ -494,7 +440,11 @@ def test_documents_revisions_supersede():
         revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
         assert revisions["status"] == 200
         prior_revision = next(
-            (rev for rev in revisions["payload"] if rev.get("rev_id") == base_revision["rev_id"]),
+            (
+                rev
+                for rev in revisions["payload"]
+                if rev.get("rev_id") == advanced_payload["rev_id"]
+            ),
             None,
         )
         assert prior_revision is not None
@@ -524,29 +474,6 @@ def test_documents_revisions_supersede_rejects_final_source():
             json=payload,
         )
         assert created["status"] == 409
-
-
-@pytest.mark.api_smoke
-def test_documents_revisions_create_missing_doc():
-    with httpx.Client(timeout=10) as client:
-        payload = {
-            "rev_code_id": 1,
-            "rev_author_id": 1,
-            "rev_originator_id": 1,
-            "rev_modifier_id": 1,
-            "transmital_current_revision": "TR-NEW-999999",
-            "planned_start_date": "2024-01-02T12:00:00Z",
-            "planned_finish_date": "2024-01-05T12:00:00Z",
-        }
-        created = _request(client, "POST", "/documents/999999/revisions", json=payload)
-        assert created["status"] == 404
-
-
-@pytest.mark.api_smoke
-def test_documents_revisions_create_missing_required_fields():
-    with httpx.Client(timeout=10) as client:
-        created = _request(client, "POST", "/documents/1/revisions", json={})
-        assert created["status"] == 422
 
 
 @pytest.mark.api_smoke
