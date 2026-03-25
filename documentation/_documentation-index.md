@@ -50,6 +50,7 @@
 - `_naming_convention.md` - Filename rules.
 - `_documentation-index.md` - This index file.
 - `_documentation_actualization_state.md` - State file for monthly documentation actualization cadence.
+- `story_template.md` - Lightweight template for initiative parent stories and numbered sub-stories.
 
 ## Maintenance Rules
 - Add every new `documentation/*.md` file to this index in the same change.
