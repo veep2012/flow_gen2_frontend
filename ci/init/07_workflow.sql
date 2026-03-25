@@ -167,6 +167,27 @@ BEGIN
         RAISE EXCEPTION 'Final revision progression requires overview transition';
     END IF;
 
+    UPDATE core.doc_revision
+    SET superseded = TRUE
+    WHERE doc_id = p_doc_id
+      AND canceled_date IS NULL
+      AND COALESCE(superseded, false) = FALSE
+      AND rev_id <> COALESCE((
+            SELECT rev_current_id
+            FROM core.doc
+            WHERE doc_id = p_doc_id
+        ), 0);
+
+    UPDATE core.doc_revision
+    SET superseded = TRUE
+    WHERE rev_id = (
+            SELECT rev_current_id
+            FROM core.doc
+            WHERE doc_id = p_doc_id
+        )
+      AND canceled_date IS NULL
+      AND COALESCE(superseded, false) = FALSE;
+
     SELECT COALESCE(MAX(seq_num), 0) + 1 INTO v_seq
     FROM core.doc_revision WHERE doc_id = p_doc_id;
 
@@ -276,6 +297,7 @@ BEGIN
         WHERE r.doc_id = v_source.doc_id
           AND r.rev_code_id = v_target_rev_code_id
           AND r.canceled_date IS NULL
+          AND COALESCE(r.superseded, false) = FALSE
     ) INTO v_conflict_exists;
     IF v_conflict_exists THEN
         RAISE EXCEPTION 'Active revision with target revision code already exists';
@@ -467,6 +489,129 @@ BEGIN
 
     SELECT * INTO v_rev FROM core.doc_revision WHERE rev_id = p_rev_id;
     RETURN v_rev;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.supersede_revision(
+    p_rev_id INTEGER,
+    p_rev_author_id SMALLINT,
+    p_rev_originator_id SMALLINT,
+    p_rev_modifier_id SMALLINT,
+    p_transmital_current_revision VARCHAR,
+    p_milestone_id SMALLINT,
+    p_planned_start_date TIMESTAMPTZ,
+    p_planned_finish_date TIMESTAMPTZ,
+    p_actual_start_date TIMESTAMPTZ,
+    p_actual_finish_date TIMESTAMPTZ,
+    p_modified_doc_date TIMESTAMPTZ,
+    p_as_built BOOLEAN DEFAULT FALSE
+) RETURNS core.doc_revision
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_source core.doc_revision%ROWTYPE;
+    v_doc core.doc%ROWTYPE;
+    v_status ref.doc_rev_statuses%ROWTYPE;
+    v_start_status SMALLINT;
+    v_seq SMALLINT;
+    v_new_rev core.doc_revision%ROWTYPE;
+BEGIN
+    SELECT * INTO v_source
+    FROM core.doc_revision
+    WHERE rev_id = p_rev_id
+    FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Revision not found';
+    END IF;
+
+    SELECT * INTO v_doc
+    FROM core.doc
+    WHERE doc_id = v_source.doc_id
+    FOR UPDATE;
+
+    IF v_doc.rev_current_id IS DISTINCT FROM p_rev_id THEN
+        RAISE EXCEPTION 'Source revision is not current';
+    END IF;
+
+    IF v_source.canceled_date IS NOT NULL THEN
+        RAISE EXCEPTION 'Source revision is canceled';
+    END IF;
+
+    IF COALESCE(v_source.superseded, FALSE) THEN
+        RAISE EXCEPTION 'Source revision is already superseded';
+    END IF;
+
+    SELECT * INTO v_status
+    FROM ref.doc_rev_statuses
+    WHERE rev_status_id = v_source.rev_status_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Invalid current status';
+    END IF;
+    IF v_status.final THEN
+        RAISE EXCEPTION 'Source revision is in final status';
+    END IF;
+
+    SELECT rev_status_id INTO v_start_status
+    FROM ref.doc_rev_statuses
+    WHERE start = TRUE
+    LIMIT 1;
+    IF v_start_status IS NULL THEN
+        RAISE EXCEPTION 'No start status configured';
+    END IF;
+
+    PERFORM set_config('app.action', 'supersede_revision', true);
+    UPDATE core.doc_revision
+    SET superseded = TRUE
+    WHERE rev_id = p_rev_id;
+
+    SELECT COALESCE(MAX(seq_num), 0) + 1 INTO v_seq
+    FROM core.doc_revision
+    WHERE doc_id = v_source.doc_id;
+
+    INSERT INTO core.doc_revision (
+        doc_id,
+        rev_code_id,
+        rev_author_id,
+        rev_originator_id,
+        rev_modifier_id,
+        transmital_current_revision,
+        milestone_id,
+        planned_start_date,
+        planned_finish_date,
+        actual_start_date,
+        actual_finish_date,
+        canceled_date,
+        rev_status_id,
+        seq_num,
+        modified_doc_date,
+        as_built
+    ) VALUES (
+        v_source.doc_id,
+        v_source.rev_code_id,
+        p_rev_author_id,
+        p_rev_originator_id,
+        p_rev_modifier_id,
+        p_transmital_current_revision,
+        p_milestone_id,
+        p_planned_start_date,
+        p_planned_finish_date,
+        p_actual_start_date,
+        p_actual_finish_date,
+        NULL,
+        v_start_status,
+        v_seq,
+        COALESCE(p_modified_doc_date, CURRENT_TIMESTAMP),
+        COALESCE(p_as_built, FALSE)
+    )
+    RETURNING * INTO v_new_rev;
+
+    UPDATE core.doc
+    SET rev_current_id = v_new_rev.rev_id
+    WHERE doc_id = v_source.doc_id;
+
+    RETURN v_new_rev;
 END;
 $$;
 

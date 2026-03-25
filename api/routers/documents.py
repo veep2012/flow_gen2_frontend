@@ -20,9 +20,10 @@ from api.schemas.documents import (
     DocCreate,
     DocOut,
     DocRevisionCreate,
-    DocRevisionOverviewTransition,
     DocRevisionOut,
+    DocRevisionOverviewTransition,
     DocRevisionStatusTransition,
+    DocRevisionSupersede,
     DocRevisionUpdate,
     DocRevMilestoneCreate,
     DocRevMilestoneOut,
@@ -912,6 +913,23 @@ _INSERT_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
 _CANCEL_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("revision not found", 404, "Revision not found"),
     ("final revision cannot be canceled", 409, "Final revision cannot be canceled"),
+)
+
+_SUPERSEDE_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("revision not found", 404, "Revision not found"),
+    ("source revision is not current", 409, "Only the current revision can be superseded"),
+    ("source revision is canceled", 409, "Canceled revisions cannot be superseded"),
+    ("source revision is already superseded", 409, "Revision is already superseded"),
+    (
+        "source revision is in final status",
+        409,
+        "Use overview transition to create the next revision from a final revision",
+    ),
+    ("no start status configured", 400, "No start status configured"),
+    ("milestone not found", 404, "Milestone not found"),
+    ("revision author not found", 404, "Revision author not found"),
+    ("revision originator not found", 404, "Revision originator not found"),
+    ("revision modifier not found", 404, "Revision modifier not found"),
 )
 
 _OVERVIEW_TRANSITION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
@@ -1867,6 +1885,68 @@ def cancel_revision(
     except DBAPIError as err:
         db.rollback()
         _raise_for_dbapi_error(err, _CANCEL_REVISION_DB_ERROR_MAP)
+    return _build_doc_revision_out_from_core_row(db, dict(rev_row))
+
+
+@router.post(
+    "/revisions/{rev_id}/supersede",
+    summary="Supersede a document revision.",
+    description=(
+        "Creates a replacement revision with the same revision code for the current non-final "
+        "revision and marks the source revision as superseded."
+    ),
+    response_model=DocRevisionOut,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def supersede_revision(
+    rev_id: int = Path(..., description="Revision ID to supersede", gt=0),
+    payload: DocRevisionSupersede = Body(..., openapi_examples=_example_for(DocRevisionSupersede)),
+    db: Session = Depends(get_db),
+) -> DocRevisionOut:
+    try:
+        rev_row = (
+            db.execute(
+                text(
+                    """
+                    SELECT r.* FROM workflow.supersede_revision(
+                        :rev_id,
+                        :rev_author_id,
+                        :rev_originator_id,
+                        :rev_modifier_id,
+                        :transmital_current_revision,
+                        :milestone_id,
+                        :planned_start_date,
+                        :planned_finish_date,
+                        :actual_start_date,
+                        :actual_finish_date,
+                        :modified_doc_date,
+                        :as_built
+                    ) AS r
+                    """
+                ),
+                {
+                    "rev_id": rev_id,
+                    "rev_author_id": payload.rev_author_id,
+                    "rev_originator_id": payload.rev_originator_id,
+                    "rev_modifier_id": payload.rev_modifier_id,
+                    "transmital_current_revision": payload.transmital_current_revision,
+                    "milestone_id": payload.milestone_id,
+                    "planned_start_date": _normalize_dt(payload.planned_start_date),
+                    "planned_finish_date": _normalize_dt(payload.planned_finish_date),
+                    "actual_start_date": _normalize_dt(payload.actual_start_date),
+                    "actual_finish_date": _normalize_dt(payload.actual_finish_date),
+                    "modified_doc_date": _normalize_dt(payload.modified_doc_date),
+                    "as_built": payload.as_built,
+                },
+            )
+            .mappings()
+            .one()
+        )
+        db.commit()
+    except DBAPIError as err:
+        db.rollback()
+        _raise_for_dbapi_error(err, _SUPERSEDE_REVISION_DB_ERROR_MAP)
     return _build_doc_revision_out_from_core_row(db, dict(rev_row))
 
 

@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-03-20
-- Last Updated: 2026-03-20
-- Version: v0.2
+- Last Updated: 2026-03-25
+- Version: v0.3
 
 ## Change Log
+- 2026-03-25 | v0.3 | Updated the contract to reflect current workflow rules: seeded revision codes remain stable and valid for creation, but `workflow.update_revision` must reject `rev_code_id` changes after revision creation.
 - 2026-03-20 | v0.2 | Narrowed the contract to the current repository policy: revision-code safety is guaranteed through clean bootstrap and reseed only; in-place migration is explicitly out of scope until a future migration framework exists.
 
 ## Purpose
@@ -26,7 +27,7 @@ Define the automated verification contract for revision-code bootstrap and resee
   - endpoint-specific response payload validation
 
 ## Design / Behavior
-The repository contract supports clean bootstrap and reseed only. For now, revision-code safety means a recreated database must install the canonical `revision_overview` rows with stable `rev_code_id` identities, preserve downstream references created after bootstrap, and leave the identity sequence above the seeded range.
+The repository contract supports clean bootstrap and reseed only. For now, revision-code safety means a recreated database must install the canonical `revision_overview` rows with stable `rev_code_id` identities, allow new revisions to be created against those seeded IDs, reject post-creation `rev_code_id` mutations through `workflow.update_revision`, preserve downstream references created after bootstrap, and leave the identity sequence above the seeded range.
 
 ## Scenario Catalog
 - `TS-RCS-001`: revision-code bootstrap is repeatable and preserves seeded identity plus downstream foreign-key validity.
@@ -52,14 +53,15 @@ The repository contract supports clean bootstrap and reseed only. For now, revis
     - `6 -> INDESIGN -> next 1 and start`
   - verify the `rev_code_id` sequence advances above the seeded range
   - create a document revision using seeded `rev_code_id = 6`
-  - update that revision to seeded `rev_code_id = 1`
+  - attempt to update that revision to seeded `rev_code_id = 1`
   - verify no `core.doc_revision.rev_code_id` rows are left without a matching `ref.revision_overview.rev_code_id`
   - rerun `ci/init/flow_init.psql` and `ci/init/flow_seed.sql` against the same disposable database and repeat the assertions
 - Expected:
   - both bootstrap passes succeed
   - the seeded `rev_code_id` mapping is identical after each pass
   - the sequence value continues above `6`
-  - create and update operations using seeded `rev_code_id` values succeed
+  - create operations using seeded `rev_code_id` values succeed
+  - `workflow.update_revision` rejects post-creation `rev_code_id` changes with the documented immutability error
   - downstream `core.doc_revision` rows remain fully referenced
 - Cleanup:
   - drop the disposable database

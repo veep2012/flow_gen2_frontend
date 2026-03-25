@@ -6,9 +6,11 @@
 - Reviewers: API maintainers
 - Created: 2026-02-07
 - Last Updated: 2026-03-25
-- Version: v1.6
+- Version: v2.0
 
 ## Change Log
+- 2026-03-25 | v2.0 | Clarified that generic revision creation supersedes the previous in-progress revision and that superseded revisions behave like canceled revisions for `rev_code_id` reuse, added a dedicated supersede endpoint for replacing the current non-final revision with the same `rev_code_id`, and synchronized scenario coverage for the new success and final-source rejection paths.
+- 2026-03-25 | v1.7 | Added the missing automated mapping for the final-current-revision create rejection scenario and aligned the scenario catalog numbering with the current revisions test suite.
 - 2026-03-25 | v1.6 | Added dedicated overview-transition scenarios for current final revisions, changed generic revision-update scenarios so `rev_code_id` is rejected after creation, added document-create default/explicit initial revision-code scenarios, and clarified that canceled revisions disappear from standard revision lists.
 - 2026-03-20 | v1.5 | Clarified current revision-code update behavior: there is no dedicated overview-transition endpoint, and the generic revision update workflow may still mutate `doc_revision.rev_code_id` while `ref.revision_overview` remains reference data; also defined `back` transition semantics explicitly as immediate-predecessor rollback via the unique status whose `next_rev_status_id` points to the current status, and added invariant coverage for ambiguous predecessor rejection.
 - 2026-03-04 | v1.3 | Added fail-closed session-identity scenario for revisions router reads.
@@ -29,7 +31,10 @@ Provide repeatable curl-based validation for revisions list/update/create, overv
 ## Design / Behavior
 Revision APIs must enforce required fields, status immutability on update, and workflow transition constraints.
 - `POST /api/v1/documents/revisions/{rev_id}/overview-transition` creates the next revision from a current final revision.
+- `POST /api/v1/documents/revisions/{rev_id}/supersede` creates a replacement revision with the same `rev_code_id` for the current non-final revision.
 - The generic revision update workflow must reject `rev_code_id` changes after revision creation.
+- Generic revision creation from a non-final current revision must supersede the previous in-progress revision.
+- A superseded revision must no longer block reuse of its `rev_code_id`.
 - Document creation defaults the initial `rev_code_id` to the unique `revision_overview.start=true` step when omitted.
 
 Backward transition contract:
@@ -150,7 +155,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents/revisions/$REV_ID/status-transit
 
 `TS-REV-018` requires selecting a revision currently in the unique `start=true` status.
 
-## 6. TS-REV-020..024 Overview Transition and Document Create Checks
+## 6. TS-REV-020..027 Overview Transition and Document Create Checks
 
 ```bash
 # TS-REV-020 overview transition from current final revision
@@ -173,6 +178,12 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 
 `TS-REV-024` requires canceling a non-final revision and confirming it no longer appears in standard revision-list responses.
 
+`TS-REV-025` requires attempting to create a follow-up revision when the document's current revision is already in the final status.
+
+`TS-REV-026` requires superseding the current non-final revision through the dedicated supersede endpoint and verifying the replacement revision keeps the same `rev_code_id`.
+
+`TS-REV-027` requires attempting to supersede a current final revision and confirming the API rejects it in favor of the overview-transition workflow.
+
 ## Edge Cases
 - Transition checks are data-dependent; pick suitable revisions from current seed state.
 - Forward transition may require a file attachment on revision depending on status rules.
@@ -186,6 +197,8 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `TS-REV-006` update with `rev_status_id` is rejected (`422`).
 - `TS-REV-019` update with `rev_code_id` is rejected (`422`).
 - `TS-REV-007` create revision succeeds.
+  - The previous non-final current revision becomes `superseded=true`.
+  - The new revision may reuse the same `rev_code_id` because superseded revisions no longer reserve revision codes.
 - `TS-REV-008` create revision with explicit status is rejected (`422`).
 - `TS-REV-009` create revision for missing doc returns `404`.
 - `TS-REV-010` create revision missing required fields returns `422`.
@@ -203,6 +216,9 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `TS-REV-022` document create without `rev_code_id` defaults to the `revision_overview.start` step.
 - `TS-REV-023` document create with an explicit allowed non-start `rev_code_id` succeeds.
 - `TS-REV-024` canceled revisions are excluded from standard revision-list responses.
+- `TS-REV-025` create revision when the current revision is final returns `409`.
+- `TS-REV-026` supersede revision creates a replacement row with the same `rev_code_id` and marks the source revision as `superseded=true`.
+- `TS-REV-027` supersede revision from a final source returns `409`.
 
 ## Automated Test Mapping
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_list` -> `TS-REV-001`
@@ -229,6 +245,9 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_from_non_start_code` -> `TS-REV-023`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_rejects_non_final_source` -> `TS-REV-021`
 - `tests/api/api/test_cancel_delete_endpoints.py::test_cancel_revision` -> `TS-REV-024`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_create_rejects_when_current_revision_is_final` -> `TS-REV-025`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_supersede` -> `TS-REV-026`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_supersede_rejects_final_source` -> `TS-REV-027`
 
 ## References
 - `tests/api/api/test_documents_revisions_endpoints.py`

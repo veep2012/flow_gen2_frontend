@@ -407,9 +407,19 @@ def test_documents_revisions_create():
         assert created["status"] == 201
         assert created["payload"]["doc_id"] == doc_id
         assert created["payload"]["seq_num"] == base_revision["seq_num"] + 1
+        assert created["payload"]["rev_code_id"] == base_revision["rev_code_id"]
         start_status_id = _get_start_status_id(client)
         if start_status_id is not None:
             assert created["payload"]["rev_status_id"] == start_status_id
+        revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        assert revisions["status"] == 200
+        prior_revision = next(
+            (rev for rev in revisions["payload"] if rev.get("rev_id") == base_revision["rev_id"]),
+            None,
+        )
+        assert prior_revision is not None
+        assert prior_revision["superseded"] is True
+        assert prior_revision["rev_code_id"] == created["payload"]["rev_code_id"]
 
 
 @pytest.mark.api_smoke
@@ -452,6 +462,67 @@ def test_documents_revisions_create_rejects_when_current_revision_is_final():
             "planned_finish_date": base_revision["planned_finish_date"],
         }
         created = _request(client, "POST", f"/documents/{doc_id}/revisions", json=payload)
+        assert created["status"] == 409
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_supersede():
+    with httpx.Client(timeout=10) as client:
+        doc_id, base_revision = _create_document_with_revision(client, prefix="DOC-REV-SUPERSEDE")
+        payload = {
+            "rev_author_id": base_revision["rev_author_id"],
+            "rev_originator_id": base_revision["rev_originator_id"],
+            "rev_modifier_id": base_revision["rev_modifier_id"],
+            "transmital_current_revision": f"TR-SUP-{doc_id}",
+            "planned_start_date": base_revision["planned_start_date"],
+            "planned_finish_date": base_revision["planned_finish_date"],
+        }
+        created = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{base_revision['rev_id']}/supersede",
+            json=payload,
+        )
+        assert created["status"] == 200
+        assert created["payload"]["doc_id"] == doc_id
+        assert created["payload"]["seq_num"] == base_revision["seq_num"] + 1
+        assert created["payload"]["rev_code_id"] == base_revision["rev_code_id"]
+        start_status_id = _get_start_status_id(client)
+        if start_status_id is not None:
+            assert created["payload"]["rev_status_id"] == start_status_id
+
+        revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        assert revisions["status"] == 200
+        prior_revision = next(
+            (rev for rev in revisions["payload"] if rev.get("rev_id") == base_revision["rev_id"]),
+            None,
+        )
+        assert prior_revision is not None
+        assert prior_revision["superseded"] is True
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_supersede_rejects_final_source():
+    with httpx.Client(timeout=10) as client:
+        final_status_id = _get_final_status_id(client)
+        if final_status_id is None:
+            pytest.skip("No final status configured")
+        doc_id, revision = _create_document_with_revision(client, prefix="DOC-REV-SUPERSEDE-FINAL")
+        _mark_revision_final_and_sync_doc(doc_id, revision["rev_id"], final_status_id)
+        payload = {
+            "rev_author_id": revision["rev_author_id"],
+            "rev_originator_id": revision["rev_originator_id"],
+            "rev_modifier_id": revision["rev_modifier_id"],
+            "transmital_current_revision": f"TR-SUP-FINAL-{doc_id}",
+            "planned_start_date": revision["planned_start_date"],
+            "planned_finish_date": revision["planned_finish_date"],
+        }
+        created = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{revision['rev_id']}/supersede",
+            json=payload,
+        )
         assert created["status"] == 409
 
 
@@ -511,26 +582,34 @@ def test_documents_revisions_overview_transition_from_final():
 
         engine = create_engine(_build_admin_database_url())
         with engine.begin() as conn:
-            doc_row = conn.execute(
-                text(
-                    """
+            doc_row = (
+                conn.execute(
+                    text(
+                        """
                     SELECT rev_actual_id, rev_current_id
                     FROM core.doc
                     WHERE doc_id = :doc_id
                     """
-                ),
-                {"doc_id": doc_id},
-            ).mappings().one()
-            source_row = conn.execute(
-                text(
-                    """
+                    ),
+                    {"doc_id": doc_id},
+                )
+                .mappings()
+                .one()
+            )
+            source_row = (
+                conn.execute(
+                    text(
+                        """
                     SELECT rev_code_id, rev_status_id
                     FROM core.doc_revision
                     WHERE rev_id = :rev_id
                     """
-                ),
-                {"rev_id": source_rev_id},
-            ).mappings().one()
+                    ),
+                    {"rev_id": source_rev_id},
+                )
+                .mappings()
+                .one()
+            )
 
         assert doc_row["rev_actual_id"] == source_rev_id
         assert doc_row["rev_current_id"] == transitioned["payload"]["rev_id"]

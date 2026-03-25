@@ -239,7 +239,9 @@ def test_cancel_revision():
         updated_revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
         assert 200 <= updated_revisions["status"] < 300
         updated_rev = next((r for r in updated_revisions["payload"] if r["rev_id"] == rev_id), None)
-        assert updated_rev is None, "Canceled revisions should be hidden from standard revision lists"
+        assert (
+            updated_rev is None
+        ), "Canceled revisions should be hidden from standard revision lists"
 
 
 @pytest.mark.api_smoke

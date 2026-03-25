@@ -114,6 +114,14 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-006"],
     ),
+    "test_documents_revisions_update_rejects_rev_code_change": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-019"],
+    ),
+    "test_documents_create_defaults_initial_revision_code_to_start": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-022"],
+    ),
     "test_documents_revisions_create": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-007"],
@@ -129,6 +137,18 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
     "test_documents_revisions_create_missing_required_fields": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-010"],
+    ),
+    "test_documents_revisions_create_rejects_when_current_revision_is_final": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-025"],
+    ),
+    "test_documents_revisions_supersede": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-026"],
+    ),
+    "test_documents_revisions_supersede_rejects_final_source": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-027"],
     ),
     "test_documents_revisions_status_transition_forward": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
@@ -161,6 +181,18 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
     "test_documents_revisions_require_session_identity": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-016"],
+    ),
+    "test_documents_revisions_overview_transition_from_final": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-020"],
+    ),
+    "test_documents_revisions_overview_transition_from_non_start_code": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-023"],
+    ),
+    "test_documents_revisions_overview_transition_rejects_non_final_source": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-021"],
     ),
     "test_files_commented_list": (
         "documentation/test_scenarios/files_commented_api_test_scenarios.md",

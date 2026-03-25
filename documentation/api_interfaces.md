@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-25
-- Version: v4.2
+- Version: v4.3
 
 ## Change Log
-- 2026-03-25 | v4.2 | Added dedicated `POST /api/v1/documents/revisions/{rev_id}/overview-transition` for creating the next revision from a current final revision, made generic revision updates reject `rev_code_id`, documented initial document `rev_code_id` defaulting to the `revision_overview.start` step, and clarified that canceled revisions are hidden from standard revision-list responses.
+- 2026-03-25 | v4.3 | Added dedicated `POST /api/v1/documents/revisions/{rev_id}/overview-transition` for creating the next revision from a current final revision, added `POST /api/v1/documents/revisions/{rev_id}/supersede` for replacing the current non-final revision with a new row that keeps the same `rev_code_id`, made generic revision updates reject `rev_code_id`, documented initial document `rev_code_id` defaulting to the `revision_overview.start` step, and clarified that canceled revisions are hidden from standard revision-list responses.
 - 2026-03-20 | v4.1 | Clarified that there is currently no dedicated overview-transition endpoint: `ref.revision_overview` remains reference configuration, while `PUT /api/v1/documents/revisions/{rev_id}` may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)`; also defined revision back-transition semantics explicitly so `direction="back"` moves only to the unique immediate predecessor status resolved by reverse `next_rev_status_id`, and the status graph forbids ambiguous predecessor configurations.
 - 2026-03-19 | v3.9 | Clarified the `GET /api/v1/documents/revision_overview` contract: path-derived ordering, `next_rev_code_id` terminal nullability, unique start/final semantics, descriptive `percentage`, and the metadata role of `revertible`/`editable`.
 - 2026-03-18 | v3.8 | Removed `recipient_user_id` override from `GET /api/v1/notifications` so inbox listing always resolves to the effective current user, updated examples/contracts accordingly, and documented owner-or-superuser authorization for `DELETE /api/v1/files/commented/{id}`, including the `403`/fail-closed `404` behavior and authenticated request example.
@@ -1284,6 +1284,43 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "canceled_date": null,
   "rev_status_id": 2,
   "rev_status_name": "IDC",
+  "as_built": false,
+  "superseded": false,
+  "modified_doc_date": "2024-01-05T12:00:00Z"
+}
+```
+### Revision supersede
+- `POST /api/v1/documents/revisions/{rev_id}/supersede` — 200; creates a replacement revision with the same `rev_code_id` and marks the source revision `superseded=true`; 404 if revision not found; 409 if the source revision is not current, is canceled, is already superseded, or is final.
+- Headers: `Accept: application/json`, `Content-Type: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" -X POST \
+  -d '{ "rev_author_id": 1, "rev_originator_id": 1, "rev_modifier_id": 1, "transmital_current_revision": "TR-SUP-001", "planned_start_date": "2024-01-02T12:00:00Z", "planned_finish_date": "2024-01-05T12:00:00Z" }' \
+  $API_BASE/api/v1/documents/revisions/1/supersede
+```
+- Example response:
+```json
+{
+  "rev_id": 2,
+  "doc_id": 11,
+  "seq_num": 2,
+  "rev_code_id": 6,
+  "rev_code_name": "INDESIGN",
+  "rev_code_acronym": "A",
+  "rev_description": "IN-DESIGN",
+  "rev_author_id": 1,
+  "rev_originator_id": 1,
+  "rev_modifier_id": 1,
+  "transmital_current_revision": "TR-SUP-001",
+  "milestone_id": 1,
+  "milestone_name": "Issued for Construction",
+  "planned_start_date": "2024-01-02T12:00:00Z",
+  "planned_finish_date": "2024-01-05T12:00:00Z",
+  "actual_start_date": null,
+  "actual_finish_date": null,
+  "canceled_date": null,
+  "rev_status_id": 1,
+  "rev_status_name": "INDESIGN",
   "as_built": false,
   "superseded": false,
   "modified_doc_date": "2024-01-05T12:00:00Z"

@@ -34,7 +34,7 @@ BEGIN
         END IF;
     END IF;
 
-    IF NEW.canceled_date IS NULL THEN
+    IF NEW.canceled_date IS NULL AND NOT COALESCE(NEW.superseded, false) THEN
         SELECT EXISTS (
             SELECT 1
             FROM core.doc_revision r
@@ -42,14 +42,15 @@ BEGIN
               AND r.rev_id <> COALESCE(NEW.rev_id, 0)
               AND r.rev_code_id = NEW.rev_code_id
               AND r.canceled_date IS NULL
+              AND COALESCE(r.superseded, false) = false
         ) INTO v_has_other;
         IF v_has_other THEN
             RAISE EXCEPTION 'Only one non-canceled revision per document may use a revision code';
         END IF;
     END IF;
 
-    -- Rule 3: Only one active (non-final, non-canceled) revision per document
-    IF NEW.canceled_date IS NULL AND NOT v_new_status.final THEN
+    -- Rule 3: Only one active (non-final, non-canceled, non-superseded) revision per document
+    IF NEW.canceled_date IS NULL AND NOT v_new_status.final AND NOT COALESCE(NEW.superseded, false) THEN
         SELECT EXISTS (
             SELECT 1
             FROM core.doc_revision r
@@ -58,6 +59,7 @@ BEGIN
               AND r.rev_id <> COALESCE(NEW.rev_id, 0)
               AND r.canceled_date IS NULL
               AND NOT s.final
+              AND COALESCE(r.superseded, false) = false
         ) INTO v_has_other;
         IF v_has_other THEN
             RAISE EXCEPTION 'Only one active (non-final, non-canceled) revision allowed per document';
