@@ -202,7 +202,7 @@ def _create_document_with_revision(
     return doc_id, revisions["payload"][0]
 
 
-def _mark_revision_final(doc_id: int, rev_id: int, final_status_id: int) -> None:
+def _mark_revision_final_and_sync_doc(doc_id: int, rev_id: int, final_status_id: int) -> None:
     engine = create_engine(_build_admin_database_url())
     with engine.begin() as conn:
         conn.execute(
@@ -441,7 +441,7 @@ def test_documents_revisions_create_rejects_when_current_revision_is_final():
         doc_id, base_revision = _create_document_with_revision(
             client, prefix="DOC-REV-CREATE-FINAL"
         )
-        _mark_revision_final(doc_id, base_revision["rev_id"], final_status_id)
+        _mark_revision_final_and_sync_doc(doc_id, base_revision["rev_id"], final_status_id)
         payload = {
             "rev_code_id": base_revision["rev_code_id"],
             "rev_author_id": base_revision["rev_author_id"],
@@ -495,7 +495,7 @@ def test_documents_revisions_overview_transition_from_final():
             client, prefix="DOC-REV-OVERVIEW", rev_code_id=start_step["rev_code_id"]
         )
         source_rev_id = revision["rev_id"]
-        _mark_revision_final(doc_id, source_rev_id, final_status_id)
+        _mark_revision_final_and_sync_doc(doc_id, source_rev_id, final_status_id)
 
         transitioned = _request(
             client,
@@ -539,7 +539,7 @@ def test_documents_revisions_overview_transition_from_final():
 
 
 @pytest.mark.api_smoke
-def test_documents_revisions_overview_transition_honors_explicit_initial_rev_code():
+def test_documents_revisions_overview_transition_from_non_start_code():
     with httpx.Client(timeout=10) as client:
         overview = _get_revision_overview_steps(client)
         final_status_id = _get_final_status_id(client)
@@ -562,7 +562,7 @@ def test_documents_revisions_overview_transition_honors_explicit_initial_rev_cod
         )
         assert revision["rev_code_id"] == candidate_step["rev_code_id"]
 
-        _mark_revision_final(doc_id, revision["rev_id"], final_status_id)
+        _mark_revision_final_and_sync_doc(doc_id, revision["rev_id"], final_status_id)
         transitioned = _request(
             client,
             "POST",

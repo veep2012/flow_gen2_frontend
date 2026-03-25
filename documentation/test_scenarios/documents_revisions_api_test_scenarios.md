@@ -226,7 +226,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_require_session_identity` -> `TS-REV-016`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_create_defaults_initial_revision_code_to_start` -> `TS-REV-022`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_from_final` -> `TS-REV-020`
-- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_honors_explicit_initial_rev_code` -> `TS-REV-023`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_from_non_start_code` -> `TS-REV-023`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_rejects_non_final_source` -> `TS-REV-021`
 - `tests/api/api/test_cancel_delete_endpoints.py::test_cancel_revision` -> `TS-REV-024`
 

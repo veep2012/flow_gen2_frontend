@@ -672,12 +672,11 @@ def update_document_revision(
 
 def create_revision_overview_transition(
     rev_id: int,
-    payload: DocRevisionOverviewTransition = Body(
+    _payload: DocRevisionOverviewTransition = Body(
         ..., openapi_examples=_example_for(DocRevisionOverviewTransition)
     ),
     db: Session = Depends(get_db),
 ) -> DocRevisionOut:
-    del payload
     doc_row = (
         db.execute(
             text(
