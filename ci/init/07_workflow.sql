@@ -695,6 +695,10 @@ BEGIN
         RAISE EXCEPTION 'No fields to update';
     END IF;
 
+    IF p_patch ? 'rev_actual_id' OR p_patch ? 'rev_current_id' THEN
+        RAISE EXCEPTION 'Revision pointers are workflow-managed';
+    END IF;
+
     SELECT * INTO v_doc FROM core.doc WHERE doc_id = p_doc_id FOR UPDATE;
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Document not found';
@@ -728,14 +732,6 @@ BEGIN
         unit_id = CASE
             WHEN p_patch ? 'unit_id' THEN (p_patch->>'unit_id')::SMALLINT
             ELSE unit_id
-        END,
-        rev_actual_id = CASE
-            WHEN p_patch ? 'rev_actual_id' THEN (p_patch->>'rev_actual_id')::INTEGER
-            ELSE rev_actual_id
-        END,
-        rev_current_id = CASE
-            WHEN p_patch ? 'rev_current_id' THEN (p_patch->>'rev_current_id')::INTEGER
-            ELSE rev_current_id
         END,
         updated_at = NULL,
         updated_by = NULL

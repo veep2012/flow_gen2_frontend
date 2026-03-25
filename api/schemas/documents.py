@@ -140,8 +140,6 @@ class DocUpdate(BaseModel):
     type_id: int | None = Field(None, description="Type ID.", examples=[1], gt=0)
     area_id: int | None = Field(None, description="Area ID.", examples=[1], gt=0)
     unit_id: int | None = Field(None, description="Unit ID.", examples=[1], gt=0)
-    rev_actual_id: int | None = Field(None, description="Rev Actual ID.", examples=[1], gt=0)
-    rev_current_id: int | None = Field(None, description="Rev Current ID.", examples=[1], gt=0)
 
 
 class DocCreate(BaseModel):

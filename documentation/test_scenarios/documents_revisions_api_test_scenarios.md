@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-07
 - Last Updated: 2026-03-25
-- Version: v2.2
+- Version: v2.3
 
 ## Change Log
-- 2026-03-25 | v2.2 | Removed the redundant public generic revision-create endpoint from the scenario contract, clarified that supersede replaces the current non-final revision with the same `rev_code_id` while restarting at the workflow start status, and synchronized automated coverage with the supported progression paths.
+- 2026-03-25 | v2.3 | Removed the redundant public generic revision-create endpoint from the scenario contract, clarified that supersede replaces the current non-final revision with the same `rev_code_id` while restarting at the workflow start status, added document-update rejection for workflow-managed revision pointers, and synchronized automated coverage with the supported progression paths.
 - 2026-03-25 | v1.7 | Added the missing automated mapping for the final-current-revision create rejection scenario and aligned the scenario catalog numbering with the current revisions test suite.
 - 2026-03-25 | v1.6 | Added dedicated overview-transition scenarios for current final revisions, changed generic revision-update scenarios so `rev_code_id` is rejected after creation, added document-create default/explicit initial revision-code scenarios, and clarified that canceled revisions disappear from standard revision lists.
 - 2026-03-20 | v1.5 | Clarified current revision-code update behavior: there is no dedicated overview-transition endpoint, and the generic revision update workflow may still mutate `doc_revision.rev_code_id` while `ref.revision_overview` remains reference data; also defined `back` transition semantics explicitly as immediate-predecessor rollback via the unique status whose `next_rev_status_id` points to the current status, and added invariant coverage for ambiguous predecessor rejection.
@@ -17,7 +17,7 @@
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
 
 ## Purpose
-Provide repeatable curl-based validation for revisions list/update, supersede, overview transitions, and status transitions.
+Provide repeatable curl-based validation for document/revision update constraints, supersede, overview transitions, and status transitions.
 
 ## Scope
 - In scope:
@@ -33,6 +33,7 @@ Provide repeatable curl-based validation for revisions list/update, supersede, o
 Revision APIs must enforce required fields, status immutability on update, and workflow transition constraints.
 - `POST /api/v1/documents/revisions/{rev_id}/overview-transition` creates the next revision from a current final revision.
 - `POST /api/v1/documents/revisions/{rev_id}/supersede` creates a replacement revision with the same `rev_code_id` for the current non-final revision and restarts that replacement at the workflow start status.
+- `PUT /api/v1/documents/{doc_id}` must reject `rev_actual_id` and `rev_current_id`; those document pointers are workflow-managed only.
 - The generic revision update workflow must reject `rev_code_id` changes after revision creation.
 - There is no public generic revision-create endpoint for follow-up document revisions.
 - A superseded revision must no longer block reuse of its `rev_code_id`.
@@ -96,6 +97,11 @@ REV_CODE_ID=$(curl -s "$API_BASE$API_PREFIX/documents/$DOC_ID/revisions" | jq -r
 curl -i -X PUT "$API_BASE$API_PREFIX/documents/revisions/$REV_ID" \
   -H "Content-Type: application/json" \
   -d "{\"rev_code_id\":$REV_CODE_ID}"
+
+# TS-REV-028
+curl -i -X PUT "$API_BASE$API_PREFIX/documents/$DOC_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"rev_actual_id":1,"rev_current_id":1}'
 ```
 
 ## 4. TS-REV-011..018 Status Transition Checks
@@ -162,6 +168,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `TS-REV-005` update missing revision returns `404`.
 - `TS-REV-006` update with `rev_status_id` is rejected (`422`).
 - `TS-REV-019` update with `rev_code_id` is rejected (`422`).
+- `TS-REV-028` document update with `rev_actual_id` or `rev_current_id` is rejected (`422`).
 - `TS-REV-011` forward status transition succeeds when eligible.
 - `TS-REV-012` back status transition succeeds when eligible.
   - The target status is the unique immediate predecessor whose `next_rev_status_id` points to the current status.
@@ -187,6 +194,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_update_missing_revision` -> `TS-REV-005`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_update_rejects_status_change` -> `TS-REV-006`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_update_rejects_rev_code_change` -> `TS-REV-019`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_update_rejects_workflow_managed_revision_pointers` -> `TS-REV-028`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_forward` -> `TS-REV-011`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_back` -> `TS-REV-012`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_invalid_direction` -> `TS-REV-013`

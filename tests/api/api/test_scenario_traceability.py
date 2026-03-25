@@ -118,6 +118,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-019"],
     ),
+    "test_documents_update_rejects_workflow_managed_revision_pointers": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-028"],
+    ),
     "test_documents_create_defaults_initial_revision_code_to_start": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-022"],

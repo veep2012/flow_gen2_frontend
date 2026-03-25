@@ -376,6 +376,22 @@ def test_documents_revisions_update_rejects_rev_code_change():
 
 
 @pytest.mark.api_smoke
+def test_documents_update_rejects_workflow_managed_revision_pointers():
+    with httpx.Client(timeout=10) as client:
+        doc_id, base_revision = _create_document_with_revision(client, prefix="DOC-UPD-PTR")
+        updated = _request(
+            client,
+            "PUT",
+            f"/documents/{doc_id}",
+            json={
+                "rev_actual_id": base_revision["rev_id"],
+                "rev_current_id": base_revision["rev_id"],
+            },
+        )
+        assert updated["status"] == 422
+
+
+@pytest.mark.api_smoke
 def test_documents_create_defaults_initial_revision_code_to_start():
     with httpx.Client(timeout=10) as client:
         overview = _get_revision_overview_steps(client)
