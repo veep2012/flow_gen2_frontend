@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-25
-- Version: v4.6
+- Last Updated: 2026-03-26
+- Version: v4.7
 
 ## Change Log
+- 2026-03-26 | v4.7 | Clarified that finalizing a revision no longer supersedes earlier final revisions automatically; documents may retain multiple final revisions concurrently when each uses a different active `rev_code_id`.
 - 2026-03-25 | v4.6 | Added dedicated `POST /api/v1/documents/revisions/{rev_id}/overview-transition` for creating the next revision from a current final revision, added `POST /api/v1/documents/revisions/{rev_id}/supersede` for replacing the current non-final revision with a new row that keeps the same `rev_code_id` and restarts at the workflow start status, made generic revision updates reject `rev_code_id`, removed redundant public `POST /api/v1/documents/{doc_id}/revisions`, documented initial document `rev_code_id` defaulting to the `revision_overview.start` step, clarified that canceled revisions are hidden from standard revision-list responses, and removed `rev_actual_id`/`rev_current_id` from the document update request contract because those pointers are workflow-managed.
 - 2026-03-20 | v4.1 | Clarified that there is currently no dedicated overview-transition endpoint: `ref.revision_overview` remains reference configuration, while `PUT /api/v1/documents/revisions/{rev_id}` may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)`; also defined revision back-transition semantics explicitly so `direction="back"` moves only to the unique immediate predecessor status resolved by reverse `next_rev_status_id`, and the status graph forbids ambiguous predecessor configurations.
 - 2026-03-19 | v3.9 | Clarified the `GET /api/v1/documents/revision_overview` contract: path-derived ordering, `next_rev_code_id` terminal nullability, unique start/final semantics, descriptive `percentage`, and the metadata role of `revertible`/`editable`.
@@ -1170,6 +1171,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   - The backend resolves the new revision’s `rev_code_id` from `ref.revision_overview.next_rev_code_id`.
   - The new revision is inserted with the workflow start status from `doc_rev_statuses`.
   - `core.doc.rev_actual_id` is set to the source final revision and `core.doc.rev_current_id` is set to the newly created revision.
+  - Other final revisions on the same document may remain active if they use different `rev_code_id` values.
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \

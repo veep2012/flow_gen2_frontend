@@ -609,6 +609,81 @@ def test_documents_revisions_overview_transition_rejects_non_final_source():
 
 
 @pytest.mark.api_smoke
+def test_documents_revisions_multiple_finals_with_distinct_rev_codes():
+    with httpx.Client(timeout=10) as client:
+        overview = _get_revision_overview_steps(client)
+        final_status_id = _get_final_status_id(client)
+        if not overview or final_status_id is None:
+            pytest.skip("Revision overview or final status unavailable")
+
+        start_step = next((step for step in overview if step.get("start") is True), None)
+        if start_step is None or start_step.get("next_rev_code_id") is None:
+            pytest.skip("Need a transitionable start revision-overview step")
+
+        doc_id, revision = _create_document_with_revision(
+            client, prefix="DOC-REV-MULTI-FINAL", rev_code_id=start_step["rev_code_id"]
+        )
+        first_final_rev_id = revision["rev_id"]
+        _mark_revision_final_and_sync_doc(doc_id, first_final_rev_id, final_status_id)
+
+        transitioned = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{first_final_rev_id}/overview-transition",
+            json={},
+        )
+        assert transitioned["status"] == 200
+        second_final_rev_id = transitioned["payload"]["rev_id"]
+        _mark_revision_final_and_sync_doc(doc_id, second_final_rev_id, final_status_id)
+
+        engine = create_engine(_build_admin_database_url())
+        with engine.begin() as conn:
+            final_rows = (
+                conn.execute(
+                    text(
+                        """
+                    SELECT rev_id, rev_code_id, superseded
+                    FROM core.doc_revision
+                    WHERE doc_id = :doc_id
+                      AND rev_id IN (:first_rev_id, :second_rev_id)
+                    ORDER BY rev_id
+                    """
+                    ),
+                    {
+                        "doc_id": doc_id,
+                        "first_rev_id": first_final_rev_id,
+                        "second_rev_id": second_final_rev_id,
+                    },
+                )
+                .mappings()
+                .all()
+            )
+            doc_row = (
+                conn.execute(
+                    text(
+                        """
+                    SELECT rev_actual_id, rev_current_id
+                    FROM core.doc
+                    WHERE doc_id = :doc_id
+                    """
+                    ),
+                    {"doc_id": doc_id},
+                )
+                .mappings()
+                .one()
+            )
+
+        assert len(final_rows) == 2
+        assert {row["rev_code_id"] for row in final_rows} == {
+            start_step["rev_code_id"],
+            start_step["next_rev_code_id"],
+        }
+        assert all(row["superseded"] is False for row in final_rows)
+        assert doc_row["rev_actual_id"] == second_final_rev_id
+        assert doc_row["rev_current_id"] == second_final_rev_id
+
+
+@pytest.mark.api_smoke
 def test_documents_revisions_status_transition_forward():
     with httpx.Client(timeout=10) as client:
         doc_id = _get_doc_id(client)

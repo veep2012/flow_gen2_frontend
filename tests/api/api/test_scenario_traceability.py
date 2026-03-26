@@ -178,6 +178,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-021"],
     ),
+    "test_documents_revisions_multiple_finals_with_distinct_rev_codes": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-029"],
+    ),
     "test_files_commented_list": (
         "documentation/test_scenarios/files_commented_api_test_scenarios.md",
         ["TS-FC-001"],

@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-25
-- Version: v2.4
+- Last Updated: 2026-03-26
+- Version: v2.5
 
 ## Change Log
+- 2026-03-26 | v2.5 | Updated the lifecycle contract so multiple final revisions may remain on the same document when they use different `rev_code_id` values, while the latest finalized revision still becomes the document's current/actual pointer target.
 - 2026-03-25 | v2.4 | Replaced generic in-place revision-code mutation with dedicated overview-transition and supersede workflows, documented default initial `rev_code_id` resolution from `revision_overview.start`, clarified that supersede keeps the same `rev_code_id` while restarting at the workflow start status, removed the redundant public generic revision-create endpoint, and clarified that canceled revisions are hidden from standard workflow views.
 - 2026-03-20 | v2.2 | Clarified the current revision-code mutation contract: `ref.revision_overview` stays reference configuration, there is no dedicated overview-transition endpoint, and the generic revision update workflow may still change `core.doc_revision.rev_code_id`; also clarified that environments are recreated from `ci/init/` rather than migrated in place, that documented revision-code safety guarantees apply to bootstrap/reseed identity preservation only, that revision-status `revertible` means immediate-predecessor rollback via reverse `next_rev_status_id`, and that every `revision_overview` row must remain on the single connected lifecycle path from the unique start step to the unique final step while matching the current SQL constraints for final-step locking, cycle/self-reference prevention, and the single-predecessor rule.
 - 2026-03-19 | v1.6 | Clarified `revision_overview` path semantics, including path-derived ordering, successor nullability, and the metadata role of `revertible`, `editable`, and `percentage`.
@@ -72,7 +73,7 @@ Revision-status rollback semantics:
 | --- | --- | --- | --- | --- |
 | Draft | Initially created document: a new revision is created automatically with status where `start=TRUE` in `doc_rev_statuses`. `rev_current_id` is filled. Document has no files initially; files can be added to the draft revision. Originator and modifier are the users who create the document. | Document is created and initial revision is auto-created. | Revision is transferred by a user to the Intermediate state. | Files are optional in Draft. Only one revision per document can be in Draft or Intermediate at a time. |
 | Intermediate | Other users can add comments to the revision and to files (a copy of files is created). | Review/commenting is enabled for the revision. | Commenting completes or the revision proceeds to the next state. | Files must be attached before entering Intermediate. Only one revision per document can be in Draft or Intermediate at a time. |
-| Final | Revision becomes “actual”; `rev_actual_id = rev_current_id`. Status is the one where `final=TRUE` in `doc_rev_statuses`. | Revision is approved for finalization. | Revision is superseded by a new revision coming from the Intermediate state. | Only one revision per document can be Final (not superseded). |
+| Final | Revision becomes “actual”; `rev_actual_id = rev_current_id`. Status is the one where `final=TRUE` in `doc_rev_statuses`. | Revision is approved for finalization. | A new draft revision may be created from the current final revision through overview transition. | Multiple final revisions may coexist per document only when their `rev_code_id` values differ. |
 
 ## Revision code lifecycle (`revision_overview`)
 
@@ -140,7 +141,7 @@ flowchart LR
 | Draft | Intermediate | User transfers the revision to Intermediate; files must be attached. | Author or system on submission. | `/api/v1/documents/revisions/{rev_id}/status-transitions` | Update revision status and related timestamps; keep doc pointers unchanged. | Intermediate enables commenting on revision and files. |
 | Intermediate | Draft | Revision is reverted back to Draft. | Author or system. | `/api/v1/documents/revisions/{rev_id}/status-transitions` | Update revision status; keep doc pointers unchanged. | Used when commenting/review is stopped or needs rework. |
 | Draft or Intermediate | Draft | Current non-final revision is replaced in workflow history. | Author or system. | `/api/v1/documents/revisions/{rev_id}/supersede` | Mark source revision `superseded=true`; insert replacement revision with the same `rev_code_id`; set `rev_current_id` to the replacement. | The replacement revision always restarts at the workflow start status. |
-| Intermediate | Final | Commenting completes and revision is approved for finalization. | Reviewer/approver. | `/api/v1/documents/revisions/{rev_id}/status-transitions` | Update revision status; set `rev_actual_id=rev_current_id` to this revision. | Final makes the revision “actual/current”. |
+| Intermediate | Final | Commenting completes and revision is approved for finalization. | Reviewer/approver. | `/api/v1/documents/revisions/{rev_id}/status-transitions` | Update revision status; set `rev_actual_id=rev_current_id` to this revision. | Final makes the revision “actual/current” without superseding other final revisions that have different `rev_code_id`. |
 | Final | Draft | A new revision is created from the current final revision using the next allowed revision-overview step. | Author or system. | `/api/v1/documents/revisions/{rev_id}/overview-transition` | Insert new revision; keep the source final revision unchanged; set `rev_actual_id` to the source final revision and `rev_current_id` to the new revision. | The new revision starts at the workflow start status and receives its `rev_code_id` from `revision_overview.next_rev_code_id`. |
 
 Revision-code change behavior:

@@ -418,14 +418,6 @@ BEGIN
 
     IF v_next_status.final THEN
         PERFORM set_config('app.action', 'transition_final', true);
-        -- Supersede previous final revision (if any)
-        UPDATE core.doc_revision
-        SET superseded = TRUE
-        WHERE doc_id = v_rev.doc_id
-          AND rev_id <> p_rev_id
-          AND rev_status_id IN (SELECT rev_status_id FROM ref.doc_rev_statuses WHERE final = TRUE)
-          AND superseded = FALSE;
-
         UPDATE core.doc
         SET rev_actual_id = p_rev_id,
             rev_current_id = p_rev_id
@@ -655,13 +647,6 @@ BEGIN
 
     IF v_target.final THEN
         PERFORM set_config('app.action', 'transition_final', true);
-        UPDATE core.doc_revision
-        SET superseded = TRUE
-        WHERE doc_id = v_rev.doc_id
-          AND rev_id <> p_rev_id
-          AND rev_status_id IN (SELECT rev_status_id FROM ref.doc_rev_statuses WHERE final = TRUE)
-          AND superseded = FALSE;
-
         UPDATE core.doc
         SET rev_actual_id = p_rev_id,
             rev_current_id = p_rev_id
