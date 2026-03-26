@@ -387,22 +387,6 @@ class RevisionOverviewOut(BaseModel):
         examples=[2],
         gt=0,
     )
-    revertible: bool = Field(
-        ...,
-        description=(
-            "Lifecycle metadata flag indicating whether the configured step "
-            "allows backward movement to its predecessor."
-        ),
-        examples=[True],
-    )
-    editable: bool = Field(
-        ...,
-        description=(
-            "Lifecycle metadata flag exposed to clients to indicate whether "
-            "the step is intended to allow edits."
-        ),
-        examples=[True],
-    )
     final: bool = Field(
         ..., description="Whether the step is the terminal lifecycle step.", examples=[False]
     )
@@ -440,22 +424,6 @@ class RevisionOverviewUpdate(BaseModel):
         examples=[2],
         gt=0,
     )
-    revertible: bool | None = Field(
-        None,
-        description=(
-            "Lifecycle metadata flag indicating whether the configured step "
-            "allows backward movement to its predecessor."
-        ),
-        examples=[True],
-    )
-    editable: bool | None = Field(
-        None,
-        description=(
-            "Lifecycle metadata flag exposed to clients to indicate whether "
-            "the step is intended to allow edits."
-        ),
-        examples=[True],
-    )
     final: bool | None = Field(
         None, description="Whether the step is the terminal lifecycle step.", examples=[False]
     )
@@ -491,22 +459,6 @@ class RevisionOverviewCreate(BaseModel):
         ),
         examples=[2],
         gt=0,
-    )
-    revertible: bool = Field(
-        ...,
-        description=(
-            "Lifecycle metadata flag indicating whether the configured step "
-            "allows backward movement to its predecessor."
-        ),
-        examples=[True],
-    )
-    editable: bool = Field(
-        ...,
-        description=(
-            "Lifecycle metadata flag exposed to clients to indicate whether "
-            "the step is intended to allow edits."
-        ),
-        examples=[True],
     )
     final: bool = Field(
         ..., description="Whether the step is the terminal lifecycle step.", examples=[False]

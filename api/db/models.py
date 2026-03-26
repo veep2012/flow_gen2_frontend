@@ -108,8 +108,6 @@ class RevisionOverview(Base):
     next_rev_code_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("revision_overview.rev_code_id")
     )
-    revertible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    editable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     final: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     start: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     percentage: Mapped[Optional[int]] = mapped_column(SmallInteger)

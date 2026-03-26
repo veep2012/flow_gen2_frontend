@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-26
-- Version: v2.5
+- Version: v2.6
 
 ## Change Log
-- 2026-03-26 | v2.5 | Updated the lifecycle contract so multiple final revisions may remain on the same document when they use different `rev_code_id` values, while the latest finalized revision still becomes the document's current/actual pointer target.
+- 2026-03-26 | v2.6 | Removed `revertible` and `editable` from the revision-code lifecycle model so `revision_overview` now carries only successor linkage, start/final markers, and descriptive `percentage`.
 - 2026-03-25 | v2.4 | Replaced generic in-place revision-code mutation with dedicated overview-transition and supersede workflows, documented default initial `rev_code_id` resolution from `revision_overview.start`, clarified that supersede keeps the same `rev_code_id` while restarting at the workflow start status, removed the redundant public generic revision-create endpoint, and clarified that canceled revisions are hidden from standard workflow views.
 - 2026-03-20 | v2.2 | Clarified the current revision-code mutation contract: `ref.revision_overview` stays reference configuration, there is no dedicated overview-transition endpoint, and the generic revision update workflow may still change `core.doc_revision.rev_code_id`; also clarified that environments are recreated from `ci/init/` rather than migrated in place, that documented revision-code safety guarantees apply to bootstrap/reseed identity preservation only, that revision-status `revertible` means immediate-predecessor rollback via reverse `next_rev_status_id`, and that every `revision_overview` row must remain on the single connected lifecycle path from the unique start step to the unique final step while matching the current SQL constraints for final-step locking, cycle/self-reference prevention, and the single-predecessor rule.
 - 2026-03-19 | v1.6 | Clarified `revision_overview` path semantics, including path-derived ordering, successor nullability, and the metadata role of `revertible`, `editable`, and `percentage`.
@@ -85,11 +85,9 @@ Revision-status rollback semantics:
 - each non-terminal step can have at most one predecessor; the lifecycle is a single chain rather than a branching graph
 - the lifecycle path exposed by `GET /api/v1/documents/revision_overview` starts at `start = TRUE` and follows `next_rev_code_id` until the single terminal step; the API does not sort this list by name, ID, or percentage
 - every stored row must be reachable from that unique `start = TRUE` path; disconnected predecessors, unreachable nodes, and separate acyclic islands are invalid
-- `revertible` is lifecycle metadata indicating that the modeled step allows backward movement to its predecessor in the configured chain
-- `editable` is lifecycle metadata exposed to clients to indicate that the step is intended to allow edits; it is not, by itself, an API authorization decision
 - `percentage` is descriptive progress metadata and is not used to compute lifecycle ordering
 - database constraints reject self-reference and cycles in the configured chain
-- final steps are locked by definition: when `final = TRUE`, `editable = FALSE`, `revertible = FALSE`, and `next_rev_code_id IS NULL`
+- final steps are terminal by definition: when `final = TRUE`, `next_rev_code_id IS NULL`
 - connectivity is checked at transaction end so multi-step reconfiguration may be staged within one transaction, but the committed end state must still be one connected start-to-final path
 - current repository behavior exposes a dedicated `POST /api/v1/documents/revisions/{rev_id}/overview-transition` action for creating the next revision from a current final revision
 - current repository behavior exposes a dedicated `POST /api/v1/documents/revisions/{rev_id}/supersede` action for replacing the current non-final revision while keeping the same `rev_code_id`
@@ -111,28 +109,24 @@ Bootstrap and migration notes:
 
 ```mermaid
 flowchart LR
-    indesign["INDESIGN\nstart=true\neditable=true"]
-    idc["IDC\nrevertible=true\neditable=true"]
-    ifrc["IFRC\nrevertible=true\neditable=true"]
-    afd["AFD\nrevertible=true\neditable=false"]
-    afc["AFC\nrevertible=true\neditable=false"]
-    asbuilt["AS-BUILT\nfinal=true\neditable=false"]
+    indesign["INDESIGN\nstart=true"]
+    idc["IDC"]
+    ifrc["IFRC"]
+    afd["AFD"]
+    afc["AFC"]
+    asbuilt["AS-BUILT\nfinal=true"]
 
     indesign --> idc --> ifrc --> afd --> afc --> asbuilt
-    idc -. revert .-> indesign
-    ifrc -. revert .-> idc
-    afd -. revert .-> ifrc
-    afc -. revert .-> afd
 ```
 
-| Step | Acronym | Next Step | Can revert to previous | Editable | Start | Final |
-| --- | --- | --- | --- | --- | --- | --- |
-| INDESIGN | A | IDC | No | Yes | Yes | No |
-| IDC | B | IFRC | Yes | Yes | No | No |
-| IFRC | C | AFD | Yes | Yes | No | No |
-| AFD | D | AFC | Yes | No | No | No |
-| AFC | E | AS-BUILT | Yes | No | No | No |
-| AS-BUILT | Z | — | No | No | No | Yes |
+| Step | Acronym | Next Step | Start | Final |
+| --- | --- | --- | --- | --- |
+| INDESIGN | A | IDC | Yes | No |
+| IDC | B | IFRC | No | No |
+| IFRC | C | AFD | No | No |
+| AFD | D | AFC | No | No |
+| AFC | E | AS-BUILT | No | No |
+| AS-BUILT | Z | — | No | Yes |
 
 ## Transitions
 

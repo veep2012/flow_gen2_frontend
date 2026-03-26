@@ -944,7 +944,6 @@ _REVISION_OVERVIEW_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
         "Revision overview lifecycle cannot contain cycles",
     ),
     ("chk_revision_overview_no_self_ref", 400, "Revision overview step cannot point to itself"),
-    ("chk_revision_overview_final_flags", 400, "Final revision overview step must be locked"),
     (
         "chk_revision_overview_final_next_eq",
         400,
@@ -1380,8 +1379,6 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
                         rev_code_acronym,
                         rev_description,
                         next_rev_code_id,
-                        revertible,
-                        editable,
                         final,
                         start,
                         percentage,
@@ -1395,8 +1392,6 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
                         child.rev_code_acronym,
                         child.rev_description,
                         child.next_rev_code_id,
-                        child.revertible,
-                        child.editable,
                         child.final,
                         child.start,
                         child.percentage,
@@ -1411,8 +1406,6 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
                     rev_code_acronym,
                     rev_description,
                     next_rev_code_id,
-                    revertible,
-                    editable,
                     final,
                     start,
                     percentage
@@ -1456,8 +1449,6 @@ def update_revision_overview(
         "rev_code_acronym",
         "rev_description",
         "next_rev_code_id",
-        "revertible",
-        "editable",
         "final",
         "start",
         "percentage",
@@ -1480,10 +1471,6 @@ def update_revision_overview(
         revision.rev_description = payload.rev_description
     if "next_rev_code_id" in payload.model_fields_set:
         revision.next_rev_code_id = payload.next_rev_code_id
-    if payload.revertible is not None:
-        revision.revertible = payload.revertible
-    if payload.editable is not None:
-        revision.editable = payload.editable
     if payload.final is not None:
         revision.final = payload.final
     if payload.start is not None:
@@ -1541,8 +1528,6 @@ def insert_revision_overview(
         rev_code_acronym=payload.rev_code_acronym,
         rev_description=payload.rev_description,
         next_rev_code_id=payload.next_rev_code_id,
-        revertible=payload.revertible,
-        editable=payload.editable,
         final=payload.final,
         start=payload.start,
         percentage=payload.percentage,

@@ -7,10 +7,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-26
-- Version: v2.6
+- Version: v2.7
 
 ## Change Log
-- 2026-03-26 | v2.6 | Relaxed the final-revision invariant so a document may retain multiple non-superseded final revisions at the same time when each uses a different `rev_code_id`; synchronized workflow transition behavior and active-code constraints accordingly.
+- 2026-03-26 | v2.7 | Removed `revertible` and `editable` from `ref.revision_overview` and from the revision-overview API contract; revision-code lifecycle now exposes only ordering, start/final markers, and descriptive `percentage`.
 - 2026-03-25 | v2.5 | Added database-backed overview-transition creation from a current final revision, made `rev_code_id` immutable after revision creation, defaulted initial document revisions to the `revision_overview.start` step when omitted, updated revision-code uniqueness so superseded revisions behave like canceled revisions for code reuse and active-conflict checks, added a dedicated supersede workflow that replaces the current non-final revision with a new row carrying the same `rev_code_id` and the workflow start status, removed the public generic revision-create API path, revoked `app_user` access to generic revision creation, and made document update reject `rev_actual_id`/`rev_current_id` because revision pointers are workflow-managed only.
 - 2026-03-20 | v1.9 | Clarified the current repository policy for revision-code changes: supported safety guarantees apply to clean bootstrap and reseed only, the database is recreated from `ci/init/` instead of migrated in place, published `rev_code_id` identities must remain stable across that bootstrap flow, `ref.revision_overview` remains reference configuration, and normal revision updates may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)` without a dedicated overview-transition API; also defined `doc_rev_statuses.revertible` precisely as unique immediate-predecessor rollback via reverse `next_rev_status_id`, made `revision_overview` connectivity explicit as one connected `start=true` to final path, and synchronized lifecycle invariants with the current SQL schema for terminal nullability, final-step locking, cycle/self-reference prevention, single start/final semantics, and the descriptive-only role of `percentage`.
 - 2026-03-18 | v1.4 | Clarified this document's scope as the backend/database enforcement contract beneath the new application-level authorization policy.
@@ -286,8 +286,6 @@ Required lifecycle attributes:
 - `start`
 - `final`
 - `next_rev_code_id`
-- `revertible`
-- `editable`
 - `percentage`
 
 The database enforces:
@@ -296,7 +294,6 @@ The database enforces:
 - only one `start = true` step
 - only one terminal/final step
 - final steps must have `next_rev_code_id IS NULL`
-- final steps must not be editable or revertible
 - non-final steps must have a single successor and at most one predecessor
 - every row must belong to the single connected chain reachable from the unique `start = true` step
 - disconnected rows, hidden predecessors, unreachable islands, and separate acyclic chains are forbidden

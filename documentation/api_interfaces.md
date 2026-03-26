@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-26
-- Version: v4.7
+- Version: v4.8
 
 ## Change Log
-- 2026-03-26 | v4.7 | Clarified that finalizing a revision no longer supersedes earlier final revisions automatically; documents may retain multiple final revisions concurrently when each uses a different active `rev_code_id`.
+- 2026-03-26 | v4.8 | Removed `revertible` and `editable` from the `GET /api/v1/documents/revision_overview` payload so revision-code lifecycle responses expose only path/order, terminal/start markers, and descriptive `percentage`.
 - 2026-03-25 | v4.6 | Added dedicated `POST /api/v1/documents/revisions/{rev_id}/overview-transition` for creating the next revision from a current final revision, added `POST /api/v1/documents/revisions/{rev_id}/supersede` for replacing the current non-final revision with a new row that keeps the same `rev_code_id` and restarts at the workflow start status, made generic revision updates reject `rev_code_id`, removed redundant public `POST /api/v1/documents/{doc_id}/revisions`, documented initial document `rev_code_id` defaulting to the `revision_overview.start` step, clarified that canceled revisions are hidden from standard revision-list responses, and removed `rev_actual_id`/`rev_current_id` from the document update request contract because those pointers are workflow-managed.
 - 2026-03-20 | v4.1 | Clarified that there is currently no dedicated overview-transition endpoint: `ref.revision_overview` remains reference configuration, while `PUT /api/v1/documents/revisions/{rev_id}` may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)`; also defined revision back-transition semantics explicitly so `direction="back"` moves only to the unique immediate predecessor status resolved by reverse `next_rev_status_id`, and the status graph forbids ambiguous predecessor configurations.
 - 2026-03-19 | v3.9 | Clarified the `GET /api/v1/documents/revision_overview` contract: path-derived ordering, `next_rev_code_id` terminal nullability, unique start/final semantics, descriptive `percentage`, and the metadata role of `revertible`/`editable`.
@@ -320,8 +320,6 @@ Shape (single item):
   "rev_code_acronym": "A",
   "rev_description": "In-design",
   "next_rev_code_id": 1,
-  "revertible": false,
-  "editable": true,
   "final": false,
   "start": true,
   "percentage": 10
@@ -336,8 +334,6 @@ Schema references:
   - The endpoint does not sort by `rev_code_name`, `rev_code_id`, or `percentage`.
   - In a valid lifecycle configuration, exactly one returned item has `start=true` and exactly one returned item has `final=true`.
   - `next_rev_code_id` is null only for the terminal row returned by this endpoint; non-terminal rows expose the immediate successor ID.
-  - `revertible` is lifecycle metadata that indicates whether the configured step allows backward movement to its predecessor in the modeled chain.
-  - `editable` is lifecycle metadata exposed to clients; this endpoint does not itself enforce write authorization rules based on `editable`.
   - `percentage` is descriptive progress metadata only. Clients must not infer response order from it or assume monotonicity as an API guarantee.
 - Headers: `Accept: application/json`
 - Example request:
@@ -353,8 +349,6 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents/revision_overv
     "rev_code_acronym": "A",
     "rev_description": "In-design",
     "next_rev_code_id": 1,
-    "revertible": false,
-    "editable": true,
     "final": false,
     "start": true,
     "percentage": 10
@@ -365,8 +359,6 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents/revision_overv
     "rev_code_acronym": "B",
     "rev_description": "Interdiscipline check",
     "next_rev_code_id": 2,
-    "revertible": true,
-    "editable": true,
     "final": false,
     "start": false,
     "percentage": 30

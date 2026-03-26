@@ -49,16 +49,11 @@ CREATE TABLE revision_overview (
     rev_code_acronym VARCHAR(5) NOT NULL,
     rev_description VARCHAR(45) NOT NULL UNIQUE,
     next_rev_code_id SMALLINT REFERENCES ref.revision_overview(rev_code_id),
-    revertible BOOLEAN NOT NULL DEFAULT TRUE,
-    editable BOOLEAN NOT NULL DEFAULT TRUE,
     final BOOLEAN NOT NULL DEFAULT FALSE,
     start BOOLEAN NOT NULL DEFAULT FALSE,
     percentage SMALLINT,
     CONSTRAINT chk_revision_overview_no_self_ref CHECK (
         next_rev_code_id IS NULL OR next_rev_code_id <> rev_code_id
-    ),
-    CONSTRAINT chk_revision_overview_final_flags CHECK (
-        NOT final OR (editable = FALSE AND revertible = FALSE)
     ),
     CONSTRAINT chk_revision_overview_final_next_eq CHECK (
         final = (next_rev_code_id IS NULL)

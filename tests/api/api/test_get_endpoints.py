@@ -211,8 +211,6 @@ def test_revision_overview_represents_single_lifecycle_path():
 
         for index, step in enumerate(steps):
             assert "next_rev_code_id" in step
-            assert "revertible" in step
-            assert "editable" in step
             assert "final" in step
             assert "start" in step
             if index < len(steps) - 1:
@@ -339,8 +337,6 @@ def test_revision_overview_constraints_reject_invalid_lifecycle_updates():
                             rev_code_acronym,
                             rev_description,
                             next_rev_code_id,
-                            revertible,
-                            editable,
                             final,
                             start,
                             percentage
@@ -349,8 +345,6 @@ def test_revision_overview_constraints_reject_invalid_lifecycle_updates():
                             'QDCON',
                             'DISCONNECTED CONNECTIVITY CHECK',
                             :start_id,
-                            TRUE,
-                            FALSE,
                             FALSE,
                             FALSE,
                             15
@@ -434,8 +428,6 @@ def test_revision_overview_transactional_reconfiguration_and_insert_guards():
                         rev_code_acronym,
                         rev_description,
                         next_rev_code_id,
-                        revertible,
-                        editable,
                         final,
                         start,
                         percentage
@@ -444,8 +436,6 @@ def test_revision_overview_transactional_reconfiguration_and_insert_guards():
                         :rev_code_acronym,
                         :rev_description,
                         :next_rev_code_id,
-                        TRUE,
-                        FALSE,
                         FALSE,
                         FALSE,
                         95
@@ -552,8 +542,6 @@ def test_revision_overview_transactional_reconfiguration_and_insert_guards():
                         rev_code_acronym,
                         rev_description,
                         next_rev_code_id,
-                        revertible,
-                        editable,
                         final,
                         start,
                         percentage
@@ -562,8 +550,6 @@ def test_revision_overview_transactional_reconfiguration_and_insert_guards():
                         :rev_code_acronym,
                         :rev_description,
                         :next_rev_code_id,
-                        FALSE,
-                        TRUE,
                         FALSE,
                         TRUE,
                         5
@@ -585,8 +571,6 @@ def test_revision_overview_transactional_reconfiguration_and_insert_guards():
                         rev_code_acronym,
                         rev_description,
                         next_rev_code_id,
-                        revertible,
-                        editable,
                         final,
                         start,
                         percentage
@@ -595,8 +579,6 @@ def test_revision_overview_transactional_reconfiguration_and_insert_guards():
                         :rev_code_acronym,
                         :rev_description,
                         NULL,
-                        FALSE,
-                        FALSE,
                         TRUE,
                         FALSE,
                         100
@@ -617,8 +599,6 @@ def test_revision_overview_transactional_reconfiguration_and_insert_guards():
                         rev_code_acronym,
                         rev_description,
                         next_rev_code_id,
-                        revertible,
-                        editable,
                         final,
                         start,
                         percentage
@@ -627,8 +607,6 @@ def test_revision_overview_transactional_reconfiguration_and_insert_guards():
                         :rev_code_acronym,
                         :rev_description,
                         :next_rev_code_id,
-                        TRUE,
-                        FALSE,
                         FALSE,
                         FALSE,
                         85
@@ -650,8 +628,6 @@ def test_revision_overview_transactional_reconfiguration_and_insert_guards():
                         rev_code_acronym,
                         rev_description,
                         next_rev_code_id,
-                        revertible,
-                        editable,
                         final,
                         start,
                         percentage
@@ -660,8 +636,6 @@ def test_revision_overview_transactional_reconfiguration_and_insert_guards():
                         :rev_code_acronym,
                         :rev_description,
                         :next_rev_code_id,
-                        TRUE,
-                        FALSE,
                         FALSE,
                         FALSE,
                         15
