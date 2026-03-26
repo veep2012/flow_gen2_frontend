@@ -679,8 +679,8 @@ def update_document_revision(
 
 def create_revision_overview_transition(
     rev_id: int,
-    _payload: DocRevisionOverviewTransition = Body(
-        ..., openapi_examples=_example_for(DocRevisionOverviewTransition)
+    payload: DocRevisionOverviewTransition | None = Body(
+        None, openapi_examples=_example_for(DocRevisionOverviewTransition)
     ),
     db: Session = Depends(get_db),
 ) -> DocRevisionOut:
@@ -707,8 +707,20 @@ def create_revision_overview_transition(
     try:
         rev_row = (
             db.execute(
-                text("SELECT r.* FROM workflow.create_overview_transition_revision(:rev_id) AS r"),
-                {"rev_id": rev_id},
+                text(
+                    """
+                    SELECT r.* FROM workflow.create_overview_transition_revision(
+                        :rev_id,
+                        :target_rev_code_id
+                    ) AS r
+                    """
+                ),
+                {
+                    "rev_id": rev_id,
+                    "target_rev_code_id": (
+                        payload.target_rev_code_id if payload is not None else None
+                    ),
+                },
             )
             .mappings()
             .one()
@@ -936,6 +948,11 @@ _OVERVIEW_TRANSITION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
         "ux_doc_revision_active_code_per_doc",
         409,
         "Another active revision already uses the target revision code",
+    ),
+    (
+        "requested target revision code is not reachable",
+        409,
+        "Requested target revision code is not reachable",
     ),
 )
 
@@ -1672,7 +1689,8 @@ def create_revision_status_transition_rest(
     summary="Create the next revision from a final revision (REST).",
     description=(
         "Creates a new revision row from the current final revision using the next allowed "
-        "revision-overview step resolved by backend workflow rules."
+        "revision-overview step resolved by backend workflow rules, with an optional "
+        "request-provided reachable target overview step."
     ),
     response_model=DocRevisionOut,
     tags=["documents"],
@@ -1680,8 +1698,8 @@ def create_revision_status_transition_rest(
 )
 def create_revision_overview_transition_rest(
     rev_id: int,
-    payload: DocRevisionOverviewTransition = Body(
-        ..., openapi_examples=_example_for(DocRevisionOverviewTransition)
+    payload: DocRevisionOverviewTransition | None = Body(
+        None, openapi_examples=_example_for(DocRevisionOverviewTransition)
     ),
     db: Session = Depends(get_db),
 ) -> DocRevisionOut:

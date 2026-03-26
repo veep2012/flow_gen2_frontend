@@ -496,6 +496,26 @@ def test_documents_create_defaults_initial_revision_code_to_start():
 
 
 @pytest.mark.api_smoke
+def test_documents_create_accepts_explicit_non_start_revision_code():
+    with httpx.Client(timeout=10) as client:
+        overview = _get_revision_overview_steps(client)
+        if not overview:
+            pytest.skip("No revision overview configured")
+
+        non_start_step = next((step for step in overview if not step.get("start")), None)
+        if non_start_step is None:
+            pytest.skip("No non-start revision overview step configured")
+
+        doc_id, revision = _create_document_with_revision(
+            client,
+            prefix="DOC-REV-EXPLICIT",
+            rev_code_id=non_start_step["rev_code_id"],
+        )
+        assert revision["doc_id"] == doc_id
+        assert revision["rev_code_id"] == non_start_step["rev_code_id"]
+
+
+@pytest.mark.api_smoke
 def test_documents_revisions_supersede():
     with httpx.Client(timeout=10) as client:
         doc_id, base_revision = _create_document_with_revision(client, prefix="DOC-REV-SUPERSEDE")
@@ -667,6 +687,33 @@ def test_documents_revisions_overview_transition_from_final():
 
 
 @pytest.mark.api_smoke
+def test_documents_revisions_overview_transition_from_final_without_body():
+    with httpx.Client(timeout=10) as client:
+        overview = _get_revision_overview_steps(client)
+        final_status_id = _get_final_status_id(client)
+        if not overview or final_status_id is None:
+            pytest.skip("Revision overview or final status unavailable")
+
+        start_step = next((step for step in overview if step.get("start") is True), None)
+        if start_step is None or start_step.get("next_rev_code_id") is None:
+            pytest.skip("No transitionable start revision overview step available")
+
+        doc_id, revision = _create_document_with_revision(
+            client, prefix="DOC-REV-LEGACY", rev_code_id=start_step["rev_code_id"]
+        )
+        _mark_revision_final_and_sync_doc(doc_id, revision["rev_id"], final_status_id)
+
+        transitioned = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{revision['rev_id']}/overview-transition",
+        )
+
+        assert transitioned["status"] == 200
+        assert transitioned["payload"]["rev_code_id"] == start_step["next_rev_code_id"]
+
+
+@pytest.mark.api_smoke
 def test_documents_revisions_overview_transition_from_non_start_code():
     with httpx.Client(timeout=10) as client:
         overview = _get_revision_overview_steps(client)
@@ -699,6 +746,200 @@ def test_documents_revisions_overview_transition_from_non_start_code():
         )
         assert transitioned["status"] == 200
         assert transitioned["payload"]["rev_code_id"] == candidate_step["next_rev_code_id"]
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_overview_transition_uses_requested_target_code():
+    with httpx.Client(timeout=10) as client:
+        overview = _get_revision_overview_steps(client)
+        final_status_id = _get_final_status_id(client)
+        if not overview or final_status_id is None:
+            pytest.skip("Revision overview or final status unavailable")
+
+        start_step = next((step for step in overview if step.get("start") is True), None)
+        if start_step is None or start_step.get("next_rev_code_id") is None:
+            pytest.skip("No start revision overview step available")
+
+        second_step = next(
+            (
+                step
+                for step in overview
+                if step.get("rev_code_id") == start_step["next_rev_code_id"]
+            ),
+            None,
+        )
+        if second_step is None or second_step.get("next_rev_code_id") is None:
+            pytest.skip("No skip target beyond the immediate next overview step")
+
+        skip_target_id = second_step["next_rev_code_id"]
+        doc_id, revision = _create_document_with_revision(
+            client,
+            prefix="DOC-REV-SKIP-TARGET",
+            rev_code_id=start_step["rev_code_id"],
+        )
+        _mark_revision_final_and_sync_doc(doc_id, revision["rev_id"], final_status_id)
+
+        transitioned = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{revision['rev_id']}/overview-transition",
+            json={"target_rev_code_id": skip_target_id},
+        )
+
+        assert transitioned["status"] == 200
+        assert transitioned["payload"]["rev_code_id"] == skip_target_id
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_overview_transition_rejects_duplicate_active_target_code():
+    with httpx.Client(timeout=10) as client:
+        overview = _get_revision_overview_steps(client)
+        final_status_id = _get_final_status_id(client)
+        if not overview or final_status_id is None:
+            pytest.skip("Revision overview or final status unavailable")
+
+        start_step = next((step for step in overview if step.get("start") is True), None)
+        if start_step is None or start_step.get("next_rev_code_id") is None:
+            pytest.skip("No transitionable start revision overview step available")
+
+        doc_id, revision = _create_document_with_revision(
+            client,
+            prefix="DOC-REV-DUP-TARGET",
+            rev_code_id=start_step["rev_code_id"],
+        )
+        _mark_revision_final_and_sync_doc(doc_id, revision["rev_id"], final_status_id)
+
+        engine = create_engine(_build_admin_database_url())
+        with engine.begin() as conn:
+            next_seq_num = conn.execute(
+                text(
+                    """
+                    SELECT COALESCE(MAX(seq_num), 0) + 1
+                    FROM core.doc_revision
+                    WHERE doc_id = :doc_id
+                    """
+                ),
+                {"doc_id": doc_id},
+            ).scalar_one()
+            start_status_id = conn.execute(
+                text(
+                    """
+                    SELECT rev_status_id
+                    FROM ref.doc_rev_statuses
+                    WHERE start = TRUE
+                    LIMIT 1
+                    """
+                )
+            ).scalar_one()
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO core.doc_revision (
+                        doc_id,
+                        rev_code_id,
+                        rev_author_id,
+                        rev_originator_id,
+                        rev_modifier_id,
+                        transmital_current_revision,
+                        milestone_id,
+                        planned_start_date,
+                        planned_finish_date,
+                        actual_start_date,
+                        actual_finish_date,
+                        canceled_date,
+                        rev_status_id,
+                        seq_num,
+                        modified_doc_date,
+                        as_built
+                    ) VALUES (
+                        :doc_id,
+                        :rev_code_id,
+                        :rev_author_id,
+                        :rev_originator_id,
+                        :rev_modifier_id,
+                        :transmital_current_revision,
+                        :milestone_id,
+                        :planned_start_date,
+                        :planned_finish_date,
+                        NULL,
+                        NULL,
+                        NULL,
+                        :rev_status_id,
+                        :seq_num,
+                        CURRENT_TIMESTAMP,
+                        FALSE
+                    )
+                    """
+                ),
+                {
+                    "doc_id": doc_id,
+                    "rev_code_id": start_step["next_rev_code_id"],
+                    "rev_author_id": revision["rev_author_id"],
+                    "rev_originator_id": revision["rev_originator_id"],
+                    "rev_modifier_id": revision["rev_modifier_id"],
+                    "transmital_current_revision": f"DUP-{uuid.uuid4().hex[:6].upper()}",
+                    "milestone_id": revision["milestone_id"],
+                    "planned_start_date": revision["planned_start_date"],
+                    "planned_finish_date": revision["planned_finish_date"],
+                    "rev_status_id": start_status_id,
+                    "seq_num": next_seq_num,
+                },
+            )
+
+        transitioned = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{revision['rev_id']}/overview-transition",
+            json={},
+        )
+        assert transitioned["status"] == 409
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_overview_transition_reuses_target_code_after_cancel():
+    with httpx.Client(timeout=10) as client:
+        overview = _get_revision_overview_steps(client)
+        final_status_id = _get_final_status_id(client)
+        if not overview or final_status_id is None:
+            pytest.skip("Revision overview or final status unavailable")
+
+        start_step = next((step for step in overview if step.get("start") is True), None)
+        if start_step is None or start_step.get("next_rev_code_id") is None:
+            pytest.skip("No transitionable start revision overview step available")
+
+        doc_id, revision = _create_document_with_revision(
+            client,
+            prefix="DOC-REV-REUSE-CANCEL",
+            rev_code_id=start_step["rev_code_id"],
+        )
+        source_rev_id = revision["rev_id"]
+        _mark_revision_final_and_sync_doc(doc_id, source_rev_id, final_status_id)
+
+        first_transition = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{source_rev_id}/overview-transition",
+            json={},
+        )
+        assert first_transition["status"] == 200
+        assert first_transition["payload"]["rev_code_id"] == start_step["next_rev_code_id"]
+
+        canceled = _request(
+            client,
+            "PATCH",
+            f"/documents/revisions/{first_transition['payload']['rev_id']}/cancel",
+        )
+        assert canceled["status"] == 200
+
+        second_transition = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{source_rev_id}/overview-transition",
+            json={},
+        )
+        assert second_transition["status"] == 200
+        assert second_transition["payload"]["rev_code_id"] == start_step["next_rev_code_id"]
+        assert second_transition["payload"]["rev_id"] != first_transition["payload"]["rev_id"]
 
 
 @pytest.mark.api_smoke

@@ -223,8 +223,63 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION workflow.resolve_overview_transition_target(
+    p_source_rev_code_id SMALLINT,
+    p_requested_target_rev_code_id SMALLINT DEFAULT NULL
+) RETURNS SMALLINT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_default_target_rev_code_id SMALLINT;
+    v_requested_target_is_reachable BOOLEAN := FALSE;
+BEGIN
+    SELECT next_rev_code_id INTO v_default_target_rev_code_id
+    FROM ref.revision_overview
+    WHERE rev_code_id = p_source_rev_code_id;
+    IF p_requested_target_rev_code_id IS NULL THEN
+        RETURN v_default_target_rev_code_id;
+    END IF;
+
+    IF p_requested_target_rev_code_id = p_source_rev_code_id THEN
+        RAISE EXCEPTION 'Requested target revision code is not reachable';
+    END IF;
+
+    IF v_default_target_rev_code_id IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    WITH RECURSIVE overview_path AS (
+        SELECT rev_code_id, next_rev_code_id
+        FROM ref.revision_overview
+        WHERE rev_code_id = p_source_rev_code_id
+
+        UNION ALL
+
+        SELECT child.rev_code_id, child.next_rev_code_id
+        FROM ref.revision_overview AS child
+        JOIN overview_path AS parent
+          ON child.rev_code_id = parent.next_rev_code_id
+    )
+    SELECT EXISTS (
+        SELECT 1
+        FROM overview_path
+        WHERE rev_code_id = p_requested_target_rev_code_id
+          AND rev_code_id <> p_source_rev_code_id
+    ) INTO v_requested_target_is_reachable;
+
+    IF v_requested_target_is_reachable THEN
+        RETURN p_requested_target_rev_code_id;
+    END IF;
+
+    RAISE EXCEPTION 'Requested target revision code is not reachable';
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION workflow.create_overview_transition_revision(
-    p_rev_id INTEGER
+    p_rev_id INTEGER,
+    p_target_rev_code_id SMALLINT DEFAULT NULL
 ) RETURNS core.doc_revision
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -272,9 +327,10 @@ BEGIN
         RAISE EXCEPTION 'No start status configured';
     END IF;
 
-    SELECT next_rev_code_id INTO v_target_rev_code_id
-    FROM ref.revision_overview
-    WHERE rev_code_id = v_source.rev_code_id;
+    SELECT workflow.resolve_overview_transition_target(
+        v_source.rev_code_id,
+        p_target_rev_code_id
+    ) INTO v_target_rev_code_id;
     IF v_target_rev_code_id IS NULL THEN
         RAISE EXCEPTION 'No allowed next revision code';
     END IF;

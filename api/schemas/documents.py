@@ -331,7 +331,20 @@ class DocRevisionStatusTransition(BaseModel):
 
 
 class DocRevisionOverviewTransition(BaseModel):
-    model_config = ConfigDict(extra="forbid", json_schema_extra={"example": {}})
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"example": {"target_rev_code_id": 3}},
+    )
+
+    target_rev_code_id: int | None = Field(
+        None,
+        description=(
+            "Optional target revision overview step. When omitted, the backend uses the "
+            "immediate next allowed step."
+        ),
+        examples=[3],
+        gt=0,
+    )
 
 
 class DocRevisionSupersede(BaseModel):

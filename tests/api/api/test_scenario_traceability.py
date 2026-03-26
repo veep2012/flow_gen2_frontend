@@ -134,6 +134,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-022"],
     ),
+    "test_documents_create_accepts_explicit_non_start_revision_code": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-023"],
+    ),
     "test_documents_revisions_supersede": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-026"],
@@ -178,9 +182,25 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-020"],
     ),
+    "test_documents_revisions_overview_transition_from_final_without_body": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-020"],
+    ),
     "test_documents_revisions_overview_transition_from_non_start_code": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
-        ["TS-REV-023"],
+        ["TS-REV-025"],
+    ),
+    "test_documents_revisions_overview_transition_uses_requested_target_code": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-025"],
+    ),
+    "test_documents_revisions_overview_transition_rejects_duplicate_active_target_code": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-032"],
+    ),
+    "test_documents_revisions_overview_transition_reuses_target_code_after_cancel": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-033"],
     ),
     "test_documents_revisions_overview_transition_rejects_non_final_source": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",

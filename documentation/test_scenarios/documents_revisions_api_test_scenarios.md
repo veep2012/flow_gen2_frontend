@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-07
 - Last Updated: 2026-03-26
-- Version: v2.5
+- Version: v2.6
 
 ## Change Log
-- 2026-03-26 | v2.5 | Updated revision-list behavior so `GET /documents/{doc_id}/revisions` hides canceled and superseded rows by default, and added optional query flags to include those row types when explicitly requested.
+- 2026-03-26 | v2.6 | Updated revision-list behavior so `GET /documents/{doc_id}/revisions` hides canceled and superseded rows by default, added optional query flags to include those row types when explicitly requested, restored explicit non-start initial revision-code coverage, and added request-driven overview-transition skip coverage via optional `target_rev_code_id`.
 - 2026-03-25 | v2.3 | Removed the redundant public generic revision-create endpoint from the scenario contract, clarified that supersede replaces the current non-final revision with the same `rev_code_id` while restarting at the workflow start status, added document-update rejection for workflow-managed revision pointers, and synchronized automated coverage with the supported progression paths.
 - 2026-03-25 | v1.7 | Added the missing automated mapping for the final-current-revision create rejection scenario and aligned the scenario catalog numbering with the current revisions test suite.
 - 2026-03-25 | v1.6 | Added dedicated overview-transition scenarios for current final revisions, changed generic revision-update scenarios so `rev_code_id` is rejected after creation, added document-create default/explicit initial revision-code scenarios, and clarified that canceled revisions disappear from standard revision lists.
@@ -33,12 +33,14 @@ Provide repeatable curl-based validation for document/revision update constraint
 ## Design / Behavior
 Revision APIs must enforce required fields, status immutability on update, and workflow transition constraints.
 - `POST /api/v1/documents/revisions/{rev_id}/overview-transition` creates the next revision from a current final revision.
+- The overview-transition request body is optional; omitting it must preserve the legacy immediate-next behavior.
 - `POST /api/v1/documents/revisions/{rev_id}/supersede` creates a replacement revision with the same `rev_code_id` for the current non-final revision and restarts that replacement at the workflow start status.
 - `PUT /api/v1/documents/{doc_id}` must reject `rev_actual_id` and `rev_current_id`; those document pointers are workflow-managed only.
 - The generic revision update workflow must reject `rev_code_id` changes after revision creation.
 - There is no public generic revision-create endpoint for follow-up document revisions.
 - A superseded revision must no longer block reuse of its `rev_code_id`.
 - Document creation defaults the initial `rev_code_id` to the unique `revision_overview.start=true` step when omitted.
+- Overview-transition requests may optionally provide `target_rev_code_id` to skip to a later reachable `revision_overview` step, and unreachable targets must be rejected.
 - A document may retain multiple non-superseded final revisions concurrently only when each has a different active `rev_code_id`.
 - `GET /api/v1/documents/{doc_id}/revisions` must exclude canceled and superseded revisions by default.
 - `GET /api/v1/documents/{doc_id}/revisions?show_canceled=true` must include canceled revisions.
@@ -161,7 +163,13 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 
 `TS-REV-023` requires creating a brand new document with an explicit non-start `rev_code_id` that is permitted by current business rules.
 
+`TS-REV-025` requires finalizing a revision and calling overview transition with an explicit `target_rev_code_id` that skips one or more intermediate reachable overview steps while still creating a new revision row.
+
 `TS-REV-024` requires canceling a non-final revision and confirming it no longer appears in standard revision-list responses.
+
+`TS-REV-032` requires a current final revision whose resolved overview-transition target `rev_code_id` is already occupied by another active non-canceled, non-superseded revision of the same document, and verifies that the API returns `409`.
+
+`TS-REV-033` requires creating a next revision from a current final revision, canceling that created revision, and verifying that another overview transition from the same source final revision can reuse the same target `rev_code_id`.
 
 `TS-REV-026` requires superseding the current non-final revision through the dedicated supersede endpoint and verifying the replacement revision keeps the same `rev_code_id` while restarting at the workflow start status.
 
@@ -196,10 +204,13 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `TS-REV-021` overview transition from a non-final revision returns `409`.
 - `TS-REV-022` document create without `rev_code_id` defaults to the `revision_overview.start` step.
 - `TS-REV-023` document create with an explicit allowed non-start `rev_code_id` succeeds.
+- `TS-REV-025` overview transition uses an explicit reachable `target_rev_code_id` when provided.
 - `TS-REV-024` canceled revisions are excluded from standard revision-list responses.
 - `TS-REV-026` supersede revision creates a replacement row with the same `rev_code_id`, resets it to the workflow start status, and marks the source revision as `superseded=true`.
 - `TS-REV-027` supersede revision from a final source returns `409`.
 - `TS-REV-029` multiple final revisions with different `rev_code_id` values may coexist without auto-superseding earlier finals.
+- `TS-REV-032` overview transition returns `409` when another active revision of the same document already uses the resolved target `rev_code_id`.
+- `TS-REV-033` overview transition may reuse a target `rev_code_id` after the earlier revision with that code has been canceled.
 - `TS-REV-030` revision-list responses include canceled revisions only when `show_canceled=true`.
 - `TS-REV-031` revision-list responses include superseded revisions only when `show_superseded=true`.
 
@@ -223,8 +234,13 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_status_transition_already_start` -> `TS-REV-018`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_require_session_identity` -> `TS-REV-016`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_create_defaults_initial_revision_code_to_start` -> `TS-REV-022`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_create_accepts_explicit_non_start_revision_code` -> `TS-REV-023`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_from_final` -> `TS-REV-020`
-- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_from_non_start_code` -> `TS-REV-023`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_from_final_without_body` -> `TS-REV-020`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_from_non_start_code` -> `TS-REV-025`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_uses_requested_target_code` -> `TS-REV-025`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_rejects_duplicate_active_target_code` -> `TS-REV-032`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_reuses_target_code_after_cancel` -> `TS-REV-033`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_overview_transition_rejects_non_final_source` -> `TS-REV-021`
 - `tests/api/api/test_cancel_delete_endpoints.py::test_cancel_revision` -> `TS-REV-024`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_supersede` -> `TS-REV-026`

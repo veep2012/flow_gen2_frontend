@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-26
-- Version: v2.6
+- Version: v2.8
 
 ## Change Log
-- 2026-03-26 | v2.6 | Removed `revertible` and `editable` from the revision-code lifecycle model so `revision_overview` now carries only successor linkage, start/final markers, and descriptive `percentage`.
+- 2026-03-26 | v2.8 | Removed `revertible` and `editable` from the revision-code lifecycle model so `revision_overview` now carries only successor linkage, start/final markers, and descriptive `percentage`, and documented optional request-provided target selection for overview-transition skips.
 - 2026-03-25 | v2.4 | Replaced generic in-place revision-code mutation with dedicated overview-transition and supersede workflows, documented default initial `rev_code_id` resolution from `revision_overview.start`, clarified that supersede keeps the same `rev_code_id` while restarting at the workflow start status, removed the redundant public generic revision-create endpoint, and clarified that canceled revisions are hidden from standard workflow views.
 - 2026-03-20 | v2.2 | Clarified the current revision-code mutation contract: `ref.revision_overview` stays reference configuration, there is no dedicated overview-transition endpoint, and the generic revision update workflow may still change `core.doc_revision.rev_code_id`; also clarified that environments are recreated from `ci/init/` rather than migrated in place, that documented revision-code safety guarantees apply to bootstrap/reseed identity preservation only, that revision-status `revertible` means immediate-predecessor rollback via reverse `next_rev_status_id`, and that every `revision_overview` row must remain on the single connected lifecycle path from the unique start step to the unique final step while matching the current SQL constraints for final-step locking, cycle/self-reference prevention, and the single-predecessor rule.
 - 2026-03-19 | v1.6 | Clarified `revision_overview` path semantics, including path-derived ordering, successor nullability, and the metadata role of `revertible`, `editable`, and `percentage`.
@@ -90,6 +90,8 @@ Revision-status rollback semantics:
 - final steps are terminal by definition: when `final = TRUE`, `next_rev_code_id IS NULL`
 - connectivity is checked at transaction end so multi-step reconfiguration may be staged within one transaction, but the committed end state must still be one connected start-to-final path
 - current repository behavior exposes a dedicated `POST /api/v1/documents/revisions/{rev_id}/overview-transition` action for creating the next revision from a current final revision
+- the overview-transition request body is optional, and omitting it preserves the legacy immediate-next progression behavior
+- overview transition defaults to the immediate successor in `revision_overview`, but may skip to a later reachable successor when the API request provides an explicit reachable target overview step
 - current repository behavior exposes a dedicated `POST /api/v1/documents/revisions/{rev_id}/supersede` action for replacing the current non-final revision while keeping the same `rev_code_id`
 - generic revision updates cannot change `core.doc_revision.rev_code_id` after creation
 - brand new document creation defaults the initial revision `rev_code_id` to the unique `revision_overview.start = TRUE` step when the client omits `rev_code_id`
@@ -136,7 +138,7 @@ flowchart LR
 | Intermediate | Draft | Revision is reverted back to Draft. | Author or system. | `/api/v1/documents/revisions/{rev_id}/status-transitions` | Update revision status; keep doc pointers unchanged. | Used when commenting/review is stopped or needs rework. |
 | Draft or Intermediate | Draft | Current non-final revision is replaced in workflow history. | Author or system. | `/api/v1/documents/revisions/{rev_id}/supersede` | Mark source revision `superseded=true`; insert replacement revision with the same `rev_code_id`; set `rev_current_id` to the replacement. | The replacement revision always restarts at the workflow start status. |
 | Intermediate | Final | Commenting completes and revision is approved for finalization. | Reviewer/approver. | `/api/v1/documents/revisions/{rev_id}/status-transitions` | Update revision status; set `rev_actual_id=rev_current_id` to this revision. | Final makes the revision “actual/current” without superseding other final revisions that have different `rev_code_id`. |
-| Final | Draft | A new revision is created from the current final revision using the next allowed revision-overview step. | Author or system. | `/api/v1/documents/revisions/{rev_id}/overview-transition` | Insert new revision; keep the source final revision unchanged; set `rev_actual_id` to the source final revision and `rev_current_id` to the new revision. | The new revision starts at the workflow start status and receives its `rev_code_id` from `revision_overview.next_rev_code_id`. |
+| Final | Draft | A new revision is created from the current final revision using the next allowed revision-overview step. | Author or system. | `/api/v1/documents/revisions/{rev_id}/overview-transition` | Insert new revision; keep the source final revision unchanged; set `rev_actual_id` to the source final revision and `rev_current_id` to the new revision. | The new revision starts at the workflow start status and receives its `rev_code_id` from `revision_overview.next_rev_code_id` by default, or from a later reachable target when the request explicitly supplies `target_rev_code_id`. |
 
 Revision-code change behavior:
 - `POST /api/v1/documents/revisions/{rev_id}/overview-transition` is the supported way to create the next revision from a current final revision.
@@ -144,6 +146,7 @@ Revision-code change behavior:
 - There is no public `POST /api/v1/documents/{doc_id}/revisions` endpoint for follow-up revisions.
 - `core.doc_revision.rev_code_id` cannot be changed through the generic revision update workflow (`PUT /api/v1/documents/revisions/{rev_id}`).
 - The overview-transition action resolves the target `rev_code_id` from `ref.revision_overview`; it does not mutate `ref.revision_overview`.
+- The overview-transition request may optionally supply `target_rev_code_id` to select a later reachable successor on the same `revision_overview` chain.
 - Multiple historical revisions may reuse the same `rev_code_id` only after earlier revisions with that code have been canceled or superseded.
 
 ## Other Actions
