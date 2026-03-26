@@ -244,6 +244,95 @@ def test_documents_revisions_list():
             assert "rev_status_id" in sample
             assert "rev_code_id" in sample
             assert "seq_num" in sample
+            assert sample.get("canceled_date") is None
+            assert sample.get("superseded") is False
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_list_includes_canceled_when_requested():
+    with httpx.Client(timeout=10) as client:
+        doc_id, revision = _create_document_with_revision(client, prefix="DOC-REV-SHOW-CANCELED")
+        canceled = _request(client, "PATCH", f"/documents/revisions/{revision['rev_id']}/cancel")
+        assert canceled["status"] == 200
+
+        default_list = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        assert default_list["status"] == 200
+        assert all(rev["rev_id"] != revision["rev_id"] for rev in default_list["payload"])
+
+        included = _request(
+            client,
+            "GET",
+            f"/documents/{doc_id}/revisions",
+            params={"show_canceled": True},
+        )
+        assert included["status"] == 200
+        found = next(
+            (rev for rev in included["payload"] if rev["rev_id"] == revision["rev_id"]), None
+        )
+        assert found is not None
+        assert found["canceled_date"] is not None
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_list_includes_superseded_when_requested():
+    with httpx.Client(timeout=10) as client:
+        doc_id, base_revision = _create_document_with_revision(
+            client, prefix="DOC-REV-SHOW-SUPERSEDED"
+        )
+        statuses = _get_statuses(client)
+        if not statuses:
+            pytest.skip("No statuses available for superseded-filter test")
+        status_map = {
+            status["rev_status_id"]: status for status in statuses if "rev_status_id" in status
+        }
+        current_status = status_map.get(base_revision["rev_status_id"])
+        if current_status is None or current_status.get("next_rev_status_id") is None:
+            pytest.skip("No non-final successor status available for superseded-filter test")
+        _ensure_file_for_revision(client, base_revision["rev_id"])
+        advanced = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{base_revision['rev_id']}/status-transitions",
+            json={"direction": "forward"},
+        )
+        assert advanced["status"] == 200
+        advanced_payload = advanced["payload"]
+        advanced_status = status_map.get(advanced_payload["rev_status_id"])
+        if advanced_status is None or advanced_status.get("final"):
+            pytest.skip("Need a non-final non-start source revision for superseded-filter test")
+        payload = {
+            "rev_author_id": advanced_payload["rev_author_id"],
+            "rev_originator_id": advanced_payload["rev_originator_id"],
+            "rev_modifier_id": advanced_payload["rev_modifier_id"],
+            "transmital_current_revision": f"TR-SUP-FILTER-{doc_id}",
+            "planned_start_date": advanced_payload["planned_start_date"],
+            "planned_finish_date": advanced_payload["planned_finish_date"],
+        }
+        created = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{advanced_payload['rev_id']}/supersede",
+            json=payload,
+        )
+        assert created["status"] == 200
+
+        default_list = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        assert default_list["status"] == 200
+        assert all(rev["rev_id"] != advanced_payload["rev_id"] for rev in default_list["payload"])
+
+        included = _request(
+            client,
+            "GET",
+            f"/documents/{doc_id}/revisions",
+            params={"show_superseded": True},
+        )
+        assert included["status"] == 200
+        found = next(
+            (rev for rev in included["payload"] if rev["rev_id"] == advanced_payload["rev_id"]),
+            None,
+        )
+        assert found is not None
+        assert found["superseded"] is True
 
 
 @pytest.mark.api_smoke
@@ -459,6 +548,23 @@ def test_documents_revisions_supersede():
             (
                 rev
                 for rev in revisions["payload"]
+                if rev.get("rev_id") == advanced_payload["rev_id"]
+            ),
+            None,
+        )
+        assert prior_revision is None
+
+        revisions_with_superseded = _request(
+            client,
+            "GET",
+            f"/documents/{doc_id}/revisions",
+            params={"show_superseded": True},
+        )
+        assert revisions_with_superseded["status"] == 200
+        prior_revision = next(
+            (
+                rev
+                for rev in revisions_with_superseded["payload"]
                 if rev.get("rev_id") == advanced_payload["rev_id"]
             ),
             None,

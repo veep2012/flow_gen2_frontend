@@ -7,10 +7,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-26
-- Version: v2.7
+- Version: v2.8
 
 ## Change Log
-- 2026-03-26 | v2.7 | Removed `revertible` and `editable` from `ref.revision_overview` and from the revision-overview API contract; revision-code lifecycle now exposes only ordering, start/final markers, and descriptive `percentage`.
+- 2026-03-26 | v2.8 | Updated the document-revisions read contract so standard list responses exclude canceled and superseded rows by default, while explicit query flags may include those rows through workflow views.
 - 2026-03-25 | v2.5 | Added database-backed overview-transition creation from a current final revision, made `rev_code_id` immutable after revision creation, defaulted initial document revisions to the `revision_overview.start` step when omitted, updated revision-code uniqueness so superseded revisions behave like canceled revisions for code reuse and active-conflict checks, added a dedicated supersede workflow that replaces the current non-final revision with a new row carrying the same `rev_code_id` and the workflow start status, removed the public generic revision-create API path, revoked `app_user` access to generic revision creation, and made document update reject `rev_actual_id`/`rev_current_id` because revision pointers are workflow-managed only.
 - 2026-03-20 | v1.9 | Clarified the current repository policy for revision-code changes: supported safety guarantees apply to clean bootstrap and reseed only, the database is recreated from `ci/init/` instead of migrated in place, published `rev_code_id` identities must remain stable across that bootstrap flow, `ref.revision_overview` remains reference configuration, and normal revision updates may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)` without a dedicated overview-transition API; also defined `doc_rev_statuses.revertible` precisely as unique immediate-predecessor rollback via reverse `next_rev_status_id`, made `revision_overview` connectivity explicit as one connected `start=true` to final path, and synchronized lifecycle invariants with the current SQL schema for terminal nullability, final-step locking, cycle/self-reference prevention, single start/final semantics, and the descriptive-only role of `percentage`.
 - 2026-03-18 | v1.4 | Clarified this document's scope as the backend/database enforcement contract beneath the new application-level authorization policy.
@@ -373,6 +373,8 @@ Transition into any non-start status requires at least one file.
 - cancellation sets `canceled_date`
 - cancel resets `rev_current_id` to `rev_actual_id`
 - canceled revisions are excluded from `workflow.v_document_revisions`
+- standard `GET /documents/{doc_id}/revisions` responses exclude canceled and superseded rows by default
+- explicit list-query flags may include canceled and/or superseded rows through the workflow read model without bypassing view-based access control
 - only one non-canceled, non-superseded revision per document may use a given `rev_code_id`
 - transitioning a revision to final updates `rev_actual_id` / `rev_current_id` to that revision but does not supersede other final revisions with different `rev_code_id`
 - generic revision updates cannot mutate `rev_code_id` after creation
@@ -407,6 +409,7 @@ Functions are:
 The API reads exclusively via:
 - `workflow.v_documents`
 - `workflow.v_document_revisions`
+- `workflow.v_document_revisions_all`
 - `workflow.v_files`
 
 Views:

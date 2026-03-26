@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-06
 - Last Updated: 2026-03-26
-- Version: v4.8
+- Version: v4.9
 
 ## Change Log
-- 2026-03-26 | v4.8 | Removed `revertible` and `editable` from the `GET /api/v1/documents/revision_overview` payload so revision-code lifecycle responses expose only path/order, terminal/start markers, and descriptive `percentage`.
+- 2026-03-26 | v4.9 | Updated `GET /api/v1/documents/{doc_id}/revisions` so it excludes canceled and superseded revisions by default, and added optional `show_canceled` / `show_superseded` query flags to include those row types when explicitly requested.
 - 2026-03-25 | v4.6 | Added dedicated `POST /api/v1/documents/revisions/{rev_id}/overview-transition` for creating the next revision from a current final revision, added `POST /api/v1/documents/revisions/{rev_id}/supersede` for replacing the current non-final revision with a new row that keeps the same `rev_code_id` and restarts at the workflow start status, made generic revision updates reject `rev_code_id`, removed redundant public `POST /api/v1/documents/{doc_id}/revisions`, documented initial document `rev_code_id` defaulting to the `revision_overview.start` step, clarified that canceled revisions are hidden from standard revision-list responses, and removed `rev_actual_id`/`rev_current_id` from the document update request contract because those pointers are workflow-managed.
 - 2026-03-20 | v4.1 | Clarified that there is currently no dedicated overview-transition endpoint: `ref.revision_overview` remains reference configuration, while `PUT /api/v1/documents/revisions/{rev_id}` may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)`; also defined revision back-transition semantics explicitly so `direction="back"` moves only to the unique immediate predecessor status resolved by reverse `next_rev_status_id`, and the status graph forbids ambiguous predecessor configurations.
 - 2026-03-19 | v3.9 | Clarified the `GET /api/v1/documents/revision_overview` contract: path-derived ordering, `next_rev_code_id` terminal nullability, unique start/final semantics, descriptive `percentage`, and the metadata role of `revertible`/`editable`.
@@ -1074,6 +1074,12 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   - Note: Auto-DL creation is idempotent by name; if `DL_<doc_name_unique>` already exists, document creation still succeeds and no duplicate DL row is inserted.
 ### Revisions
 - `GET /api/v1/documents/{doc_id}/revisions` — 200 ordered by `seq_num`; empty list if none. 404 if document not found or voided.
+- Optional query params:
+  - `show_canceled=true` includes canceled revisions.
+  - `show_superseded=true` includes superseded revisions.
+- Contract notes:
+  - By default, the endpoint returns only non-canceled and non-superseded revisions.
+  - `show_canceled=false` and `show_superseded=false` are the default behaviors when the params are omitted.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash

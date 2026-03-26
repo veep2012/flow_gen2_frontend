@@ -94,6 +94,14 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-001"],
     ),
+    "test_documents_revisions_list_includes_canceled_when_requested": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-030"],
+    ),
+    "test_documents_revisions_list_includes_superseded_when_requested": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-031"],
+    ),
     "test_documents_revisions_missing_doc": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-002"],

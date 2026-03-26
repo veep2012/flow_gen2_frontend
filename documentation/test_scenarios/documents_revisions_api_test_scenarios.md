@@ -6,10 +6,10 @@
 - Reviewers: API maintainers
 - Created: 2026-02-07
 - Last Updated: 2026-03-26
-- Version: v2.4
+- Version: v2.5
 
 ## Change Log
-- 2026-03-26 | v2.4 | Added coverage for the relaxed final-state invariant: a document may retain multiple final revisions concurrently when each has a different `rev_code_id`.
+- 2026-03-26 | v2.5 | Updated revision-list behavior so `GET /documents/{doc_id}/revisions` hides canceled and superseded rows by default, and added optional query flags to include those row types when explicitly requested.
 - 2026-03-25 | v2.3 | Removed the redundant public generic revision-create endpoint from the scenario contract, clarified that supersede replaces the current non-final revision with the same `rev_code_id` while restarting at the workflow start status, added document-update rejection for workflow-managed revision pointers, and synchronized automated coverage with the supported progression paths.
 - 2026-03-25 | v1.7 | Added the missing automated mapping for the final-current-revision create rejection scenario and aligned the scenario catalog numbering with the current revisions test suite.
 - 2026-03-25 | v1.6 | Added dedicated overview-transition scenarios for current final revisions, changed generic revision-update scenarios so `rev_code_id` is rejected after creation, added document-create default/explicit initial revision-code scenarios, and clarified that canceled revisions disappear from standard revision lists.
@@ -40,6 +40,9 @@ Revision APIs must enforce required fields, status immutability on update, and w
 - A superseded revision must no longer block reuse of its `rev_code_id`.
 - Document creation defaults the initial `rev_code_id` to the unique `revision_overview.start=true` step when omitted.
 - A document may retain multiple non-superseded final revisions concurrently only when each has a different active `rev_code_id`.
+- `GET /api/v1/documents/{doc_id}/revisions` must exclude canceled and superseded revisions by default.
+- `GET /api/v1/documents/{doc_id}/revisions?show_canceled=true` must include canceled revisions.
+- `GET /api/v1/documents/{doc_id}/revisions?show_superseded=true` must include superseded revisions.
 
 Backward transition contract:
 - `direction="back"` means move the revision to the immediate predecessor status only.
@@ -66,11 +69,17 @@ TS=$(date +%s)
 echo "PROJECT_ID=$PROJECT_ID DOC_ID=$DOC_ID REV_ID=$REV_ID"
 ```
 
-## 3. TS-REV-001..006 List/Update Checks
+## 3. TS-REV-001..006,030,031 List/Update Checks
 
 ```bash
 # TS-REV-001
 curl -i "$API_BASE$API_PREFIX/documents/$DOC_ID/revisions"
+
+# TS-REV-030
+curl -i "$API_BASE$API_PREFIX/documents/$DOC_ID/revisions?show_canceled=true"
+
+# TS-REV-031
+curl -i "$API_BASE$API_PREFIX/documents/$DOC_ID/revisions?show_superseded=true"
 
 # TS-REV-002
 curl -i "$API_BASE$API_PREFIX/documents/999999/revisions"
@@ -166,6 +175,7 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 
 ## Scenario Catalog
 - `TS-REV-001` list revisions for existing document.
+  - Default list excludes canceled and superseded revisions unless explicitly requested.
 - `TS-REV-002` list revisions for missing document returns `404`.
 - `TS-REV-003` update non-final revision fields succeeds.
 - `TS-REV-004` empty update payload returns `400`.
@@ -190,9 +200,13 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `TS-REV-026` supersede revision creates a replacement row with the same `rev_code_id`, resets it to the workflow start status, and marks the source revision as `superseded=true`.
 - `TS-REV-027` supersede revision from a final source returns `409`.
 - `TS-REV-029` multiple final revisions with different `rev_code_id` values may coexist without auto-superseding earlier finals.
+- `TS-REV-030` revision-list responses include canceled revisions only when `show_canceled=true`.
+- `TS-REV-031` revision-list responses include superseded revisions only when `show_superseded=true`.
 
 ## Automated Test Mapping
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_list` -> `TS-REV-001`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_list_includes_canceled_when_requested` -> `TS-REV-030`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_list_includes_superseded_when_requested` -> `TS-REV-031`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_missing_doc` -> `TS-REV-002`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_update` -> `TS-REV-003`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_update_missing_fields` -> `TS-REV-004`

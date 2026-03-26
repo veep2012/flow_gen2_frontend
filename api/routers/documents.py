@@ -512,6 +512,14 @@ def _fetch_doc_out(db: Session, doc_id: int, *, allow_voided: bool = True) -> Do
 )
 def list_document_revisions(
     doc_id: int = Path(..., description="Document ID to list revisions for", gt=0),
+    show_canceled: bool = Query(
+        False,
+        description="Include canceled revisions in results when true.",
+    ),
+    show_superseded: bool = Query(
+        False,
+        description="Include superseded revisions in results when true.",
+    ),
     db: Session = Depends(get_db),
 ) -> list[DocRevisionOut]:
     """
@@ -522,6 +530,8 @@ def list_document_revisions(
 
     Args:
         doc_id: The document ID to list revisions for.
+        show_canceled: Whether to include canceled revisions.
+        show_superseded: Whether to include superseded revisions.
 
     Returns:
         List of document revisions with metadata.
@@ -540,54 +550,51 @@ def list_document_revisions(
     if not doc_row or doc_row["voided"]:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    rows = (
-        db.execute(
-            text(
-                """
-                SELECT
-                    r.rev_id,
-                    r.doc_id,
-                    r.seq_num,
-                    r.rev_code_id,
-                    ro.rev_code_name,
-                    ro.rev_code_acronym,
-                    ro.rev_description,
-                    r.rev_author_id,
-                    r.rev_originator_id,
-                    r.rev_modifier_id,
-                    r.transmital_current_revision,
-                    r.milestone_id,
-                    m.milestone_name,
-                    r.planned_start_date,
-                    r.planned_finish_date,
-                    r.actual_start_date,
-                    r.actual_finish_date,
-                    r.canceled_date,
-                    r.rev_status_id,
-                    rs.rev_status_name,
-                    r.as_built,
-                    r.superseded,
-                    r.modified_doc_date,
-                    r.created_at,
-                    r.updated_at,
-                    r.created_by,
-                    r.updated_by
-                FROM workflow.v_document_revisions AS r
-                LEFT JOIN workflow.v_revision_overview AS ro
-                    ON ro.rev_code_id = r.rev_code_id
-                LEFT JOIN workflow.v_doc_rev_milestones AS m
-                    ON m.milestone_id = r.milestone_id
-                LEFT JOIN workflow.v_doc_rev_statuses AS rs
-                    ON rs.rev_status_id = r.rev_status_id
-                WHERE r.doc_id = :doc_id
-                ORDER BY r.seq_num, r.rev_id
-                """
-            ),
-            {"doc_id": doc_id},
-        )
-        .mappings()
-        .all()
-    )
+    sql = """
+        SELECT
+            r.rev_id,
+            r.doc_id,
+            r.seq_num,
+            r.rev_code_id,
+            ro.rev_code_name,
+            ro.rev_code_acronym,
+            ro.rev_description,
+            r.rev_author_id,
+            r.rev_originator_id,
+            r.rev_modifier_id,
+            r.transmital_current_revision,
+            r.milestone_id,
+            m.milestone_name,
+            r.planned_start_date,
+            r.planned_finish_date,
+            r.actual_start_date,
+            r.actual_finish_date,
+            r.canceled_date,
+            r.rev_status_id,
+            rs.rev_status_name,
+            r.as_built,
+            r.superseded,
+            r.modified_doc_date,
+            r.created_at,
+            r.updated_at,
+            r.created_by,
+            r.updated_by
+        FROM workflow.v_document_revisions_all AS r
+        LEFT JOIN workflow.v_revision_overview AS ro
+            ON ro.rev_code_id = r.rev_code_id
+        LEFT JOIN workflow.v_doc_rev_milestones AS m
+            ON m.milestone_id = r.milestone_id
+        LEFT JOIN workflow.v_doc_rev_statuses AS rs
+            ON rs.rev_status_id = r.rev_status_id
+        WHERE r.doc_id = :doc_id
+    """
+    if not show_canceled:
+        sql += " AND r.canceled_date IS NULL"
+    if not show_superseded:
+        sql += " AND COALESCE(r.superseded, FALSE) = FALSE"
+    sql += " ORDER BY r.seq_num, r.rev_id"
+
+    rows = db.execute(text(sql), {"doc_id": doc_id}).mappings().all()
     return _model_list(DocRevisionOut, rows)
 
 
