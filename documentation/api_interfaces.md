@@ -9,6 +9,7 @@
 - Version: v4.11
 
 ## Change Log
+- 2026-03-27 | v4.12 | Clarified revision lifecycle rejection semantics: document create still allows explicit initial `rev_code_id` values that reference valid initial overview steps, overview transition rejects non-current and terminal-without-next sources with `409`, and supersede on a final revision returns the documented overview-transition guidance.
 - 2026-03-26 | v4.11 | Updated `GET /api/v1/documents/{doc_id}/revisions` so it excludes canceled and superseded revisions by default, added optional `show_canceled` / `show_superseded` query flags to include those row types when explicitly requested, documented optional request-provided target overview selection for overview transition, and removed the earlier runtime-parameter skip design.
 - 2026-03-25 | v4.6 | Added dedicated `POST /api/v1/documents/revisions/{rev_id}/overview-transition` for creating the next revision from a current final revision, added `POST /api/v1/documents/revisions/{rev_id}/supersede` for replacing the current non-final revision with a new row that keeps the same `rev_code_id` and restarts at the workflow start status, made generic revision updates reject `rev_code_id`, removed redundant public `POST /api/v1/documents/{doc_id}/revisions`, documented initial document `rev_code_id` defaulting to the `revision_overview.start` step, clarified that canceled revisions are hidden from standard revision-list responses, and removed `rev_actual_id`/`rev_current_id` from the document update request contract because those pointers are workflow-managed.
 - 2026-03-20 | v4.1 | Clarified that there is currently no dedicated overview-transition endpoint: `ref.revision_overview` remains reference configuration, while `PUT /api/v1/documents/revisions/{rev_id}` may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)`; also defined revision back-transition semantics explicitly so `direction="back"` moves only to the unique immediate predecessor status resolved by reverse `next_rev_status_id`, and the status graph forbids ambiguous predecessor configurations.
@@ -1069,7 +1070,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   - Optional fields: `project_id`, `jobpack_id`, `milestone_id`, `rev_code_id`
   - Note: The initial revision automatically uses the status with `start=true` from `doc_rev_statuses`.
   - Note: When `rev_code_id` is omitted, the backend uses the `revision_overview` row where `start=true`.
-  - Note: When `rev_code_id` is provided, it must reference an allowed initial revision-overview step.
+  - Note: When `rev_code_id` is provided, it is allowed only if it references a valid initial revision-overview step; the API does not reject explicit initial revision-code selection as a general rule.
   - Note: If `workflow.v_instance_parameters.parameter='dl_for_each_doc'` has value `true` (case-insensitive), create also auto-creates a `distribution_list` row linked by `doc_id` with name pattern `DL_<doc_name_unique>`.
   - Note: Auto-DL creation is idempotent by name; if `DL_<doc_name_unique>` already exists, document creation still succeeds and no duplicate DL row is inserted.
 ### Revisions
@@ -1167,7 +1168,10 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   - The request body is optional.
   - Clients may omit the body entirely, send `{}`, or send `{ "target_rev_code_id": <id> }`.
   - The source revision row remains unchanged.
+  - The source revision must still be the document's current revision; otherwise the API returns `409` with `Only the current revision can transition`.
+  - The source revision must already be in a final status; otherwise the API returns `409` with `Source revision is not in a final status`.
   - By default, the backend resolves the new revision’s `rev_code_id` from `ref.revision_overview.next_rev_code_id`.
+  - If the resolved source overview step has no successor, the API returns `409` with `No allowed next revision code could be resolved`.
   - If `target_rev_code_id` is provided, it must be a later reachable successor on the same `revision_overview` chain; otherwise the API returns `409`.
   - The new revision is inserted with the workflow start status from `doc_rev_statuses`.
   - `core.doc.rev_actual_id` is set to the source final revision and `core.doc.rev_current_id` is set to the newly created revision.
@@ -1258,6 +1262,7 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Contract notes:
   - The replacement row keeps the source revision's `rev_code_id`.
   - The replacement row always starts at the global workflow start status from `doc_rev_statuses`.
+  - A final source revision is rejected with `409` and the API response directs clients to use overview transition instead.
 - Headers: `Accept: application/json`, `Content-Type: application/json`
 - Example request:
 ```bash

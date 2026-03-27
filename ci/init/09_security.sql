@@ -18,6 +18,11 @@ GRANT EXECUTE ON FUNCTION workflow.create_document(
 
 GRANT EXECUTE ON FUNCTION workflow.transition_revision(INTEGER, TEXT) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.cancel_revision(INTEGER) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.create_overview_transition_revision(INTEGER, SMALLINT) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.supersede_revision(
+    INTEGER, SMALLINT, SMALLINT, SMALLINT, VARCHAR, SMALLINT,
+    TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, BOOLEAN
+) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.update_document(INTEGER, JSONB) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.update_revision(INTEGER, JSONB) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.delete_document(INTEGER) TO app_user;

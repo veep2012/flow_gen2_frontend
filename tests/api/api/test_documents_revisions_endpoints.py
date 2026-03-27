@@ -616,6 +616,9 @@ def test_documents_revisions_supersede_rejects_final_source():
             json=payload,
         )
         assert created["status"] == 409
+        assert created["payload"] == {
+            "detail": "Use overview transition to create the next revision from a final revision"
+        }
 
 
 @pytest.mark.api_smoke
@@ -953,6 +956,85 @@ def test_documents_revisions_overview_transition_rejects_non_final_source():
             json={},
         )
         assert transitioned["status"] == 409
+        assert transitioned["payload"] == {"detail": "Source revision is not in a final status"}
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_overview_transition_rejects_non_current_source():
+    with httpx.Client(timeout=10) as client:
+        overview = _get_revision_overview_steps(client)
+        final_status_id = _get_final_status_id(client)
+        if not overview or final_status_id is None:
+            pytest.skip("Revision overview or final status unavailable")
+
+        start_step = next((step for step in overview if step.get("start") is True), None)
+        if start_step is None or start_step.get("next_rev_code_id") is None:
+            pytest.skip("No transitionable start revision overview step available")
+
+        doc_id, revision = _create_document_with_revision(
+            client,
+            prefix="DOC-REV-NONCURRENT",
+            rev_code_id=start_step["rev_code_id"],
+        )
+        source_rev_id = revision["rev_id"]
+        _mark_revision_final_and_sync_doc(doc_id, source_rev_id, final_status_id)
+
+        first_transition = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{source_rev_id}/overview-transition",
+            json={},
+        )
+        assert first_transition["status"] == 200
+
+        repeated_transition = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{source_rev_id}/overview-transition",
+            json={},
+        )
+        assert repeated_transition["status"] == 409
+        assert repeated_transition["payload"] == {
+            "detail": "Only the current revision can transition"
+        }
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_overview_transition_rejects_missing_next_step():
+    with httpx.Client(timeout=10) as client:
+        overview = _get_revision_overview_steps(client)
+        final_status_id = _get_final_status_id(client)
+        if not overview or final_status_id is None:
+            pytest.skip("Revision overview or final status unavailable")
+
+        terminal_step = next(
+            (
+                step
+                for step in overview
+                if step.get("final") is True and step.get("next_rev_code_id") is None
+            ),
+            None,
+        )
+        if terminal_step is None:
+            pytest.skip("No terminal revision overview step available")
+
+        doc_id, revision = _create_document_with_revision(
+            client,
+            prefix="DOC-REV-NONEXT",
+            rev_code_id=terminal_step["rev_code_id"],
+        )
+        _mark_revision_final_and_sync_doc(doc_id, revision["rev_id"], final_status_id)
+
+        transitioned = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{revision['rev_id']}/overview-transition",
+            json={},
+        )
+        assert transitioned["status"] == 409
+        assert transitioned["payload"] == {
+            "detail": "No allowed next revision code could be resolved"
+        }
 
 
 @pytest.mark.api_smoke
