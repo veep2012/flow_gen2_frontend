@@ -645,6 +645,7 @@ def delete_commented_file(
             deletable_row["s3_uid"],
         )
     except HTTPException:
+        db.rollback()
         logger.exception(
             "MinIO delete failed for commented_id=%s s3_uid=%s",
             deletable_row["id"],
