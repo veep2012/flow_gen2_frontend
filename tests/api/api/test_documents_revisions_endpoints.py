@@ -622,6 +622,60 @@ def test_documents_revisions_supersede_rejects_final_source():
 
 
 @pytest.mark.api_smoke
+def test_documents_revisions_supersede_rejects_repeated_source():
+    with httpx.Client(timeout=10) as client:
+        doc_id, base_revision = _create_document_with_revision(
+            client, prefix="DOC-REV-SUPERSEDE-REPEAT"
+        )
+        statuses = _get_statuses(client)
+        if not statuses:
+            pytest.skip("No statuses available for repeated supersede test")
+        status_map = {
+            status["rev_status_id"]: status for status in statuses if "rev_status_id" in status
+        }
+        current_status = status_map.get(base_revision["rev_status_id"])
+        if current_status is None or current_status.get("next_rev_status_id") is None:
+            pytest.skip("No non-final successor status available for repeated supersede test")
+        _ensure_file_for_revision(client, base_revision["rev_id"])
+        advanced = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{base_revision['rev_id']}/status-transitions",
+            json={"direction": "forward"},
+        )
+        assert advanced["status"] == 200
+        advanced_payload = advanced["payload"]
+        advanced_status = status_map.get(advanced_payload["rev_status_id"])
+        if advanced_status is None or advanced_status.get("final"):
+            pytest.skip("Need a non-final non-start source revision for repeated supersede test")
+
+        payload = {
+            "rev_author_id": advanced_payload["rev_author_id"],
+            "rev_originator_id": advanced_payload["rev_originator_id"],
+            "rev_modifier_id": advanced_payload["rev_modifier_id"],
+            "transmital_current_revision": f"TR-SUP-REPEAT-{doc_id}",
+            "planned_start_date": advanced_payload["planned_start_date"],
+            "planned_finish_date": advanced_payload["planned_finish_date"],
+        }
+        first = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{advanced_payload['rev_id']}/supersede",
+            json=payload,
+        )
+        assert first["status"] == 200
+
+        repeated = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{advanced_payload['rev_id']}/supersede",
+            json=payload,
+        )
+        assert repeated["status"] == 409
+        assert repeated["payload"] == {"detail": "Only the current revision can be superseded"}
+
+
+@pytest.mark.api_smoke
 def test_documents_revisions_overview_transition_from_final():
     with httpx.Client(timeout=10) as client:
         overview = _get_revision_overview_steps(client)
@@ -1345,6 +1399,90 @@ def test_documents_revisions_status_transition_already_start():
             json={"direction": "back"},
         )
         assert result["status"] == 409
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_status_transition_rejects_canceled_revision():
+    with httpx.Client(timeout=10) as client:
+        doc_id, revision = _create_document_with_revision(client, prefix="DOC-REV-CANCELED-TRANS")
+        canceled = _request(client, "PATCH", f"/documents/revisions/{revision['rev_id']}/cancel")
+        assert canceled["status"] == 200
+
+        result = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{revision['rev_id']}/status-transitions",
+            json={"direction": "forward"},
+        )
+        assert result["status"] == 409
+        assert result["payload"] == {"detail": "Canceled revision cannot be transitioned"}
+
+        revisions = _request(
+            client,
+            "GET",
+            f"/documents/{doc_id}/revisions",
+            params={"show_canceled": True},
+        )
+        assert revisions["status"] == 200
+        found = next(
+            (rev for rev in revisions["payload"] if rev["rev_id"] == revision["rev_id"]), None
+        )
+        assert found is not None
+        assert found["canceled_date"] is not None
+
+
+@pytest.mark.api_smoke
+def test_documents_revisions_status_transition_rejects_superseded_revision():
+    with httpx.Client(timeout=10) as client:
+        doc_id, base_revision = _create_document_with_revision(
+            client, prefix="DOC-REV-SUPERSEDED-TRANS"
+        )
+        statuses = _get_statuses(client)
+        if not statuses:
+            pytest.skip("No statuses available for superseded transition test")
+        status_map = {
+            status["rev_status_id"]: status for status in statuses if "rev_status_id" in status
+        }
+        current_status = status_map.get(base_revision["rev_status_id"])
+        if current_status is None or current_status.get("next_rev_status_id") is None:
+            pytest.skip("No non-final successor status available for superseded transition test")
+        _ensure_file_for_revision(client, base_revision["rev_id"])
+        advanced = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{base_revision['rev_id']}/status-transitions",
+            json={"direction": "forward"},
+        )
+        assert advanced["status"] == 200
+        advanced_payload = advanced["payload"]
+        advanced_status = status_map.get(advanced_payload["rev_status_id"])
+        if advanced_status is None or advanced_status.get("final"):
+            pytest.skip("Need a non-final non-start source revision for superseded transition test")
+
+        payload = {
+            "rev_author_id": advanced_payload["rev_author_id"],
+            "rev_originator_id": advanced_payload["rev_originator_id"],
+            "rev_modifier_id": advanced_payload["rev_modifier_id"],
+            "transmital_current_revision": f"TR-SUP-TRANS-{doc_id}",
+            "planned_start_date": advanced_payload["planned_start_date"],
+            "planned_finish_date": advanced_payload["planned_finish_date"],
+        }
+        created = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{advanced_payload['rev_id']}/supersede",
+            json=payload,
+        )
+        assert created["status"] == 200
+
+        result = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{advanced_payload['rev_id']}/status-transitions",
+            json={"direction": "forward"},
+        )
+        assert result["status"] == 409
+        assert result["payload"] == {"detail": "Superseded revision cannot be transitioned"}
 
 
 @pytest.mark.api_smoke

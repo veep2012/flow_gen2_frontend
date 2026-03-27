@@ -427,6 +427,10 @@ BEGIN
         RAISE EXCEPTION 'Revision not found';
     END IF;
 
+    IF v_rev.canceled_date IS NOT NULL THEN
+        RAISE EXCEPTION 'Canceled revision cannot be transitioned';
+    END IF;
+
     IF v_rev.superseded THEN
         RAISE EXCEPTION 'Superseded revision cannot be transitioned';
     END IF;

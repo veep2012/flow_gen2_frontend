@@ -848,6 +848,7 @@ _REV_STATUS_TRANSITION_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("already at final status", 409, "Revision already at final status"),
     ("already at start status", 409, "Revision already at start status"),
     ("not revertible", 409, "Revision status not revertible"),
+    ("canceled revision cannot be transitioned", 409, "Canceled revision cannot be transitioned"),
     (
         "superseded revision cannot be transitioned",
         409,

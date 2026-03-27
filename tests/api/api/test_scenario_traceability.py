@@ -146,6 +146,10 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-027"],
     ),
+    "test_documents_revisions_supersede_rejects_repeated_source": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-038"],
+    ),
     "test_documents_revisions_status_transition_forward": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-011"],
@@ -165,6 +169,14 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
     "test_documents_revisions_status_transition_not_revertible": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-015"],
+    ),
+    "test_documents_revisions_status_transition_rejects_canceled_revision": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-036"],
+    ),
+    "test_documents_revisions_status_transition_rejects_superseded_revision": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-037"],
     ),
     "test_documents_revisions_status_graph_rejects_ambiguous_predecessor": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
