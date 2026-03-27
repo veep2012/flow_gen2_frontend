@@ -5,11 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-26
-- Version: v4.11
+- Last Updated: 2026-03-27
+- Version: v4.14
 
 ## Change Log
-- 2026-03-27 | v4.12 | Clarified revision lifecycle rejection semantics: document create still allows explicit initial `rev_code_id` values that reference valid initial overview steps, overview transition rejects non-current and terminal-without-next sources with `409`, and supersede on a final revision returns the documented overview-transition guidance.
+- 2026-03-27 | v4.14 | Clarified revision lifecycle rejection semantics, synchronized commented-file delete error documentation with actual `401/403/404/500` behavior, and added an explicit breaking-contract summary for notification recipient override removal, commented-file delete owner/superuser enforcement, and default-hidden canceled/superseded revisions.
 - 2026-03-26 | v4.11 | Updated `GET /api/v1/documents/{doc_id}/revisions` so it excludes canceled and superseded revisions by default, added optional `show_canceled` / `show_superseded` query flags to include those row types when explicitly requested, documented optional request-provided target overview selection for overview transition, and removed the earlier runtime-parameter skip design.
 - 2026-03-25 | v4.6 | Added dedicated `POST /api/v1/documents/revisions/{rev_id}/overview-transition` for creating the next revision from a current final revision, added `POST /api/v1/documents/revisions/{rev_id}/supersede` for replacing the current non-final revision with a new row that keeps the same `rev_code_id` and restarts at the workflow start status, made generic revision updates reject `rev_code_id`, removed redundant public `POST /api/v1/documents/{doc_id}/revisions`, documented initial document `rev_code_id` defaulting to the `revision_overview.start` step, clarified that canceled revisions are hidden from standard revision-list responses, and removed `rev_actual_id`/`rev_current_id` from the document update request contract because those pointers are workflow-managed.
 - 2026-03-20 | v4.1 | Clarified that there is currently no dedicated overview-transition endpoint: `ref.revision_overview` remains reference configuration, while `PUT /api/v1/documents/revisions/{rev_id}` may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)`; also defined revision back-transition semantics explicitly so `direction="back"` moves only to the unique immediate predecessor status resolved by reverse `next_rev_status_id`, and the status graph forbids ambiguous predecessor configurations.
@@ -24,6 +24,11 @@
 - 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, corrected file update-body `id` validation contract to `422` (extra field forbidden), added nullable `doc_id` support for distribution lists (`create/list`), documented `dl_for_each_doc=true` auto-DL creation on document create, extended people/persons and people/users payloads with duty fields (`duty_id`, `duty_name`), and added distribution-list search by `doc_id` (`GET /distribution-lists?doc_id=...`).
 - 2026-02-20 | v1.8 | Renamed commented download query parameter from `file_id` to `id`.
 - 2026-02-19 | v1.7 | Updated API contracts and examples for latest backend behavior.
+
+## Breaking / contract changes
+- `GET /api/v1/notifications` no longer accepts a `recipient_user_id` override. Inbox reads now always resolve to the effective authenticated user.
+- `DELETE /api/v1/files/commented/{id}` is no longer a generic authenticated delete. It now requires the commented-file owner or a superuser, with `403` for visible unauthorized access and fail-closed `404` when the row is hidden by read-side RLS.
+- `GET /api/v1/documents/{doc_id}/revisions` no longer behaves like an all-history list by default. Canceled and superseded revisions are hidden unless the caller explicitly opts in with `show_canceled=true` and/or `show_superseded=true`.
 
 ## Purpose
 Provide the current backend API surface and behavior contract for clients and maintainers.
@@ -683,8 +688,13 @@ curl -sS -H "Accept: application/json" \
 ```
 
 ### Delete
-- `DELETE /api/v1/files/commented/{id}` — 204; owner or superuser only; deletes MinIO object and DB row; `403` for a visible but unauthorized actor, fail-closed `404` if not found or hidden by RLS.
+- `DELETE /api/v1/files/commented/{id}` — 204; owner or superuser only; deletes MinIO object and DB row.
 - Headers: `Accept: application/json`
+- Errors:
+  - `401` when no effective session identity is available.
+  - `403` for a visible but unauthorized actor.
+  - `404` when the commented file is missing or hidden by read-side RLS.
+  - `500` when an internal error occurs while finalizing deletion after storage/database work begins.
 - Example request:
 ```bash
 curl -i -H "Accept: application/json" -H "X-User-Id: FDQC" -X DELETE $API_BASE/api/v1/files/commented/{id}
