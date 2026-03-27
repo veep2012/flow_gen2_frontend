@@ -59,4 +59,4 @@ def test_delete_commented_file_skips_db_delete_when_minio_remove_fails(monkeypat
     assert len(db.execute_calls) == 1
     assert "workflow.get_deletable_file_commented" in db.execute_calls[0]
     assert db.commit_calls == 0
-    assert db.rollback_calls == 0
+    assert db.rollback_calls == 1
