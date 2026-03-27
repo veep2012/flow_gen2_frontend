@@ -140,8 +140,6 @@ class DocUpdate(BaseModel):
     type_id: int | None = Field(None, description="Type ID.", examples=[1], gt=0)
     area_id: int | None = Field(None, description="Area ID.", examples=[1], gt=0)
     unit_id: int | None = Field(None, description="Unit ID.", examples=[1], gt=0)
-    rev_actual_id: int | None = Field(None, description="Rev Actual ID.", examples=[1], gt=0)
-    rev_current_id: int | None = Field(None, description="Rev Current ID.", examples=[1], gt=0)
 
 
 class DocCreate(BaseModel):
@@ -158,7 +156,15 @@ class DocCreate(BaseModel):
     type_id: int = Field(..., description="Type ID.", examples=[1], gt=0)
     area_id: int = Field(..., description="Area ID.", examples=[1], gt=0)
     unit_id: int = Field(..., description="Unit ID.", examples=[1], gt=0)
-    rev_code_id: int = Field(..., description="Revision code ID.", examples=[1], gt=0)
+    rev_code_id: int | None = Field(
+        None,
+        description=(
+            "Initial revision code ID. When omitted, the backend uses the revision overview "
+            "step where start=true."
+        ),
+        examples=[1],
+        gt=0,
+    )
     rev_author_id: int = Field(..., description="Revision author person ID.", examples=[1], gt=0)
     rev_originator_id: int = Field(
         ..., description="Revision originator person ID.", examples=[1], gt=0
@@ -280,7 +286,6 @@ class DocRevisionUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     seq_num: int | None = Field(None, description="Revision sequence number.", examples=[1], gt=0)
-    rev_code_id: int | None = Field(None, description="Revision code ID.", examples=[1], gt=0)
     rev_author_id: int | None = Field(
         None, description="Revision author person ID.", examples=[1], gt=0
     )
@@ -325,10 +330,26 @@ class DocRevisionStatusTransition(BaseModel):
     )
 
 
-class DocRevisionCreate(BaseModel):
+class DocRevisionOverviewTransition(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"example": {"target_rev_code_id": 3}},
+    )
+
+    target_rev_code_id: int | None = Field(
+        None,
+        description=(
+            "Optional target revision overview step. When omitted, the backend uses the "
+            "immediate next allowed step."
+        ),
+        examples=[3],
+        gt=0,
+    )
+
+
+class DocRevisionSupersede(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    rev_code_id: int = Field(..., description="Revision code ID.", examples=[1], gt=0)
     rev_author_id: int = Field(..., description="Revision author person ID.", examples=[1], gt=0)
     rev_originator_id: int = Field(
         ..., description="Revision originator person ID.", examples=[1], gt=0
@@ -379,22 +400,6 @@ class RevisionOverviewOut(BaseModel):
         examples=[2],
         gt=0,
     )
-    revertible: bool = Field(
-        ...,
-        description=(
-            "Lifecycle metadata flag indicating whether the configured step "
-            "allows backward movement to its predecessor."
-        ),
-        examples=[True],
-    )
-    editable: bool = Field(
-        ...,
-        description=(
-            "Lifecycle metadata flag exposed to clients to indicate whether "
-            "the step is intended to allow edits."
-        ),
-        examples=[True],
-    )
     final: bool = Field(
         ..., description="Whether the step is the terminal lifecycle step.", examples=[False]
     )
@@ -432,22 +437,6 @@ class RevisionOverviewUpdate(BaseModel):
         examples=[2],
         gt=0,
     )
-    revertible: bool | None = Field(
-        None,
-        description=(
-            "Lifecycle metadata flag indicating whether the configured step "
-            "allows backward movement to its predecessor."
-        ),
-        examples=[True],
-    )
-    editable: bool | None = Field(
-        None,
-        description=(
-            "Lifecycle metadata flag exposed to clients to indicate whether "
-            "the step is intended to allow edits."
-        ),
-        examples=[True],
-    )
     final: bool | None = Field(
         None, description="Whether the step is the terminal lifecycle step.", examples=[False]
     )
@@ -483,22 +472,6 @@ class RevisionOverviewCreate(BaseModel):
         ),
         examples=[2],
         gt=0,
-    )
-    revertible: bool = Field(
-        ...,
-        description=(
-            "Lifecycle metadata flag indicating whether the configured step "
-            "allows backward movement to its predecessor."
-        ),
-        examples=[True],
-    )
-    editable: bool = Field(
-        ...,
-        description=(
-            "Lifecycle metadata flag exposed to clients to indicate whether "
-            "the step is intended to allow edits."
-        ),
-        examples=[True],
     )
     final: bool = Field(
         ..., description="Whether the step is the terminal lifecycle step.", examples=[False]

@@ -5,11 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-03-20
-- Version: v1.7
+- Last Updated: 2026-03-26
+- Version: v1.8
 
 ## Change Log
-- 2026-03-20 | v1.7 | Made the revision-overview connectivity invariant explicit and added scenario coverage for rejecting disconnected predecessors and unreachable lifecycle islands.
+- 2026-03-26 | v1.8 | Removed `revertible` and `editable` from the revision-overview response contract and aligned the lifecycle checks to the reduced payload shape.
 - 2026-03-19 | v1.6 | Added transactional revision overview reconfiguration coverage and documented immediate insert guards for start/final/predecessor invariants.
 - 2026-03-18 | v1.4 | Added revision overview lifecycle ordering and invariant checks for the redesigned lifecycle response.
 - 2026-03-04 | v1.3 | Added `/metrics` to the baseline GET smoke sweep and documented the observability endpoint contract.

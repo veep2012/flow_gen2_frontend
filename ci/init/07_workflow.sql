@@ -29,6 +29,8 @@ SET search_path = core, ref, workflow, audit, pg_temp
 AS $$
 DECLARE
     v_start_status SMALLINT;
+    v_start_rev_code SMALLINT;
+    v_initial_rev_code SMALLINT;
     v_doc_id INTEGER;
     v_dl_for_each_doc BOOLEAN := FALSE;
 BEGIN
@@ -37,6 +39,14 @@ BEGIN
 
     IF v_start_status IS NULL THEN
         RAISE EXCEPTION 'No start status configured';
+    END IF;
+
+    SELECT rev_code_id INTO v_start_rev_code
+    FROM ref.revision_overview WHERE start = TRUE LIMIT 1;
+
+    v_initial_rev_code := COALESCE(p_rev_code_id, v_start_rev_code);
+    IF v_initial_rev_code IS NULL THEN
+        RAISE EXCEPTION 'No start revision code configured';
     END IF;
 
     INSERT INTO core.doc (
@@ -64,7 +74,7 @@ BEGIN
         as_built
     ) VALUES (
         v_doc_id,
-        p_rev_code_id,
+        v_initial_rev_code,
         p_rev_author_id,
         p_rev_originator_id,
         p_rev_modifier_id,
@@ -126,6 +136,8 @@ SET search_path = core, ref, workflow, audit, pg_temp
 AS $$
 DECLARE
     v_start_status SMALLINT;
+    v_existing_revision_count INTEGER := 0;
+    v_current_is_final BOOLEAN := FALSE;
     v_seq SMALLINT;
     v_rev_id INTEGER;
 BEGIN
@@ -134,6 +146,34 @@ BEGIN
 
     IF v_start_status IS NULL THEN
         RAISE EXCEPTION 'No start status configured';
+    END IF;
+
+    PERFORM 1
+    FROM core.doc
+    WHERE doc_id = p_doc_id
+    FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Document not found';
+    END IF;
+
+    SELECT COUNT(*) INTO v_existing_revision_count
+    FROM core.doc_revision
+    WHERE doc_id = p_doc_id;
+
+    IF v_existing_revision_count > 0 THEN
+        SELECT COALESCE(s.final, FALSE) INTO v_current_is_final
+        FROM core.doc AS d
+        LEFT JOIN core.doc_revision AS r
+            ON r.rev_id = d.rev_current_id
+        LEFT JOIN ref.doc_rev_statuses AS s
+            ON s.rev_status_id = r.rev_status_id
+        WHERE d.doc_id = p_doc_id;
+
+        IF v_current_is_final THEN
+            RAISE EXCEPTION 'Final revision progression requires overview transition';
+        END IF;
+
+        RAISE EXCEPTION 'Existing current revision must be progressed by supersede';
     END IF;
 
     SELECT COALESCE(MAX(seq_num), 0) + 1 INTO v_seq
@@ -180,6 +220,180 @@ BEGIN
     WHERE doc_id = p_doc_id;
 
     RETURN v_rev_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.resolve_overview_transition_target(
+    p_source_rev_code_id SMALLINT,
+    p_requested_target_rev_code_id SMALLINT DEFAULT NULL
+) RETURNS SMALLINT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_default_target_rev_code_id SMALLINT;
+    v_requested_target_is_reachable BOOLEAN := FALSE;
+BEGIN
+    SELECT next_rev_code_id INTO v_default_target_rev_code_id
+    FROM ref.revision_overview
+    WHERE rev_code_id = p_source_rev_code_id;
+    IF p_requested_target_rev_code_id IS NULL THEN
+        RETURN v_default_target_rev_code_id;
+    END IF;
+
+    IF p_requested_target_rev_code_id = p_source_rev_code_id THEN
+        RAISE EXCEPTION 'Requested target revision code is not reachable';
+    END IF;
+
+    IF v_default_target_rev_code_id IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    WITH RECURSIVE overview_path AS (
+        SELECT rev_code_id, next_rev_code_id
+        FROM ref.revision_overview
+        WHERE rev_code_id = p_source_rev_code_id
+
+        UNION ALL
+
+        SELECT child.rev_code_id, child.next_rev_code_id
+        FROM ref.revision_overview AS child
+        JOIN overview_path AS parent
+          ON child.rev_code_id = parent.next_rev_code_id
+    )
+    SELECT EXISTS (
+        SELECT 1
+        FROM overview_path
+        WHERE rev_code_id = p_requested_target_rev_code_id
+          AND rev_code_id <> p_source_rev_code_id
+    ) INTO v_requested_target_is_reachable;
+
+    IF v_requested_target_is_reachable THEN
+        RETURN p_requested_target_rev_code_id;
+    END IF;
+
+    RAISE EXCEPTION 'Requested target revision code is not reachable';
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.create_overview_transition_revision(
+    p_rev_id INTEGER,
+    p_target_rev_code_id SMALLINT DEFAULT NULL
+) RETURNS core.doc_revision
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_source core.doc_revision%ROWTYPE;
+    v_doc core.doc%ROWTYPE;
+    v_status ref.doc_rev_statuses%ROWTYPE;
+    v_start_status SMALLINT;
+    v_target_rev_code_id SMALLINT;
+    v_seq SMALLINT;
+    v_conflict_exists BOOLEAN;
+    v_new_rev core.doc_revision%ROWTYPE;
+BEGIN
+    SELECT * INTO v_source
+    FROM core.doc_revision
+    WHERE rev_id = p_rev_id
+    FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Revision not found';
+    END IF;
+
+    SELECT * INTO v_doc
+    FROM core.doc
+    WHERE doc_id = v_source.doc_id
+    FOR UPDATE;
+
+    IF v_doc.rev_current_id IS DISTINCT FROM p_rev_id THEN
+        RAISE EXCEPTION 'Source revision is not current';
+    END IF;
+
+    SELECT * INTO v_status
+    FROM ref.doc_rev_statuses
+    WHERE rev_status_id = v_source.rev_status_id;
+    IF NOT FOUND OR NOT v_status.final THEN
+        RAISE EXCEPTION 'Source revision is not in final status';
+    END IF;
+
+    SELECT rev_status_id INTO v_start_status
+    FROM ref.doc_rev_statuses
+    WHERE start = TRUE
+    LIMIT 1;
+    IF v_start_status IS NULL THEN
+        RAISE EXCEPTION 'No start status configured';
+    END IF;
+
+    SELECT workflow.resolve_overview_transition_target(
+        v_source.rev_code_id,
+        p_target_rev_code_id
+    ) INTO v_target_rev_code_id;
+    IF v_target_rev_code_id IS NULL THEN
+        RAISE EXCEPTION 'No allowed next revision code';
+    END IF;
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM core.doc_revision AS r
+        WHERE r.doc_id = v_source.doc_id
+          AND r.rev_code_id = v_target_rev_code_id
+          AND r.canceled_date IS NULL
+          AND COALESCE(r.superseded, false) = FALSE
+    ) INTO v_conflict_exists;
+    IF v_conflict_exists THEN
+        RAISE EXCEPTION 'Active revision with target revision code already exists';
+    END IF;
+
+    SELECT COALESCE(MAX(seq_num), 0) + 1 INTO v_seq
+    FROM core.doc_revision
+    WHERE doc_id = v_source.doc_id;
+
+    INSERT INTO core.doc_revision (
+        doc_id,
+        rev_code_id,
+        rev_author_id,
+        rev_originator_id,
+        rev_modifier_id,
+        transmital_current_revision,
+        milestone_id,
+        planned_start_date,
+        planned_finish_date,
+        actual_start_date,
+        actual_finish_date,
+        canceled_date,
+        rev_status_id,
+        seq_num,
+        modified_doc_date,
+        as_built
+    ) VALUES (
+        v_source.doc_id,
+        v_target_rev_code_id,
+        v_source.rev_author_id,
+        v_source.rev_originator_id,
+        v_source.rev_modifier_id,
+        v_source.transmital_current_revision,
+        v_source.milestone_id,
+        v_source.planned_start_date,
+        v_source.planned_finish_date,
+        NULL,
+        NULL,
+        NULL,
+        v_start_status,
+        v_seq,
+        CURRENT_TIMESTAMP,
+        v_source.as_built
+    )
+    RETURNING * INTO v_new_rev;
+
+    UPDATE core.doc
+    SET rev_actual_id = p_rev_id,
+        rev_current_id = v_new_rev.rev_id
+    WHERE doc_id = v_source.doc_id;
+
+    RETURN v_new_rev;
 END;
 $$;
 
@@ -260,14 +474,6 @@ BEGIN
 
     IF v_next_status.final THEN
         PERFORM set_config('app.action', 'transition_final', true);
-        -- Supersede previous final revision (if any)
-        UPDATE core.doc_revision
-        SET superseded = TRUE
-        WHERE doc_id = v_rev.doc_id
-          AND rev_id <> p_rev_id
-          AND rev_status_id IN (SELECT rev_status_id FROM ref.doc_rev_statuses WHERE final = TRUE)
-          AND superseded = FALSE;
-
         UPDATE core.doc
         SET rev_actual_id = p_rev_id,
             rev_current_id = p_rev_id
@@ -319,6 +525,129 @@ BEGIN
 
     SELECT * INTO v_rev FROM core.doc_revision WHERE rev_id = p_rev_id;
     RETURN v_rev;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION workflow.supersede_revision(
+    p_rev_id INTEGER,
+    p_rev_author_id SMALLINT,
+    p_rev_originator_id SMALLINT,
+    p_rev_modifier_id SMALLINT,
+    p_transmital_current_revision VARCHAR,
+    p_milestone_id SMALLINT,
+    p_planned_start_date TIMESTAMPTZ,
+    p_planned_finish_date TIMESTAMPTZ,
+    p_actual_start_date TIMESTAMPTZ,
+    p_actual_finish_date TIMESTAMPTZ,
+    p_modified_doc_date TIMESTAMPTZ,
+    p_as_built BOOLEAN DEFAULT FALSE
+) RETURNS core.doc_revision
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = core, ref, workflow, audit, pg_temp
+AS $$
+DECLARE
+    v_source core.doc_revision%ROWTYPE;
+    v_doc core.doc%ROWTYPE;
+    v_status ref.doc_rev_statuses%ROWTYPE;
+    v_start_status SMALLINT;
+    v_seq SMALLINT;
+    v_new_rev core.doc_revision%ROWTYPE;
+BEGIN
+    SELECT * INTO v_source
+    FROM core.doc_revision
+    WHERE rev_id = p_rev_id
+    FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Revision not found';
+    END IF;
+
+    SELECT * INTO v_doc
+    FROM core.doc
+    WHERE doc_id = v_source.doc_id
+    FOR UPDATE;
+
+    IF v_doc.rev_current_id IS DISTINCT FROM p_rev_id THEN
+        RAISE EXCEPTION 'Source revision is not current';
+    END IF;
+
+    IF v_source.canceled_date IS NOT NULL THEN
+        RAISE EXCEPTION 'Source revision is canceled';
+    END IF;
+
+    IF COALESCE(v_source.superseded, FALSE) THEN
+        RAISE EXCEPTION 'Source revision is already superseded';
+    END IF;
+
+    SELECT * INTO v_status
+    FROM ref.doc_rev_statuses
+    WHERE rev_status_id = v_source.rev_status_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Invalid current status';
+    END IF;
+    IF v_status.final THEN
+        RAISE EXCEPTION 'Source revision is in final status';
+    END IF;
+
+    SELECT rev_status_id INTO v_start_status
+    FROM ref.doc_rev_statuses
+    WHERE start = TRUE
+    LIMIT 1;
+    IF v_start_status IS NULL THEN
+        RAISE EXCEPTION 'No start status configured';
+    END IF;
+
+    PERFORM set_config('app.action', 'supersede_revision', true);
+    UPDATE core.doc_revision
+    SET superseded = TRUE
+    WHERE rev_id = p_rev_id;
+
+    SELECT COALESCE(MAX(seq_num), 0) + 1 INTO v_seq
+    FROM core.doc_revision
+    WHERE doc_id = v_source.doc_id;
+
+    INSERT INTO core.doc_revision (
+        doc_id,
+        rev_code_id,
+        rev_author_id,
+        rev_originator_id,
+        rev_modifier_id,
+        transmital_current_revision,
+        milestone_id,
+        planned_start_date,
+        planned_finish_date,
+        actual_start_date,
+        actual_finish_date,
+        canceled_date,
+        rev_status_id,
+        seq_num,
+        modified_doc_date,
+        as_built
+    ) VALUES (
+        v_source.doc_id,
+        v_source.rev_code_id,
+        p_rev_author_id,
+        p_rev_originator_id,
+        p_rev_modifier_id,
+        p_transmital_current_revision,
+        p_milestone_id,
+        p_planned_start_date,
+        p_planned_finish_date,
+        p_actual_start_date,
+        p_actual_finish_date,
+        NULL,
+        v_start_status,
+        v_seq,
+        COALESCE(p_modified_doc_date, CURRENT_TIMESTAMP),
+        COALESCE(p_as_built, FALSE)
+    )
+    RETURNING * INTO v_new_rev;
+
+    UPDATE core.doc
+    SET rev_current_id = v_new_rev.rev_id
+    WHERE doc_id = v_source.doc_id;
+
+    RETURN v_new_rev;
 END;
 $$;
 
@@ -374,13 +703,6 @@ BEGIN
 
     IF v_target.final THEN
         PERFORM set_config('app.action', 'transition_final', true);
-        UPDATE core.doc_revision
-        SET superseded = TRUE
-        WHERE doc_id = v_rev.doc_id
-          AND rev_id <> p_rev_id
-          AND rev_status_id IN (SELECT rev_status_id FROM ref.doc_rev_statuses WHERE final = TRUE)
-          AND superseded = FALSE;
-
         UPDATE core.doc
         SET rev_actual_id = p_rev_id,
             rev_current_id = p_rev_id
@@ -412,6 +734,10 @@ DECLARE
 BEGIN
     IF p_patch IS NULL OR p_patch = '{}'::jsonb THEN
         RAISE EXCEPTION 'No fields to update';
+    END IF;
+
+    IF p_patch ? 'rev_actual_id' OR p_patch ? 'rev_current_id' THEN
+        RAISE EXCEPTION 'Revision pointers are workflow-managed';
     END IF;
 
     SELECT * INTO v_doc FROM core.doc WHERE doc_id = p_doc_id FOR UPDATE;
@@ -448,14 +774,6 @@ BEGIN
             WHEN p_patch ? 'unit_id' THEN (p_patch->>'unit_id')::SMALLINT
             ELSE unit_id
         END,
-        rev_actual_id = CASE
-            WHEN p_patch ? 'rev_actual_id' THEN (p_patch->>'rev_actual_id')::INTEGER
-            ELSE rev_actual_id
-        END,
-        rev_current_id = CASE
-            WHEN p_patch ? 'rev_current_id' THEN (p_patch->>'rev_current_id')::INTEGER
-            ELSE rev_current_id
-        END,
         updated_at = NULL,
         updated_by = NULL
     WHERE doc_id = p_doc_id;
@@ -480,6 +798,10 @@ BEGIN
         RAISE EXCEPTION 'No fields to update';
     END IF;
 
+    IF p_patch ? 'rev_code_id' THEN
+        RAISE EXCEPTION 'Revision code is immutable after creation';
+    END IF;
+
     SELECT * INTO v_rev FROM core.doc_revision WHERE rev_id = p_rev_id FOR UPDATE;
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Revision not found';
@@ -489,10 +811,6 @@ BEGIN
     SET seq_num = CASE
             WHEN p_patch ? 'seq_num' THEN (p_patch->>'seq_num')::SMALLINT
             ELSE seq_num
-        END,
-        rev_code_id = CASE
-            WHEN p_patch ? 'rev_code_id' THEN (p_patch->>'rev_code_id')::SMALLINT
-            ELSE rev_code_id
         END,
         rev_author_id = CASE
             WHEN p_patch ? 'rev_author_id' THEN (p_patch->>'rev_author_id')::SMALLINT

@@ -94,6 +94,14 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-001"],
     ),
+    "test_documents_revisions_list_includes_canceled_when_requested": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-030"],
+    ),
+    "test_documents_revisions_list_includes_superseded_when_requested": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-031"],
+    ),
     "test_documents_revisions_missing_doc": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-002"],
@@ -114,21 +122,29 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-006"],
     ),
-    "test_documents_revisions_create": (
+    "test_documents_revisions_update_rejects_rev_code_change": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
-        ["TS-REV-007"],
+        ["TS-REV-019"],
     ),
-    "test_documents_revisions_create_rejects_rev_status_id": (
+    "test_documents_update_rejects_workflow_managed_revision_pointers": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
-        ["TS-REV-008"],
+        ["TS-REV-028"],
     ),
-    "test_documents_revisions_create_missing_doc": (
+    "test_documents_create_defaults_initial_revision_code_to_start": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
-        ["TS-REV-009"],
+        ["TS-REV-022"],
     ),
-    "test_documents_revisions_create_missing_required_fields": (
+    "test_documents_create_accepts_explicit_non_start_revision_code": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
-        ["TS-REV-010"],
+        ["TS-REV-023"],
+    ),
+    "test_documents_revisions_supersede": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-026"],
+    ),
+    "test_documents_revisions_supersede_rejects_final_source": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-027"],
     ),
     "test_documents_revisions_status_transition_forward": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
@@ -161,6 +177,46 @@ SCENARIO_MAP: dict[str, tuple[str, list[str]]] = {
     "test_documents_revisions_require_session_identity": (
         "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
         ["TS-REV-016"],
+    ),
+    "test_documents_revisions_overview_transition_from_final": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-020"],
+    ),
+    "test_documents_revisions_overview_transition_from_final_without_body": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-020"],
+    ),
+    "test_documents_revisions_overview_transition_from_non_start_code": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-025"],
+    ),
+    "test_documents_revisions_overview_transition_uses_requested_target_code": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-025"],
+    ),
+    "test_documents_revisions_overview_transition_rejects_duplicate_active_target_code": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-032"],
+    ),
+    "test_documents_revisions_overview_transition_reuses_target_code_after_cancel": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-033"],
+    ),
+    "test_documents_revisions_overview_transition_rejects_non_final_source": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-021"],
+    ),
+    "test_documents_revisions_overview_transition_rejects_non_current_source": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-034"],
+    ),
+    "test_documents_revisions_overview_transition_rejects_missing_next_step": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-035"],
+    ),
+    "test_documents_revisions_multiple_finals_with_distinct_rev_codes": (
+        "documentation/test_scenarios/documents_revisions_api_test_scenarios.md",
+        ["TS-REV-029"],
     ),
     "test_files_commented_list": (
         "documentation/test_scenarios/files_commented_api_test_scenarios.md",

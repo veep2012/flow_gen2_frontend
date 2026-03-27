@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import DBAPIError
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FLOW_INIT = REPO_ROOT / "ci" / "init" / "flow_init.psql"
@@ -186,15 +187,28 @@ def _assert_revision_overview_write_paths(engine) -> None:
         ).scalar_one()
         assert created_rev_code_id == 6
 
-        conn.execute(
-            text("SELECT * FROM workflow.update_revision(:rev_id, CAST(:patch AS jsonb))"),
-            {"rev_id": created["rev_id"], "patch": json.dumps({"rev_code_id": 1})},
-        )
-        updated_rev_code_id = conn.execute(
+        savepoint = conn.begin_nested()
+        try:
+            try:
+                conn.execute(
+                    text("SELECT * FROM workflow.update_revision(:rev_id, CAST(:patch AS jsonb))"),
+                    {"rev_id": created["rev_id"], "patch": json.dumps({"rev_code_id": 1})},
+                )
+            except DBAPIError as exc:
+                assert "Revision code is immutable after creation" in str(exc)
+                sqlstate = getattr(getattr(exc, "orig", None), "sqlstate", None)
+                if sqlstate is not None:
+                    assert sqlstate == "P0001"
+            else:
+                raise AssertionError("Revision updates unexpectedly allowed rev_code_id changes")
+        finally:
+            savepoint.rollback()
+
+        current_rev_code_id = conn.execute(
             text("SELECT rev_code_id FROM core.doc_revision WHERE rev_id = :rev_id"),
             {"rev_id": created["rev_id"]},
         ).scalar_one()
-        assert updated_rev_code_id == 1
+        assert current_rev_code_id == 6
 
 
 def _assert_seed_contract(engine) -> None:
