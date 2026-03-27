@@ -5,10 +5,11 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-07
-- Last Updated: 2026-03-18
-- Version: v1.11
+- Last Updated: 2026-03-27
+- Version: v1.13
 
 ## Change Log
+- 2026-03-27 | v1.13 | Clarified commented-file delete error semantics so missing identity returns `401`, visible unauthorized actors return `403`, and read-side-hidden or missing rows fail closed as `404`; added focused regression coverage for the MinIO-delete failure path so DB deletion is not attempted after storage deletion fails.
 - 2026-03-18 | v1.11 | Added owner-or-superuser authorization scenario for commented-file delete, documented fail-closed `403`/`404` behavior, and synchronized delete smoke coverage to use the effective owner identity.
 - 2026-03-13 | v1.10 | Added owner-or-superuser authorization scenario for commented-file replace, documenting fail-closed `403`/`404` behavior and shifted scenario/test mappings.
 - 2026-03-12 | v1.9 | Added commented-file replace endpoint scenario and automated coverage mapping, removed create-time `user_id` form field from commented-file scenarios, and bound create authorship to effective session identity.
@@ -201,6 +202,8 @@ curl -i -X DELETE -H "X-User-Id: $USER_ACRONYM" "$API_BASE$API_PREFIX/files/comm
 - `TS-FC-014` replace missing commented file returns `404`.
 - `TS-FC-015` commented-files router denies requests when effective session identity is missing.
 - `TS-FC-016` delete is rejected for a non-owner non-superuser actor; response may be `403` or fail-closed `404` when read-side RLS hides the row, and the owner can still download/delete the object afterward.
+- Missing effective identity on commented-file delete returns `401`.
+- `TS-FC-017` commented-file delete aborts before the DB delete/commit step when MinIO object removal fails.
 
 ## Automated Test Mapping
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_list` -> `TS-FC-001`
@@ -219,7 +222,9 @@ curl -i -X DELETE -H "X-User-Id: $USER_ACRONYM" "$API_BASE$API_PREFIX/files/comm
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_replace_nonexistent` -> `TS-FC-014`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_require_session_identity` -> `TS-FC-015`
 - `tests/api/api/test_files_commented_endpoints.py::test_files_commented_delete_forbidden_for_non_owner` -> `TS-FC-016`
+- `tests/api/unit/test_files_commented_delete_flow.py::test_delete_commented_file_skips_db_delete_when_minio_remove_fails` -> `TS-FC-017`
 
 ## References
 - `tests/api/api/test_files_commented_endpoints.py`
+- `tests/api/unit/test_files_commented_delete_flow.py`
 - `api/routers/files_commented.py`

@@ -140,8 +140,6 @@ class DocUpdate(BaseModel):
     type_id: int | None = Field(None, description="Type ID.", examples=[1], gt=0)
     area_id: int | None = Field(None, description="Area ID.", examples=[1], gt=0)
     unit_id: int | None = Field(None, description="Unit ID.", examples=[1], gt=0)
-    rev_actual_id: int | None = Field(None, description="Rev Actual ID.", examples=[1], gt=0)
-    rev_current_id: int | None = Field(None, description="Rev Current ID.", examples=[1], gt=0)
 
 
 class DocCreate(BaseModel):
@@ -158,7 +156,15 @@ class DocCreate(BaseModel):
     type_id: int = Field(..., description="Type ID.", examples=[1], gt=0)
     area_id: int = Field(..., description="Area ID.", examples=[1], gt=0)
     unit_id: int = Field(..., description="Unit ID.", examples=[1], gt=0)
-    rev_code_id: int = Field(..., description="Revision code ID.", examples=[1], gt=0)
+    rev_code_id: int | None = Field(
+        None,
+        description=(
+            "Initial revision code ID. When omitted, the backend uses the revision overview "
+            "step where start=true."
+        ),
+        examples=[1],
+        gt=0,
+    )
     rev_author_id: int = Field(..., description="Revision author person ID.", examples=[1], gt=0)
     rev_originator_id: int = Field(
         ..., description="Revision originator person ID.", examples=[1], gt=0
@@ -280,7 +286,6 @@ class DocRevisionUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     seq_num: int | None = Field(None, description="Revision sequence number.", examples=[1], gt=0)
-    rev_code_id: int | None = Field(None, description="Revision code ID.", examples=[1], gt=0)
     rev_author_id: int | None = Field(
         None, description="Revision author person ID.", examples=[1], gt=0
     )
@@ -316,14 +321,35 @@ class DocRevisionStatusTransition(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     direction: Literal["forward", "back"] = Field(
-        ..., description="Status transition direction.", examples=["forward"]
+        ...,
+        description=(
+            "Status transition direction. `forward` follows `next_rev_status_id`; "
+            "`back` moves only to the unique immediate predecessor status."
+        ),
+        examples=["forward"],
     )
 
 
-class DocRevisionCreate(BaseModel):
+class DocRevisionOverviewTransition(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"example": {"target_rev_code_id": 3}},
+    )
+
+    target_rev_code_id: int | None = Field(
+        None,
+        description=(
+            "Optional target revision overview step. When omitted, the backend uses the "
+            "immediate next allowed step."
+        ),
+        examples=[3],
+        gt=0,
+    )
+
+
+class DocRevisionSupersede(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    rev_code_id: int = Field(..., description="Revision code ID.", examples=[1], gt=0)
     rev_author_id: int = Field(..., description="Revision author person ID.", examples=[1], gt=0)
     rev_originator_id: int = Field(
         ..., description="Revision originator person ID.", examples=[1], gt=0
@@ -366,8 +392,29 @@ class RevisionOverviewOut(BaseModel):
     rev_description: str = Field(
         ..., description="Revision description.", examples=["Initial issue."], min_length=1
     )
+    next_rev_code_id: int | None = Field(
+        None,
+        description=(
+            "Immediate successor revision code ID; null only for the terminal " "lifecycle step."
+        ),
+        examples=[2],
+        gt=0,
+    )
+    final: bool = Field(
+        ..., description="Whether the step is the terminal lifecycle step.", examples=[False]
+    )
+    start: bool = Field(
+        ..., description="Whether the step is the lifecycle entry step.", examples=[False]
+    )
     percentage: int | None = Field(
-        None, description="Completion percentage.", examples=[50], ge=0, le=100
+        None,
+        description=(
+            "Optional descriptive progress percentage; the API does not use "
+            "it to order lifecycle steps."
+        ),
+        examples=[50],
+        ge=0,
+        le=100,
     )
 
 
@@ -382,8 +429,29 @@ class RevisionOverviewUpdate(BaseModel):
     rev_description: str | None = Field(
         None, description="Revision description.", examples=["Initial issue."], min_length=1
     )
+    next_rev_code_id: int | None = Field(
+        None,
+        description=(
+            "Immediate successor revision code ID; null only for the terminal " "lifecycle step."
+        ),
+        examples=[2],
+        gt=0,
+    )
+    final: bool | None = Field(
+        None, description="Whether the step is the terminal lifecycle step.", examples=[False]
+    )
+    start: bool | None = Field(
+        None, description="Whether the step is the lifecycle entry step.", examples=[False]
+    )
     percentage: int | None = Field(
-        None, description="Completion percentage.", examples=[50], ge=0, le=100
+        None,
+        description=(
+            "Optional descriptive progress percentage; the API does not use "
+            "it to order lifecycle steps."
+        ),
+        examples=[50],
+        ge=0,
+        le=100,
     )
 
 
@@ -397,8 +465,29 @@ class RevisionOverviewCreate(BaseModel):
     rev_description: str = Field(
         ..., description="Revision description.", examples=["Initial issue."], min_length=1
     )
+    next_rev_code_id: int | None = Field(
+        ...,
+        description=(
+            "Immediate successor revision code ID; null only for the terminal " "lifecycle step."
+        ),
+        examples=[2],
+        gt=0,
+    )
+    final: bool = Field(
+        ..., description="Whether the step is the terminal lifecycle step.", examples=[False]
+    )
+    start: bool = Field(
+        ..., description="Whether the step is the lifecycle entry step.", examples=[False]
+    )
     percentage: int | None = Field(
-        None, description="Completion percentage.", examples=[50], ge=0, le=100
+        None,
+        description=(
+            "Optional descriptive progress percentage; the API does not use "
+            "it to order lifecycle steps."
+        ),
+        examples=[50],
+        ge=0,
+        le=100,
     )
 
 
@@ -415,9 +504,20 @@ class DocRevStatusOut(BaseModel):
     )
     ui_behavior_id: int = Field(..., description="UI behavior ID.", examples=[1], gt=0)
     next_rev_status_id: int | None = Field(
-        None, description="Next revision status ID.", examples=[2], gt=0
+        None,
+        description=(
+            "Immediate forward successor status ID; null only for the terminal final status."
+        ),
+        examples=[2],
+        gt=0,
     )
-    revertible: bool = Field(..., description="Whether status is revertible.", examples=[True])
+    revertible: bool = Field(
+        ...,
+        description=(
+            "Whether the status may move back to its unique immediate predecessor status."
+        ),
+        examples=[True],
+    )
     editable: bool = Field(..., description="Whether status is editable.", examples=[True])
     final: bool = Field(
         ...,
@@ -438,10 +538,19 @@ class DocRevStatusUpdate(BaseModel):
     )
     ui_behavior_id: int | None = Field(None, description="UI behavior ID.", examples=[1], gt=0)
     next_rev_status_id: int | None = Field(
-        None, description="Next revision status ID.", examples=[2], gt=0
+        None,
+        description=(
+            "Immediate forward successor status ID; null only for the terminal final status."
+        ),
+        examples=[2],
+        gt=0,
     )
     revertible: bool | None = Field(
-        None, description="Whether status is revertible.", examples=[True]
+        None,
+        description=(
+            "Whether the status may move back to its unique immediate predecessor status."
+        ),
+        examples=[True],
     )
     editable: bool | None = Field(None, description="Whether status is editable.", examples=[True])
     final: bool | None = Field(
@@ -462,10 +571,19 @@ class DocRevStatusCreate(BaseModel):
     )
     ui_behavior_id: int = Field(..., description="UI behavior ID.", examples=[1], gt=0)
     next_rev_status_id: int | None = Field(
-        None, description="Next revision status ID.", examples=[2], gt=0
+        None,
+        description=(
+            "Immediate forward successor status ID; null only for the terminal final status."
+        ),
+        examples=[2],
+        gt=0,
     )
     revertible: bool | None = Field(
-        None, description="Whether status is revertible.", examples=[True]
+        None,
+        description=(
+            "Whether the status may move back to its unique immediate predecessor status."
+        ),
+        examples=[True],
     )
     editable: bool | None = Field(None, description="Whether status is editable.", examples=[True])
     final: bool = Field(

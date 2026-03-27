@@ -5,12 +5,16 @@
 - Owner: Backend Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-18
-- Version: v3.8
+- Last Updated: 2026-03-27
+- Version: v4.14
 
 ## Change Log
-- 2026-03-18 | v3.8 | Removed `recipient_user_id` override from `GET /api/v1/notifications`; inbox listing now always resolves to the effective current user, and examples/contracts were updated accordingly.
-- 2026-03-18 | v3.7 | Documented owner-or-superuser authorization for `DELETE /api/v1/files/commented/{id}`, including the `403`/fail-closed `404` behavior and authenticated request example.
+- 2026-03-27 | v4.14 | Clarified revision lifecycle rejection semantics, synchronized commented-file delete error documentation with actual `401/403/404/500` behavior, and added an explicit breaking-contract summary for notification recipient override removal, commented-file delete owner/superuser enforcement, and default-hidden canceled/superseded revisions.
+- 2026-03-26 | v4.11 | Updated `GET /api/v1/documents/{doc_id}/revisions` so it excludes canceled and superseded revisions by default, added optional `show_canceled` / `show_superseded` query flags to include those row types when explicitly requested, documented optional request-provided target overview selection for overview transition, and removed the earlier runtime-parameter skip design.
+- 2026-03-25 | v4.6 | Added dedicated `POST /api/v1/documents/revisions/{rev_id}/overview-transition` for creating the next revision from a current final revision, added `POST /api/v1/documents/revisions/{rev_id}/supersede` for replacing the current non-final revision with a new row that keeps the same `rev_code_id` and restarts at the workflow start status, made generic revision updates reject `rev_code_id`, removed redundant public `POST /api/v1/documents/{doc_id}/revisions`, documented initial document `rev_code_id` defaulting to the `revision_overview.start` step, clarified that canceled revisions are hidden from standard revision-list responses, and removed `rev_actual_id`/`rev_current_id` from the document update request contract because those pointers are workflow-managed.
+- 2026-03-20 | v4.1 | Clarified that there is currently no dedicated overview-transition endpoint: `ref.revision_overview` remains reference configuration, while `PUT /api/v1/documents/revisions/{rev_id}` may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)`; also defined revision back-transition semantics explicitly so `direction="back"` moves only to the unique immediate predecessor status resolved by reverse `next_rev_status_id`, and the status graph forbids ambiguous predecessor configurations.
+- 2026-03-19 | v3.9 | Clarified the `GET /api/v1/documents/revision_overview` contract: path-derived ordering, `next_rev_code_id` terminal nullability, unique start/final semantics, descriptive `percentage`, and the metadata role of `revertible`/`editable`.
+- 2026-03-18 | v3.8 | Removed `recipient_user_id` override from `GET /api/v1/notifications` so inbox listing always resolves to the effective current user, updated examples/contracts accordingly, and documented owner-or-superuser authorization for `DELETE /api/v1/files/commented/{id}`, including the `403`/fail-closed `404` behavior and authenticated request example.
 - 2026-03-12 | v3.6 | Removed redundant create-time actor fields from commented-files, written-comments, and notifications APIs; create authorship/sender now always resolves from effective session identity while recipient targeting remains explicit.
 - 2026-03-07 | v3.5 | Added API-verified bearer JWT identity resolution ahead of trusted-header and `X-User-Id` fallbacks, documented JWT auth configuration, observability, and nginx bearer-token passthrough for `/api` requests, aligned local compose/Keycloak defaults so direct-access bearer-token testing uses `aud=flow-ui`, clarified that JWKS retrieval/client failures fail closed as `401 Unauthorized` with `flow_auth_jwt_validation_failures_total{reason="jwks_fetch_failed"}`, and restricted raw `X-User-Id` fallback to non-production environments only so production-capable modes accept bearer JWT, then trusted header, then optional local `APP_USER`.
 - 2026-03-06 | v3.0 | Updated auth identity resolution order so trusted header (`X-Auth-User`, configurable via `TRUSTED_IDENTITY_HEADER`) takes precedence over `X-User-Id`, documented fail-closed behavior when trusted identity is invalid, and synchronized the request-header startup banner wording.
@@ -20,6 +24,11 @@
 - 2026-02-21 | v1.9 | Added written comments API (`list/create/update/delete`) under `comments`, split written comments into dedicated router/schema modules with synchronized test/doc traceability, corrected file update-body `id` validation contract to `422` (extra field forbidden), added nullable `doc_id` support for distribution lists (`create/list`), documented `dl_for_each_doc=true` auto-DL creation on document create, extended people/persons and people/users payloads with duty fields (`duty_id`, `duty_name`), and added distribution-list search by `doc_id` (`GET /distribution-lists?doc_id=...`).
 - 2026-02-20 | v1.8 | Renamed commented download query parameter from `file_id` to `id`.
 - 2026-02-19 | v1.7 | Updated API contracts and examples for latest backend behavior.
+
+## Breaking / contract changes
+- `GET /api/v1/notifications` no longer accepts a `recipient_user_id` override. Inbox reads now always resolve to the effective authenticated user.
+- `DELETE /api/v1/files/commented/{id}` is no longer a generic authenticated delete. It now requires the commented-file owner or a superuser, with `403` for visible unauthorized access and fail-closed `404` when the row is hidden by read-side RLS.
+- `GET /api/v1/documents/{doc_id}/revisions` no longer behaves like an all-history list by default. Canceled and superseded revisions are hidden unless the caller explicitly opts in with `show_canceled=true` and/or `show_superseded=true`.
 
 ## Purpose
 Provide the current backend API surface and behavior contract for clients and maintainers.
@@ -312,17 +321,26 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents/doc_rev_milest
 Shape (single item):
 ```json
 {
-  "rev_code_id": 5,
-  "rev_code_name": "IFC",
-  "rev_code_acronym": "E",
-  "rev_description": "Issued for Construction",
-  "percentage": 90
+  "rev_code_id": 6,
+  "rev_code_name": "INDESIGN",
+  "rev_code_acronym": "A",
+  "rev_description": "In-design",
+  "next_rev_code_id": 1,
+  "final": false,
+  "start": true,
+  "percentage": 10
 }
 ```
 Schema references:
 - Response: `api/schemas/documents.py` `RevisionOverviewOut`
 ### List
-- `GET /api/v1/documents/revision_overview` — 200 sorted by `rev_code_name`; empty list if none.
+- `GET /api/v1/documents/revision_overview` — 200 ordered from the single `start=true` step to the single `final=true` step; empty list if no start step is configured.
+- Contract notes:
+  - Response order is guaranteed to follow the lifecycle path starting at the single reachable `start=true` row and recursively following `next_rev_code_id` until the terminal row.
+  - The endpoint does not sort by `rev_code_name`, `rev_code_id`, or `percentage`.
+  - In a valid lifecycle configuration, exactly one returned item has `start=true` and exactly one returned item has `final=true`.
+  - `next_rev_code_id` is null only for the terminal row returned by this endpoint; non-terminal rows expose the immediate successor ID.
+  - `percentage` is descriptive progress metadata only. Clients must not infer response order from it or assume monotonicity as an API guarantee.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
@@ -330,7 +348,28 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents/revision_overv
 ```
 - Example response:
 ```json
-[ { "rev_code_id": 5, "rev_code_name": "IFC", "rev_code_acronym": "E", "rev_description": "Issued for Construction", "percentage": 90 } ]
+[
+  {
+    "rev_code_id": 6,
+    "rev_code_name": "INDESIGN",
+    "rev_code_acronym": "A",
+    "rev_description": "In-design",
+    "next_rev_code_id": 1,
+    "final": false,
+    "start": true,
+    "percentage": 10
+  },
+  {
+    "rev_code_id": 1,
+    "rev_code_name": "IDC",
+    "rev_code_acronym": "B",
+    "rev_description": "Interdiscipline check",
+    "next_rev_code_id": 2,
+    "final": false,
+    "start": false,
+    "percentage": 30
+  }
+]
 ```
 ## Doc revision status UI behaviors
 Shape (single item):
@@ -368,6 +407,10 @@ Schema references:
 - Response: `api/schemas/documents.py` `DocRevStatusOut`
 ### List
 - `GET /api/v1/lookups/doc_rev_statuses` — 200 sorted by `rev_status_name`; empty list if none.
+- Contract notes:
+  - `next_rev_status_id` identifies the immediate forward successor status; `null` is allowed only on the unique terminal/final status.
+  - The status graph allows at most one immediate predecessor for any status, so reverse traversal is unambiguous.
+  - `revertible` means the current status may move back only to that unique immediate predecessor; it does not permit arbitrary jumps to older statuses.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
@@ -645,8 +688,13 @@ curl -sS -H "Accept: application/json" \
 ```
 
 ### Delete
-- `DELETE /api/v1/files/commented/{id}` — 204; owner or superuser only; deletes MinIO object and DB row; `403` for a visible but unauthorized actor, fail-closed `404` if not found or hidden by RLS.
+- `DELETE /api/v1/files/commented/{id}` — 204; owner or superuser only; deletes MinIO object and DB row.
 - Headers: `Accept: application/json`
+- Errors:
+  - `401` when no effective session identity is available.
+  - `403` for a visible but unauthorized actor.
+  - `404` when the commented file is missing or hidden by read-side RLS.
+  - `500` when an internal error occurs while finalizing deletion after storage/database work begins.
 - Example request:
 ```bash
 curl -i -H "Accept: application/json" -H "X-User-Id: FDQC" -X DELETE $API_BASE/api/v1/files/commented/{id}
@@ -1028,13 +1076,21 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 }
 ```
 - Body:
-  - Required fields: `doc_name_unique`, `title`, `type_id`, `area_id`, `unit_id`, `rev_code_id`, `rev_author_id`, `rev_originator_id`, `rev_modifier_id`, `transmital_current_revision`, `planned_start_date`, `planned_finish_date`
-  - Optional fields: `project_id`, `jobpack_id`, `milestone_id`
+  - Required fields: `doc_name_unique`, `title`, `type_id`, `area_id`, `unit_id`, `rev_author_id`, `rev_originator_id`, `rev_modifier_id`, `transmital_current_revision`, `planned_start_date`, `planned_finish_date`
+  - Optional fields: `project_id`, `jobpack_id`, `milestone_id`, `rev_code_id`
   - Note: The initial revision automatically uses the status with `start=true` from `doc_rev_statuses`.
+  - Note: When `rev_code_id` is omitted, the backend uses the `revision_overview` row where `start=true`.
+  - Note: When `rev_code_id` is provided, it is allowed only if it references a valid initial revision-overview step; the API does not reject explicit initial revision-code selection as a general rule.
   - Note: If `workflow.v_instance_parameters.parameter='dl_for_each_doc'` has value `true` (case-insensitive), create also auto-creates a `distribution_list` row linked by `doc_id` with name pattern `DL_<doc_name_unique>`.
   - Note: Auto-DL creation is idempotent by name; if `DL_<doc_name_unique>` already exists, document creation still succeeds and no duplicate DL row is inserted.
 ### Revisions
 - `GET /api/v1/documents/{doc_id}/revisions` — 200 ordered by `seq_num`; empty list if none. 404 if document not found or voided.
+- Optional query params:
+  - `show_canceled=true` includes canceled revisions.
+  - `show_superseded=true` includes superseded revisions.
+- Contract notes:
+  - By default, the endpoint returns only non-canceled and non-superseded revisions.
+  - `show_canceled=false` and `show_superseded=false` are the default behaviors when the params are omitted.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
@@ -1077,47 +1133,10 @@ curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents/11/revisions
   }
 ]
 ```
-### Revision create
-- `POST /api/v1/documents/{doc_id}/revisions` — 201; 404 if document or references not found.
-- Note: `rev_status_id` is set to the global start status by the database; it is not accepted in the request body.
-- Headers: `Accept: application/json`, `Content-Type: application/json`
-- Example request:
-```bash
-curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
-  -d '{ "rev_code_id": 6, "rev_author_id": 1, "rev_originator_id": 1, "rev_modifier_id": 1, "transmital_current_revision": "TR-NEW-001", "milestone_id": 1, "planned_start_date": "2024-01-02T12:00:00Z", "planned_finish_date": "2024-01-05T12:00:00Z", "actual_start_date": null, "actual_finish_date": null, "as_built": false, "modified_doc_date": "2024-01-05T12:00:00Z" }' \
-  $API_BASE/api/v1/documents/11/revisions
-```
-- Example response:
-```json
-{
-  "rev_id": 2,
-  "doc_id": 11,
-  "seq_num": 2,
-  "rev_code_id": 6,
-  "rev_code_name": "INDESIGN",
-  "rev_code_acronym": "A",
-  "rev_description": "IN-DESIGN",
-  "rev_author_id": 1,
-  "rev_originator_id": 1,
-  "rev_modifier_id": 1,
-  "transmital_current_revision": "TR-NEW-001",
-  "milestone_id": 1,
-  "milestone_name": "Issued for Construction",
-  "planned_start_date": "2024-01-02T12:00:00Z",
-  "planned_finish_date": "2024-01-05T12:00:00Z",
-  "actual_start_date": null,
-  "actual_finish_date": null,
-  "canceled_date": null,
-  "rev_status_id": 1,
-  "rev_status_name": "InDesign",
-  "as_built": false,
-  "superseded": false,
-  "modified_doc_date": "2024-01-05T12:00:00Z"
-}
-```
 ### Revision update
 - `PUT /api/v1/documents/revisions/{rev_id}` — 200; 400 if no fields; 404 if revision not found.
 - Note: `rev_status_id` is not supported by this endpoint. Use the status transition endpoint below.
+- Note: `rev_code_id` is not supported by this endpoint after revision creation. Use the overview-transition endpoint below when progressing from a current final revision.
 - Headers: `Accept: application/json`, `Content-Type: application/json`
 - Example request:
 ```bash
@@ -1131,10 +1150,10 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "rev_id": 1,
   "doc_id": 11,
   "seq_num": 1,
-  "rev_code_id": 6,
-  "rev_code_name": "INDESIGN",
-  "rev_code_acronym": "A",
-  "rev_description": "IN-DESIGN",
+  "rev_code_id": 1,
+  "rev_code_name": "IDC",
+  "rev_code_acronym": "B",
+  "rev_description": "INTERDISCIPLINE CHECK",
   "rev_author_id": 1,
   "rev_originator_id": 1,
   "rev_modifier_id": 1,
@@ -1153,8 +1172,66 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "modified_doc_date": "2024-01-05T12:00:00Z"
 }
 ```
+### Revision overview transition
+- `POST /api/v1/documents/revisions/{rev_id}/overview-transition` — 200; 404 if revision/document not found; 409 if the source revision is not the current final revision, no next revision-overview step can be resolved, or another active revision already uses the target `rev_code_id`; 422 for validation errors.
+- Contract notes:
+  - The request body is optional.
+  - Clients may omit the body entirely, send `{}`, or send `{ "target_rev_code_id": <id> }`.
+  - The source revision row remains unchanged.
+  - The source revision must still be the document's current revision; otherwise the API returns `409` with `Only the current revision can transition`.
+  - The source revision must already be in a final status; otherwise the API returns `409` with `Source revision is not in a final status`.
+  - By default, the backend resolves the new revision’s `rev_code_id` from `ref.revision_overview.next_rev_code_id`.
+  - If the resolved source overview step has no successor, the API returns `409` with `No allowed next revision code could be resolved`.
+  - If `target_rev_code_id` is provided, it must be a later reachable successor on the same `revision_overview` chain; otherwise the API returns `409`.
+  - The new revision is inserted with the workflow start status from `doc_rev_statuses`.
+  - `core.doc.rev_actual_id` is set to the source final revision and `core.doc.rev_current_id` is set to the newly created revision.
+  - Other final revisions on the same document may remain active if they use different `rev_code_id` values.
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{}' \
+  $API_BASE/api/v1/documents/revisions/1/overview-transition
+```
+- Example response:
+```json
+{
+  "rev_id": 12,
+  "doc_id": 11,
+  "seq_num": 2,
+  "rev_code_id": 1,
+  "rev_code_name": "IDC",
+  "rev_code_acronym": "B",
+  "rev_description": "INTERDISCIPLINE CHECK",
+  "rev_author_id": 1,
+  "rev_originator_id": 1,
+  "rev_modifier_id": 1,
+  "transmital_current_revision": "TR-001",
+  "milestone_id": null,
+  "milestone_name": null,
+  "planned_start_date": "2024-01-02T12:00:00Z",
+  "planned_finish_date": "2024-01-05T12:00:00Z",
+  "actual_start_date": null,
+  "actual_finish_date": null,
+  "canceled_date": null,
+  "rev_status_id": 1,
+  "rev_status_name": "InDesign",
+  "as_built": false,
+  "superseded": false,
+  "modified_doc_date": "2026-03-25T11:00:00Z",
+  "created_at": "2026-03-25T11:00:00Z",
+  "updated_at": "2026-03-25T11:00:00Z",
+  "created_by": 2,
+  "updated_by": 2
+}
+```
 ### Revision status transition
 - `POST /api/v1/documents/revisions/{rev_id}/status-transitions` — 200; 422 for invalid direction/validation errors; 404 if revision/document not found; 409 if start/final/revertible rules block the transition.
+- Contract notes:
+  - `direction="forward"` moves only to the current status row's `next_rev_status_id`.
+  - `direction="back"` moves only to the unique immediate predecessor status whose `next_rev_status_id` equals the current status.
+  - `direction="back"` is rejected when the current status is `start=true`.
+  - `direction="back"` is rejected when the current status has `revertible=false`.
+  - The status graph forbids ambiguous predecessor configurations; if a predecessor were absent for a non-start revertible status, the transition would fail.
 - Headers: `Accept: application/json`, `Content-Type: application/json`
 - Example request:
 ```bash
@@ -1190,10 +1267,52 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "modified_doc_date": "2024-01-05T12:00:00Z"
 }
 ```
+### Revision supersede
+- `POST /api/v1/documents/revisions/{rev_id}/supersede` — 200; creates a replacement revision with the same `rev_code_id`, resets the replacement to the workflow start status, and marks the source revision `superseded=true`; 404 if revision not found; 409 if the source revision is not current, is canceled, is already superseded, or is final.
+- Contract notes:
+  - The replacement row keeps the source revision's `rev_code_id`.
+  - The replacement row always starts at the global workflow start status from `doc_rev_statuses`.
+  - A final source revision is rejected with `409` and the API response directs clients to use overview transition instead.
+- Headers: `Accept: application/json`, `Content-Type: application/json`
+- Example request:
+```bash
+curl -sS -H "Accept: application/json" -H "Content-Type: application/json" -X POST \
+  -d '{ "rev_author_id": 1, "rev_originator_id": 1, "rev_modifier_id": 1, "transmital_current_revision": "TR-SUP-001", "planned_start_date": "2024-01-02T12:00:00Z", "planned_finish_date": "2024-01-05T12:00:00Z" }' \
+  $API_BASE/api/v1/documents/revisions/1/supersede
+```
+- Example response:
+```json
+{
+  "rev_id": 2,
+  "doc_id": 11,
+  "seq_num": 2,
+  "rev_code_id": 6,
+  "rev_code_name": "INDESIGN",
+  "rev_code_acronym": "A",
+  "rev_description": "IN-DESIGN",
+  "rev_author_id": 1,
+  "rev_originator_id": 1,
+  "rev_modifier_id": 1,
+  "transmital_current_revision": "TR-SUP-001",
+  "milestone_id": 1,
+  "milestone_name": "Issued for Construction",
+  "planned_start_date": "2024-01-02T12:00:00Z",
+  "planned_finish_date": "2024-01-05T12:00:00Z",
+  "actual_start_date": null,
+  "actual_finish_date": null,
+  "canceled_date": null,
+  "rev_status_id": 1,
+  "rev_status_name": "INDESIGN",
+  "as_built": false,
+  "superseded": false,
+  "modified_doc_date": "2024-01-05T12:00:00Z"
+}
+```
 ### Revision cancel
 - `PATCH /api/v1/documents/revisions/{rev_id}/cancel` — 200; 404 if revision/document not found (or voided); 409 if revision status is final. Idempotent: if already canceled, returns existing state.
 - Permissions: none enforced by API (auth TBD).
 - Side effects: sets `canceled_date` on the revision.
+- Visibility: canceled revisions are excluded from standard `GET /api/v1/documents/{doc_id}/revisions` responses.
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" -X PATCH \
@@ -1272,8 +1391,9 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
   "updated_by": 1
 }
 ```
-- Body includes any of: `doc_name_unique`, `title`, `project_id`, `jobpack_id`, `type_id`, `area_id`, `unit_id`, `rev_actual_id`, `rev_current_id`. 
-- Requires at least one updatable field. Validates references (project, jobpack, type, area, unit, revisions) and uniqueness of `doc_name_unique`. Returns the updated document.
+- Body includes any of: `doc_name_unique`, `title`, `project_id`, `jobpack_id`, `type_id`, `area_id`, `unit_id`.
+- `rev_actual_id` and `rev_current_id` are workflow-managed and must not be supplied in the request body; sending them is rejected as `422`.
+- Requires at least one updatable field. Validates references (project, jobpack, type, area, unit) and uniqueness of `doc_name_unique`. Returns the updated document.
 ### Delete
 - `DELETE /api/v1/documents/{doc_id}` — 200 with `{ "result": "deleted" }` or `{ "result": "voided" }`; deletes a document if only one revision in start status, otherwise voids. 404 if not found.
 - Permissions: none enforced by API (auth TBD).

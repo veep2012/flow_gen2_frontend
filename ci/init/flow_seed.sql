@@ -67,10 +67,22 @@ INSERT INTO doc_rev_milestones (milestone_id, milestone_name, progress) VALUES
 (1,'Issued for construction',0),(2,'Internal Discipline Check',10);
 
 -- Revision Overview
-INSERT INTO revision_overview (rev_code_id, rev_code_name, rev_code_acronym, rev_description, percentage) VALUES 
-(1,'IDC','B','INTERDISCIPLINE CHECK',30),(2,'IFRC','C','ISSUED FOR REVIEW AND COMMENTS',100),
-(3,'AFD','D','APPROVED FOR DESIGN',NULL),(4,'AFC','E','APPROVED FOR CONSTRUCTION',NULL),
-(5,'AS-BUILT','Z','AS-BUILT',NULL),(6,'INDESIGN','A','IN-DESIGN',10);
+INSERT INTO revision_overview (
+    rev_code_id,
+    rev_code_name,
+    rev_code_acronym,
+    rev_description,
+    next_rev_code_id,
+    final,
+    start,
+    percentage
+) VALUES 
+(1,'IDC','B','INTERDISCIPLINE CHECK',2,FALSE,FALSE,30),
+(2,'IFRC','C','ISSUED FOR REVIEW AND COMMENTS',3,FALSE,FALSE,60),
+(3,'AFD','D','APPROVED FOR DESIGN',4,FALSE,FALSE,80),
+(4,'AFC','E','APPROVED FOR CONSTRUCTION',5,FALSE,FALSE,90),
+(5,'AS-BUILT','Z','AS-BUILT',NULL,TRUE,FALSE,100),
+(6,'INDESIGN','A','IN-DESIGN',1,FALSE,TRUE,10);
 
 -- Rev Status UI Behaviors
 INSERT INTO doc_rev_status_ui_behaviors (ui_behavior_id, ui_behavior_name, ui_behavior_file) VALUES

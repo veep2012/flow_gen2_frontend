@@ -596,21 +596,24 @@ def delete_commented_file(
         request: Incoming request used for logging the client host.
 
     Raises:
-        HTTPException: 404 if commented file not found.
+        HTTPException: 401 if no effective user identity is available.
+        HTTPException: 403 if the caller is not the commented file owner or a superuser.
+        HTTPException: 404 if the commented file is not found.
+        HTTPException: 500 if an internal error occurs while finalizing deletion.
     """
     actor_user_id = get_effective_user_id(db)
     if not actor_user_id:
         raise HTTPException(status_code=401, detail=MISSING_IDENTITY_DETAIL)
 
     try:
-        deleted_row = (
+        deletable_row = (
             db.execute(
                 text(
                     """
                     SELECT
                         id,
                         s3_uid
-                    FROM workflow.delete_file_commented(
+                    FROM workflow.get_deletable_file_commented(
                         :id,
                         :actor_user_id
                     )
@@ -634,37 +637,62 @@ def delete_commented_file(
         _minio_with_retry(
             "remove_object",
             endpoint,
-            lambda: client.remove_object(bucket, deleted_row["s3_uid"]),
+            lambda: client.remove_object(bucket, deletable_row["s3_uid"]),
         )
         logger.info(
             "MinIO delete succeeded commented_id=%s s3_uid=%s",
-            deleted_row["id"],
-            deleted_row["s3_uid"],
+            deletable_row["id"],
+            deletable_row["s3_uid"],
         )
     except HTTPException:
         db.rollback()
         logger.exception(
             "MinIO delete failed for commented_id=%s s3_uid=%s",
-            deleted_row["id"],
-            deleted_row["s3_uid"],
+            deletable_row["id"],
+            deletable_row["s3_uid"],
         )
         raise
 
     try:
+        db.execute(
+            text(
+                """
+                SELECT
+                    id,
+                    s3_uid
+                FROM workflow.delete_file_commented(
+                    :id,
+                    :actor_user_id
+                )
+                """
+            ),
+            {
+                "id": commented_file_id,
+                "actor_user_id": actor_user_id,
+            },
+        ).mappings().one()
         db.commit()
+    except DBAPIError as err:
+        db.rollback()
+        logger.exception(
+            "DB delete failed after MinIO delete commented_id=%s s3_uid=%s",
+            deletable_row["id"],
+            deletable_row["s3_uid"],
+        )
+        _raise_for_dbapi_error(err, _COMMENTED_FILE_DB_ERROR_MAP)
     except Exception:
         db.rollback()
         logger.exception(
             "DB commit failed after MinIO delete commented_id=%s s3_uid=%s",
-            deleted_row["id"],
-            deleted_row["s3_uid"],
+            deletable_row["id"],
+            deletable_row["s3_uid"],
         )
         raise HTTPException(status_code=500, detail="Internal Server Error")
     client_host = request.client.host if request.client else "unknown"
     logger.info(
         "Commented file deleted id=%s s3_uid=%s client=%s",
-        deleted_row["id"],
-        deleted_row["s3_uid"],
+        deletable_row["id"],
+        deletable_row["s3_uid"],
         client_host,
     )
 

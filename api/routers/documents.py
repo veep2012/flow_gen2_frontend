@@ -19,9 +19,10 @@ from api.schemas.documents import (
     DeleteResult,
     DocCreate,
     DocOut,
-    DocRevisionCreate,
     DocRevisionOut,
+    DocRevisionOverviewTransition,
     DocRevisionStatusTransition,
+    DocRevisionSupersede,
     DocRevisionUpdate,
     DocRevMilestoneCreate,
     DocRevMilestoneOut,
@@ -511,6 +512,14 @@ def _fetch_doc_out(db: Session, doc_id: int, *, allow_voided: bool = True) -> Do
 )
 def list_document_revisions(
     doc_id: int = Path(..., description="Document ID to list revisions for", gt=0),
+    show_canceled: bool = Query(
+        False,
+        description="Include canceled revisions in results when true.",
+    ),
+    show_superseded: bool = Query(
+        False,
+        description="Include superseded revisions in results when true.",
+    ),
     db: Session = Depends(get_db),
 ) -> list[DocRevisionOut]:
     """
@@ -521,6 +530,8 @@ def list_document_revisions(
 
     Args:
         doc_id: The document ID to list revisions for.
+        show_canceled: Whether to include canceled revisions.
+        show_superseded: Whether to include superseded revisions.
 
     Returns:
         List of document revisions with metadata.
@@ -539,54 +550,51 @@ def list_document_revisions(
     if not doc_row or doc_row["voided"]:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    rows = (
-        db.execute(
-            text(
-                """
-                SELECT
-                    r.rev_id,
-                    r.doc_id,
-                    r.seq_num,
-                    r.rev_code_id,
-                    ro.rev_code_name,
-                    ro.rev_code_acronym,
-                    ro.rev_description,
-                    r.rev_author_id,
-                    r.rev_originator_id,
-                    r.rev_modifier_id,
-                    r.transmital_current_revision,
-                    r.milestone_id,
-                    m.milestone_name,
-                    r.planned_start_date,
-                    r.planned_finish_date,
-                    r.actual_start_date,
-                    r.actual_finish_date,
-                    r.canceled_date,
-                    r.rev_status_id,
-                    rs.rev_status_name,
-                    r.as_built,
-                    r.superseded,
-                    r.modified_doc_date,
-                    r.created_at,
-                    r.updated_at,
-                    r.created_by,
-                    r.updated_by
-                FROM workflow.v_document_revisions AS r
-                LEFT JOIN workflow.v_revision_overview AS ro
-                    ON ro.rev_code_id = r.rev_code_id
-                LEFT JOIN workflow.v_doc_rev_milestones AS m
-                    ON m.milestone_id = r.milestone_id
-                LEFT JOIN workflow.v_doc_rev_statuses AS rs
-                    ON rs.rev_status_id = r.rev_status_id
-                WHERE r.doc_id = :doc_id
-                ORDER BY r.seq_num, r.rev_id
-                """
-            ),
-            {"doc_id": doc_id},
-        )
-        .mappings()
-        .all()
-    )
+    sql = """
+        SELECT
+            r.rev_id,
+            r.doc_id,
+            r.seq_num,
+            r.rev_code_id,
+            ro.rev_code_name,
+            ro.rev_code_acronym,
+            ro.rev_description,
+            r.rev_author_id,
+            r.rev_originator_id,
+            r.rev_modifier_id,
+            r.transmital_current_revision,
+            r.milestone_id,
+            m.milestone_name,
+            r.planned_start_date,
+            r.planned_finish_date,
+            r.actual_start_date,
+            r.actual_finish_date,
+            r.canceled_date,
+            r.rev_status_id,
+            rs.rev_status_name,
+            r.as_built,
+            r.superseded,
+            r.modified_doc_date,
+            r.created_at,
+            r.updated_at,
+            r.created_by,
+            r.updated_by
+        FROM workflow.v_document_revisions_all AS r
+        LEFT JOIN workflow.v_revision_overview AS ro
+            ON ro.rev_code_id = r.rev_code_id
+        LEFT JOIN workflow.v_doc_rev_milestones AS m
+            ON m.milestone_id = r.milestone_id
+        LEFT JOIN workflow.v_doc_rev_statuses AS rs
+            ON rs.rev_status_id = r.rev_status_id
+        WHERE r.doc_id = :doc_id
+    """
+    if not show_canceled:
+        sql += " AND r.canceled_date IS NULL"
+    if not show_superseded:
+        sql += " AND COALESCE(r.superseded, FALSE) = FALSE"
+    sql += " ORDER BY r.seq_num, r.rev_id"
+
+    rows = db.execute(text(sql), {"doc_id": doc_id}).mappings().all()
     return _model_list(DocRevisionOut, rows)
 
 
@@ -619,7 +627,6 @@ def update_document_revision(
         payload,
         (
             "seq_num",
-            "rev_code_id",
             "rev_author_id",
             "rev_originator_id",
             "rev_modifier_id",
@@ -668,6 +675,62 @@ def update_document_revision(
         _raise_for_dbapi_error(err, _UPDATE_REVISION_DB_ERROR_MAP)
 
     return _build_doc_revision_out(db, rev_id)
+
+
+def create_revision_overview_transition(
+    rev_id: int,
+    payload: DocRevisionOverviewTransition | None = Body(
+        None, openapi_examples=_example_for(DocRevisionOverviewTransition)
+    ),
+    db: Session = Depends(get_db),
+) -> DocRevisionOut:
+    doc_row = (
+        db.execute(
+            text(
+                """
+                SELECT d.doc_id, d.voided
+                FROM workflow.v_documents AS d
+                JOIN workflow.v_document_revisions AS r ON r.doc_id = d.doc_id
+                WHERE r.rev_id = :rev_id
+                """
+            ),
+            {"rev_id": rev_id},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if not doc_row:
+        raise HTTPException(status_code=404, detail="Revision not found")
+    if doc_row["voided"]:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    try:
+        rev_row = (
+            db.execute(
+                text(
+                    """
+                    SELECT r.* FROM workflow.create_overview_transition_revision(
+                        :rev_id,
+                        :target_rev_code_id
+                    ) AS r
+                    """
+                ),
+                {
+                    "rev_id": rev_id,
+                    "target_rev_code_id": (
+                        payload.target_rev_code_id if payload is not None else None
+                    ),
+                },
+            )
+            .mappings()
+            .one()
+        )
+        db.commit()
+    except DBAPIError as err:
+        db.rollback()
+        _raise_for_dbapi_error(err, _OVERVIEW_TRANSITION_DB_ERROR_MAP)
+
+    return _build_doc_revision_out_from_core_row(db, dict(rev_row))
 
 
 def _build_doc_revision_out(db: Session, rev_id: int) -> DocRevisionOut:
@@ -813,20 +876,10 @@ _UPDATE_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("revision not found", 404, "Revision not found"),
     ("no fields to update", 400, "No fields provided for update"),
     ("final revision is immutable", 409, "Final revision is immutable"),
-)
-
-_INSERT_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
-    ("document not found", 404, "Document not found"),
-    ("revision code not found", 404, "Revision code not found"),
-    ("milestone not found", 404, "Milestone not found"),
-    ("revision author not found", 404, "Revision author not found"),
-    ("revision originator not found", 404, "Revision originator not found"),
-    ("revision modifier not found", 404, "Revision modifier not found"),
-    ("no start status configured", 400, "No start status configured"),
     (
-        "only one active (non-final, non-canceled) revision allowed per document",
+        "revision code is immutable after creation",
         409,
-        "Only one active (non-final, non-canceled) revision allowed per document",
+        "Revision code cannot be changed after creation",
     ),
 )
 
@@ -837,6 +890,7 @@ _UPDATE_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
 
 _INSERT_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("no start status configured", 400, "No start status configured"),
+    ("no start revision code configured", 400, "No start revision code configured"),
     ("project not found", 404, "Project not found"),
     ("jobpack not found", 404, "Jobpack not found"),
     ("doc type not found", 404, "Doc type not found"),
@@ -854,9 +908,88 @@ _CANCEL_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("final revision cannot be canceled", 409, "Final revision cannot be canceled"),
 )
 
+_SUPERSEDE_REVISION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("revision not found", 404, "Revision not found"),
+    ("source revision is not current", 409, "Only the current revision can be superseded"),
+    ("source revision is canceled", 409, "Canceled revisions cannot be superseded"),
+    ("source revision is already superseded", 409, "Revision is already superseded"),
+    (
+        "source revision is in final status",
+        409,
+        "Use overview transition to create the next revision from a final revision",
+    ),
+    ("no start status configured", 400, "No start status configured"),
+    ("milestone not found", 404, "Milestone not found"),
+    ("revision author not found", 404, "Revision author not found"),
+    ("revision originator not found", 404, "Revision originator not found"),
+    ("revision modifier not found", 404, "Revision modifier not found"),
+)
+
+_OVERVIEW_TRANSITION_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    ("revision not found", 404, "Revision not found"),
+    ("source revision is not current", 409, "Only the current revision can transition"),
+    (
+        "source revision is not in final status",
+        409,
+        "Source revision is not in a final status",
+    ),
+    ("no allowed next revision code", 409, "No allowed next revision code could be resolved"),
+    (
+        "active revision with target revision code already exists",
+        409,
+        "Another active revision already uses the target revision code",
+    ),
+    (
+        "only one non-canceled revision per document may use a revision code",
+        409,
+        "Another active revision already uses the target revision code",
+    ),
+    (
+        "ux_doc_revision_active_code_per_doc",
+        409,
+        "Another active revision already uses the target revision code",
+    ),
+    (
+        "requested target revision code is not reachable",
+        409,
+        "Requested target revision code is not reachable",
+    ),
+)
+
 _DELETE_DOCUMENT_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
     ("document not found", 404, "Document not found"),
     ("no start status configured", 400, "No start status configured"),
+)
+
+_REVISION_OVERVIEW_DB_ERROR_MAP: tuple[tuple[str, int, str], ...] = (
+    (
+        "cycle detected in revision_overview",
+        400,
+        "Revision overview lifecycle cannot contain cycles",
+    ),
+    ("chk_revision_overview_no_self_ref", 400, "Revision overview step cannot point to itself"),
+    (
+        "chk_revision_overview_final_next_eq",
+        400,
+        "Final revision overview step configuration is inconsistent",
+    ),
+    ("ux_revision_overview_single_start", 400, "Only one revision overview start step is allowed"),
+    ("ux_revision_overview_single_final", 400, "Only one revision overview final step is allowed"),
+    (
+        "ux_revision_overview_single_predecessor",
+        400,
+        "Revision overview lifecycle must remain a single ordered path",
+    ),
+    (
+        "revision overview lifecycle must remain a single connected start-to-final path",
+        400,
+        "Revision overview lifecycle must remain a single connected start-to-final path",
+    ),
+    (
+        "revision overview lifecycle must contain exactly one connected start-to-final path",
+        400,
+        "Revision overview lifecycle must contain exactly one connected start-to-final path",
+    ),
 )
 
 
@@ -887,89 +1020,6 @@ def create_revision_status_transition(
         _raise_for_status_transition_db_error(err)
 
     return _build_doc_revision_out_from_core_row(db, dict(rev_row))
-
-
-def insert_document_revision(
-    doc_id: int,
-    payload: DocRevisionCreate = Body(..., openapi_examples=_example_for(DocRevisionCreate)),
-    db: Session = Depends(get_db),
-) -> DocRevisionOut:
-    """
-    Create a new document revision.
-
-    Creates a revision for the specified document. The sequence number is auto-assigned as
-    max(seq_num)+1 for the document.
-
-    Args:
-        doc_id: Document ID to attach the revision to.
-        payload: Revision creation data.
-
-    Returns:
-        Newly created document revision with metadata.
-
-    Raises:
-        HTTPException: 404 if document or referenced entities not found.
-    """
-    doc_row = (
-        db.execute(
-            text("SELECT doc_id, voided FROM workflow.v_documents WHERE doc_id = :doc_id"),
-            {"doc_id": doc_id},
-        )
-        .mappings()
-        .one_or_none()
-    )
-    if not doc_row or doc_row["voided"]:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    try:
-        rev_id = db.execute(
-            text(
-                """
-                SELECT workflow.create_revision(
-                    :doc_id,
-                    :rev_code_id,
-                    :rev_author_id,
-                    :rev_originator_id,
-                    :rev_modifier_id,
-                    :transmital_current_revision,
-                    :milestone_id,
-                    :planned_start_date,
-                    :planned_finish_date,
-                    :actual_start_date,
-                    :actual_finish_date,
-                    :modified_doc_date,
-                    :as_built
-                )
-                """
-            ),
-            {
-                "doc_id": doc_id,
-                "rev_code_id": payload.rev_code_id,
-                "rev_author_id": payload.rev_author_id,
-                "rev_originator_id": payload.rev_originator_id,
-                "rev_modifier_id": payload.rev_modifier_id,
-                "transmital_current_revision": payload.transmital_current_revision,
-                "milestone_id": payload.milestone_id,
-                "planned_start_date": _normalize_dt(payload.planned_start_date),
-                "planned_finish_date": _normalize_dt(payload.planned_finish_date),
-                "actual_start_date": _normalize_dt(payload.actual_start_date),
-                "actual_finish_date": _normalize_dt(payload.actual_finish_date),
-                "modified_doc_date": _normalize_dt(payload.modified_doc_date),
-                "as_built": payload.as_built,
-            },
-        ).scalar_one()
-        db.commit()
-    except IntegrityError as err:
-        db.rollback()
-        _handle_integrity_error("Failed to create revision", err, "insert_document_revision")
-    except DBAPIError as err:
-        db.rollback()
-        _raise_for_dbapi_error(err, _INSERT_REVISION_DB_ERROR_MAP)
-    except Exception as err:
-        db.rollback()
-        logger.exception("Failed to create revision doc_id=%s", doc_id)
-        raise HTTPException(status_code=500, detail="Internal Server Error") from err
-    return _build_doc_revision_out(db, rev_id)
 
 
 def update_document(
@@ -1284,7 +1334,9 @@ def delete_doc_rev_milestone(milestone_id: int, db: Session = Depends(get_db)) -
 @router.get(
     "/revision_overview",
     summary="List all revision overview entries.",
-    description="Returns a list of all revision overview entries sorted by revision code name.",
+    description=(
+        "Returns revision overview lifecycle steps ordered from the start step to the final step."
+    ),
     operation_id="list_revision_overview",
     tags=["documents"],
     response_model=list[RevisionOverviewOut],
@@ -1333,23 +1385,56 @@ def list_revision_overview(db: Session = Depends(get_db)) -> list[RevisionOvervi
     """
     List all revision overview entries.
 
-    Returns a list of all revision overview entries sorted by revision code name.
+    Returns revision overview lifecycle steps ordered from the configured start step and
+    walking `next_rev_code_id` until the terminal step. The response order is path-derived,
+    not name, ID, or percentage sorted.
 
     Returns:
-        List of revision codes with id, name, acronym, description, and percentage.
+        List of revision codes with lifecycle fields and percentage.
     """
     rows = (
         db.execute(
             text(
                 """
+                WITH RECURSIVE revision_flow AS (
+                    SELECT
+                        rev_code_id,
+                        rev_code_name,
+                        rev_code_acronym,
+                        rev_description,
+                        next_rev_code_id,
+                        final,
+                        start,
+                        percentage,
+                        1 AS step_order
+                    FROM workflow.v_revision_overview
+                    WHERE start IS TRUE
+                    UNION ALL
+                    SELECT
+                        child.rev_code_id,
+                        child.rev_code_name,
+                        child.rev_code_acronym,
+                        child.rev_description,
+                        child.next_rev_code_id,
+                        child.final,
+                        child.start,
+                        child.percentage,
+                        parent.step_order + 1 AS step_order
+                    FROM workflow.v_revision_overview AS child
+                    JOIN revision_flow AS parent
+                        ON child.rev_code_id = parent.next_rev_code_id
+                )
                 SELECT
                     rev_code_id,
                     rev_code_name,
                     rev_code_acronym,
                     rev_description,
+                    next_rev_code_id,
+                    final,
+                    start,
                     percentage
-                FROM workflow.v_revision_overview
-                ORDER BY rev_code_name
+                FROM revision_flow
+                ORDER BY step_order
                 """
             )
         )
@@ -1387,6 +1472,9 @@ def update_revision_overview(
         "rev_code_name",
         "rev_code_acronym",
         "rev_description",
+        "next_rev_code_id",
+        "final",
+        "start",
         "percentage",
     }.intersection(payload.model_fields_set):
         raise HTTPException(status_code=400, detail="No fields provided for update")
@@ -1405,6 +1493,12 @@ def update_revision_overview(
         revision.rev_code_acronym = payload.rev_code_acronym
     if payload.rev_description is not None:
         revision.rev_description = payload.rev_description
+    if "next_rev_code_id" in payload.model_fields_set:
+        revision.next_rev_code_id = payload.next_rev_code_id
+    if payload.final is not None:
+        revision.final = payload.final
+    if payload.start is not None:
+        revision.start = payload.start
     if payload.percentage is not None:
         revision.percentage = payload.percentage
 
@@ -1412,8 +1506,19 @@ def update_revision_overview(
         db.commit()
     except IntegrityError as err:
         db.rollback()
-        _handle_integrity_error(
-            "Revision overview entry already exists", err, "update_revision_overview"
+        _raise_for_dbapi_error(
+            err,
+            _REVISION_OVERVIEW_DB_ERROR_MAP,
+            default_status=400,
+            default_detail="Revision overview entry already exists",
+        )
+    except DBAPIError as err:
+        db.rollback()
+        _raise_for_dbapi_error(
+            err,
+            _REVISION_OVERVIEW_DB_ERROR_MAP,
+            default_status=400,
+            default_detail="Invalid revision overview lifecycle",
         )
 
     db.refresh(revision)
@@ -1446,6 +1551,9 @@ def insert_revision_overview(
         rev_code_name=payload.rev_code_name,
         rev_code_acronym=payload.rev_code_acronym,
         rev_description=payload.rev_description,
+        next_rev_code_id=payload.next_rev_code_id,
+        final=payload.final,
+        start=payload.start,
         percentage=payload.percentage,
     )
     db.add(revision)
@@ -1453,8 +1561,19 @@ def insert_revision_overview(
         db.commit()
     except IntegrityError as err:
         db.rollback()
-        _handle_integrity_error(
-            "Revision overview entry already exists", err, "insert_revision_overview"
+        _raise_for_dbapi_error(
+            err,
+            _REVISION_OVERVIEW_DB_ERROR_MAP,
+            default_status=400,
+            default_detail="Revision overview entry already exists",
+        )
+    except DBAPIError as err:
+        db.rollback()
+        _raise_for_dbapi_error(
+            err,
+            _REVISION_OVERVIEW_DB_ERROR_MAP,
+            default_status=400,
+            default_detail="Invalid revision overview lifecycle",
         )
     db.refresh(revision)
     return _model_out(RevisionOverviewOut, revision)
@@ -1566,20 +1685,25 @@ def create_revision_status_transition_rest(
 
 
 @router.post(
-    "/{doc_id}/revisions",
-    summary="Create a document revision (REST).",
-    description="Creates a revision for the specified document.",
+    "/revisions/{rev_id}/overview-transition",
+    summary="Create the next revision from a final revision (REST).",
+    description=(
+        "Creates a new revision row from the current final revision using the next allowed "
+        "revision-overview step resolved by backend workflow rules, with an optional "
+        "request-provided reachable target overview step."
+    ),
     response_model=DocRevisionOut,
-    status_code=201,
     tags=["documents"],
     responses=_REST_RESPONSES,
 )
-def create_document_revision_rest(
-    doc_id: int,
-    payload: DocRevisionCreate = Body(..., openapi_examples=_example_for(DocRevisionCreate)),
+def create_revision_overview_transition_rest(
+    rev_id: int,
+    payload: DocRevisionOverviewTransition | None = Body(
+        None, openapi_examples=_example_for(DocRevisionOverviewTransition)
+    ),
     db: Session = Depends(get_db),
 ) -> DocRevisionOut:
-    return insert_document_revision(doc_id, payload, db)
+    return create_revision_overview_transition(rev_id, payload, db)
 
 
 @router.post(
@@ -1645,6 +1769,68 @@ def cancel_revision(
     except DBAPIError as err:
         db.rollback()
         _raise_for_dbapi_error(err, _CANCEL_REVISION_DB_ERROR_MAP)
+    return _build_doc_revision_out_from_core_row(db, dict(rev_row))
+
+
+@router.post(
+    "/revisions/{rev_id}/supersede",
+    summary="Supersede a document revision.",
+    description=(
+        "Creates a replacement revision with the same revision code for the current non-final "
+        "revision and marks the source revision as superseded."
+    ),
+    response_model=DocRevisionOut,
+    tags=["documents"],
+    responses=_REST_RESPONSES,
+)
+def supersede_revision(
+    rev_id: int = Path(..., description="Revision ID to supersede", gt=0),
+    payload: DocRevisionSupersede = Body(..., openapi_examples=_example_for(DocRevisionSupersede)),
+    db: Session = Depends(get_db),
+) -> DocRevisionOut:
+    try:
+        rev_row = (
+            db.execute(
+                text(
+                    """
+                    SELECT r.* FROM workflow.supersede_revision(
+                        :rev_id,
+                        :rev_author_id,
+                        :rev_originator_id,
+                        :rev_modifier_id,
+                        :transmital_current_revision,
+                        :milestone_id,
+                        :planned_start_date,
+                        :planned_finish_date,
+                        :actual_start_date,
+                        :actual_finish_date,
+                        :modified_doc_date,
+                        :as_built
+                    ) AS r
+                    """
+                ),
+                {
+                    "rev_id": rev_id,
+                    "rev_author_id": payload.rev_author_id,
+                    "rev_originator_id": payload.rev_originator_id,
+                    "rev_modifier_id": payload.rev_modifier_id,
+                    "transmital_current_revision": payload.transmital_current_revision,
+                    "milestone_id": payload.milestone_id,
+                    "planned_start_date": _normalize_dt(payload.planned_start_date),
+                    "planned_finish_date": _normalize_dt(payload.planned_finish_date),
+                    "actual_start_date": _normalize_dt(payload.actual_start_date),
+                    "actual_finish_date": _normalize_dt(payload.actual_finish_date),
+                    "modified_doc_date": _normalize_dt(payload.modified_doc_date),
+                    "as_built": payload.as_built,
+                },
+            )
+            .mappings()
+            .one()
+        )
+        db.commit()
+    except DBAPIError as err:
+        db.rollback()
+        _raise_for_dbapi_error(err, _SUPERSEDE_REVISION_DB_ERROR_MAP)
     return _build_doc_revision_out_from_core_row(db, dict(rev_row))
 
 

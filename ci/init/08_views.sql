@@ -37,6 +37,7 @@ DECLARE
         'doc_revision_history',
         'doc_revision_history_view',
         'documents',
+        'document_revisions_all',
         'document_revisions',
         'files',
         'files_commented'
@@ -153,6 +154,19 @@ WHERE workflow.check_user_permission(
 );
 
 CREATE OR REPLACE VIEW workflow.v_document_revisions AS
+SELECT
+    r.*, s.rev_status_name
+FROM core.doc_revision r
+JOIN ref.doc_rev_statuses s ON s.rev_status_id = r.rev_status_id
+WHERE r.canceled_date IS NULL
+  AND workflow.check_user_permission(
+    NULLIF(current_setting('app.user_id', true), '')::BIGINT,
+    'doc_revision',
+    'read-only',
+    r.doc_id
+);
+
+CREATE OR REPLACE VIEW workflow.v_document_revisions_all AS
 SELECT
     r.*, s.rev_status_name
 FROM core.doc_revision r

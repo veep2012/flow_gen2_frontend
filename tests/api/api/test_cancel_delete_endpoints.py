@@ -239,8 +239,9 @@ def test_cancel_revision():
         updated_revisions = _request(client, "GET", f"/documents/{doc_id}/revisions")
         assert 200 <= updated_revisions["status"] < 300
         updated_rev = next((r for r in updated_revisions["payload"] if r["rev_id"] == rev_id), None)
-        assert updated_rev is not None
-        assert updated_rev["canceled_date"] is not None, "canceled_date should persist"
+        assert (
+            updated_rev is None
+        ), "Canceled revisions should be hidden from standard revision lists"
 
 
 @pytest.mark.api_smoke
@@ -312,23 +313,21 @@ def test_delete_document_void():
             pytest.skip("No revisions available for delete document test")
         base_revision = revisions["payload"][0]
         new_rev_payload = {
-            "rev_code_id": base_revision["rev_code_id"],
             "rev_author_id": base_revision["rev_author_id"],
             "rev_originator_id": base_revision["rev_originator_id"],
             "rev_modifier_id": base_revision["rev_modifier_id"],
             "transmital_current_revision": "TR-TEST-DELETE",
             "planned_start_date": base_revision["planned_start_date"],
             "planned_finish_date": base_revision["planned_finish_date"],
-            "rev_status_id": base_revision["rev_status_id"],
         }
         create_result = _request(
             client,
             "POST",
-            f"/documents/{doc_id}/revisions",
+            f"/documents/revisions/{base_revision['rev_id']}/supersede",
             json=new_rev_payload,
         )
         if not (200 <= create_result["status"] < 300):
-            pytest.skip("Could not create additional revision for void test")
+            pytest.skip("Could not supersede revision for void test")
 
         # Check initial voided state
         docs = _request(client, "GET", "/documents", params={"project_id": project_id})
@@ -373,20 +372,18 @@ def test_delete_document_void_idempotent():
         create_result = _request(
             client,
             "POST",
-            f"/documents/{doc_id}/revisions",
+            f"/documents/revisions/{base_revision['rev_id']}/supersede",
             json={
-                "rev_code_id": base_revision["rev_code_id"],
                 "rev_author_id": base_revision["rev_author_id"],
                 "rev_originator_id": base_revision["rev_originator_id"],
                 "rev_modifier_id": base_revision["rev_modifier_id"],
                 "transmital_current_revision": "TR-TEST-DELETE-IDEMP",
                 "planned_start_date": base_revision["planned_start_date"],
                 "planned_finish_date": base_revision["planned_finish_date"],
-                "rev_status_id": base_revision["rev_status_id"],
             },
         )
         if not (200 <= create_result["status"] < 300):
-            pytest.skip("Could not create additional revision for delete idempotency test")
+            pytest.skip("Could not supersede revision for delete idempotency test")
         first = _request(client, "DELETE", f"/documents/{doc_id}")
         assert first["status"] == 200
         assert first["payload"]["result"] == "voided"

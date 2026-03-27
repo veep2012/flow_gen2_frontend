@@ -20,6 +20,7 @@
 - `development_workflow.md` - Branching, setup, and development process.
 
 ## Feature and Domain Docs
+- `current_user_photo_story.md` - Draft story for `GET /api/v1/people/users/current_user/photo` and unified MinIO-backed download handling.
 - `notifications_and_dls.md` - Unified Notifications + Distribution Lists module (active source of truth).
 - `distribution_list_feature.md` - Deprecated pointer; merged into `notifications_and_dls.md`.
 - `distribution_list_implementation.md` - Deprecated pointer; merged into `notifications_and_dls.md`.
@@ -41,6 +42,7 @@
 - `test_scenarios/compose_auth_smoke_test_scenarios.md` - Shell-based compose auth and ingress smoke scenarios for `make test-compose`.
 - `test_scenarios/jwt_auth_validation_api_test_scenarios.md` - Fail-closed JWT/JWKS validation matrix and automated test coverage mapping.
 - `test_scenarios/read_sql_guard_api_test_scenarios.md` - Static guard contract for API SQL reads using `workflow.v_*` views only.
+- `test_scenarios/revision_code_seed_contract_api_test_scenarios.md` - Bootstrap and seed identity-preservation contract for revision codes and downstream references.
 
 ## Standards and Templates
 - `_documentation_standards.md` - Required structure and writing rules.
@@ -48,6 +50,7 @@
 - `_naming_convention.md` - Filename rules.
 - `_documentation-index.md` - This index file.
 - `_documentation_actualization_state.md` - State file for monthly documentation actualization cadence.
+- `story_template.md` - Lightweight template for initiative parent stories and numbered sub-stories.
 
 ## Maintenance Rules
 - Add every new `documentation/*.md` file to this index in the same change.

@@ -34,8 +34,23 @@ BEGIN
         END IF;
     END IF;
 
-    -- Rule 3: Only one active (non-final, non-canceled) revision per document
-    IF NEW.canceled_date IS NULL AND NOT v_new_status.final THEN
+    IF NEW.canceled_date IS NULL AND NOT COALESCE(NEW.superseded, false) THEN
+        SELECT EXISTS (
+            SELECT 1
+            FROM core.doc_revision r
+            WHERE r.doc_id = NEW.doc_id
+              AND r.rev_id <> COALESCE(NEW.rev_id, 0)
+              AND r.rev_code_id = NEW.rev_code_id
+              AND r.canceled_date IS NULL
+              AND COALESCE(r.superseded, false) = false
+        ) INTO v_has_other;
+        IF v_has_other THEN
+            RAISE EXCEPTION 'Only one non-canceled revision per document may use a revision code';
+        END IF;
+    END IF;
+
+    -- Rule 3: Only one active (non-final, non-canceled, non-superseded) revision per document
+    IF NEW.canceled_date IS NULL AND NOT v_new_status.final AND NOT COALESCE(NEW.superseded, false) THEN
         SELECT EXISTS (
             SELECT 1
             FROM core.doc_revision r
@@ -44,25 +59,10 @@ BEGIN
               AND r.rev_id <> COALESCE(NEW.rev_id, 0)
               AND r.canceled_date IS NULL
               AND NOT s.final
-        ) INTO v_has_other;
-        IF v_has_other THEN
-            RAISE EXCEPTION 'Only one active (non-final, non-canceled) revision allowed per document';
-        END IF;
-    END IF;
-
-    -- Rule 4: Only one final and not superseded per document
-    IF v_new_status.final AND COALESCE(NEW.superseded, false) = false THEN
-        SELECT EXISTS (
-            SELECT 1
-            FROM core.doc_revision r
-            JOIN ref.doc_rev_statuses s ON s.rev_status_id = r.rev_status_id
-            WHERE r.doc_id = NEW.doc_id
-              AND r.rev_id <> COALESCE(NEW.rev_id, 0)
-              AND s.final
               AND COALESCE(r.superseded, false) = false
         ) INTO v_has_other;
         IF v_has_other THEN
-            RAISE EXCEPTION 'Only one final (not superseded) revision allowed per document';
+            RAISE EXCEPTION 'Only one active (non-final, non-canceled) revision allowed per document';
         END IF;
     END IF;
 

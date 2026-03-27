@@ -48,6 +48,11 @@ CREATE TABLE doc_revision (
 CREATE UNIQUE INDEX ux_doc_revision_rev_doc
     ON core.doc_revision (rev_id, doc_id);
 
+CREATE UNIQUE INDEX ux_doc_revision_active_code_per_doc
+    ON core.doc_revision (doc_id, rev_code_id)
+    WHERE canceled_date IS NULL
+      AND COALESCE(superseded, FALSE) = FALSE;
+
 ALTER TABLE core.doc
     ADD CONSTRAINT fk_doc_rev_current
         FOREIGN KEY (rev_current_id, doc_id)

@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-02-21
-- Version: v1.4
+- Last Updated: 2026-03-20
+- Version: v1.5
 
 ## Change Log
+- 2026-03-20 | v1.5 | Expanded lifecycle lookup entities to match the current schema: `revision_overview` now shows successor/behavior flags, `doc_rev_statuses` includes UI and lifecycle fields, and the ER relationships now show self-referential next-step links plus UI behavior linkage.
 - 2026-02-21 | v1.4 | Synchronized ER model with current schema for distribution lists (`doc_id`, `user_id` membership), person duty fields (`person_duty`, `person.duty_id`, `person.email`), and implemented collaboration entities (`written_comments`, `notifications`, `notification_targets`, `notification_recipients`).
 - 2026-02-20 | v1.2 | Added Change Log section for standards compliance
 
@@ -231,11 +232,28 @@ erDiagram
         string rev_code_name 
         string rev_code_acronym
         string rev_description
+        smallint next_rev_code_id FK
+        boolean final
+        boolean start
         smallint percentage
     }
     
     DOC_REV_MILESTONES { smallint milestone_id PK string milestone_name }
-    DOC_REV_STATUSES { smallint rev_status_id PK string rev_status_name }
+    DOC_REV_STATUS_UI_BEHAVIORS {
+        smallint ui_behavior_id PK
+        string ui_behavior_name
+        string ui_behavior_file
+    }
+    DOC_REV_STATUSES {
+        smallint rev_status_id PK
+        string rev_status_name
+        smallint ui_behavior_id FK
+        smallint next_rev_status_id FK
+        boolean revertible
+        boolean editable
+        boolean final
+        boolean start
+    }
 
     %% ==========================================
     %% 3. User & Permissions
@@ -316,8 +334,11 @@ erDiagram
 
     %% Revision Details
     REVISION_OVERVIEW ||--o{ DOC_REVISION : "coded as"
+    REVISION_OVERVIEW |o..o| REVISION_OVERVIEW : "next code"
     DOC_REV_MILESTONES |o--o{ DOC_REVISION : "tracks stage"
+    DOC_REV_STATUS_UI_BEHAVIORS ||--o{ DOC_REV_STATUSES : "drives UI"
     DOC_REV_STATUSES ||--o{ DOC_REVISION : "status"
+    DOC_REV_STATUSES |o..o| DOC_REV_STATUSES : "next status"
     
     %% Authorship
     PERSON ||--o{ DOC_REVISION : "authors"

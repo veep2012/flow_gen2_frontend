@@ -16,13 +16,13 @@ GRANT EXECUTE ON FUNCTION workflow.create_document(
     TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, BOOLEAN
 ) TO app_user;
 
-GRANT EXECUTE ON FUNCTION workflow.create_revision(
-    INTEGER, SMALLINT, SMALLINT, SMALLINT, SMALLINT, VARCHAR,
-    SMALLINT, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, BOOLEAN
-) TO app_user;
-
 GRANT EXECUTE ON FUNCTION workflow.transition_revision(INTEGER, TEXT) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.cancel_revision(INTEGER) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.create_overview_transition_revision(INTEGER, SMALLINT) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.supersede_revision(
+    INTEGER, SMALLINT, SMALLINT, SMALLINT, VARCHAR, SMALLINT,
+    TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, TIMESTAMPTZ, BOOLEAN
+) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.update_document(INTEGER, JSONB) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.update_revision(INTEGER, JSONB) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.delete_document(INTEGER) TO app_user;
@@ -30,6 +30,7 @@ GRANT EXECUTE ON FUNCTION workflow.create_file(INTEGER, VARCHAR, TEXT, VARCHAR) 
 GRANT EXECUTE ON FUNCTION workflow.update_file(INTEGER, VARCHAR) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.delete_file(INTEGER) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.create_file_commented(INTEGER, INTEGER, TEXT, VARCHAR) TO app_user;
+GRANT EXECUTE ON FUNCTION workflow.get_deletable_file_commented(INTEGER, SMALLINT) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.delete_file_commented(INTEGER, SMALLINT) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.replace_file_commented(INTEGER, SMALLINT, TEXT, VARCHAR) TO app_user;
 GRANT EXECUTE ON FUNCTION workflow.create_written_comment(INTEGER, SMALLINT, TEXT) TO app_user;

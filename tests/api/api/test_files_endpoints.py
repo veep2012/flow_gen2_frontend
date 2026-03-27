@@ -167,13 +167,14 @@ def test_files_update_rejects_id_in_body():
 @pytest.mark.api_smoke
 def test_files_insert_empty_file_rejected():
     with httpx.Client(timeout=10) as client:
+        rev_id = _get_test_revision_id(client)
         result = _request(
             client,
             "POST",
             "/files/",
             headers={"X-User-Id": "FDQC"},
             files={"file": ("empty.txt", b"", "text/plain")},
-            data={"rev_id": "1"},
+            data={"rev_id": str(rev_id)},
         )
         assert result["status"] == 400
 
@@ -198,13 +199,14 @@ def test_files_require_session_identity():
 def test_files_insert_long_filename_rejected():
     long_name = "a" * 91 + ".txt"
     with httpx.Client(timeout=10) as client:
+        rev_id = _get_test_revision_id(client)
         result = _request(
             client,
             "POST",
             "/files/",
             headers={"X-User-Id": "FDQC"},
             files={"file": (long_name, b"content", "text/plain")},
-            data={"rev_id": "1"},
+            data={"rev_id": str(rev_id)},
         )
         assert result["status"] == 400
 
