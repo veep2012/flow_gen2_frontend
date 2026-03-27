@@ -27,6 +27,7 @@ ALLOWED_WORKFLOW_FROM_OBJECTS = {
     "create_file",
     "create_file_commented",
     "create_notification",
+    "get_deletable_file_commented",
     "supersede_revision",
     "create_written_comment",
     "delete_file_commented",
