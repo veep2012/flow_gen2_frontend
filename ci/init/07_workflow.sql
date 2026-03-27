@@ -49,6 +49,17 @@ BEGIN
         RAISE EXCEPTION 'No start revision code configured';
     END IF;
 
+    -- If a revision code was explicitly provided, ensure it exists to avoid
+    -- surfacing a generic FK violation instead of a deterministic error.
+    IF p_rev_code_id IS NOT NULL THEN
+        PERFORM 1
+        FROM ref.revision_overview
+        WHERE rev_code_id = v_initial_rev_code;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Revision code not found';
+        END IF;
+    END IF;
     INSERT INTO core.doc (
         doc_name_unique, title, project_id, jobpack_id, type_id, area_id, unit_id
     ) VALUES (
