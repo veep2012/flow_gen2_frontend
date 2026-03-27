@@ -5,10 +5,11 @@
 - Owner: Backend and Database Team
 - Reviewers: API maintainers
 - Created: 2026-02-06
-- Last Updated: 2026-03-26
-- Version: v2.8
+- Last Updated: 2026-03-27
+- Version: v2.9
 
 ## Change Log
+- 2026-03-27 | v2.9 | Synchronized workflow lifecycle text with current SQL and router behavior: clarified initial revision defaults from start status and start overview step, documented `dl_for_each_doc` auto-DL creation during document create, tightened supersede/cancel guards to current non-final behavior, normalized transition wording around current vs historical revisions, and replaced seed-ID emphasis with the actual overview progression workflow.
 - 2026-03-26 | v2.8 | Removed `revertible` and `editable` from the revision-code lifecycle model so `revision_overview` now carries only successor linkage, start/final markers, and descriptive `percentage`, and documented optional request-provided target selection for overview-transition skips.
 - 2026-03-25 | v2.4 | Replaced generic in-place revision-code mutation with dedicated overview-transition and supersede workflows, documented default initial `rev_code_id` resolution from `revision_overview.start`, clarified that supersede keeps the same `rev_code_id` while restarting at the workflow start status, removed the redundant public generic revision-create endpoint, and clarified that canceled revisions are hidden from standard workflow views.
 - 2026-03-20 | v2.2 | Clarified the current revision-code mutation contract: `ref.revision_overview` stays reference configuration, there is no dedicated overview-transition endpoint, and the generic revision update workflow may still change `core.doc_revision.rev_code_id`; also clarified that environments are recreated from `ci/init/` rather than migrated in place, that documented revision-code safety guarantees apply to bootstrap/reseed identity preservation only, that revision-status `revertible` means immediate-predecessor rollback via reverse `next_rev_status_id`, and that every `revision_overview` row must remain on the single connected lifecycle path from the unique start step to the unique final step while matching the current SQL constraints for final-step locking, cycle/self-reference prevention, and the single-predecessor rule.
@@ -29,6 +30,11 @@ Describe the implemented document and revision lifecycle, including state transi
   - Authentication and authorization architecture.
   - UI presentation behavior.
 
+## Audience
+- Backend engineers
+- Database maintainers
+- API maintainers
+
 ## Design / Behavior
 The tables below define the expected workflow mechanics and transition semantics for document processing.
 
@@ -37,6 +43,13 @@ Schema ownership (implementation contract):
 - `ref` schema owns lookup/reference entities (`projects`, `areas`, `units`, `roles`, `person_duty`, `person`, `users`, `permissions`, and other lookups).
 - `workflow` schema exposes the API-facing contract via functions and views over `core`/`ref`.
 - `audit` schema owns history/trace tables.
+
+Creation defaults and document-level side effects:
+- `workflow.create_document(...)` must create the initial revision automatically.
+- The initial revision status must resolve from the unique `ref.doc_rev_statuses.start = TRUE` row.
+- When the API omits `rev_code_id` during document creation, the initial revision code must resolve from the unique `ref.revision_overview.start = TRUE` row.
+- When `ref.instance_parameters.parameter='dl_for_each_doc'` resolves to trimmed/lowercased `true`, document creation must also insert a doc-linked distribution list named `DL_<doc_name_unique>`.
+- Auto-created distribution lists are best-effort only: duplicate `distribution_list_name` collisions are ignored and do not roll back document creation.
 
 ## Overview
 
@@ -96,18 +109,21 @@ Revision-status rollback semantics:
 - generic revision updates cannot change `core.doc_revision.rev_code_id` after creation
 - brand new document creation defaults the initial revision `rev_code_id` to the unique `revision_overview.start = TRUE` step when the client omits `rev_code_id`
 
+Current seeded overview workflow:
+- `INDESIGN` is the unique start overview step and is used for newly created documents when `rev_code_id` is omitted.
+- Progression path is linear:
+  - `INDESIGN` -> `IDC` -> `IFRC` -> `AFD` -> `AFC` -> `AS-BUILT`
+- `AS-BUILT` is the unique final overview step and has no successor.
+- `POST /api/v1/documents/revisions/{rev_id}/overview-transition` moves forward in this overview chain by creating a new revision from the current final revision.
+- When `target_rev_code_id` is omitted, overview transition uses the immediate next step in the chain.
+- When `target_rev_code_id` is provided, the requested target must still be a reachable later step on the same chain.
+- `POST /api/v1/documents/revisions/{rev_id}/supersede` does not change the overview step; it replaces the current non-final revision while keeping the same `rev_code_id`.
+
 Bootstrap and migration notes:
 - Repository bootstrap currently relies on `ci/init/flow_init.psql` followed by `ci/init/flow_seed.sql`.
 - For now, database changes are applied by dropping and recreating the database from `ci/init/`; the repository does not ship in-place revision-code migration scripts.
-- The seeded lifecycle intentionally uses stable explicit IDs so downstream references remain predictable:
-  - `1 = IDC`
-  - `2 = IFRC`
-  - `3 = AFD`
-  - `4 = AFC`
-  - `5 = AS-BUILT`
-  - `6 = INDESIGN`
-- `flow_seed.sql` resets the `rev_code_id` identity sequence after inserting those explicit rows so new generated IDs continue above the seeded range.
-- If a future migration framework is introduced, any in-place migration must preserve those IDs or update all dependent references in the same migration.
+- `flow_seed.sql` seeds the default overview chain shown below.
+- If a future migration framework is introduced, it must preserve the configured overview order and update dependent references in the same migration.
 
 ```mermaid
 flowchart LR
@@ -136,9 +152,9 @@ flowchart LR
 | --- | --- | --- | --- | --- | --- | --- |
 | Draft | Intermediate | User transfers the revision to Intermediate; files must be attached. | Author or system on submission. | `/api/v1/documents/revisions/{rev_id}/status-transitions` | Update revision status and related timestamps; keep doc pointers unchanged. | Intermediate enables commenting on revision and files. |
 | Intermediate | Draft | Revision is reverted back to Draft. | Author or system. | `/api/v1/documents/revisions/{rev_id}/status-transitions` | Update revision status; keep doc pointers unchanged. | Used when commenting/review is stopped or needs rework. |
-| Draft or Intermediate | Draft | Current non-final revision is replaced in workflow history. | Author or system. | `/api/v1/documents/revisions/{rev_id}/supersede` | Mark source revision `superseded=true`; insert replacement revision with the same `rev_code_id`; set `rev_current_id` to the replacement. | The replacement revision always restarts at the workflow start status. |
+| Current non-final | Draft | Current non-final revision is replaced in workflow history. | Author or system. | `/api/v1/documents/revisions/{rev_id}/supersede` | Mark source revision `superseded=true`; insert replacement revision with the same `rev_code_id`; set `rev_current_id` to the replacement. | Allowed only when the source revision is current, not canceled, not already superseded, and not in a final status. The replacement revision always restarts at the workflow start status. |
 | Intermediate | Final | Commenting completes and revision is approved for finalization. | Reviewer/approver. | `/api/v1/documents/revisions/{rev_id}/status-transitions` | Update revision status; set `rev_actual_id=rev_current_id` to this revision. | Final makes the revision “actual/current” without superseding other final revisions that have different `rev_code_id`. |
-| Final | Draft | A new revision is created from the current final revision using the next allowed revision-overview step. | Author or system. | `/api/v1/documents/revisions/{rev_id}/overview-transition` | Insert new revision; keep the source final revision unchanged; set `rev_actual_id` to the source final revision and `rev_current_id` to the new revision. | The new revision starts at the workflow start status and receives its `rev_code_id` from `revision_overview.next_rev_code_id` by default, or from a later reachable target when the request explicitly supplies `target_rev_code_id`. |
+| Current final | Draft | A new revision is created from the current final revision using the next allowed revision-overview step. | Author or system. | `/api/v1/documents/revisions/{rev_id}/overview-transition` | Insert new revision; keep the source final revision unchanged; set `rev_actual_id` to the source final revision and `rev_current_id` to the new revision. | Allowed only when the source revision is the current revision and its current status is final. The new revision starts at the workflow start status and receives its `rev_code_id` from `revision_overview.next_rev_code_id` by default, or from a later reachable target when the request explicitly supplies `target_rev_code_id`. |
 
 Revision-code change behavior:
 - `POST /api/v1/documents/revisions/{rev_id}/overview-transition` is the supported way to create the next revision from a current final revision.
@@ -154,14 +170,18 @@ Revision-code change behavior:
 | Action | Description |
 | --- | --- |
 | Deletion of Document | Physical deletion in DB is allowed only if the document has 0 revisions whose status has `final=TRUE` in `doc_rev_statuses`. Otherwise document can only be voided. |
-| Deletion of Revision | Revisions can be deleted only with document deletion (see document deletion rule). Otherwise the revision is set to "Canceled". Cancelation is allowed only for Draft or Intermediate revisions. When canceled, set `rev_current_id = rev_actual_id` (previous actual) and hide the canceled revision from standard workflow list views. |
+| Deletion of Revision | Revisions can be deleted only with document deletion (see document deletion rule). Otherwise the revision is set to "Canceled". Cancelation is allowed for any non-final revision; final revisions are rejected. When canceled, set `rev_current_id = rev_actual_id` and hide the canceled revision from standard workflow list views. |
 
 ## Edge Cases
 - Transition request sent when required file attachments are missing.
 - Concurrent transition attempts on the same revision.
 - Delete requested for documents with final revisions where only voiding is allowed.
+- Supersede requested for a revision that is not current, already superseded, canceled, or already final.
+- Overview transition requested for a source revision that is not both current and final, or when another active revision already uses the resolved target `rev_code_id`.
 
 ## References
 - `documentation/api_db_rules.md`
 - `documentation/api_interfaces.md`
+- `documentation/instance_parameters.md`
+- `ci/init/07_workflow.sql`
 - `api/routers/documents.py`
