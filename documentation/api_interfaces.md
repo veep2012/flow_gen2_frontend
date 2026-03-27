@@ -9,7 +9,7 @@
 - Version: v4.14
 
 ## Change Log
-- 2026-03-27 | v4.14 | Clarified revision lifecycle rejection semantics, synchronized commented-file delete error documentation with actual `401/403/404/500` behavior, added an explicit breaking-contract summary for notification recipient override removal, commented-file delete owner/superuser enforcement, and default-hidden canceled/superseded revisions, and documented DB/API compatibility and deployment-order expectations for workflow-function/view/grant changes.
+- 2026-03-27 | v4.14 | Clarified revision lifecycle rejection semantics, synchronized commented-file delete error documentation with actual `401/403/404/500` behavior, added an explicit breaking-contract summary for notification recipient override removal, commented-file delete owner/superuser enforcement, and default-hidden canceled/superseded revisions, documented DB/API compatibility and deployment-order expectations for workflow-function/view/grant changes, and classified mechanical versus security-sensitive versus behavior-visible changes for review.
 - 2026-03-26 | v4.11 | Updated `GET /api/v1/documents/{doc_id}/revisions` so it excludes canceled and superseded revisions by default, added optional `show_canceled` / `show_superseded` query flags to include those row types when explicitly requested, documented optional request-provided target overview selection for overview transition, and removed the earlier runtime-parameter skip design.
 - 2026-03-25 | v4.6 | Added dedicated `POST /api/v1/documents/revisions/{rev_id}/overview-transition` for creating the next revision from a current final revision, added `POST /api/v1/documents/revisions/{rev_id}/supersede` for replacing the current non-final revision with a new row that keeps the same `rev_code_id` and restarts at the workflow start status, made generic revision updates reject `rev_code_id`, removed redundant public `POST /api/v1/documents/{doc_id}/revisions`, documented initial document `rev_code_id` defaulting to the `revision_overview.start` step, clarified that canceled revisions are hidden from standard revision-list responses, and removed `rev_actual_id`/`rev_current_id` from the document update request contract because those pointers are workflow-managed.
 - 2026-03-20 | v4.1 | Clarified that there is currently no dedicated overview-transition endpoint: `ref.revision_overview` remains reference configuration, while `PUT /api/v1/documents/revisions/{rev_id}` may still change `core.doc_revision.rev_code_id` through `workflow.update_revision(...)`; also defined revision back-transition semantics explicitly so `direction="back"` moves only to the unique immediate predecessor status resolved by reverse `next_rev_status_id`, and the status graph forbids ambiguous predecessor configurations.
@@ -36,6 +36,12 @@
 - Required deployment ordering: deploy database changes before application changes when introducing or changing workflow functions, `app_user` grants, or `workflow.v_*` read-model/view dependencies. The app should not be rolled out first against an older database that does not yet provide the required functions/views/permissions.
 - Rollback considerations: if database changes ship before the new app, rollback safety depends on whether old application code still works with the updated workflow functions/views/contracts. Additive DB changes are usually lower risk; removing old functions, revoking old grants, or changing default read semantics can break older app builds even if the DB deploy succeeds.
 - Current repository migration model: this repository still treats DB compatibility conservatively. Supported database changes are applied through `ci/init/` bootstrap/reseed rather than in-place migrations, so DB and API changes should be treated as one coordinated release unit unless a dedicated migration/compatibility plan is added.
+
+## Change classification
+- Purely mechanical changes: standardizing read paths around `workflow.v_*` views where the selected rows, filters, and response contract remain unchanged. These refactors should not alter authorization, row visibility, or endpoint status semantics by themselves.
+- Policy or permission changes: new workflow-function execute grants for `app_user`, expanded read-side RLS effects, and owner/superuser enforcement for commented-file delete. These are security-sensitive because they can change which callers are allowed to execute actions or observe rows.
+- Behavior-visible changes: notification inbox reads no longer accept `recipient_user_id` override, revision lists now hide canceled/superseded rows by default unless explicitly requested, dedicated revision lifecycle endpoints enforce narrower progression rules, and commented-file delete now follows stricter authorization and clearer rejection semantics.
+- Review guidance: when these categories ship together, validate the permission/RLS diff separately from the view-standardization refactor, then validate the externally visible API contract changes against the endpoint docs and regression tests.
 
 ## Purpose
 Provide the current backend API surface and behavior contract for clients and maintainers.
@@ -1098,10 +1104,75 @@ curl -sS -H "Accept: application/json" -H "Content-Type: application/json" \
 - Contract notes:
   - By default, the endpoint returns only non-canceled and non-superseded revisions.
   - `show_canceled=false` and `show_superseded=false` are the default behaviors when the params are omitted.
+  - This default filtering is intentional but behavior-visible: a document whose only revisions are canceled and/or superseded will return `[]` unless the caller opts into those row types.
 - Headers: `Accept: application/json`
 - Example request:
 ```bash
 curl -sS -H "Accept: application/json" $API_BASE/api/v1/documents/11/revisions
+```
+- Before/after examples:
+  - Default read hides historical rows:
+```bash
+curl -sS -H "Accept: application/json" \
+  "$API_BASE/api/v1/documents/11/revisions"
+```
+```json
+[]
+```
+  - Explicit canceled inclusion:
+```bash
+curl -sS -H "Accept: application/json" \
+  "$API_BASE/api/v1/documents/11/revisions?show_canceled=true"
+```
+```json
+[
+  {
+    "rev_id": 22,
+    "doc_id": 11,
+    "seq_num": 2,
+    "canceled_date": "2026-03-27T09:15:00Z",
+    "superseded": false
+  }
+]
+```
+  - Explicit superseded inclusion:
+```bash
+curl -sS -H "Accept: application/json" \
+  "$API_BASE/api/v1/documents/11/revisions?show_superseded=true"
+```
+```json
+[
+  {
+    "rev_id": 21,
+    "doc_id": 11,
+    "seq_num": 1,
+    "canceled_date": null,
+    "superseded": true
+  }
+]
+```
+  - Explicit full-history read:
+```bash
+curl -sS -H "Accept: application/json" \
+  "$API_BASE/api/v1/documents/11/revisions?show_canceled=true&show_superseded=true"
+```
+```json
+[
+  {
+    "rev_id": 21,
+    "doc_id": 11,
+    "seq_num": 1,
+    "canceled_date": null,
+    "superseded": true
+  },
+  {
+    "rev_id": 22,
+    "doc_id": 11,
+    "seq_num": 2,
+    "canceled_date": "2026-03-27T09:15:00Z",
+    "superseded": false
+  }
+]
 ```
 - Schema references:
   - Response: `api/schemas/documents.py` `DocRevisionOut`

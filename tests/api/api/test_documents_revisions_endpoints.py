@@ -336,6 +336,98 @@ def test_documents_revisions_list_includes_superseded_when_requested():
 
 
 @pytest.mark.api_smoke
+def test_documents_revisions_list_default_filtering_requires_explicit_opt_in():
+    with httpx.Client(timeout=10) as client:
+        doc_id, base_revision = _create_document_with_revision(
+            client, prefix="DOC-REV-FILTER-MATRIX"
+        )
+        statuses = _get_statuses(client)
+        if not statuses:
+            pytest.skip("No statuses available for combined revision-filter test")
+        status_map = {
+            status["rev_status_id"]: status for status in statuses if "rev_status_id" in status
+        }
+        current_status = status_map.get(base_revision["rev_status_id"])
+        if current_status is None or current_status.get("next_rev_status_id") is None:
+            pytest.skip("No non-final successor status available for combined revision-filter test")
+        _ensure_file_for_revision(client, base_revision["rev_id"])
+        advanced = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{base_revision['rev_id']}/status-transitions",
+            json={"direction": "forward"},
+        )
+        assert advanced["status"] == 200
+        advanced_payload = advanced["payload"]
+        advanced_status = status_map.get(advanced_payload["rev_status_id"])
+        if advanced_status is None or advanced_status.get("final"):
+            pytest.skip(
+                "Need a non-final non-start source revision for combined revision-filter test"
+            )
+
+        superseded = _request(
+            client,
+            "POST",
+            f"/documents/revisions/{advanced_payload['rev_id']}/supersede",
+            json={
+                "rev_author_id": advanced_payload["rev_author_id"],
+                "rev_originator_id": advanced_payload["rev_originator_id"],
+                "rev_modifier_id": advanced_payload["rev_modifier_id"],
+                "transmital_current_revision": f"TR-FILTER-MATRIX-{doc_id}",
+                "planned_start_date": advanced_payload["planned_start_date"],
+                "planned_finish_date": advanced_payload["planned_finish_date"],
+            },
+        )
+        assert superseded["status"] == 200
+        replacement_revision = superseded["payload"]
+
+        canceled = _request(
+            client, "PATCH", f"/documents/revisions/{replacement_revision['rev_id']}/cancel"
+        )
+        assert canceled["status"] == 200
+
+        default_list = _request(client, "GET", f"/documents/{doc_id}/revisions")
+        assert default_list["status"] == 200
+        assert default_list["payload"] == []
+
+        show_canceled = _request(
+            client,
+            "GET",
+            f"/documents/{doc_id}/revisions",
+            params={"show_canceled": True},
+        )
+        assert show_canceled["status"] == 200
+        assert {rev["rev_id"] for rev in show_canceled["payload"]} == {
+            replacement_revision["rev_id"]
+        }
+        assert show_canceled["payload"][0]["canceled_date"] is not None
+        assert show_canceled["payload"][0]["superseded"] is False
+
+        show_superseded = _request(
+            client,
+            "GET",
+            f"/documents/{doc_id}/revisions",
+            params={"show_superseded": True},
+        )
+        assert show_superseded["status"] == 200
+        assert {rev["rev_id"] for rev in show_superseded["payload"]} == {advanced_payload["rev_id"]}
+        assert show_superseded["payload"][0]["superseded"] is True
+        assert show_superseded["payload"][0]["canceled_date"] is None
+
+        show_all = _request(
+            client,
+            "GET",
+            f"/documents/{doc_id}/revisions",
+            params={"show_canceled": True, "show_superseded": True},
+        )
+        assert show_all["status"] == 200
+        assert {rev["rev_id"] for rev in show_all["payload"]} == {
+            advanced_payload["rev_id"],
+            replacement_revision["rev_id"],
+        }
+
+
+@pytest.mark.api_smoke
 def test_documents_revisions_missing_doc():
     with httpx.Client(timeout=10) as client:
         result = _request(client, "GET", "/documents/999999/revisions")

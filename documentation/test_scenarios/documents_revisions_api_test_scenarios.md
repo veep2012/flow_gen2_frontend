@@ -230,11 +230,13 @@ curl -i -X POST "$API_BASE$API_PREFIX/documents" \
 - `TS-REV-038` repeated supersede attempts against the same source revision return `409` after the first supersede succeeds.
 - `TS-REV-030` revision-list responses include canceled revisions only when `show_canceled=true`.
 - `TS-REV-031` revision-list responses include superseded revisions only when `show_superseded=true`.
+- `TS-REV-039` revision-list default filtering may make a document appear to have no revisions until the caller explicitly opts into `show_canceled` and/or `show_superseded`.
 
 ## Automated Test Mapping
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_list` -> `TS-REV-001`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_list_includes_canceled_when_requested` -> `TS-REV-030`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_list_includes_superseded_when_requested` -> `TS-REV-031`
+- `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_list_default_filtering_requires_explicit_opt_in` -> `TS-REV-039`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_missing_doc` -> `TS-REV-002`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_update` -> `TS-REV-003`
 - `tests/api/api/test_documents_revisions_endpoints.py::test_documents_revisions_update_missing_fields` -> `TS-REV-004`
