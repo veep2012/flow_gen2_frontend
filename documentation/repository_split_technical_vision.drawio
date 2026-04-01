@@ -1,0 +1,185 @@
+<mxfile host="65bd71144e">
+    <diagram id="repo-split-deployment" name="Deployment To-Be">
+        <mxGraphModel dx="1807" dy="812" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1100" background="#ffffff" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="deploy-title" value="Repository Split Technical Vision - Deployment To-Be" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=22;fillColor=#ffffff;strokeColor=#ffffff;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="360" y="18" width="1080" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo-fe-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff4cc;strokeColor=#d6b656;" parent="1" vertex="1">
+                    <mxGeometry x="160" y="110" width="220" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo-fe-head" value="Frontend Repo" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=18;fillColor=#f4b400;strokeColor=#f4b400;fontColor=#1e1e1e;" parent="1" vertex="1">
+                    <mxGeometry x="180" y="126" width="180" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo-fe-body" value="Owns UI code&#10;Builds frontend artifact" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#fff4cc;strokeColor=#fff4cc;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="190" y="168" width="160" height="36" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo-common-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef5ff;strokeColor=#6c8ebf;" parent="1" vertex="1">
+                    <mxGeometry x="680" y="597" width="220" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo-common-head" value="Common Repo" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=18;fillColor=#1f78d1;strokeColor=#1f78d1;fontColor=#ffffff;" parent="1" vertex="1">
+                    <mxGeometry x="700" y="613" width="180" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo-common-body" value="Publishes shared tooling&#10;and engineering assets" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#eef5ff;strokeColor=#eef5ff;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="710" y="655" width="160" height="36" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo-be-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eaf7ea;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="1200" y="110" width="220" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo-be-head" value="Backend Repo" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=18;fillColor=#28a55f;strokeColor=#28a55f;fontColor=#ffffff;" parent="1" vertex="1">
+                    <mxGeometry x="1220" y="126" width="180" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo-be-body" value="Owns API code&#10;Builds backend artifact" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#eaf7ea;strokeColor=#eaf7ea;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="1230" y="168" width="160" height="36" as="geometry"/>
+                </mxCell>
+                <mxCell id="cr-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff4e6;strokeColor=#f0ad4e;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="300" width="720" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="vnNq-hJfdf_m9t1dZbcD-2" style="edgeStyle=none;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="cr-head" target="cr-common" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="cr-head" value="Container Registry" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=18;fillColor=#e67e22;strokeColor=#e67e22;fontColor=#ffffff;" parent="1" vertex="1">
+                    <mxGeometry x="455" y="316" width="670" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="cr-fe" value="frontend/latest" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#ffffff;strokeColor=#d6b656;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="520" y="375" width="150" height="44" as="geometry"/>
+                </mxCell>
+                <mxCell id="cr-common" value="ci/latest" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#ffffff;strokeColor=#6c8ebf;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="715" y="375" width="150" height="44" as="geometry"/>
+                </mxCell>
+                <mxCell id="cr-be" value="backend/latest" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#ffffff;strokeColor=#82b366;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="910" y="375" width="150" height="44" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-repofe-crfe" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#111111;endFill=1;exitX=0.5;exitY=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="repo-fe-box" target="cr-fe" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-repocommon-crcommon" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#111111;endFill=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="repo-common-box" target="cr-common" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-repobe-crbe" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#111111;endFill=1;exitX=0.5;exitY=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="repo-be-box" target="cr-be" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="repo-split-logical" name="Logical To-Be">
+        <mxGraphModel dx="1807" dy="812" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" background="#ffffff" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="logical-title" value="Repository Split Technical Vision - Logical To-Be" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=22;fillColor=#ffffff;strokeColor=#ffffff;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="330" y="18" width="940" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="repos-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8f9fa;strokeColor=#adb5bd;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="86" width="300" height="420" as="geometry"/>
+                </mxCell>
+                <mxCell id="repos-header" value="Source Repositories" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=18;fillColor=#495057;strokeColor=#495057;fontColor=#ffffff;" parent="1" vertex="1">
+                    <mxGeometry x="75" y="100" width="250" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo-fe" value="Frontend Repo&#10;UI code&#10;Frontend build/test" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#ffe599;strokeColor=#bf9000;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="105" y="155" width="190" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo-be" value="Backend Repo&#10;API code&#10;Product contracts&#10;source of truth" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#d5e8d4;strokeColor=#82b366;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="105" y="265" width="190" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo-common" value="Common Repo&#10;Shared tooling&#10;CI/docs standards&#10;No business logic" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#dae8fc;strokeColor=#6c8ebf;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="105" y="385" width="190" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="artifacts-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff4e6;strokeColor=#f0ad4e;" parent="1" vertex="1">
+                    <mxGeometry x="440" y="86" width="360" height="420" as="geometry"/>
+                </mxCell>
+                <mxCell id="artifacts-header" value="Published Artifacts" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=18;fillColor=#e67e22;strokeColor=#e67e22;fontColor=#ffffff;" parent="1" vertex="1">
+                    <mxGeometry x="465" y="100" width="310" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="artifact-fe" value="Frontend Artifacts&#10;static bundle / image" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#ffffff;strokeColor=#f0ad4e;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="525" y="155" width="190" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="artifact-be" value="Backend Artifacts&#10;service image / package" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#ffffff;strokeColor=#f0ad4e;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="525" y="265" width="190" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="artifact-contract" value="Backend-Owned&#10;Contract Artifacts&#10;OpenAPI / generated inputs" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#ffffff;strokeColor=#82b366;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="525" y="375" width="190" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="artifact-tool" value="Shared Tooling Image(s)&#10;remote registry" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#ffffff;strokeColor=#6c8ebf;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="845" y="420" width="175" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="artifact-local" value="Local Registry /&#10;Preloaded Images&#10;outage fallback" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="845" y="80" width="175" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="delivery-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#8e7cc3;" parent="1" vertex="1">
+                    <mxGeometry x="1090" y="86" width="320" height="420" as="geometry"/>
+                </mxCell>
+                <mxCell id="delivery-header" value="Consumption and Validation" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=18;fillColor=#6c5ce7;strokeColor=#6c5ce7;fontColor=#ffffff;" parent="1" vertex="1">
+                    <mxGeometry x="1115" y="100" width="270" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="dev-fe" value="Frontend Local Dev / CI" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#ffffff;strokeColor=#8e7cc3;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="1155" y="155" width="190" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="dev-be" value="Backend Local Dev / CI" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#ffffff;strokeColor=#8e7cc3;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="1155" y="265" width="190" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="integration-val" value="Integration Validation&#10;local + CI + pre-prod" style="rounded=1;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fontSize=15;fillColor=#ffffff;strokeColor=#8e7cc3;fontColor=#111111;" parent="1" vertex="1">
+                    <mxGeometry x="1155" y="375" width="190" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-fe-art" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#111111;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="repo-fe" target="artifact-fe" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-be-art" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#111111;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="repo-be" target="artifact-be" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-be-contract" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#111111;endFill=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="repo-be" target="artifact-contract" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-common-tool" style="edgeStyle=segmentEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#111111;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="repo-common" target="artifact-tool" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="295" y="520"/>
+                            <mxPoint x="932" y="520"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge-tool-local" value="fallback" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#666666;fontColor=#666666;endFill=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="artifact-tool" target="artifact-local" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="932" y="240"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge-contract-fe" style="edgeStyle=segmentEdgeStyle;rounded=0;html=1;endArrow=block;strokeColor=#111111;endFill=1;" parent="1" target="integration-val" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="715" y="410"/>
+                            <mxPoint x="760" y="410"/>
+                            <mxPoint x="760" y="410"/>
+                        </Array>
+                        <mxPoint x="715" y="410" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge-tool-fe" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#111111;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="artifact-tool" target="dev-fe" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1069" y="460"/>
+                            <mxPoint x="1069" y="195"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge-fe-int" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#111111;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=-0.005;entryY=0.35;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="artifact-fe" target="dev-fe" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="961" y="195"/>
+                            <mxPoint x="961" y="183"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge-be-int" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#111111;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="artifact-be" target="dev-be" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge-devbe-int" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#111111;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="dev-be" target="integration-val" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
