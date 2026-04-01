@@ -81,6 +81,9 @@ This sub-story covers the future-state requirements that must be satisfied befor
 - FR-15: Shared environment variable contracts between repositories must be limited to a minimal approved intersection only.
 - FR-16: CI interfaces and shared `make` targets that are moved into a common repository must have explicit ownership in that common repository and be versioned as shared operational tooling contracts.
 - FR-17: If shared tooling is distributed through container registries, the operating model must support fallback to a local registry or preloaded local images when the remote container registry is unavailable.
+- FR-18: The operating model must define which development environments run application code directly from repositories and which dependent images they pull from registries for integration support.
+- FR-19: The operating model must define which production containers are pulled from the team's internal container registry and which supporting infrastructure containers are pulled from an approved external container registry.
+- FR-20: The operating model must define the production HTTP entrypoint, including that the compiled frontend application is served through a containerized runtime on port `80`.
 
 ### Non-Functional Requirements
 
@@ -95,6 +98,7 @@ This sub-story covers the future-state requirements that must be satisfied befor
 - NFR-9: If shared tooling is delivered through Docker images, the approach should keep local workflows understandable, versioned, and efficient enough for daily use.
 - NFR-10: Shared environment and tooling contracts should be minimized so cross-repository coupling stays intentional and reviewable.
 - NFR-11: Shared tooling distribution should remain operational during temporary remote container registry outages through a documented local fallback path.
+- NFR-12: Production container provenance should remain explicit so teams can distinguish internally built images from externally sourced infrastructure images.
 
 ## Design / Behavior
 
@@ -119,6 +123,8 @@ Expected requirement themes:
   - developers who work across the boundary should have a documented way to run compatible frontend and backend versions together
   - local integration should prefer published contracts, versioned packages, or documented compatibility rules over ad hoc manual coordination
   - repository-specific application run and debug workflows should stay local to each repository for speed and clarity
+  - frontend development environments should run UI code directly from the frontend repository while pulling backend and CI-support images when needed for integration
+  - backend development environments should run API code directly from the backend repository while pulling frontend and CI-support images when needed for integration
 - Artifact distribution:
   - each repository should publish versioned outputs that downstream environments or pipelines can consume without direct source coupling
   - frontend distribution requirements should define how static assets or frontend bundles are versioned and promoted
@@ -127,11 +133,14 @@ Expected requirement themes:
   - shared tooling, if separated into a common repository, should be published as versioned reusable artifacts rather than consumed through direct source-copying
   - Docker images are an acceptable delivery mechanism for shared tooling when they provide stable execution environments for common validation, code generation, documentation checks, and reusable CI tasks across repositories
   - if shared tooling images are normally pulled from a remote container registry, the operating model should also support a documented local registry or preloaded-image fallback for outage scenarios
+  - the team's internal container registry should publish at least frontend, backend, and CI/tooling images or their approved versioned equivalents
+  - approved external infrastructure images such as PostgreSQL, Keycloak, NGINX, and OAuth2 Proxy may be sourced from a separate external container registry when they are not team-built images
 - Integration expectations:
   - backend API behavior exposed to the frontend must remain available through a documented contract
   - shared environment configuration between frontend and backend should stay intentionally minimal and be limited to approved integration keys only
   - compatibility expectations between frontend and backend releases must be explicit
   - integration validation should confirm that independently built artifacts work together in local integration workflow, CI validation, and at least one shared pre-production environment before production promotion
+  - production should run as a fully containerized environment with explicit image sources for application and infrastructure services
 
 Recommended ownership model:
 
