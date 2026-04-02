@@ -18,8 +18,10 @@
 
 ## Process and Workflow
 - `development_workflow.md` - Branching, setup, and development process.
-- `repository_split_requirements_sub_story.md` - Draft numbered sub-story defining the requirement baseline and target operating model for frontend/backend repository separation.
-- `repository_split_technical_vision.md` - Draft future-state technical vision and to-be architecture for frontend/backend repository separation.
+
+## Repository Split
+- `repo_split/repository_split_requirements_sub_story.md` - Draft numbered sub-story defining the requirement baseline and target operating model for frontend/backend repository separation.
+- `repo_split/repository_split_technical_vision.md` - Draft future-state technical vision and to-be architecture for frontend/backend repository separation.
 
 ## Feature and Domain Docs
 - `current_user_photo_story.md` - Draft story for `GET /api/v1/people/users/current_user/photo` and unified MinIO-backed download handling.

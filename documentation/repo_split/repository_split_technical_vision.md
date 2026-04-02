@@ -120,10 +120,10 @@ Production runtime model:
 - The compiled frontend application should be exposed through an HTTP entrypoint on port `80`.
 
 ### To-Be Architecture Diagram
-- Authoritative diagram source: `documentation/repository_split_technical_vision.drawio` page `Logical To-Be`.
+- Authoritative diagram source: `documentation/repo_split/repository_split_technical_vision.drawio` page `Logical To-Be`.
 
 ### To-Be Deployment Diagram
-- Authoritative diagram source: `documentation/repository_split_technical_vision.drawio` page `Deployment To-Be`.
+- Authoritative diagram source: `documentation/repo_split/repository_split_technical_vision.drawio` page `Deployment To-Be`.
 
 Deployment interpretation:
 - Frontend, backend, and common repositories each publish images into the team's container registry.
@@ -160,8 +160,8 @@ Deployment interpretation:
 - Which exact local composition mechanism should be standard for cross-repository integration: shared compose, wrapper targets, or another orchestrated local workflow?
 
 ## References
-- `documentation/repository_split_requirements_sub_story.md`
-- `documentation/repository_split_technical_vision.drawio`
+- `documentation/repo_split/repository_split_requirements_sub_story.md`
+- `documentation/repo_split/repository_split_technical_vision.drawio`
 - `documentation/_documentation_template.md`
 - `documentation/_documentation_standards.md`
 - `documentation/_documentation-index.md`
