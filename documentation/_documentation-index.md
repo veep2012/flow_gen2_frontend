@@ -23,6 +23,7 @@
 - `repo_split/repository_split_requirements_sub_story.md` - Draft numbered sub-story defining the requirement baseline and target operating model for frontend/backend repository separation.
 - `repo_split/repository_split_technical_vision.md` - Draft future-state technical vision and to-be architecture for frontend/backend repository separation.
 - `repo_split/repository_split_phase_1_foundation_and_governance.md` - Exact technical instruction for phase 1 repository creation, governance setup, and ownership controls.
+- `repo_split/repository_split_phase_2_registry_and_artifact_model.md` - Exact technical instruction for phase 2 internal and external registry setup, image rules, provenance, and fallback.
 
 ## Feature and Domain Docs
 - `current_user_photo_story.md` - Draft story for `GET /api/v1/people/users/current_user/photo` and unified MinIO-backed download handling.
