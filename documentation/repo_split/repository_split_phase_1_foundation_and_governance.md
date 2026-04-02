@@ -49,7 +49,7 @@ Phase 1 exists to remove governance ambiguity before code is copied or moved. Th
 - FR-3: Shared product contracts must remain backend-owned by default.
 - FR-4: The `common` repository must be explicitly limited to shared tooling, templates, standards, and reusable CI assets.
 - FR-5: Each repository must have branch protection on the default branch before normal team use begins.
-- FR-6: Each repository must include a `CODEOWNERS` file before code migration starts.
+- FR-6: Each repository must define how review ownership is handled; `CODEOWNERS` is recommended but not mandatory when all repository users act as equal primary maintainers.
 - FR-7: Human access and automation access must be defined separately and follow least privilege.
 - FR-8: The combined repository must remain active during phase 1 and may become read-only only in the later cutoff phase.
 
@@ -76,14 +76,27 @@ Phase 1 exists to remove governance ambiguity before code is copied or moved. Th
   - may publish the shared `ci` image or equivalent shared tooling artifacts
   - must not own product features, API logic, or frontend runtime code
 
+### Allowed repository initialization method
+The target repositories may be initialized by copying the current combined repository and then removing content that does not belong in the target repository.
+
+Initialization rules:
+- `frontend` may start as a copy of the combined repository and must then remove backend code, backend-only documentation, backend-only build logic, and unrelated tooling assets
+- `backend` may start as a copy of the combined repository and must then remove frontend code, frontend-only documentation, frontend-only build logic, and unrelated tooling assets
+- `common` may reuse selected files from the combined repository, but it must not remain a broad full-copy baseline; it must be reduced immediately to tooling-only content
+- copied repositories must remove monorepo assumptions from scripts, documentation, and configuration before they are accepted as valid phase outputs
+- copying is only an initialization technique; acceptance is based on the cleaned result, not on the copied starting point
+- each initialized repository must pass an ownership review before phase completion is approved
+
 ### Required repository bootstrap
 Create the three repositories with the following baseline:
 - default branch: `main`
-- repository visibility: match the current combined repository visibility unless security review requires stricter access
+- repository visibility:
+  - `common` must be visible to all developers
+  - `frontend` and `backend` must keep the same visibility as the current combined repository
 - initial files:
   - `README.md`
   - `.gitignore`
-  - `CODEOWNERS`
+  - optional `CODEOWNERS`
   - repository description matching its ownership purpose
 - issue and pull request settings enabled
 - branch deletion disabled for protected `main`
@@ -109,24 +122,36 @@ Phase 1 may bootstrap the repositories before all status checks exist. In that c
 - add required status checks as soon as each repository pipeline becomes available
 
 ### CODEOWNERS baseline
-Create `CODEOWNERS` in each repository using role-based team ownership. Replace the example team slugs with the actual organization team names during execution.
+`CODEOWNERS` is recommended when the repository needs automatic reviewer assignment or explicit file-level ownership, but it is not mandatory in the current operating model because repository access is managed directly and repository users may be treated as equal primary maintainers.
+
+Default decision for this phase:
+- `CODEOWNERS` is not required by default for the split repositories
+- branch protection plus pull request approval is the default review control
+- `CODEOWNERS` may be added later if a repository needs automatic reviewer routing or tighter file-level ownership
+
+If `CODEOWNERS` is used, create it with named maintainers because the current GitHub operating model uses direct repository access rather than GitHub teams.
 
 `frontend`:
 ```text
-* @org/frontend-leads @org/platform-leads
+* @frontend-maintainer-1 @frontend-maintainer-2
 ```
 
 `backend`:
 ```text
-* @org/backend-leads @org/platform-leads
+* @backend-maintainer-1 @backend-maintainer-2
 ```
 
 `common`:
 ```text
-* @org/platform-leads
+* @platform-maintainer-1 @platform-maintainer-2
 ```
 
-If the organization requires secondary reviewers, add them after the owning lead team rather than replacing the owning team.
+If secondary reviewers are needed, add them after the primary maintainers rather than replacing the primary owners.
+
+If `CODEOWNERS` is omitted:
+- branch protection remains mandatory
+- pull request approval remains mandatory
+- repository purpose and allowed-content rules remain the primary ownership control
 
 ### Access model
 Use the following baseline access matrix:
@@ -143,7 +168,7 @@ Use the following baseline access matrix:
 
 Access rules:
 - do not grant default cross-repository human write access between frontend and backend teams
-- use team-based access, not named-user grants, unless there is a documented exception
+- use a small named-maintainer list per repository and avoid broad write access
 - automation identities must be separated by responsibility instead of one shared admin bot
 - registry credentials must be scoped to the image paths each automation identity actually publishes
 
@@ -174,13 +199,15 @@ Required state rules:
 ### Deliverables of phase 1
 Phase 1 is complete only when the following artifacts exist:
 - three created repositories
+- agreed initialization method recorded for each repository, including whether it was created from a copy of the combined repository
 - repository descriptions aligned to ownership purpose
 - `README.md` ownership statement in each repository
 - branch protection on `main` in each repository
-- `CODEOWNERS` in each repository
+- review-ownership approach recorded for each repository, including whether `CODEOWNERS` is used or intentionally omitted
 - approved team-based access model for humans and automation
 - written rule that `common` is tooling-only
 - written rule that shared product contracts are backend-owned by default
+- ownership review confirms that each repository no longer contains out-of-scope code or out-of-scope operational assets
 
 ## Edge Cases
 - A platform engineer asks to place a shared service library in `common`: reject it unless it is pure tooling and not product logic.
@@ -188,13 +215,14 @@ Phase 1 is complete only when the following artifacts exist:
 - CI is not yet available when repositories are created: apply pull-request-only protection first, then add required checks when pipelines exist.
 - One automation account needs to publish multiple image paths: split credentials by publication responsibility where the platform allows it; otherwise document the exception explicitly.
 - Teams disagree whether a shared file belongs in `backend` or `common`: default to `backend` if the file affects product behavior or product contracts.
+- A copied target repository still contains hidden monorepo scripts or configs after cleanup: fail ownership review and remove or rewrite the leftover assets before approval.
 
 ## Testing Strategy
 - Manual verification:
   - confirm the three repositories exist
   - confirm `main` is protected in each repository
   - confirm direct push is blocked for normal contributors
-  - confirm each repository contains a `CODEOWNERS` file
+  - confirm each repository has a recorded review-ownership model, with `CODEOWNERS` present only if intentionally used
   - confirm team permissions match the approved access matrix
   - confirm `common` contains only bootstrap tooling content
 - Governance verification:
@@ -204,7 +232,8 @@ Phase 1 is complete only when the following artifacts exist:
 
 ## Rollout / Migration
 - Create the repositories before any code extraction work starts.
-- Apply branch protection and CODEOWNERS before inviting normal team usage.
+- If copying is used to initialize a repository, perform cleanup before treating the repository as ready for team use.
+- Apply branch protection and the chosen review-ownership model before inviting normal team usage.
 - Approve team and automation access before first bootstrap commits.
 - Keep the combined repository as the active source until later migration phases validate the split workflow.
 - Do not announce developer cutoff as part of phase 1. Phase 1 only prepares the governance baseline required for that later step.
@@ -212,6 +241,8 @@ Phase 1 is complete only when the following artifacts exist:
 ## Risks and Mitigations
 - Risk: `common` becomes a hidden fourth application repository.
   - Mitigation: publish and enforce an allowed-content list and reject business logic there.
+- Risk: copied repositories retain monorepo-only scripts, documents, or configuration and appear split without actually being independent.
+  - Mitigation: require cleanup plus ownership review before accepting any copied repository as phase-complete.
 - Risk: teams receive broad cross-write access for convenience and the ownership boundary collapses immediately.
   - Mitigation: use team-based least-privilege access and document exceptions explicitly.
 - Risk: repositories are created without branch protection and bootstrap commits bypass review.
@@ -220,8 +251,7 @@ Phase 1 is complete only when the following artifacts exist:
   - Mitigation: keep it active until the later cutoff phase and document that rule here.
 
 ## Open Questions
-- Which actual organization team slugs will replace the role-based `@org/...` placeholders in `CODEOWNERS` and access control?
-- Should repository visibility remain identical to the current combined repository, or does security review require a stricter default for one or more target repositories?
+- No open questions remain in scope for this phase document.
 
 ## References
 - `documentation/repo_split/repository_split_requirements_sub_story.md`
