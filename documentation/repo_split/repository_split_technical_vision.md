@@ -161,6 +161,7 @@ Deployment interpretation:
 
 ## References
 - `documentation/repo_split/repository_split_requirements_sub_story.md`
+- `documentation/repo_split/repository_split_phase_1_foundation_and_governance.md`
 - `documentation/repo_split/repository_split_technical_vision.drawio`
 - `documentation/_documentation_template.md`
 - `documentation/_documentation_standards.md`
