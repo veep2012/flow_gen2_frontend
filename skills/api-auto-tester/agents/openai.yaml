@@ -1,4 +1,0 @@
-interface:
-  display_name: "API Auto Tester"
-  short_description: "Run API tests after changes and fix failures"
-  default_prompt: "Use $api-auto-tester to run make test after API changes and iterate on failures."

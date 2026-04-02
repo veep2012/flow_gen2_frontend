@@ -77,7 +77,7 @@ case "$COMMAND" in
   lint)
     ensure_deps
     npm run lint
-    exec npm run format
+    exec npm run format:check
     ;;
   build)
     ensure_deps

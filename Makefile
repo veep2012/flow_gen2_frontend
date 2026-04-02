@@ -1,423 +1,47 @@
 CONTAINER_ENGINE ?= podman
-COMPOSE_FILE ?= ci/docker-compose.yml
-COMPOSE_PROJECT_NAME ?= flow_gen2
-COMPOSE_ENV_FILE ?= .env.compose
-NO_CACHE ?=
-DB_CONTAINER_NAME ?= flow_gen2_postgres_local
-DB_IMAGE ?= postgres:18.1
-INIT_SQL ?= ci/init/flow_init.psql
-DB_VOLUME ?= flow_gen2_local_pg_data
-DB_PORT ?= 5432
-DB_PORT_FLAG := $(if $(DB_PORT),-p $(DB_PORT):5432,)
-POSTGRES_USER ?= flow_user
-POSTGRES_PASSWORD ?= flow_pass
-POSTGRES_DB ?= flow_db
-APP_DB_USER ?= app_user
-APP_DB_PASSWORD ?= app_pass
-MINIO_CONTAINER_NAME ?= flow_gen2_minio_local
-MINIO_IMAGE ?= minio/minio:RELEASE.2025-09-07T16-13-09Z
-MINIO_VOLUME ?= flow_gen2_local_minio_data
-MINIO_PORT ?= 9000
-MINIO_CONSOLE_PORT ?= 9001
-MINIO_PORT_FLAG := $(if $(MINIO_PORT),-p $(MINIO_PORT):9000,)
-MINIO_CONSOLE_PORT_FLAG := $(if $(MINIO_CONSOLE_PORT),-p $(MINIO_CONSOLE_PORT):9001,)
-MINIO_ROOT_USER ?= flow_minio
-MINIO_ROOT_PASSWORD ?= change_me_now
-MINIO_BUCKET ?= flow-default
-MINIO_ENDPOINT ?= http://host.containers.internal:$(MINIO_PORT)
-MINIO_MC_IMAGE ?= minio/mc:latest
-TEST_MINIO_CONTAINER_NAME ?= flow_gen2_minio_test
-TEST_MINIO_BUCKET ?= flow-test
-TEST_MINIO_PORT ?= 9002
-TEST_MINIO_CONSOLE_PORT ?= 9003
-TEST_MINIO_PORT_FLAG := $(if $(TEST_MINIO_PORT),-p $(TEST_MINIO_PORT):9000,)
-TEST_MINIO_CONSOLE_PORT_FLAG := $(if $(TEST_MINIO_CONSOLE_PORT),-p $(TEST_MINIO_CONSOLE_PORT):9001,)
-TEST_MINIO_ENDPOINT ?= http://host.containers.internal:$(TEST_MINIO_PORT)
-TEST_DB_CONTAINER_NAME ?= flow_gen2_postgres_test
-TEST_DB_PORT ?= 5433
-TEST_DB_PORT_FLAG := $(if $(TEST_DB_PORT),-p $(TEST_DB_PORT):5432,)
-TEST_DB_HOST ?= localhost
-TEST_DB_NAME ?= flow_db_test
-TEST_DB_USER ?= postgres
-TEST_DB_PASSWORD ?= postgres
-TEST_API_PORT ?= 4175
-TEST_UI_PORT ?= 5174
-PLAYWRIGHT_PORT ?= $(TEST_UI_PORT)
-
-PID_DIR := .local
-KEYCLOAK_LOG_DIR := $(CURDIR)/.local/keycloak
-API_PID_FILE := $(PID_DIR)/uvicorn.pid
-UI_PID_FILE := $(PID_DIR)/vite.pid
-UI_LOG_FILE := $(PID_DIR)/vite.log
-UI_CONTAINER_NAME ?= flow_gen2_ui_local
 UI_NODE_IMAGE ?= node:22.14.0-alpine
-UI_NODE_MODULES_VOLUME ?= flow_gen2_ui_node_modules
+UI_NODE_MODULES_VOLUME ?= flow_gen2_frontend_ui_node_modules
+UI_CONTAINER_NAME ?= flow_gen2_frontend_ui_local
 UI_PORT ?= 5558
 UI_HOST ?= 0.0.0.0
-PYTHON_BIN ?= /opt/homebrew/opt/python@3.11/bin/python3.11
-LOCAL_API_PORT ?= 5556
-API_WAIT_TIMEOUT ?= 30
-TEST_AUTH_JWT_ISSUER_URL ?= https://flow-ci.invalid/issuer
-TEST_AUTH_JWT_AUDIENCE ?= flow-api
-TEST_AUTH_JWT_SHARED_SECRET ?= ci-test-jwt-secret-at-least-32-bytes
-TEST_AUTH_JWT_ALLOWED_ALGORITHMS ?= HS256
-
-OS := $(shell uname -s 2>/dev/null || echo Windows_NT)
-ifeq ($(OS),Windows_NT)
-PYTHON_BIN ?= python
-ACTIVATE_VENV := .venv\Scripts\Activate.ps1
-VENV_PY := .venv\Scripts\python.exe
-LOCAL_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api.ps1
-LOCAL_UI_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-ui.ps1 -PidFile "$(UI_PID_FILE)"
-STOP_API_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-api-stop.ps1 -PidFile "$(API_PID_FILE)"
-STOP_UI_CMD := powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-ui-stop.ps1 -PidFile "$(UI_PID_FILE)"
-else
-ACTIVATE_VENV := .venv/bin/activate
-VENV_PY := .venv/bin/python
-LOCAL_API_CMD := bash scripts/local-api.sh
-LOCAL_UI_CMD := PID_FILE="$(UI_PID_FILE)" LOG_FILE="$(UI_LOG_FILE)" bash scripts/local-ui.sh
-STOP_API_CMD := bash scripts/local-api-stop.sh
-STOP_UI_CMD := PID_FILE="$(UI_PID_FILE)" bash scripts/local-ui-stop.sh
-endif
-
-ifneq (,$(wildcard .venv))
-PYTHON_BIN := $(VENV_PY)
-endif
+FRONTEND_IMAGE_TAG ?= flow-gen2-frontend:local
+DOCKERFILE_UI ?= ci/Dockerfile.ui
+VITE_API_BASE_URL ?= /api/v1
+VITE_AUTH_START_URL ?= /oauth2/start
 
 .DEFAULT_GOAL := help
 
-.PHONY: ensure-pid-dir
-ensure-pid-dir:
-	@mkdir -p $(PID_DIR)
-
-.PHONY: ensure-keycloak-log-dir
-ensure-keycloak-log-dir:
-	@mkdir -p $(KEYCLOAK_LOG_DIR)
-
 .PHONY: help
-help: | ensure-pid-dir ## Show available targets
-	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z_-]+:.*?##/ {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) > .local/.make-help.tmp
-	@for target in local-up local-down local-venv local-npm local-postgres-up local-postgres-down local-minio-up local-minio-down minio-init test-up test-down test-compose test-ui-unit test-ui-e2e test-minio-up test-minio-down test-db-up test-db-down local-api-up local-api-down local-ui-up local-ui-down local-ui-test local-ui-lint local-ui-build local-ui-audit local-ui-reset local-ui-hard-reset local-ui-logs db-up db-down minio-up minio-down up up-no-keycloak down build rebuild completely-rebuild logs help test audit mypy lint; do \
-		grep -E "^$${target} " .local/.make-help.tmp || true; \
-	done
-	@rm -f .local/.make-help.tmp
+help: ## Show available targets
+	@awk 'BEGIN {FS=":.*?## "}; /^[a-zA-Z0-9_-]+:.*?##/ {printf "%-24s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 .PHONY: test
-test: | ensure-pid-dir ## Run unit tests
-	$(MAKE) test-up
-	@ready=; \
-	for i in 1 2 3; do \
-		API_BASE=http://localhost:$(TEST_API_PORT) API_PREFIX= API_WAIT_TIMEOUT=$(API_WAIT_TIMEOUT) $(PYTHON_BIN) scripts/wait-for-api.py && ready=1 && break; \
-		API_PORT=$(TEST_API_PORT) PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true; \
-		APP_DATABASE_URL=postgresql+psycopg://$(APP_DB_USER):$(APP_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
-			MINIO_ENDPOINT=$(TEST_MINIO_ENDPOINT) \
-			MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
-			MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
-			MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
-			AUTH_JWT_ISSUER_URL=$(TEST_AUTH_JWT_ISSUER_URL) \
-			AUTH_JWT_AUDIENCE=$(TEST_AUTH_JWT_AUDIENCE) \
-			AUTH_JWT_SHARED_SECRET=$(TEST_AUTH_JWT_SHARED_SECRET) \
-			AUTH_JWT_ALLOWED_ALGORITHMS=$(TEST_AUTH_JWT_ALLOWED_ALGORITHMS) \
-			ENV=ci_test \
-			API_PORT=$(TEST_API_PORT) \
-			PID_FILE="$(PID_DIR)/uvicorn-test.pid" \
-			LOG_FILE="$(PID_DIR)/uvicorn-test.log" \
-			$(LOCAL_API_CMD); \
-	done; \
-	if [ -z "$$ready" ]; then echo "API not ready; log: $(PID_DIR)/uvicorn-test.log"; exit 1; fi
-	AUTH_JWT_ISSUER_URL=$(TEST_AUTH_JWT_ISSUER_URL) \
-	AUTH_JWT_AUDIENCE=$(TEST_AUTH_JWT_AUDIENCE) \
-	AUTH_JWT_SHARED_SECRET=$(TEST_AUTH_JWT_SHARED_SECRET) \
-	AUTH_JWT_ALLOWED_ALGORITHMS=$(TEST_AUTH_JWT_ALLOWED_ALGORITHMS) \
-	$(PYTHON_BIN) -m pytest -m "not api_smoke"; \
-	status=$$?; \
-	if [ $$status -eq 0 ]; then \
-		API_BASE=http://localhost:$(TEST_API_PORT) API_PREFIX=/api/v1 \
-		TEST_DB_ADMIN_USER=$(TEST_DB_USER) \
-		TEST_DB_ADMIN_PASSWORD=$(TEST_DB_PASSWORD) \
-		POSTGRES_HOST=$(TEST_DB_HOST) \
-		POSTGRES_PORT=$(TEST_DB_PORT) \
-		POSTGRES_DB=$(TEST_DB_NAME) \
-		AUTH_JWT_ISSUER_URL=$(TEST_AUTH_JWT_ISSUER_URL) \
-		AUTH_JWT_AUDIENCE=$(TEST_AUTH_JWT_AUDIENCE) \
-		AUTH_JWT_SHARED_SECRET=$(TEST_AUTH_JWT_SHARED_SECRET) \
-		AUTH_JWT_ALLOWED_ALGORITHMS=$(TEST_AUTH_JWT_ALLOWED_ALGORITHMS) \
-		$(PYTHON_BIN) -m pytest -m api_smoke; \
-		status=$$?; \
-	fi; \
-	if [ $$status -eq 0 ]; then \
-		$(MAKE) test-ui-unit; \
-		status=$$?; \
-	fi; \
-	if [ $$status -eq 0 ]; then \
-		PLAYWRIGHT_PORT=$(PLAYWRIGHT_PORT) TEST_API_PORT=$(TEST_API_PORT) $(MAKE) test-ui-e2e; \
-		status=$$?; \
-	fi; \
-	if [ $$status -eq 0 ]; then \
-		$(PYTHON_BIN) -m mypy api; \
-		status=$$?; \
-	fi; \
-	if [ $$status -eq 0 ]; then \
-		$(MAKE) lint; \
-		status=$$?; \
-	fi; \
-	$(MAKE) test-down; \
-	exit $$status
-
-.PHONY: test-up
-test-up: | ensure-pid-dir ## Start test DB, MinIO, and API
-	$(MAKE) test-db-up
-	$(MAKE) test-minio-up
-	APP_DATABASE_URL=postgresql+psycopg://$(APP_DB_USER):$(APP_DB_PASSWORD)@$(TEST_DB_HOST):$(TEST_DB_PORT)/$(TEST_DB_NAME) \
-		MINIO_ENDPOINT=$(TEST_MINIO_ENDPOINT) \
-		MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
-		MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
-		MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
-		AUTH_JWT_ISSUER_URL=$(TEST_AUTH_JWT_ISSUER_URL) \
-		AUTH_JWT_AUDIENCE=$(TEST_AUTH_JWT_AUDIENCE) \
-		AUTH_JWT_SHARED_SECRET=$(TEST_AUTH_JWT_SHARED_SECRET) \
-		AUTH_JWT_ALLOWED_ALGORITHMS=$(TEST_AUTH_JWT_ALLOWED_ALGORITHMS) \
-		ENV=ci_test \
-		API_PORT=$(TEST_API_PORT) \
-		PID_FILE="$(PID_DIR)/uvicorn-test.pid" \
-		LOG_FILE="$(PID_DIR)/uvicorn-test.log" \
-		$(LOCAL_API_CMD)
-
-.PHONY: test-down
-test-down: ## Stop test API, MinIO, and DB
-	API_PORT=$(TEST_API_PORT) PID_FILE="$(PID_DIR)/uvicorn-test.pid" $(STOP_API_CMD) || true
-	$(MAKE) test-db-down
-	$(MAKE) test-minio-down
-
-.PHONY: test-compose
-test-compose: ## Smoke-check the already running compose auth/ingress stack from `make up`
-	PYTHON_BIN=$(PYTHON_BIN) bash scripts/test-compose.sh
-
-.PHONY: test-ui-unit
-test-ui-unit: ## Run UI unit tests through the containerized UI toolchain
-	$(MAKE) local-ui-test
-
-.PHONY: test-ui-e2e
-test-ui-e2e: ## Run UI e2e tests when configured through the containerized UI toolchain
-	PLAYWRIGHT_PORT=$(PLAYWRIGHT_PORT) TEST_API_PORT=$(TEST_API_PORT) \
-		bash scripts/local-ui-container.sh run test-e2e
-
-.PHONY: audit audit-python audit-node
-audit: audit-python audit-node ## Run dependency vulnerability audits
-
-audit-python: ## Run pip-audit against API requirements
-	$(PYTHON_BIN) -m pip_audit -r api/requirements.txt
-
-audit-node: ## Run npm audit against UI lockfiles
-	$(MAKE) local-ui-audit
-
-.PHONY: mypy
-mypy: ## Run static type checks with mypy
-ifneq (,$(wildcard .venv))
-	$(VENV_PY) -m mypy api
-else
-	$(PYTHON_BIN) -m mypy api
-endif
+test: local-ui-test local-ui-lint local-ui-build ## Run frontend validation
 
 .PHONY: lint
-lint: ## Run UI lint and format checks through the containerized UI toolchain
-	$(MAKE) local-ui-lint
+lint: local-ui-lint ## Run frontend lint and formatting checks
 
 .PHONY: build
-build: ## Build services with compose
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) build $(if $(NO_CACHE),--no-cache,)
+build: local-ui-build ## Build frontend assets into ui/dist
 
-.PHONY: up
-up: ensure-keycloak-log-dir ## Start services with compose
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) up -d
-
-.PHONY: up-no-keycloak
-up-no-keycloak: ## Start compose services without keycloak/oauth2/nginx
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) up -d postgres minio minio_init api ui
-
-.PHONY: down
-down: ## Stop services with compose
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) down
-
-.PHONY: completely-rebuild
-completely-rebuild: ## Drop containers and volumes, then rebuild services
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) kill --all || true
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) down -v --remove-orphans --timeout 0 || true
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) build
-
-.PHONY: rebuild
-rebuild: ## Stop containers, remove them (keep volumes), then rebuild services
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) kill --all || true
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) down --remove-orphans --timeout 0 || true
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) build
-
-.PHONY: logs
-logs: ## Tail logs from compose services
-	$(CONTAINER_ENGINE)-compose -p $(COMPOSE_PROJECT_NAME) --env-file $(COMPOSE_ENV_FILE) -f $(COMPOSE_FILE) logs -f
-
-.PHONY: db-up
-db-up: ## Start standalone Postgres with podman (no port exposed unless DB_PORT is set)
-	$(CONTAINER_ENGINE) run -d --name $(DB_CONTAINER_NAME) \
-		--env POSTGRES_USER=$(POSTGRES_USER) \
-		--env POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
-		--env POSTGRES_DB=$(POSTGRES_DB) \
-		$(DB_PORT_FLAG) \
-		-v $(CURDIR)/ci/init:/docker-entrypoint-initdb.d:ro \
-		-v $(DB_VOLUME):/var/lib/postgresql \
-		$(DB_IMAGE)
-
-.PHONY: db-down
-db-down: ## Stop and remove standalone Postgres container started by db-up
-	-$(CONTAINER_ENGINE) stop $(DB_CONTAINER_NAME)
-	-$(CONTAINER_ENGINE) rm $(DB_CONTAINER_NAME)
-
-.PHONY: db-reset
-db-reset: ## Drop standalone Postgres volume only (DESTROYS DATA)
-	-$(CONTAINER_ENGINE) volume rm $(DB_VOLUME)
-
-.PHONY: minio-up
-minio-up: ## Start standalone MinIO with podman (no ports exposed unless MINIO_PORT is set)
-	$(CONTAINER_ENGINE) run -d --name $(MINIO_CONTAINER_NAME) \
-		--env MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
-		--env MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
-		$(MINIO_PORT_FLAG) \
-		$(MINIO_CONSOLE_PORT_FLAG) \
-		-v $(MINIO_VOLUME):/data \
-		$(MINIO_IMAGE) server /data --console-address ":9001"
-	$(MAKE) minio-init
-
-.PHONY: minio-init
-minio-init: ## Ensure MinIO default bucket exists (ignore if already present)
-	$(CONTAINER_ENGINE) run --rm \
-		--env MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
-		--env MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
-		--env MINIO_BUCKET=$(MINIO_BUCKET) \
-		--env MINIO_ENDPOINT=$(MINIO_ENDPOINT) \
-		--entrypoint /bin/sh \
-		$(MINIO_MC_IMAGE) -c '\
-			for i in 1 2 3 4 5 6 7 8 9 10; do \
-				mc alias set local "$$MINIO_ENDPOINT" "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 && \
-				mc mb --ignore-existing local/"$$MINIO_BUCKET" >/dev/null 2>&1 && exit 0; \
-				sleep 1; \
-			done; \
-			exit 1'
-
-.PHONY: minio-down
-minio-down: ## Stop and remove standalone MinIO container started by minio-up
-	-$(CONTAINER_ENGINE) stop $(MINIO_CONTAINER_NAME)
-	-$(CONTAINER_ENGINE) rm $(MINIO_CONTAINER_NAME)
-
-.PHONY: test-db-up
-test-db-up: ## Start temporary Postgres for tests (no volume)
-	-$(CONTAINER_ENGINE) rm -f $(TEST_DB_CONTAINER_NAME) >/dev/null 2>&1
-	$(CONTAINER_ENGINE) run -d --name $(TEST_DB_CONTAINER_NAME) \
-		--env POSTGRES_USER=$(TEST_DB_USER) \
-		--env POSTGRES_PASSWORD=$(TEST_DB_PASSWORD) \
-		--env POSTGRES_DB=$(TEST_DB_NAME) \
-		$(TEST_DB_PORT_FLAG) \
-		$(DB_IMAGE)
-	@ready=; \
-	for i in 1 2 3 4 5 6 7 8 9 10; do \
-		if $(CONTAINER_ENGINE) exec $(TEST_DB_CONTAINER_NAME) pg_isready -U $(TEST_DB_USER) -d $(TEST_DB_NAME) >/dev/null 2>&1; then \
-			ready=1; break; \
-		fi; \
-		sleep 1; \
-	done; \
-	if [ -z "$$ready" ]; then echo "Test DB not ready"; exit 1; fi
-	$(CONTAINER_ENGINE) cp $(CURDIR)/ci/init $(TEST_DB_CONTAINER_NAME):/tmp/init
-	$(CONTAINER_ENGINE) exec -e PGPASSWORD=$(TEST_DB_PASSWORD) $(TEST_DB_CONTAINER_NAME) \
-		psql -U $(TEST_DB_USER) -d $(TEST_DB_NAME) -v ON_ERROR_STOP=1 -f /tmp/init/$(notdir $(INIT_SQL))
-	$(CONTAINER_ENGINE) exec -e PGPASSWORD=$(TEST_DB_PASSWORD) $(TEST_DB_CONTAINER_NAME) \
-		psql -U $(TEST_DB_USER) -d $(TEST_DB_NAME) -v ON_ERROR_STOP=1 -f /tmp/init/flow_seed.sql
-
-.PHONY: test-db-down
-test-db-down: ## Stop and remove temporary test Postgres container
-	-$(CONTAINER_ENGINE) stop $(TEST_DB_CONTAINER_NAME)
-	-$(CONTAINER_ENGINE) rm $(TEST_DB_CONTAINER_NAME)
-
-.PHONY: test-minio-up
-test-minio-up: ## Start temporary MinIO for tests with host port mapping
-	$(CONTAINER_ENGINE) run -d --name $(TEST_MINIO_CONTAINER_NAME) \
-		--env MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
-		--env MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
-		$(TEST_MINIO_PORT_FLAG) \
-		$(TEST_MINIO_CONSOLE_PORT_FLAG) \
-		$(MINIO_IMAGE) server /data --console-address ":9001"
-	@ready=; \
-	for i in 1 2 3 4 5 6 7 8 9 10; do \
-		if curl -fsS http://localhost:$(TEST_MINIO_PORT)/minio/health/ready >/dev/null 2>&1; then \
-			ready=1; break; \
-		fi; \
-		sleep 1; \
-	done; \
-	if [ -z "$$ready" ]; then echo "Test MinIO not ready"; exit 1; fi
-	$(MAKE) test-minio-init
-
-.PHONY: test-minio-init
-test-minio-init: ## Ensure test MinIO bucket exists (ignore if already present)
-	$(CONTAINER_ENGINE) run --rm \
-		--env MINIO_ROOT_USER=$(MINIO_ROOT_USER) \
-		--env MINIO_ROOT_PASSWORD=$(MINIO_ROOT_PASSWORD) \
-		--env MINIO_BUCKET=$(TEST_MINIO_BUCKET) \
-		--env MINIO_ENDPOINT=$(TEST_MINIO_ENDPOINT) \
-		--entrypoint /bin/sh \
-		$(MINIO_MC_IMAGE) -c '\
-			for i in 1 2 3 4 5 6 7 8 9 10; do \
-				mc alias set local "$$MINIO_ENDPOINT" "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 && \
-				mc mb --ignore-existing local/"$$MINIO_BUCKET" >/dev/null 2>&1 && exit 0; \
-				sleep 1; \
-			done; \
-			exit 1'
-
-.PHONY: test-minio-down
-test-minio-down: ## Stop and remove temporary test MinIO container
-	-$(CONTAINER_ENGINE) stop $(TEST_MINIO_CONTAINER_NAME)
-	-$(CONTAINER_ENGINE) rm $(TEST_MINIO_CONTAINER_NAME)
-
-.PHONY: local-postgres-up
-local-postgres-up: ## Start local Postgres with host port mapping
-	$(MAKE) db-up
-
-.PHONY: local-postgres-down
-local-postgres-down: ## Stop local Postgres started by local-postgres-up
-	$(MAKE) db-down
-
-.PHONY: local-minio-up
-local-minio-up: ## Start local MinIO with host port mapping
-	$(MAKE) minio-up
-
-.PHONY: local-minio-down
-local-minio-down: ## Stop local MinIO started by local-minio-up
-	$(MAKE) minio-down
-
-
-.PHONY: local-venv
-local-venv: ## Create a local Python venv with dev dependencies
-ifeq ($(OS),Windows_NT)
-	$(PYTHON_BIN) -m venv .venv
-	$(VENV_PY) -m pip install --upgrade pip
-	$(VENV_PY) -m pip install -r requirements-dev.txt
-else
-	$(PYTHON_BIN) -m venv .venv && . $(ACTIVATE_VENV) && pip install --upgrade pip && pip install -r requirements-dev.txt
-endif
-
-.PHONY: local-api-up
-local-api-up: | ensure-pid-dir ## Run API locally (uvicorn)
-	PID_FILE="$(API_PID_FILE)" LOG_FILE="$(PID_DIR)/uvicorn.log" $(LOCAL_API_CMD)
-
-.PHONY: local-api-down
-local-api-down: ## Stop local uvicorn using PID file
-	PID_FILE="$(API_PID_FILE)" $(STOP_API_CMD)
+.PHONY: image-build
+image-build: ## Build the frontend runtime image
+	$(CONTAINER_ENGINE) build \
+		-f $(DOCKERFILE_UI) \
+		-t $(FRONTEND_IMAGE_TAG) \
+		--build-arg VITE_API_BASE_URL=$(VITE_API_BASE_URL) \
+		--build-arg VITE_AUTH_START_URL=$(VITE_AUTH_START_URL) \
+		.
 
 .PHONY: local-npm
-local-npm: ## Refresh UI dependencies in the container-managed node_modules volume
+local-npm: ## Refresh UI dependencies in the managed node_modules volume
 	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
 	UI_NODE_IMAGE=$(UI_NODE_IMAGE) \
 	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
 	bash scripts/local-ui-container.sh run install
 
 .PHONY: local-ui-up
-local-ui-up: | ensure-pid-dir ## Start the persistent containerized UI dev server
+local-ui-up: ## Start the persistent containerized UI dev server
 	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
 	UI_CONTAINER_NAME=$(UI_CONTAINER_NAME) \
 	UI_NODE_IMAGE=$(UI_NODE_IMAGE) \
@@ -434,6 +58,12 @@ local-ui-down: ## Stop and remove the persistent containerized UI dev server
 	UI_CONTAINER_NAME=$(UI_CONTAINER_NAME) \
 	bash scripts/local-ui-container.sh down
 
+.PHONY: local-ui-logs
+local-ui-logs: ## Tail logs from the persistent containerized UI dev server
+	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
+	UI_CONTAINER_NAME=$(UI_CONTAINER_NAME) \
+	bash scripts/local-ui-container.sh logs
+
 .PHONY: local-ui-test
 local-ui-test: ## Run UI unit tests in a short-lived container
 	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
@@ -442,7 +72,7 @@ local-ui-test: ## Run UI unit tests in a short-lived container
 	bash scripts/local-ui-container.sh run test
 
 .PHONY: local-ui-lint
-local-ui-lint: ## Run UI lint and format checks in a short-lived container
+local-ui-lint: ## Run UI lint and formatting checks in a short-lived container
 	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
 	UI_NODE_IMAGE=$(UI_NODE_IMAGE) \
 	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
@@ -458,41 +88,23 @@ local-ui-build: ## Run the UI production build in a short-lived container
 	bash scripts/local-ui-container.sh run build
 
 .PHONY: local-ui-audit
-local-ui-audit: ## Run npm audit in a short-lived container
+local-ui-audit: ## Run npm audit against the frontend lockfile
 	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
 	UI_NODE_IMAGE=$(UI_NODE_IMAGE) \
 	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
 	bash scripts/local-ui-container.sh run audit
 
 .PHONY: local-ui-reset
-local-ui-reset: ## Recreate the UI container and dependency volume from scratch
+local-ui-reset: ## Remove the UI container and dependency volume
 	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
 	UI_CONTAINER_NAME=$(UI_CONTAINER_NAME) \
 	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
 	bash scripts/local-ui-container.sh reset
 
 .PHONY: local-ui-hard-reset
-local-ui-hard-reset: ## Recreate UI runtime state and remove the pinned Node image
+local-ui-hard-reset: ## Remove the UI container, dependency volume, and pinned Node image
 	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
 	UI_CONTAINER_NAME=$(UI_CONTAINER_NAME) \
 	UI_NODE_IMAGE=$(UI_NODE_IMAGE) \
 	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
 	bash scripts/local-ui-container.sh hard-reset
-
-.PHONY: local-ui-logs
-local-ui-logs: ## Tail logs from the persistent containerized UI dev server
-	CONTAINER_ENGINE=$(CONTAINER_ENGINE) \
-	UI_CONTAINER_NAME=$(UI_CONTAINER_NAME) \
-	bash scripts/local-ui-container.sh logs
-
-.PHONY: local-up
-local-up: local-postgres-up local-minio-up ## Start local Postgres, MinIO, API, and UI
-	$(MAKE) local-api-up
-	$(MAKE) local-ui-up
-
-.PHONY: local-down
-local-down: ## Stop local UI, API, MinIO, and Postgres
-	$(MAKE) local-ui-down
-	$(MAKE) local-api-down
-	$(MAKE) local-minio-down
-	$(MAKE) local-postgres-down

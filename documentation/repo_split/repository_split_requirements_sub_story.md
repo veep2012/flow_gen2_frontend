@@ -202,7 +202,6 @@ Suggested downstream split of work after this sub-story:
 
 ## References
 
-- `documentation/story_template.md`
 - `documentation/_documentation_template.md`
 - `documentation/_documentation_standards.md`
 - `documentation/_documentation-index.md`

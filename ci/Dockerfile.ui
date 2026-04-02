@@ -1,4 +1,4 @@
-FROM node:20.19-alpine
+FROM node:22.14.0-alpine
 
 WORKDIR /app
 
@@ -7,10 +7,10 @@ ARG VITE_AUTH_START_URL=/oauth2/start
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_AUTH_START_URL=$VITE_AUTH_START_URL
 
-COPY ui/package.json ui/vite.config.js ui/index.html /app/
+COPY ui/package.json ui/package-lock.json ui/vite.config.js ui/index.html /app/
 COPY ui/src /app/src
 
-RUN npm install && npm run build
+RUN npm ci && npm run build
 
 EXPOSE 5558
 

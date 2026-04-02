@@ -1,25 +1,13 @@
 # AGENTS
 
-## Default Skill
+## Repository Boundary
 
-For any API or database change or review, always apply the **api-db-guardian** skill to enforce compliance with `documentation/api_db_rules.md`.
-For any API change or API-related database change/review, always apply the **api-auto-tester** skill to run `make test` and iterate until green.
-For any API endpoint design change or review, always apply the **api-rmm-guard** skill to prevent regressions below Richardson Maturity Model Level 2.
-For any backend Python (`*.py`) change or review, always apply the **backend-doc-sync** skill to keep backend implementation and repository documentation synchronized.
-For any API test creation/update/review, always apply the **test-scenario-guardian** skill to enforce scenario-first workflow and bidirectional sync between `documentation/test_scenarios/` and `tests/api/`.
-For any documentation change or review, always apply the **docs-guardian** skill to enforce compliance with `documentation/_documentation_template.md` and `documentation/_documentation_standards.md`.
-For any story creation, refinement, or review, always apply the **story-guardian** skill to enforce compliance with `documentation/story_template.md`.
-For any development task where non-blocking issues are found but intentionally deferred, always apply the **tech-debt** skill to record debt in `tech-debt/<YYYY-MM-DD>.md`.
-For any explicit user request to create a commit, always apply the **commiter** skill.
+- This repository owns frontend assets only.
+- Keep changes within frontend-owned paths such as `ui/`, `scripts/local-ui-container.sh`, `scripts/local-ui-runtime.sh`, `ci/Dockerfile.ui`, `README.md`, and `documentation/repo_split/`.
+- Do not reintroduce backend runtime code, backend build logic, backend deployment manifests, backend-only tests, or backend-owned contract sources.
+- Consume backend integration through configuration only, primarily `VITE_API_BASE_URL` and `VITE_AUTH_START_URL`.
 
-## Skills
+## Documentation
 
-- api-auto-tester: Run `make test` after API changes and iterate fixes until green. (file: skills/api-auto-tester/SKILL.md)
-- api-rmm-guard: Guard API design against regressions below Richardson Maturity Model Level 2. (file: skills/api-rmm-guard/SKILL.md)
-- backend-doc-sync: Require documentation updates whenever backend Python code changes. (file: skills/backend-doc-sync/SKILL.md)
-- test-scenario-guardian: Enforce scenario-first API test development and keep test scenarios synchronized with API tests. (file: skills/test-scenario-guardian/SKILL.md)
-- docs-guardian: Keep documentation aligned with repository template and standards. (file: skills/docs-guardian/SKILL.md)
-- story-guardian: Keep story creation and refinement aligned with `documentation/story_template.md`. (file: skills/story-guardian/SKILL.md)
-- monthly-doc-actualizer: Run daily due checks and trigger full code-first documentation actualization against the current implementation after cadence threshold. (file: skills/monthly-doc-actualizer/SKILL.md)
-- tech-debt: Capture deferred technical debt items into dated markdown files under `tech-debt/`. (file: skills/tech-debt/SKILL.md)
-- commiter: Create commit/push flow with standardized commit message format on explicit commit requests. (file: skills/commiter.md)
+- Keep split and migration records under `documentation/repo_split/`.
+- Remove or rewrite any documentation that assumes this repository still owns backend code or a combined-repository build path.
