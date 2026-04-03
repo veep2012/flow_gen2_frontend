@@ -54,6 +54,10 @@ if [[ -n "${VITE_AUTH_START_URL:-}" ]]; then
   runtime_env_args+=(-e "VITE_AUTH_START_URL=$VITE_AUTH_START_URL")
 fi
 
+if [[ -n "${VITE_ALLOWED_HOSTS:-}" ]]; then
+  runtime_env_args+=(-e "VITE_ALLOWED_HOSTS=$VITE_ALLOWED_HOSTS")
+fi
+
 if [[ -n "${PLAYWRIGHT_PORT:-}" ]]; then
   runtime_env_args+=(-e "PLAYWRIGHT_PORT=$PLAYWRIGHT_PORT")
 fi

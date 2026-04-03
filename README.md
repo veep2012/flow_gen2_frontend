@@ -76,6 +76,7 @@ This repository does not own backend contract source. It consumes backend-owned 
 
 - `VITE_API_BASE_URL` points the UI at the backend API entrypoint. Default: `/api/v1`
 - `VITE_AUTH_START_URL` points the UI at the backend-owned auth start endpoint. Default: `/oauth2/start`
+- `VITE_ALLOWED_HOSTS` controls the Vite dev/preview host allowlist. Default: `flow_ui,frontend,flow_frontend,localhost,127.0.0.1`
 
 Set them in your shell or in a local `.env` file before running frontend commands if your integration environment differs from the defaults.
 
@@ -91,4 +92,10 @@ Override the local image tag if needed:
 
 ```bash
 make image-build FRONTEND_IMAGE_TAG=registry.example.com/frontend:dev
+```
+
+Override the host allowlist at build time if your compose or proxy hostnames differ:
+
+```bash
+make image-build VITE_ALLOWED_HOSTS=flow_ui,frontend,flow_frontend,localhost,127.0.0.1,custom-ui-host
 ```

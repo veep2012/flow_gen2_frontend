@@ -4,8 +4,10 @@ WORKDIR /app
 
 ARG VITE_API_BASE_URL=/api/v1
 ARG VITE_AUTH_START_URL=/oauth2/start
+ARG VITE_ALLOWED_HOSTS=flow_ui,frontend,flow_frontend,localhost,127.0.0.1
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_AUTH_START_URL=$VITE_AUTH_START_URL
+ENV VITE_ALLOWED_HOSTS=$VITE_ALLOWED_HOSTS
 
 COPY ui/package.json ui/package-lock.json ui/vite.config.js ui/index.html /app/
 COPY ui/src /app/src

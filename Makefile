@@ -8,6 +8,7 @@ FRONTEND_IMAGE_TAG ?= flow-gen2-frontend:local
 DOCKERFILE_UI ?= ci/Dockerfile.ui
 VITE_API_BASE_URL ?= /api/v1
 VITE_AUTH_START_URL ?= /oauth2/start
+VITE_ALLOWED_HOSTS ?= flow_ui,frontend,flow_frontend,localhost,127.0.0.1
 
 .DEFAULT_GOAL := help
 
@@ -31,6 +32,7 @@ image-build: ## Build the frontend runtime image
 		-t $(FRONTEND_IMAGE_TAG) \
 		--build-arg VITE_API_BASE_URL=$(VITE_API_BASE_URL) \
 		--build-arg VITE_AUTH_START_URL=$(VITE_AUTH_START_URL) \
+		--build-arg VITE_ALLOWED_HOSTS=$(VITE_ALLOWED_HOSTS) \
 		.
 
 .PHONY: local-npm
@@ -50,6 +52,7 @@ local-ui-up: ## Start the persistent containerized UI dev server
 	UI_HOST=$(UI_HOST) \
 	VITE_API_BASE_URL=$(VITE_API_BASE_URL) \
 	VITE_AUTH_START_URL=$(VITE_AUTH_START_URL) \
+	VITE_ALLOWED_HOSTS=$(VITE_ALLOWED_HOSTS) \
 	bash scripts/local-ui-container.sh up
 
 .PHONY: local-ui-down
@@ -85,6 +88,7 @@ local-ui-build: ## Run the UI production build in a short-lived container
 	UI_NODE_MODULES_VOLUME=$(UI_NODE_MODULES_VOLUME) \
 	VITE_API_BASE_URL=$(VITE_API_BASE_URL) \
 	VITE_AUTH_START_URL=$(VITE_AUTH_START_URL) \
+	VITE_ALLOWED_HOSTS=$(VITE_ALLOWED_HOSTS) \
 	bash scripts/local-ui-container.sh run build
 
 .PHONY: local-ui-audit
