@@ -29,10 +29,22 @@ Start the persistent frontend dev server:
 make local-ui-up
 ```
 
+Start the local integration stack for frontend work:
+
+```bash
+make local-up
+```
+
 Stop it:
 
 ```bash
 make local-ui-down
+```
+
+Stop the local integration stack:
+
+```bash
+make local-down
 ```
 
 Tail logs:
@@ -52,6 +64,8 @@ Reset the container and dependency volume:
 ```bash
 make local-ui-reset
 ```
+
+`make local-up` starts local Postgres, MinIO, the API container from `localhost/flow_gen2_api:latest`, and the frontend dev server. The database init SQL is read from `../flow_gen2_backend/ci/init` by default so the sibling backend repository must be present locally, or `BACKEND_INIT_DIR` must point at an equivalent init directory.
 
 ## Validation
 
